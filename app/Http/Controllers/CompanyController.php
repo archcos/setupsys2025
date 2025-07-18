@@ -9,12 +9,30 @@ class CompanyController extends Controller
 {
     /**
      * Display a listing of the resource.
-     */public function index()
-{
-    return Inertia::render('Companies/Index', [
-        'companies' => CompanyModel::all()
-    ]);
-}
+     */
+    public function index(Request $request)
+        {
+            $query = CompanyModel::query();
+
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('company_name', 'like', "%$search%")
+                    ->orWhere('owner_fname', 'like', "%$search%")
+                    ->orWhere('owner_mname', 'like', "%$search%")
+                    ->orWhere('owner_lname', 'like', "%$search%")
+                    ->orWhere('company_location', 'like', "%$search%");
+                });
+            }
+
+            $companies = $query->orderBy('company_name')->get();
+
+            return Inertia::render('Companies/Index', [
+                'companies' => $companies,
+                'filters' => $request->only('search'),
+            ]);
+        }
+
 
 public function create()
 {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm } from '@inertiajs/react';
+import { useForm , Link} from '@inertiajs/react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
 
@@ -29,6 +29,11 @@ export default function CompanyCreate() {
 
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="bg-white rounded-lg shadow p-4 max-w-xl mx-auto">
+            <div className="mb-4">
+                <Link href="/companies" className="inline-block text-sm text-blue-600 hover:underline">
+                    ← Back to Companies
+                </Link>
+            </div>
             <h1 className="text-xl font-semibold mb-4 text-gray-800">Add Company</h1>
 
             <form onSubmit={handleSubmit} className="space-y-3 text-sm">

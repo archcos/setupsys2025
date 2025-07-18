@@ -18,15 +18,20 @@ class ProjectModel extends Model
         'project_cost',
     ];
 
-    // Relationship: One project belongs to one company
+    // A project belongs to a company
     public function company()
     {
         return $this->belongsTo(CompanyModel::class, 'company_id', 'company_id');
     }
 
-    // Relationship: One project has many activities
+    // A project has many activities
     public function activities()
     {
         return $this->hasMany(ActivityModel::class, 'project_id', 'project_id');
+    }
+
+    public function items()
+    {
+        return $this->hasMany(ItemModel::class, 'project_id', 'project_id');
     }
 }
