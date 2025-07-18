@@ -10,25 +10,31 @@ use Inertia\Inertia;
 
 class ProjectController extends Controller
 {
-    public function index(Request $request)
+   public function index(Request $request)
     {
         $search = $request->input('search');
 
-        $projects = ProjectModel::with('company')
+        $projects = ProjectModel::with(['company', 'items'])
             ->when($search, function ($query, $search) {
-                $query->where('project_title', 'like', "%{$search}%")
-                      ->orWhere('phase_one', 'like', "%{$search}%")
-                      ->orWhere('phase_two', 'like', "%{$search}%")
-                      ->orWhere('project_cost', 'like', "%{$search}%")
-                      ->orWhereHas('company', function ($q) use ($search) {
-                          $q->where('company_name', 'like', "%{$search}%");
-                      });
+                $query->where(function ($q) use ($search) {
+                    $q->where('project_title', 'like', "%{$search}%")
+                    ->orWhere('phase_one', 'like', "%{$search}%")
+                    ->orWhere('phase_two', 'like', "%{$search}%")
+                    ->orWhere('project_cost', 'like', "%{$search}%")
+                    ->orWhereHas('company', function ($q) use ($search) {
+                        $q->where('company_name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('items', function ($q) use ($search) {
+                        $q->where('item_name', 'like', "%{$search}%")
+                            ->orWhere('specifications', 'like', "%{$search}%");
+                    });
+                });
             })
             ->get();
 
         return Inertia::render('Projects/Index', [
             'projects' => $projects,
-            'filters' => ['search' => $search]
+            'filters' => $request->only('search'),
         ]);
     }
 
