@@ -1,12 +1,22 @@
 import { Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
 
-export default function Index({ companies }) {
+export default function Index({ companies, filters }) {
+  const [search, setSearch] = useState(filters.search || '');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+  // 🔍 Debounced Dynamic Search
+  useEffect(() => {
+    const delaySearch = setTimeout(() => {
+      router.get('/companies', { search }, { preserveState: true, replace: true });
+    }, 400); // delay in ms
+
+    return () => clearTimeout(delaySearch);
+  }, [search]);
 
   const handleDelete = (id) => {
     if (confirm('Are you sure you want to delete this company?')) {
@@ -29,6 +39,16 @@ export default function Index({ companies }) {
               >
                 + Add Company
               </Link>
+            </div>
+
+            <div className="mb-4">
+              <input
+                type="text"
+                placeholder="Search by company or owner..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="p-2 border rounded w-full"
+              />
             </div>
 
             <table className="w-full text-sm table-auto border">
@@ -68,6 +88,10 @@ export default function Index({ companies }) {
                 ))}
               </tbody>
             </table>
+
+            {companies.length === 0 && (
+              <p className="text-center text-sm text-gray-500 mt-4">No companies found.</p>
+            )}
           </div>
         </main>
       </div>

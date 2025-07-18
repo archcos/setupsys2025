@@ -20,16 +20,16 @@ export default function Sidebar({ isOpen }) {
   return (
     <aside className="w-64 bg-blue-700 text-white p-6 transition-all duration-300">
       {/* Header with logo */}
-      <div className="flex items-center justify-center gap-3 mb-6">
+      <Link href="/home" className="flex items-center justify-center gap-3 mb-6 hover:opacity-80">
         <img src={logo} alt="Logo" className="w-10 h-10" />
         <div className="flex flex-col">
           <h2 className="text-2xl font-bold text-gray-900">SETUP</h2>
         </div>
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="space-y-2">
-        <a href="#" className="block hover:text-blue-200">Overview</a>
+      <Link href="/home" className="block hover:text-blue-200">Overview</Link>
 
         {/* Reports Dropdown */}
         <div>

@@ -30,10 +30,8 @@ Route::middleware('web')->group(function () {
     })->name('logout');
 });
 
-Route::get('/companies', [CompanyController::class, 'index'])->name('companies.index');
-Route::get('/companies/create', [CompanyController::class, 'create'])->name('companies.create');
-Route::post('/companies', [CompanyController::class, 'store'])->name('companies.store');
-Route::resource('companies', CompanyController::class);
-
-Route::resource('/projects', ProjectController::class);
-Route::resource('/activities', ActivityController::class);
+Route::middleware(['auth.custom'])->group(function () {
+    Route::resource('companies', CompanyController::class);
+    Route::resource('projects', ProjectController::class);
+    Route::resource('activities', ActivityController::class);
+});
