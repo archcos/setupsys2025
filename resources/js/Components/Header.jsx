@@ -22,7 +22,7 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
         onClick={toggleSidebar}
         className="text-gray-600 hover:text-gray-900 focus:outline-none mr-4"
       >
-        {sidebarOpen ? '🡸' : '☰'}
+        {sidebarOpen ? '☰' : '☰'}
       </button>
 
       <h1 className="text-xl font-semibold text-gray-800">Welcome Back</h1>

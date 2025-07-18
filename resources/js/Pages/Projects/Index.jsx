@@ -6,6 +6,7 @@ import Header from '../../components/Header';
 export default function Index({ projects, filters }) {
   const [search, setSearch] = useState(filters.search || '');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [openDropdowns, setOpenDropdowns] = useState({});
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -60,29 +61,67 @@ export default function Index({ projects, filters }) {
                 </tr>
               </thead>
               <tbody>
-                {projects.map((project) => (
-                  <tr key={project.project_id} className="border-t hover:bg-gray-50">
-                    <td className="px-3 py-2">{project.project_title}</td>
-                    <td className="px-3 py-2">{project.company?.company_name}</td>
-                    <td className="px-3 py-2">{project.phase_one}</td>
-                    <td className="px-3 py-2">{project.phase_two}</td>
-                    <td className="px-3 py-2">{project.project_cost}</td>
-                    <td className="px-3 py-2 space-x-2">
-                      <Link
-                        href={`/projects/${project.project_id}/edit`}
-                        className="text-blue-600 hover:underline"
-                      >
-                        Edit
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(project.project_id)}
-                        className="text-red-600 hover:underline"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {projects.map((project) => {
+                  const isOpen = openDropdowns[project.project_id] || false;
+
+                  return [
+                    <tr
+                      key={`main-${project.project_id}`}
+                      className="border-t hover:bg-gray-50 cursor-pointer"
+                      onClick={() =>
+                        setOpenDropdowns((prev) => ({
+                          ...prev,
+                          [project.project_id]: !prev[project.project_id],
+                        }))
+                      }
+                    >
+                      <td className="px-3 py-2">{project.project_title}</td>
+                      <td className="px-3 py-2">{project.company?.company_name}</td>
+                      <td className="px-3 py-2">{project.phase_one}</td>
+                      <td className="px-3 py-2">{project.phase_two}</td>
+                      <td className="px-3 py-2">{project.project_cost}</td>
+                      <td className="px-3 py-2 space-x-2">
+                        <Link
+                          href={`/projects/${project.project_id}/edit`}
+                          className="text-blue-600 hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(project.project_id);
+                          }}
+                          className="text-red-600 hover:underline"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>,
+
+                    isOpen && (
+                      <tr key={`details-${project.project_id}`} className="bg-gray-50 border-b">
+                        <td colSpan="6" className="px-3 py-2">
+                          <div className="pl-4">
+                            <strong>Items:</strong>
+                            {project.items && project.items.length > 0 ? (
+                              <ul className="list-disc ml-6 mt-2 text-sm">
+                                {project.items.map((item) => (
+                                  <li key={item.item_id}>
+                                    {item.item_name} — Qty: {item.quantity}, Cost: ₱{item.item_cost}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-gray-500 mt-1">No items for this project.</p>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ),
+                  ];
+                })}
               </tbody>
             </table>
           </div>
