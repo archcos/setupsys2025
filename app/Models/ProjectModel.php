@@ -8,7 +8,6 @@ class ProjectModel extends Model
 {
     protected $table = 'tbl_projects';
     protected $primaryKey = 'project_id';
-    public $timestamps = false;
 
     protected $fillable = [
         'project_title',
