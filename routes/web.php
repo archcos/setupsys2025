@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\DocxController;
+use App\Http\Controllers\PDFController;
 use Inertia\Inertia;
 
 Route::middleware('web')->group(function () {
@@ -33,5 +35,29 @@ Route::middleware('web')->group(function () {
 Route::middleware(['auth.custom'])->group(function () {
     Route::resource('companies', CompanyController::class);
     Route::resource('projects', ProjectController::class);
+    Route::get('/projects', [ProjectController::class, 'index'])->middleware('role:admin,staff');
     Route::resource('activities', ActivityController::class);
+    Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly');
 });
+
+
+Route::middleware(['auth.custom'])->group(function () {
+    Route::get('/moa/generate-pdf', [PDFController::class, 'index']);
+    Route::post('/moa/generate-pdf', [PDFController::class, 'generate']);
+});
+
+
+// Route::get('/generate-docx-form', [DocxController::class, 'showForm'])->name('docx.form');
+// Route::get('/moa/docx-form', function () {
+//     return inertia('DocxForm', [
+//         'companies' => \App\Models\CompanyModel::all(), // Adjust if you use a different model
+//     ]);
+// });
+
+// Route::get('/moa/company/{id}/details', [DocxController::class, 'fetchCompanyDetails']);
+// Route::post('/moa/generate-docx', [DocxController::class, 'generateDocx'])->name('docx.generate');
+
+
+Route::get('/generate-docx-form', [PDFController::class, 'showForm'])->name('docx.form');
+Route::get('/moa/company/{id}/details', [PDFController::class, 'getCompanyDetails']);
+Route::post('/moa/generate-docx', [PDFController::class, 'generateDocx'])->name('moa.generateDocx');

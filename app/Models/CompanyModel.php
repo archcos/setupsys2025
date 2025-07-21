@@ -16,11 +16,20 @@ class CompanyModel extends Model
         'owner_lname',
         'owner_mname',
         'company_location',
+        'added_by',
+        'office_id',
     ];
 
     // Relationship: One company has many projects
-    public function projects()
-    {
-        return $this->hasMany(ProjectModel::class, 'company_id', 'company_id');
-    }
+public function projects()
+{
+    return $this->hasMany(ProjectModel::class, 'company_id', 'company_id');
+}
+
+public function office()
+{
+    return $this->hasOne(OfficeModel::class, 'office_id', 'office_id');
+}
+
+    
 }
