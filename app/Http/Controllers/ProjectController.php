@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ProjectModel;
 use App\Models\CompanyModel;
 use App\Models\ItemModel;
+use App\Models\UserModel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -12,6 +13,8 @@ class ProjectController extends Controller
 {
    public function index(Request $request)
     {
+        $userId = session(key: 'user_id');
+        $user = UserModel::where('user_id', $userId)->first();
         $search = $request->input('search');
 
         $projects = ProjectModel::with(['company', 'items'])
@@ -30,6 +33,14 @@ class ProjectController extends Controller
                     });
                 });
             })
+            ->when($user && $user->role === 'staff', function ($query) use ($user) {
+                $query->whereHas('company', function ($q) use ($user) {
+                    $q->where('office_id', $user->office_id);
+                });
+            })
+            ->when($user && $user->role === 'user', function ($query) use ($user) {
+                $query->where('added_by', $user->user_id);
+            })
             ->get();
 
         return Inertia::render('Projects/Index', [
@@ -37,6 +48,24 @@ class ProjectController extends Controller
             'filters' => $request->only('search'),
         ]);
     }
+    public function readonly(Request $request)
+        {
+            $search = $request->input('search');
+            $userId = session('user_id');
+            $user = UserModel::find($userId);
+
+            $projects = ProjectModel::with(['company', 'items'])
+                ->when($user && $user->role === 'user', function ($query) use ($user) {
+                    $query->where('added_by', $user->user_id);
+                })
+                ->get();
+
+            return Inertia::render('Projects/ProjectList', [
+                'projects' => $projects,
+                'filters' => $request->only('search'),
+            ]);
+        }
+
 
     public function create()
     {

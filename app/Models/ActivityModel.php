@@ -14,6 +14,8 @@ class ActivityModel extends Model
         'project_id',
         'activity_name',
         'activity_date',
+        'added_by',
+        'office_id',
     ];
 
     // Relationship: One activity belongs to one project

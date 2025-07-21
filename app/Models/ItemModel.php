@@ -18,7 +18,7 @@ class ItemModel extends Model
         'item_name',
         'specifications',
         'item_cost',
-        'quantity'
+        'quantity',
     ];
 
     public $timestamps = false;

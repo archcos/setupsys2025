@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 use Inertia\Inertia;
 use App\Models\CompanyModel;
+use App\Models\UserModel;
 use Illuminate\Http\Request;
 
 class CompanyController extends Controller
@@ -10,36 +11,47 @@ class CompanyController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
-        {
-            $query = CompanyModel::query();
+ public function index(Request $request)
+    {
+        $userId = session('user_id');
+        $user = UserModel::where('user_id', $userId)->first();
 
-            if ($request->has('search')) {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('company_name', 'like', "%$search%")
-                    ->orWhere('owner_fname', 'like', "%$search%")
-                    ->orWhere('owner_mname', 'like', "%$search%")
-                    ->orWhere('owner_lname', 'like', "%$search%")
-                    ->orWhere('company_location', 'like', "%$search%");
-                });
-            }
+        $query = CompanyModel::query();
 
-            $companies = $query->orderBy('company_name')->get();
+        // ✅ Role-based filtering
+        if ($user->role === 'user') {
+            $query->where('added_by', $user->user_id);
+        } elseif ($user->role === 'staff') {
+            $query->where('office_id', $user->office_id);
+        }
+        // Admin sees all — no filter
 
-            return Inertia::render('Companies/Index', [
-                'companies' => $companies,
-                'filters' => $request->only('search'),
-            ]);
+        // 🔍 Search filter
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('company_name', 'like', "%$search%")
+                ->orWhere('owner_fname', 'like', "%$search%")
+                ->orWhere('owner_mname', 'like', "%$search%")
+                ->orWhere('owner_lname', 'like', "%$search%")
+                ->orWhere('company_location', 'like', "%$search%");
+            });
         }
 
+        $companies = $query->orderBy('company_name')->get();
+
+        return Inertia::render('Companies/Index', [
+            'companies' => $companies,
+            'filters' => $request->only('search'),
+        ]);
+    }
 
 public function create()
 {
     return Inertia::render('Companies/Create');
 }
 
-  public function store(Request $request)
+public function store(Request $request)
     {
         $validated = $request->validate([
             'company_name' => 'required|string|max:255',
@@ -48,6 +60,11 @@ public function create()
             'owner_mname' => 'nullable|string|max:255',
             'company_location' => 'required|string|max:255',
         ]);
+
+        $user = UserModel::where('user_id', session('user_id'))->first();
+
+        $validated['added_by'] = $user->user_id;
+        $validated['office_id'] = $user->office_id;
 
         CompanyModel::create($validated);
 

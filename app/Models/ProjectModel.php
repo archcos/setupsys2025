@@ -15,6 +15,8 @@ class ProjectModel extends Model
         'phase_one',
         'phase_two',
         'project_cost',
+        'added_by',
+        'office_id',
     ];
 
     // A project belongs to a company
@@ -32,5 +34,10 @@ class ProjectModel extends Model
     public function items()
     {
         return $this->hasMany(ItemModel::class, 'project_id', 'project_id');
+    }
+
+        public function office()
+    {
+        return $this->hasMany(OfficeModel::class, 'office_id', 'office_id');
     }
 }
