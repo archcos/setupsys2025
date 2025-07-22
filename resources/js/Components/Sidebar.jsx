@@ -58,8 +58,9 @@ export default function Sidebar({ isOpen }) {
 >
   Draft MOA
 </Link>
-              <a href="#" className="block text-sm hover:text-blue-300">MOA List</a>
-              <a href="#" className="block text-sm hover:text-blue-300">Customers</a>
+<Link href="/moa" className="block text-sm hover:text-blue-300">
+  MOA List
+</Link>              <a href="#" className="block text-sm hover:text-blue-300">Customers</a>
             </div>
           )}
         </div>}
