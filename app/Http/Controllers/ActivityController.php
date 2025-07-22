@@ -1,13 +1,12 @@
 <?php
 
-// app/Http/Controllers/ActivityController.php
-
 namespace App\Http\Controllers;
 
 use App\Models\ActivityModel;
 use App\Models\ProjectModel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Validator;
 
 class ActivityController extends Controller
 {
@@ -41,13 +40,22 @@ class ActivityController extends Controller
     {
         $validated = $request->validate([
             'project_id' => 'required|exists:tbl_projects,project_id',
-            'activity_name' => 'required|string|max:255',
-            'activity_date' => 'required|date',
+            'activities' => 'required|array|min:1',
+            'activities.*.activity_name' => 'required|string|max:255',
+            'activities.*.start_date' => 'required|date',
+            'activities.*.end_date' => 'required|date|after_or_equal:activities.*.start_date',
         ]);
 
-        ActivityModel::create($validated);
+        foreach ($validated['activities'] as $activity) {
+            ActivityModel::create([
+                'project_id' => $validated['project_id'],
+                'activity_name' => $activity['activity_name'],
+                'start_date' => $activity['start_date'],
+                'end_date' => $activity['end_date'],
+            ]);
+        }
 
-        return redirect('/activities')->with('success', 'Activity created!');
+        return redirect('/activities')->with('success', 'Activities created!');
     }
 
     public function edit($id)
@@ -67,7 +75,8 @@ class ActivityController extends Controller
         $validated = $request->validate([
             'project_id' => 'required|exists:tbl_projects,project_id',
             'activity_name' => 'required|string|max:255',
-            'activity_date' => 'required|date',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
         ]);
 
         $activity->update($validated);
@@ -81,4 +90,3 @@ class ActivityController extends Controller
         return redirect('/activities')->with('success', 'Activity deleted!');
     }
 }
-
