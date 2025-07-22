@@ -9,4 +9,10 @@ class OfficeModel extends Model
     protected $table = 'tbl_offices';
     protected $primaryKey = 'office_id';
     protected $fillable = ['office_name'];
+    
+    public function director()
+{
+    return $this->hasOne(DirectorModel::class, 'office_id', 'office_id');
 }
+}
+

@@ -13,6 +13,9 @@ export default function GenerateDocxForm({ companies }) {
   const { data, setData } = useForm({
     company_id: '',
     project_id: '',
+    owner_name: '',
+    owner_position: '',
+    witness: '', 
   });
 
   const handleSelectCompany = async (company_id) => {
@@ -44,6 +47,26 @@ export default function GenerateDocxForm({ companies }) {
     projectInput.name = 'project_id';
     projectInput.value = data.project_id;
     form.appendChild(projectInput);
+
+    const ownerNameInput = document.createElement('input');
+    ownerNameInput.type = 'hidden';
+    ownerNameInput.name = 'owner_name';
+    ownerNameInput.value = data.owner_name;
+    form.appendChild(ownerNameInput);
+
+    const ownerPositionInput = document.createElement('input');
+    ownerPositionInput.type = 'hidden';
+    ownerPositionInput.name = 'owner_position';
+    ownerPositionInput.value = data.owner_position;
+    form.appendChild(ownerPositionInput);
+
+    const witnessInput = document.createElement('input');
+    witnessInput.type = 'hidden';
+    witnessInput.name = 'witness';
+    witnessInput.value = data.witness;
+    form.appendChild(witnessInput);
+
+
 
     document.body.appendChild(form);
     form.submit();
@@ -88,13 +111,44 @@ export default function GenerateDocxForm({ companies }) {
                   ))}
                 </select>
 
+                <label className="block mb-1">Witness Name <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={data.witness}
+                  onChange={(e) => setData('witness', e.target.value)}
+                  placeholder="Enter witness name"
+                  className="w-full border px-3 py-2 rounded mb-4"
+                  required
+                />
+
+
+                <label className="block mb-1">Representative's Name (optional):</label>
+
+                <input
+                  type="text"
+                  value={data.owner_name}
+                  onChange={(e) => setData('owner_name', e.target.value)}
+                  placeholder="Enter representative's name or leave blank to use Company's owner name"
+                  className="w-full border px-3 py-2 rounded mb-4"
+                />
+
+                <label className="block mb-1">Position (optional, default: Owner):</label>
+                <input
+                  type="text"
+                  value={data.owner_position}
+                  onChange={(e) => setData('owner_position', e.target.value)}
+                  placeholder="Enter position or leave blank to default as Owner"
+                  className="w-full border px-3 py-2 rounded mb-4"
+                />
+
+
                 <button
-                  onClick={handleSubmit}
-                  disabled={!data.project_id}
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                >
-                  Generate DOCX
-                </button>
+                onClick={handleSubmit}
+                disabled={!data.project_id || !data.witness}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                Generate DOCX
+              </button>
               </>
             )}
           </div>
