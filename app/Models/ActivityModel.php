@@ -13,9 +13,8 @@ class ActivityModel extends Model
     protected $fillable = [
         'project_id',
         'activity_name',
-        'activity_date',
-        'added_by',
-        'office_id',
+        'start_date',
+        'end_date',
     ];
 
     // Relationship: One activity belongs to one project

@@ -22,6 +22,15 @@ export default function Index({ activities, filters }) {
     }
   };
 
+  const formatMonthYear = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+    });
+  };
+
   return (
     <div className="h-screen flex bg-gray-100 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} />
@@ -48,7 +57,7 @@ export default function Index({ activities, filters }) {
               <thead>
                 <tr className="bg-gray-200 text-left">
                   <th className="px-3 py-2">Activity</th>
-                  <th className="px-3 py-2">Date</th>
+                  <th className="px-3 py-2">Start - End</th>
                   <th className="px-3 py-2">Project</th>
                   <th className="px-3 py-2">Actions</th>
                 </tr>
@@ -58,10 +67,7 @@ export default function Index({ activities, filters }) {
                   <tr key={a.activity_id} className="border-t hover:bg-gray-50">
                     <td className="px-3 py-2">{a.activity_name}</td>
                     <td className="px-3 py-2">
-                      {new Date(a.activity_date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                      })}
+                      {formatMonthYear(a.start_date)} – {formatMonthYear(a.end_date)}
                     </td>
                     <td className="px-3 py-2">{a.project?.project_title}</td>
                     <td className="px-3 py-2 space-x-2">

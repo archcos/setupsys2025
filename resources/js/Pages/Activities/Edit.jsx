@@ -9,7 +9,8 @@ export default function Edit({ activity, projects }) {
   const { data, setData, put, errors } = useForm({
     project_id: activity.project_id || '',
     activity_name: activity.activity_name || '',
-    activity_date: activity.activity_date || '',
+    start_date: activity.start_date || '',
+    end_date: activity.end_date || '',
   });
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
@@ -61,15 +62,28 @@ export default function Edit({ activity, projects }) {
                 {errors.activity_name && <p className="text-red-500 text-sm">{errors.activity_name}</p>}
               </div>
 
-              <div>
-                <label className="block mb-1">Activity Date</label>
-              <input
-                  type="month"
-                  value={data.activity_date.slice(0, 7)} // Trim to "YYYY-MM" if needed
-                  onChange={(e) => setData('activity_date', e.target.value + '-01')} // Append '-01' to make it a valid DATE
-                  className="w-full p-2 border rounded"
-                />
-                {errors.activity_date && <p className="text-red-500 text-sm">{errors.activity_date}</p>}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block mb-1">Start Date</label>
+                  <input
+                    type="month"
+                    value={data.start_date?.slice(0, 7) || ''}
+                    onChange={(e) => setData('start_date', e.target.value + '-01')}
+                    className="w-full p-2 border rounded"
+                  />
+                  {errors.start_date && <p className="text-red-500 text-sm">{errors.start_date}</p>}
+                </div>
+
+                <div>
+                  <label className="block mb-1">End Date</label>
+                  <input
+                    type="month"
+                    value={data.end_date?.slice(0, 7) || ''}
+                    onChange={(e) => setData('end_date', e.target.value + '-01')}
+                    className="w-full p-2 border rounded"
+                  />
+                  {errors.end_date && <p className="text-red-500 text-sm">{errors.end_date}</p>}
+                </div>
               </div>
 
               <div className="flex justify-end gap-2">
