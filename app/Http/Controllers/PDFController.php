@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Storage;
 use \NumberFormatter;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\SimpleType\Jc; // for alignment constants
-use Illuminate\Support\Facades\Http;
 
 class PDFController extends Controller
 {
@@ -58,13 +57,7 @@ public function getCompanyDetails($id)
         $office = OfficeModel::find($company->office_id);
         $ownerName = "{$company->owner_fname} " . strtoupper(substr($company->owner_mname, 0, 1)) . ". {$company->owner_lname}";
 
-        $url = 'https://drive.google.com/drive/folders/1CiUqZ_J2ZkPJd3GFHadpkdo-KOAhnjaR?usp=sharing/template.docx';
-        $response = Http::get($url);
-
-        $filename = 'web-template.docx';
-        Storage::put($filename, $response->body());
-
-        $templatePath = storage_path('app/web-template.docx');
+        $templatePath = storage_path('app/templates/template.docx');
         $templateProcessor = new TemplateProcessor($templatePath);
 
         $templateProcessor->setImageValue('image', [
