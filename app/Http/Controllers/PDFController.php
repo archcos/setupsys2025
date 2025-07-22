@@ -8,6 +8,7 @@ use App\Models\CompanyModel;
 use App\Models\ProjectModel;
 use App\Models\ActivityModel;
 use App\Models\DirectorModel;
+use App\Models\MOAModel;
 use App\Models\OfficeModel;
 use PhpOffice\PhpWord\TemplateProcessor;
 use Illuminate\Support\Facades\Storage;
@@ -194,6 +195,20 @@ public function getCompanyDetails($id)
         // Optional: Activities as string
         $activityList = $project->activities->map(fn($a) => $a->activity_name)->implode(', ');
         $templateProcessor->setValue('ACTIVITIES', $activityList);
+
+        MOAModel::updateOrCreate(
+            ['project_id' => $project->project_id],
+            [
+                'office_id' => $company->office_id,
+                'owner_name' => $fownerName,
+                'owner_position' => $ownerPosition,
+                'witness' => $witness,
+                'pd_name' => $pdName,
+                'pd_title' => $pdTitle,
+                'amount_words' => $costInWords,
+                'project_cost' => $project->project_cost,
+            ]
+        );
 
         $fileName = now()->timestamp . '_MOA.docx';
         $outputPath = storage_path("app/generated/$fileName");

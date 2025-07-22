@@ -7,6 +7,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\DocxController;
+use App\Http\Controllers\MOAController;
 use App\Http\Controllers\PDFController;
 use Inertia\Inertia;
 
@@ -61,3 +62,7 @@ Route::middleware(['auth.custom'])->group(function () {
 Route::get('/generate-docx-form', [PDFController::class, 'showForm'])->name('docx.form');
 Route::get('/moa/company/{id}/details', [PDFController::class, 'getCompanyDetails']);
 Route::post('/moa/generate-docx', [PDFController::class, 'generateDocx'])->name('moa.generateDocx');
+
+Route::get('/moa', [MOAController::class, 'index'])->name('moa.index');
+Route::get('/moa/{moa_id}/docx', [MOAController::class, 'generateFromMoa'])->name('moa.generate.docx');
+Route::get('/moa/{moa_id}/pdf', [MOAController::class, 'viewPdf'])->name('moa.viewPdf');
