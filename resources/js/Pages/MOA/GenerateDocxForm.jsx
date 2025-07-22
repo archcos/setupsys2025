@@ -1,4 +1,4 @@
-import { useForm } from '@inertiajs/react';
+import { useForm, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
@@ -7,10 +7,11 @@ export default function GenerateDocxForm({ companies }) {
   const [projects, setProjects] = useState([]);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  const { data, setData } = useForm({
+  const { data, setData, reset } = useForm({
     company_id: '',
     project_id: '',
     owner_name: '',
@@ -31,45 +32,14 @@ export default function GenerateDocxForm({ companies }) {
   };
 
   const handleSubmit = () => {
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = route('moa.generateDocx');
-
-    const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    const csrfInput = document.createElement('input');
-    csrfInput.type = 'hidden';
-    csrfInput.name = '_token';
-    csrfInput.value = csrf;
-    form.appendChild(csrfInput);
-
-    const projectInput = document.createElement('input');
-    projectInput.type = 'hidden';
-    projectInput.name = 'project_id';
-    projectInput.value = data.project_id;
-    form.appendChild(projectInput);
-
-    const ownerNameInput = document.createElement('input');
-    ownerNameInput.type = 'hidden';
-    ownerNameInput.name = 'owner_name';
-    ownerNameInput.value = data.owner_name;
-    form.appendChild(ownerNameInput);
-
-    const ownerPositionInput = document.createElement('input');
-    ownerPositionInput.type = 'hidden';
-    ownerPositionInput.name = 'owner_position';
-    ownerPositionInput.value = data.owner_position;
-    form.appendChild(ownerPositionInput);
-
-    const witnessInput = document.createElement('input');
-    witnessInput.type = 'hidden';
-    witnessInput.name = 'witness';
-    witnessInput.value = data.witness;
-    form.appendChild(witnessInput);
-
-
-
-    document.body.appendChild(form);
-    form.submit();
+    setLoading(true);
+    router.post(route('moa.generateDocx'), data, {
+      onSuccess: () => {
+        setLoading(false);
+        reset();
+      },
+      onError: () => setLoading(false),
+    });
   };
 
   return (
@@ -121,9 +91,7 @@ export default function GenerateDocxForm({ companies }) {
                   required
                 />
 
-
                 <label className="block mb-1">Representative's Name (optional):</label>
-
                 <input
                   type="text"
                   value={data.owner_name}
@@ -141,14 +109,13 @@ export default function GenerateDocxForm({ companies }) {
                   className="w-full border px-3 py-2 rounded mb-4"
                 />
 
-
                 <button
-                onClick={handleSubmit}
-                disabled={!data.project_id || !data.witness}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-              >
-                Generate DOCX
-              </button>
+                  onClick={handleSubmit}
+                  disabled={loading || !data.project_id || !data.witness}
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? 'Generating...' : 'Generate MOA'}
+                </button>
               </>
             )}
           </div>

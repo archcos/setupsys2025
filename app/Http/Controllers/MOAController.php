@@ -16,7 +16,7 @@ public function index(Request $request)
 {
     $search = $request->input('search');
 
-    $moas = MOAModel::with('project')
+    $moas = MOAModel::with('project.company.office') // ✅ Added nested relationship
         ->when($search, function ($query, $search) {
             $query->where('owner_name', 'like', "%{$search}%")
                   ->orWhere('pd_name', 'like', "%{$search}%")
@@ -34,6 +34,7 @@ public function index(Request $request)
         ],
     ]);
 }
+
 
 
     public function showGeneratedMoa($project_id)
