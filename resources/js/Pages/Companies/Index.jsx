@@ -54,11 +54,11 @@ export default function Index({ companies, filters }) {
             <table className="w-full text-sm table-auto border">
               <thead>
                 <tr className="bg-gray-200 text-left">
-                  <th className="px-3 py-2">Company</th>
-                  <th className="px-3 py-2">Owner Fname</th>
-                  <th className="px-3 py-2">Mname</th>
-                  <th className="px-3 py-2">Lname</th>
-                  <th className="px-3 py-2">Location</th>
+                  <th className="px-3 py-2">Company Name</th>
+                  <th className="px-3 py-2">Owner First Name</th>
+                  <th className="px-3 py-2">Middle Name</th>
+                  <th className="px-3 py-2">Last Name</th>
+                  <th className="px-3 py-2">Company Location</th>
                   <th className="px-3 py-2">Actions</th>
                 </tr>
               </thead>

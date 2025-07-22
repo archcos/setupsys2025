@@ -210,10 +210,13 @@ public function getCompanyDetails($id)
             ]
         );
 
-        $fileName = now()->timestamp . '_MOA.docx';
-        $outputPath = storage_path("app/generated/$fileName");
+        return redirect()->route('moa.index')->with('success', 'MOA document generated successfully.');
 
-        $templateProcessor->saveAs($outputPath);
-        return response()->download($outputPath)->deleteFileAfterSend(true);
+
+        // $fileName = now()->timestamp . '_MOA.docx';
+        // $outputPath = storage_path("app/generated/$fileName");
+
+        // $templateProcessor->saveAs($outputPath);
+        // return response()->download($outputPath)->deleteFileAfterSend(true);
     }
 }

@@ -6,12 +6,10 @@ import Header from '../../components/Header';
 export default function MOAIndex({ moas, filters }) {
   const [search, setSearch] = useState(filters?.search || '');
 
-  // Dynamic search: debounce 500ms
   useEffect(() => {
     const delay = setTimeout(() => {
       router.get('/moa', { search }, { preserveState: true, replace: true });
     }, 500);
-
     return () => clearTimeout(delay);
   }, [search]);
 
@@ -25,7 +23,6 @@ export default function MOAIndex({ moas, filters }) {
           <div className="bg-white rounded-xl shadow p-6">
             <h1 className="text-xl font-bold mb-4">List of MOAs</h1>
 
-            {/* 🔍 Dynamic Search Input (no form) */}
             <div className="mb-4">
               <input
                 type="text"
@@ -36,7 +33,6 @@ export default function MOAIndex({ moas, filters }) {
               />
             </div>
 
-            {/* 📋 Table */}
             <table className="min-w-full border border-gray-300 text-sm">
               <thead className="bg-gray-100">
                 <tr>
@@ -45,8 +41,8 @@ export default function MOAIndex({ moas, filters }) {
                   <th className="border px-4 py-2">Witness</th>
                   <th className="border px-4 py-2">Director's Name</th>
                   <th className="border px-4 py-2">Director's Position</th>
+                  <th className="border px-4 py-2">Office</th>
                   <th className="border px-4 py-2">Project Cost</th>
-                  <th className="border px-4 py-2">Amount in Words</th>
                   <th className="border px-4 py-2">Created At</th>
                   <th className="border px-4 py-2">Actions</th>
                 </tr>
@@ -59,9 +55,15 @@ export default function MOAIndex({ moas, filters }) {
                     <td className="border px-4 py-2">{moa.witness}</td>
                     <td className="border px-4 py-2">{moa.pd_name}</td>
                     <td className="border px-4 py-2">{moa.pd_title}</td>
-                    <td className="border px-4 py-2">₱ {parseFloat(moa.project_cost).toLocaleString()}</td>
-                    <td className="border px-4 py-2">{moa.amount_words}</td>
-                    <td className="border px-4 py-2">{new Date(moa.created_at).toLocaleDateString()}</td>
+                    <td className="border px-4 py-2">
+                      {moa.project?.company?.office?.office_name ?? '—'}
+                    </td>
+                    <td className="border px-4 py-2">
+                      ₱ {parseFloat(moa.project_cost).toLocaleString()}
+                    </td>
+                    <td className="border px-4 py-2">
+                      {new Date(moa.created_at).toLocaleDateString()}
+                    </td>
                     <td className="border px-4 py-2 text-center">
                       <div className="flex flex-col gap-1">
                         <a

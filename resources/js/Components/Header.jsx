@@ -25,7 +25,7 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
         {sidebarOpen ? '☰' : '☰'}
       </button>
 
-      <h1 className="text-xl font-semibold text-gray-800">Welcome Back</h1>
+      <h1 className="text-xl font-semibold text-gray-800">Small Enterprise Technology Upgrading Program Digital System</h1>
 
       <div className="flex items-center space-x-4 relative">
         {/* Notification Button */}
