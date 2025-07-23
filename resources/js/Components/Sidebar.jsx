@@ -59,10 +59,9 @@ export default function Sidebar({ isOpen }) {
             isOpen={dropdowns.implementation}
             onToggle={() => toggleDropdown('implementation')}
             links={[
-              { label: '1.0 Companies', href: '/companies' },
-              { label: '1.1 Projects', href: '/projects' },
-              { label: '1.2 Activities', href: '/activities' },
-              { label: 'MOA List', href: '/moa' },
+              { label: '2.0 Implementation', href: '/companies' },
+              { label: '2.1 Implementation', href: '/projects' },
+              { label: '2.2 Implementation', href: '/activities' },
             ]}
           />
         )}

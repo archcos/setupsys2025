@@ -224,6 +224,10 @@ public function getCompanyDetails($id)
             ]);
         }
 
+        $project->progress = 'Draft MOA';
+        $project->save();
+
+
         return redirect()->route('moa.index')->with('success', 'MOA document generated successfully.');
 
 

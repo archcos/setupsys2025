@@ -17,6 +17,7 @@ class ProjectModel extends Model
         'project_cost',
         'added_by',
         'office_id',
+        'progress'
     ];
 
     // A project belongs to a company
