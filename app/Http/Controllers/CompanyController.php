@@ -45,6 +45,7 @@ class CompanyController extends Controller
             'filters' => $request->only('search'),
         ]);
     }
+    
 
 public function create()
 {

@@ -5,7 +5,8 @@ import profile from '../../assets/profile.png';
 export default function Header({ sidebarOpen, toggleSidebar }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const { auth } = usePage().props;
+
+  const { auth, notifications = [] } = usePage().props;
 
   const handleLogout = (e) => {
     e.preventDefault();
@@ -16,16 +17,20 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
     ? `${auth.user.first_name} ${auth.user.last_name}`
     : 'User';
 
+  const hasUnread = notifications.some((notif) => !notif.is_read);
+
   return (
     <header className="bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm">
       <button
         onClick={toggleSidebar}
         className="text-gray-600 hover:text-gray-900 focus:outline-none mr-4"
       >
-        {sidebarOpen ? '☰' : '☰'}
+        ☰
       </button>
 
-      <h1 className="text-xl font-semibold text-gray-800">Small Enterprise Technology Upgrading Program Digital System</h1>
+      <h1 className="text-xl font-semibold text-gray-800">
+        Small Enterprise Technology Upgrading Program Digital System
+      </h1>
 
       <div className="flex items-center space-x-4 relative">
         {/* Notification Button */}
@@ -52,20 +57,58 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
               />
             </svg>
             {/* Notification Dot */}
-            <span className="absolute top-0 right-0 inline-block w-2 h-2 bg-red-600 rounded-full"></span>
+            {hasUnread && (
+              <span className="absolute top-0 right-0 inline-block w-2 h-2 bg-red-600 rounded-full"></span>
+            )}
           </button>
 
           {/* Notification Dropdown */}
           {notifOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border z-20">
+            <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border z-20">
               <div className="px-4 py-2 text-sm font-semibold text-gray-700 border-b">
                 Notifications
               </div>
-              <ul className="text-sm text-gray-600 max-h-60 overflow-y-auto">
-                <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">🔔 You have a new message</li>
-                <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">📌 Task deadline coming up</li>
-                <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">✅ Your profile was updated</li>
+              <ul className="text-sm text-gray-600 max-h-60 overflow-y-auto divide-y">
+                {notifications.length > 0 ? (
+                  notifications.map((notif, index) => (
+                    <li
+                      key={index}
+                      className={`px-4 py-2 hover:bg-gray-100 cursor-pointer ${
+                        !notif.is_read ? 'bg-blue-50' : 'bg-white'
+                      }`}
+                      onClick={() => {
+                        router.post(`/notifications/read/${notif.notification_id}`);
+                        if (notif.title === 'MOA Generated') {
+                          router.visit('/moa');
+                        } else if (notif.title === 'Company Profile Updated') {
+                          router.visit('/draft-moa');
+                        }
+                      }}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-semibold text-gray-800 flex items-center gap-2">
+                            {notif.title}
+                            {!notif.is_read ? (
+                              <span className="text-red-500 text-xs font-medium">● Unread</span>
+                            ) : (
+                              <span className="text-gray-400 text-xs font-medium">Read</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500">{notif.message}</div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            {new Date(notif.created_at).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  ))
+                ) : (
+                  <li className="px-4 py-2 text-gray-500 text-sm">No new notifications</li>
+                )}
               </ul>
+
+
             </div>
           )}
         </div>
@@ -79,11 +122,7 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
             }}
             className="flex items-center space-x-2 focus:outline-none"
           >
-            <img
-              src={profile}
-              alt="Profile"
-              className="w-8 h-8 rounded-full"
-            />
+            <img src={profile} alt="Profile" className="w-8 h-8 rounded-full" />
             <span className="font-medium text-gray-700">{fullName}</span>
           </button>
 

@@ -5,8 +5,8 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function Sidebar({ isOpen }) {
   const [dropdowns, setDropdowns] = useState({
-    moa: true,
-    data: true,
+    development: true,
+    implementation: true,
     user: true,
   });
 
@@ -39,12 +39,15 @@ export default function Sidebar({ isOpen }) {
         {/* Admin Only: MOA Section */}
         {role === 'admin' && (
           <Dropdown
-            title="📄 MOA"
-            isOpen={dropdowns.moa}
-            onToggle={() => toggleDropdown('moa')}
+            title="📄 Development"
+            isOpen={dropdowns.development}
+            onToggle={() => toggleDropdown('development')}
             links={[
-              { label: 'Draft MOA', href: route('docx.form') },
-              { label: 'MOA List', href: '/moa' },
+              { label: '1.0 Companies', href: '/companies' },
+              { label: '1.1 Projects', href: '/projects' },
+              { label: '1.2 Activities', href: '/activities' },
+              { label: '1.3 Draft MOA', href: '/draft-moa' },
+              { label: '1.4 MOA List', href: '/moa' },
             ]}
           />
         )}
@@ -52,16 +55,32 @@ export default function Sidebar({ isOpen }) {
         {/* Admin Only: Data Forms */}
         {role === 'admin' && (
           <Dropdown
-            title="📊 Data Forms"
-            isOpen={dropdowns.data}
-            onToggle={() => toggleDropdown('data')}
+            title="📊 Implementation"
+            isOpen={dropdowns.implementation}
+            onToggle={() => toggleDropdown('implementation')}
             links={[
-              { label: 'Companies', href: '/companies' },
-              { label: 'Projects', href: '/projects' },
-              { label: 'Activities', href: '/activities' },
+              { label: '1.0 Companies', href: '/companies' },
+              { label: '1.1 Projects', href: '/projects' },
+              { label: '1.2 Activities', href: '/activities' },
+              { label: 'MOA List', href: '/moa' },
             ]}
           />
         )}
+
+        {role === 'staff' && (
+          <Dropdown
+            title="📄 Development"
+            isOpen={dropdowns.development}
+            onToggle={() => toggleDropdown('development')}
+            links={[
+              { label: '1.0 Companies', href: '/companies' },
+              { label: '1.1 Projects', href: '/projects' },
+              { label: '1.2 Activities', href: '/activities' },
+              { label: 'MOA List', href: '/moa' },
+            ]}
+          />
+        )}
+
 
         {/* User Only: Company Add */}
         {role === 'user' && (

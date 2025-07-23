@@ -9,16 +9,17 @@ use App\Models\UserModel;
 
 class RoleMiddleware
 {
-    public function handle(Request $request, Closure $next, $role)
+    public function handle(Request $request, Closure $next, ...$roles)
     {
         $userId = Session::get('user_id');
         $user = $userId ? UserModel::find($userId) : null;
 
-        if (! $user || $user->role !== $role) {
+        if (! $user || ! in_array($user->role, $roles)) {
             abort(403, 'Unauthorized.');
         }
 
         return $next($request);
     }
 }
+
 

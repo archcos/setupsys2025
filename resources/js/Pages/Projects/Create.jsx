@@ -5,6 +5,7 @@ import Header from '../../components/Header';
 
 export default function Create({ companies }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [itemWarning, setItemWarning] = useState('');
 
   const { data, setData, post, processing, errors } = useForm({
     project_title: '',
@@ -37,6 +38,21 @@ export default function Create({ companies }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    const allItemsValid = data.items.every(
+      (item) =>
+        item.item_name.trim() !== '' &&
+        item.specifications.trim() !== '' &&
+        item.item_cost !== '' &&
+        item.quantity !== ''
+    );
+
+    if (!allItemsValid) {
+      setItemWarning('Please complete all item details before submitting.');
+      return;
+    }
+
+    setItemWarning('');
     post('/projects');
   };
 
@@ -109,6 +125,7 @@ export default function Create({ companies }) {
                 <input
                   type="text"
                   className="w-full p-2 border rounded"
+                  placeholder='eg. March 2025 to December 2025'
                   value={data.phase_one}
                   onChange={(e) => setData('phase_one', e.target.value)}
                 />
@@ -119,6 +136,7 @@ export default function Create({ companies }) {
                 <input
                   type="text"
                   className="w-full p-2 border rounded"
+                  placeholder='eg. March 2026 to March 2029'
                   value={data.phase_two}
                   onChange={(e) => setData('phase_two', e.target.value)}
                 />
@@ -136,6 +154,11 @@ export default function Create({ companies }) {
 
               <div className="border-t pt-4 mt-6">
                 <h3 className="font-medium mb-2">Project Items</h3>
+
+                {itemWarning && (
+                  <div className="mb-4 text-red-600 font-semibold">{itemWarning}</div>
+                )}
+
                 {data.items.map((item, index) => (
                   <div key={index} className="mb-4 border p-3 rounded bg-gray-50">
                     <div>

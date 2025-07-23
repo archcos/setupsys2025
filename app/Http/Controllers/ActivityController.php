@@ -3,25 +3,39 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityModel;
+use App\Models\NotificationModel;
 use App\Models\ProjectModel;
+use App\Models\UserModel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Validator;
 
 class ActivityController extends Controller
 {
-    public function index(Request $request)
+   public function index(Request $request)
     {
+        $userId = session('user_id');
+        $user = UserModel::where('user_id', $userId)->first();
+
         $search = $request->input('search');
 
-        $activities = ActivityModel::with('project')
-            ->when($search, function ($query, $search) {
-                $query->where('activity_name', 'like', "%$search%")
-                      ->orWhereHas('project', function ($q) use ($search) {
-                          $q->where('project_title', 'like', "%$search%");
-                      });
-            })
-            ->get();
+        $query = ActivityModel::with('project.company');
+
+        if ($search) {
+            $query->where('activity_name', 'like', "%$search%")
+                ->orWhereHas('project', function ($q) use ($search) {
+                    $q->where('project_title', 'like', "%$search%");
+                });
+        }
+
+        if ($user->role === 'staff') {
+            $query->whereHas('project.company', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
+            });
+        }
+        // Admin sees all — no filter
+
+        $activities = $query->get();
 
         return Inertia::render('Activities/Index', [
             'activities' => $activities,
@@ -31,8 +45,21 @@ class ActivityController extends Controller
 
     public function create()
     {
+        $userId = session('user_id');
+        $user = UserModel::where('user_id', $userId)->first();
+
+        $query = ProjectModel::with('company');
+
+        // Apply office filter for staff only
+        if ($user->role === 'staff') {
+            $query->whereHas('company', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
+            });
+        }
+        // Admin sees all — no filter
+
         return Inertia::render('Activities/Create', [
-            'projects' => ProjectModel::all(),
+            'projects' => $query->get(),
         ]);
     }
 
@@ -55,6 +82,15 @@ class ActivityController extends Controller
             ]);
         }
 
+        $project = ProjectModel::with('company.office')->findOrFail($validated['project_id']);
+        $office = $project->company->office;
+
+        NotificationModel::create([
+            'title' => 'Company Profile Updated',
+            'message' => "A company profile has been updated titled '{$project->project_title}'. Please contact PSTO {$office->office_name} for verification.",
+            'office_id' => 1,
+        ]);
+    
         return redirect('/activities')->with('success', 'Activities created!');
     }
 

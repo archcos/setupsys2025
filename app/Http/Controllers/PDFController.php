@@ -9,7 +9,9 @@ use App\Models\ProjectModel;
 use App\Models\ActivityModel;
 use App\Models\DirectorModel;
 use App\Models\MOAModel;
+use App\Models\NotificationModel;
 use App\Models\OfficeModel;
+use App\Models\UserModel;
 use PhpOffice\PhpWord\TemplateProcessor;
 use Illuminate\Support\Facades\Storage;
 use \NumberFormatter;
@@ -209,6 +211,18 @@ public function getCompanyDetails($id)
                 'project_cost' => $project->project_cost,
             ]
         );
+
+        $officeUsers = UserModel::where('office_id', $company->office_id)
+            ->where('role', '!=', 'user')
+            ->get();
+
+        foreach ($officeUsers as $user) {
+            NotificationModel::create([
+                'title' => 'MOA Generated',
+                'message' => "A new MOA has been generated for the project: {$project->project_title}",
+                'office_id' => $company->office_id,
+            ]);
+        }
 
         return redirect()->route('moa.index')->with('success', 'MOA document generated successfully.');
 

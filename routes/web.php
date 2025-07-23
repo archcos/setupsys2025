@@ -7,7 +7,9 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\DocxController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MOAController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PDFController;
 use Inertia\Inertia;
 
@@ -22,9 +24,8 @@ Route::middleware('web')->group(function () {
     Route::post('/signin', [AuthController::class, 'signin'])->name('signin');
 
     // Protected Home Page
-    Route::get('/home', fn () => inertia('Home'))
-        ->middleware('auth.custom')
-        ->name('home');
+Route::get('/home', [HomeController::class, 'index'])->middleware('auth.custom')->name('home');
+
 
     // Logout
     Route::post('/logout', function () {
@@ -59,10 +60,13 @@ Route::middleware(['auth.custom'])->group(function () {
 // Route::post('/moa/generate-docx', [DocxController::class, 'generateDocx'])->name('docx.generate');
 
 
-Route::get('/generate-docx-form', [PDFController::class, 'showForm'])->name('docx.form');
+Route::get('/draft-moa', [PDFController::class, 'showForm'])->name('docx.form');
 Route::get('/moa/company/{id}/details', [PDFController::class, 'getCompanyDetails']);
 Route::post('/moa/generate-docx', [PDFController::class, 'generateDocx'])->name('moa.generateDocx');
 
 Route::get('/moa', [MOAController::class, 'index'])->name('moa.index');
 Route::get('/moa/{moa_id}/docx', [MOAController::class, 'generateFromMoa'])->name('moa.generate.docx');
-Route::get('/moa/{moa_id}/pdf', [MOAController::class, 'viewPdf'])->name('moa.viewPdf');
+Route::get('/moa/{moa_id}/pdf', [MOAController::class, 'viewPdf']);
+
+
+Route::post('/notifications/read/{id}', [NotificationController::class, 'markAsRead']);
