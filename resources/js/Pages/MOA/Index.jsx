@@ -67,12 +67,12 @@ export default function MOAIndex({ moas, filters }) {
                     <td className="border px-4 py-2 text-center">
                       <div className="flex flex-col gap-1">
                         <a
-                          href={`/moa/${moa.moa_id}/pdf`}
-                          target="_blank"
-                          className="text-blue-600 hover:underline"
-                        >
-                          View PDF
-                        </a>
+                            href={`/moa/${moa.moa_id}/pdf`}
+                            target="_blank"
+                            className="text-blue-600 hover:underline"
+                            >
+                            View PDF
+                            </a>
                         <a
                           href={`/moa/${moa.moa_id}/docx`}
                           className="text-green-600 hover:underline"

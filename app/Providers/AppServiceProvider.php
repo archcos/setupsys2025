@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\NotificationModel;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Session;
@@ -20,22 +21,31 @@ class AppServiceProvider extends ServiceProvider
 
     /**
      * Bootstrap any application services.
-     */
-    public function boot(): void
-    {
-        Vite::prefetch(concurrency: 3);
+     */public function boot(): void
+{
+    Vite::prefetch(concurrency: 3);
 
-        // Share authenticated user with Inertia
-        Inertia::share([
-            'auth' => function () {
-                $userId = Session::get('user_id');
-                if ($userId) {
-                    return [
-                        'user' => UserModel::find($userId),
-                    ];
-                }
-                return ['user' => null];
-            },
-        ]);
-    }
+    Inertia::share([
+        'auth' => function () {
+            $userId = Session::get('user_id');
+            return [
+                'user' => $userId ? UserModel::find($userId) : null,
+            ];
+        },
+        'notifications' => function () {
+            $userId = Session::get('user_id');
+            $user = $userId ? UserModel::find($userId) : null;
+
+            if ($user && $user->role !== 'user') {
+                return NotificationModel::where('office_id', $user->office_id)
+                    ->where('is_read', false)
+                    ->latest()
+                    ->take(5)
+                    ->get();
+            }
+
+            return [];
+        },
+    ]);
+}
 }

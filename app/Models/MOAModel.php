@@ -27,3 +27,4 @@ class MOAModel extends Model
         return $this->belongsTo(ProjectModel::class, 'project_id', 'project_id');
     }
 }
+
