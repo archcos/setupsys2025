@@ -16,11 +16,9 @@ public function index(Request $request)
     $userId = session('user_id');
     $user = UserModel::find($userId);
 
-    // Start project query for selected year
     $query = ProjectModel::with('company.office')
         ->whereYear('created_at', $year);
 
-    // ✅ Filter only if user is staff or user
     if ($user && $user->role === 'staff') {
         $query->whereHas('company', function ($q) use ($user) {
             $q->where('office_id', $user->office_id);
@@ -28,11 +26,9 @@ public function index(Request $request)
     } elseif ($user && $user->role === 'user') {
         $query->where('added_by', $user->user_id);
     }
-    // Admin gets all — no filter applied
 
     $projects = $query->get();
 
-    // Group results per office name
     $projectsPerOffice = $projects
         ->groupBy(fn($p) => $p->company->office->office_name ?? 'No Office')
         ->map(fn($group) => $group->count());
@@ -44,10 +40,18 @@ public function index(Request $request)
 
     return Inertia::render('Home', [
         'projectsPerOffice' => $projectsPerOffice,
+        'projectDetails' => $projects->map(function ($project) {
+            return [
+                'project_title' => $project->project_title,
+                'company_name' => $project->company->company_name ?? '',
+                'progress' => $project->progress ?? '',
+            ];
+        }),
         'selectedYear' => $year,
         'availableYears' => $availableYears,
         'userOfficeId' => $user->office_id ?? null,
         'userOfficeName' => optional(OfficeModel::find($user->office_id))->office_name ?? '',
     ]);
 }
+
 }

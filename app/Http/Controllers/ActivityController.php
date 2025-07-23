@@ -83,6 +83,9 @@ class ActivityController extends Controller
         }
 
         $project = ProjectModel::with('company.office')->findOrFail($validated['project_id']);
+        $project->progress = 'Company Profile';
+        $project->save();
+
         $office = $project->company->office;
 
         NotificationModel::create([
