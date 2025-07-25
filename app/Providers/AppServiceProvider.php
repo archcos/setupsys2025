@@ -25,27 +25,27 @@ class AppServiceProvider extends ServiceProvider
 {
     Vite::prefetch(concurrency: 3);
 
-    Inertia::share([
-        'auth' => function () {
-            $userId = Session::get('user_id');
-            return [
-                'user' => $userId ? UserModel::find($userId) : null,
-            ];
-        },
-        'notifications' => function () {
-            $userId = Session::get('user_id');
-            $user = $userId ? UserModel::find($userId) : null;
+    // Inertia::share([
+    //     'auth' => function () {
+    //         $userId = Session::get('user_id');
+    //         return [
+    //             'user' => $userId ? UserModel::find($userId) : null,
+    //         ];
+    //     },
+    //     'notifications' => function () {
+    //         $userId = Session::get('user_id');
+    //         $user = $userId ? UserModel::find($userId) : null;
 
-            if ($user && $user->role !== 'user') {
-                return NotificationModel::where('office_id', $user->office_id)
-                    ->where('is_read', false)
-                    ->latest()
-                    ->take(5)
-                    ->get();
-            }
+    //         if ($user && $user->role !== 'user') {
+    //             return NotificationModel::where('office_id', $user->office_id)
+    //                 ->where('is_read', false)
+    //                 ->latest()
+    //                 ->take(5)
+    //                 ->get();
+    //         }
 
-            return [];
-        },
-    ]);
+    //         return [];
+    //     },
+    // ]);
 }
 }

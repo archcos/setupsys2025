@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import profile from '../../assets/profile.png';
 
@@ -8,16 +8,25 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
 
   const { auth, notifications = [] } = usePage().props;
 
+  const fullName = auth?.user
+    ? `${auth.user.first_name} ${auth.user.last_name}`
+    : 'User';
+
   const handleLogout = (e) => {
     e.preventDefault();
     router.post('/logout');
   };
 
-  const fullName = auth?.user
-    ? `${auth.user.first_name} ${auth.user.last_name}`
-    : 'User';
-
   const hasUnread = notifications.some((notif) => !notif.is_read);
+
+  // 🔁 Refresh notifications every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      router.reload({ only: ['notifications'] });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <header className="bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm">

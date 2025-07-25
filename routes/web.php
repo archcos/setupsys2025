@@ -11,6 +11,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MOAController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PDFController;
+use App\Http\Controllers\RefundController;
 use Inertia\Inertia;
 
 Route::middleware('web')->group(function () {
@@ -70,3 +71,7 @@ Route::get('/moa/{moa_id}/pdf', [MOAController::class, 'viewPdf']);
 
 
 Route::post('/notifications/read/{id}', [NotificationController::class, 'markAsRead']);
+// routes/web.php
+Route::post('/refunds/sync', [RefundController::class, 'manualSync']);
+Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index');
+Route::post('/refunds/{id}/update-status', [RefundController::class, 'updateStatus']);
