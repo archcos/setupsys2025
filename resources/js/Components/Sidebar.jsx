@@ -59,7 +59,7 @@ export default function Sidebar({ isOpen }) {
             isOpen={dropdowns.implementation}
             onToggle={() => toggleDropdown('implementation')}
             links={[
-              { label: '2.0 Implementation', href: '/companies' },
+              { label: '2.0 Refund Monitoring', href: '/refunds' },
               { label: '2.1 Implementation', href: '/projects' },
               { label: '2.2 Implementation', href: '/activities' },
             ]}
