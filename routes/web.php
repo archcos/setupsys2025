@@ -75,3 +75,6 @@ Route::post('/notifications/read/{id}', [NotificationController::class, 'markAsR
 Route::post('/refunds/sync', [RefundController::class, 'manualSync']);
 Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index');
 Route::post('/refunds/{id}/update-status', [RefundController::class, 'updateStatus']);
+
+
+Route::post('/companies/sync', [CompanyController::class, 'syncFromCSV'])->name('companies.sync');

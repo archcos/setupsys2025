@@ -12,24 +12,41 @@ class CompanyModel extends Model
 
     protected $fillable = [
         'company_name',
-        'owner_fname',
-        'owner_lname',
-        'owner_mname',
-        'company_location',
+        'owner_name',
+        'email',
         'added_by',
         'office_id',
+        'street',
+        'barangay',
+        'municipality',
+        'province',
+        'district',
+        'sex',
+        'products',
+        'setup_industry',
+        'industry_type',
+        'female',
+        'male',
+        'direct_male',
+        'direct_female',
+        'contact_number',
     ];
 
-    // Relationship: One company has many projects
-public function projects()
-{
-    return $this->hasMany(ProjectModel::class, 'company_id', 'company_id');
-}
+    // One company has many projects
+    public function projects()
+    {
+        return $this->hasMany(ProjectModel::class, 'company_id', 'company_id');
+    }
 
-public function office()
-{
-    return $this->hasOne(OfficeModel::class, 'office_id', 'office_id');
-}
+    // A company belongs to an office
+    public function office()
+    {
+        return $this->belongsTo(OfficeModel::class, 'office_id', 'office_id');
+    }
 
-    
+    // A company belongs to a user who added it
+    public function addedBy()
+    {
+        return $this->belongsTo(User::class, 'added_by', 'user_id');
+    }
 }
