@@ -41,6 +41,12 @@ public function signin(Request $request)
     }
 
     Session::put('user_id', $user->user_id);
+    Session::put('role', $user->role);
+
+    // Redirect based on role
+    if ($user->role === 'user') {
+        return redirect()->route('user.dashboard'); // Route for Dashboard.jsx
+    }
 
     return redirect()->route('home');
 }
