@@ -7,8 +7,9 @@ export default function Index({ companies, filters }) {
   const [search, setSearch] = useState(filters.search || '');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false); // NEW: Syncing state
-
+  const [perPage, setPerPage] = useState(filters.perPage || 10);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const [selectedCompany, setSelectedCompany] = useState(null);
 
   useEffect(() => {
     const delaySearch = setTimeout(() => {
@@ -21,6 +22,18 @@ export default function Index({ companies, filters }) {
     if (confirm('Are you sure you want to delete this company?')) {
       router.delete(`/companies/${id}`);
     }
+  };
+
+  const handlePerPageChange = (e) => {
+    const newPerPage = e.target.value;
+    setPerPage(newPerPage);
+    router.get('/companies', {
+      search,
+      perPage: newPerPage,
+    }, {
+      preserveScroll: true,
+      preserveState: true,
+    });
   };
 
   const handleSync = () => {
@@ -77,6 +90,22 @@ export default function Index({ companies, filters }) {
                 className="p-2 border rounded w-full"
               />
             </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-700">Show</label>
+                <select
+                  value={perPage}
+                  onChange={handlePerPageChange}
+                  className="block rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                >
+                  {[10, 20, 50, 100].map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+                <span className="text-sm text-gray-700">entries</span>
+              </div>
+            </div>
+
 
             <div className="overflow-x-auto">
               <table className="w-full text-sm table-auto border">
@@ -93,7 +122,7 @@ export default function Index({ companies, filters }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {companies.map((company) => (
+                  {companies.data.map((company) => (
                     <tr key={company.company_id} className="border-t hover:bg-gray-50">
                       <td className="px-3 py-2">{company.company_name}</td>
                       <td className="px-3 py-2">{company.owner_name}</td>
@@ -104,31 +133,107 @@ export default function Index({ companies, filters }) {
                       </td>
                       <td className="px-3 py-2">{company.industry_type || company.setup_industry}</td>
                       <td className="px-3 py-2">{company.products}</td>
-                      <td className="px-3 py-2 space-x-2">
-                        <Link
-                          href={`/companies/${company.company_id}/edit`}
-                          className="text-blue-600 hover:underline"
-                        >
-                          Edit
-                        </Link>
-                        <button
-                          onClick={() => handleDelete(company.company_id)}
-                          className="text-red-600 hover:underline"
-                        >
-                          Delete
-                        </button>
-                      </td>
+                    <td className="px-3 py-2">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setSelectedCompany(company)}
+                        className="px-3 py-1 text-sm text-white bg-indigo-600 rounded hover:bg-indigo-700 transition"
+                      >
+                        View
+                      </button>
+
+                      <Link
+                        href={`/companies/${company.company_id}/edit`}
+                        className="px-3 py-1 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 transition"
+                      >
+                        Edit
+                      </Link>
+
+                      <button
+                        onClick={() => handleDelete(company.company_id)}
+                        className="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700 transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+
+
                     </tr>
                   ))}
                 </tbody>
               </table>
+              {companies.links.length > 1 && (
+  <div className="mt-6 flex justify-end space-x-2">
+    {companies.links.map((link, index) => (
+      <button
+        key={index}
+        disabled={!link.url}
+        onClick={() => link.url && router.visit(link.url)}
+        className={`px-3 py-1 text-sm rounded border ${
+          link.active
+            ? 'bg-blue-600 text-white'
+            : 'bg-white text-gray-700 hover:bg-gray-100'
+        }`}
+        dangerouslySetInnerHTML={{ __html: link.label }}
+      />
+    ))}
+  </div>
+)}
             </div>
 
             {companies.length === 0 && (
               <p className="text-center text-sm text-gray-500 mt-4">No companies found.</p>
             )}
           </div>
+          {selectedCompany && (
+            <CompanyModal
+              company={selectedCompany}
+              isOpen={!!selectedCompany}
+              onClose={() => setSelectedCompany(null)}
+            />
+          )}
+
         </main>
+      </div>
+    </div>
+  );
+}
+function CompanyModal({ company, isOpen, onClose }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+        >
+          ✖
+        </button>
+        <h3 className="text-xl font-semibold mb-4">Company & Owner Details</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p><strong>Company Name:</strong> {company.company_name}</p>
+            <p><strong>Email:</strong> {company.email}</p>
+            <p><strong>Contact:</strong> {company.contact_number}</p>
+            <p><strong>Location:</strong><br />
+              {company.street}, {company.barangay},<br />
+              {company.municipality}, {company.province}
+            </p>
+            <p><strong>Industry:</strong> {company.industry_type || company.setup_industry}</p>
+            <p><strong>Products:</strong> {company.products}</p>
+          </div>
+          <div>
+            <p><strong>Owner Name:</strong> {company.owner_name}</p>
+            <p><strong>Sex:</strong> {company.sex}</p>
+            <p><strong>Male Employees:</strong> {company.male}</p>
+            <p><strong>Female Employees:</strong> {company.female}</p>
+            <p><strong>Direct Male:</strong> {company.direct_male}</p>
+            <p><strong>Direct Female:</strong> {company.direct_female}</p>
+            <p><strong>District:</strong> {company.district}</p>
+          </div>
+        </div>
       </div>
     </div>
   );

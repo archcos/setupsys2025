@@ -8,6 +8,8 @@ export default function Index({ refunds, months, selectedMonth, selectedStatus }
   const [month, setMonth] = useState(selectedMonth);
   const [statusFilter, setStatusFilter] = useState(selectedStatus);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [search, setSearch] = useState('');
+  const [perPage, setPerPage] = useState(usePage().props.perPage || 10);
 
   const flash = usePage().props?.flash || {};
 
@@ -28,6 +30,33 @@ export default function Index({ refunds, months, selectedMonth, selectedStatus }
       preserveState: true,
     });
   };
+
+  const handleSearch = (e) => {
+    setSearch(e.target.value);
+    router.get('/refunds', {
+      month,
+      status: statusFilter,
+      search: e.target.value,
+      perPage,
+    }, {
+      preserveScroll: true,
+      preserveState: true,
+    });
+  };
+
+  const handlePerPageChange = (e) => {
+    setPerPage(e.target.value);
+    router.get('/refunds', {
+      month,
+      status: statusFilter,
+      search,
+      perPage: e.target.value,
+    }, {
+      preserveScroll: true,
+      preserveState: true,
+    });
+  };
+
 
   const handleStatusChange = (id, status, refund) => {
     const payload = {
@@ -138,7 +167,36 @@ export default function Index({ refunds, months, selectedMonth, selectedStatus }
               </div>
             )}
 
-            {/* Refund Table */}
+      {/* Refund Table Controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          {/* Per Page Selector */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-700">Show</label>
+            <select
+              value={perPage}
+              onChange={handlePerPageChange}
+              className="block rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            >
+              {[10, 20, 50, 100].map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+            <span className="text-sm text-gray-700">entries</span>
+          </div>
+
+          {/* Search Box */}
+          <div className="w-full sm:w-64">
+            <input
+              type="text"
+              value={search}
+              onChange={handleSearch}
+              placeholder="🔍 Search project or company"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+
             <table className="w-full text-sm text-left table-auto border">
               <thead className="bg-gray-200 text-left">
                 <tr>
@@ -157,7 +215,7 @@ export default function Index({ refunds, months, selectedMonth, selectedStatus }
                     </td>
                   </tr>
                 ) : (
-                  refunds.map((refund, index) => (
+                  refunds.data.map((refund, index) => (
                     <tr key={refund.id} className="border-t hover:bg-gray-50">
                       <td className="px-3 py-2 border">{index + 1}</td>
                       <td className="px-3 py-2 border">{refund.project_code}</td>
@@ -181,6 +239,23 @@ export default function Index({ refunds, months, selectedMonth, selectedStatus }
                 )}
               </tbody>
             </table>
+            <div className="mt-4 flex justify-end gap-2">
+              {refunds.links.map((link, i) => (
+                <button
+                  key={i}
+                  disabled={!link.url}
+                  onClick={() => link.url && router.visit(link.url)}
+                  className={`px-3 py-1 rounded border text-sm ${
+                    link.active
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white hover:bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                </button>
+              ))}
+            </div>
+
           </div>
         </main>
       </div>

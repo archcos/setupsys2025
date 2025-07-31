@@ -58,7 +58,6 @@ public function getCompanyDetails($id)
         $company = $project->company;
 
         $office = OfficeModel::find($company->office_id);
-        $ownerName = "{$company->owner_fname} " . strtoupper(substr($company->owner_mname, 0, 1)) . ". {$company->owner_lname}";
 
         $templatePath = storage_path('app/templates/template.docx');
         $templateProcessor = new TemplateProcessor($templatePath);
@@ -79,7 +78,7 @@ public function getCompanyDetails($id)
         $inputName = trim($request->input('owner_name'));
         $inputPosition = trim($request->input('owner_position'));
 
-        $fownerName = !empty($inputName) ? $inputName : $ownerName;
+        $fownerName = !empty($inputName) ? $inputName : $company->owner_name;
         $ownerPosition = !empty($inputPosition) ? $inputPosition : 'Owner';
 
         $templateProcessor->setValue('OWNER_NAME', $fownerName);
