@@ -20,7 +20,7 @@ export default function Home() {
     window.location.href = `?year=${e.target.value}`;
   };
 
-  const allStages = ['Company Profile', 'Draft MOA', 'Implementation'];
+  const allStages = ['Complete Details', 'Draft MOA', 'Implementation'];
 
   const getStageIcon = (stage, current) => {
     if (allStages.indexOf(stage) < allStages.indexOf(current)) return '✅';
@@ -97,7 +97,7 @@ export default function Home() {
     <tbody>
       {projectDetails.length > 0 ? (
         projectDetails.map((project) => {
-          const stages = ['Company Profile', 'Draft MOA', 'Implementation'];
+          const stages = ['Complete Details', 'Draft MOA', 'Implementation'];
           const currentStageIndex = stages.indexOf(project.progress);
 
           // Default values for progress bar if incomplete

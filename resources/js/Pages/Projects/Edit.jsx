@@ -267,13 +267,14 @@ export default function Edit({ project, companies }) {
               </div>
 
               <div className="pt-6">
-                <button
-                  type="submit"
-                  disabled={processing}
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
-                >
-                  Update Project
-                </button>
+              <button
+                type="submit"
+                disabled={processing}
+                className={`px-4 py-2 rounded text-white text-sm ${processing ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+              >
+                {processing ? 'Updating...' : 'Update Company'}
+              </button>
+
               </div>
             </form>
           </div>

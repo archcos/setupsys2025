@@ -89,8 +89,8 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
                         router.post(`/notifications/read/${notif.notification_id}`);
                         if (notif.title === 'MOA Generated') {
                           router.visit('/moa');
-                        } else if (notif.title === 'Company Profile Updated') {
-                          router.visit('/draft-moa');
+                        } else if (notif.title === 'Company Project Updated') {
+                          router.visit(`/draft-moa?company_id=${notif.company_id}`);
                         }
                       }}
                     >

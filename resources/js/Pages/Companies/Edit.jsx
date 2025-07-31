@@ -249,9 +249,14 @@ export default function Edit({ company }) {
                 <input type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} className="w-full p-2 border rounded" />
               </div>
               <div className="col-span-2 text-right">
-                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-                  Update Company
+                <button
+                  type="submit"
+                  disabled={processing}
+                  className={`px-4 py-2 rounded text-white ${processing ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                >
+                  {processing ? 'Updating...' : 'Update Company'}
                 </button>
+
               </div>
             </form>
           </div>

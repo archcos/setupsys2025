@@ -19,6 +19,17 @@ export default function GenerateDocxForm({ companies }) {
     witness: '', 
   });
 
+
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    const companyIdFromURL = queryParams.get('company_id');
+
+    if (companyIdFromURL) {
+      handleSelectCompany(companyIdFromURL);
+    }
+  }, []);
+
+
   const handleSelectCompany = async (company_id) => {
     setData('company_id', company_id);
     try {
