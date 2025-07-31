@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\NotificationModel;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -38,12 +39,12 @@ class HandleInertiaRequests extends Middleware
             'user' => $user,
         ],
         'notifications' => $user
-            ? \App\Models\NotificationModel::where('office_id', $user->office_id)
+            ? NotificationModel::where('office_id', $user->office_id)
                 ->latest()
                 ->take(10)
                 ->get()
             : [],
-         'flash' => [
+        'flash' => [
             'success' => $request->session()->get('success'),
             'error' => $request->session()->get('error'),
         ],

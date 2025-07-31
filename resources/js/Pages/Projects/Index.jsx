@@ -126,15 +126,7 @@ export default function Index({ projects, filters }) {
                         >
                           Edit
                         </Link>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(project.project_id);
-                          }}
-                          className="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700 transition"
-                        >
-                          Delete
-                        </button>
+                      
                       </td>
                     </tr>,
 

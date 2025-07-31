@@ -12,7 +12,7 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  const allStages = ['Complete Details', 'Draft MOA', 'Implementation'];
+  const allStages =  ['Complete Details', 'Draft MOA', 'Implementation', 'Liquidation', 'Refund', 'Completed'];
 
   return (
     <div className="h-screen flex bg-gray-100 overflow-hidden">
@@ -23,7 +23,7 @@ export default function Dashboard() {
 
           <div className="bg-white rounded-xl shadow p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              My Company Project Progress
+              My Company Progress
             </h2>
 
             <table className="w-full text-sm text-left border">

@@ -217,8 +217,9 @@ export default function Edit({ project, companies }) {
                 {data.items.map((item, index) => (
                   <div
                     key={index}
-                    className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2 border p-2 rounded bg-gray-50"
+                    className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4 border p-3 rounded bg-gray-50"
                   >
+                    {/* Item Name */}
                     <input
                       type="text"
                       placeholder="Item Name"
@@ -226,13 +227,8 @@ export default function Edit({ project, companies }) {
                       onChange={(e) => handleItemChange(index, 'item_name', e.target.value)}
                       className="p-2 border rounded"
                     />
-                    <input
-                      type="text"
-                      placeholder="Specifications"
-                      value={item.specifications || ''}
-                      onChange={(e) => handleItemChange(index, 'specifications', e.target.value)}
-                      className="p-2 border rounded"
-                    />
+
+                    {/* Item Cost */}
                     <input
                       type="number"
                       placeholder="Item Cost"
@@ -241,6 +237,8 @@ export default function Edit({ project, companies }) {
                       onChange={(e) => handleItemChange(index, 'item_cost', e.target.value)}
                       className="p-2 border rounded"
                     />
+
+                    {/* Quantity */}
                     <input
                       type="number"
                       placeholder="Qty"
@@ -248,13 +246,23 @@ export default function Edit({ project, companies }) {
                       onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
                       className="p-2 border rounded"
                     />
+
+                    {/* Remove Button */}
                     <button
                       type="button"
                       onClick={() => removeItem(index)}
-                      className="text-red-600 text-sm hover:underline"
+                      className="text-red-600 text-sm hover:underline self-center"
                     >
                       Remove
                     </button>
+
+                    {/* Specifications (Full width, below other fields) */}
+                    <textarea
+                      placeholder="Specifications"
+                      value={item.specifications || ''}
+                      onChange={(e) => handleItemChange(index, 'specifications', e.target.value)}
+                      className="md:col-span-4 p-2 border rounded resize-y min-h-[60px]"
+                    />
                   </div>
                 ))}
                 <button

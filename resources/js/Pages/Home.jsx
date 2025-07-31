@@ -20,7 +20,7 @@ export default function Home() {
     window.location.href = `?year=${e.target.value}`;
   };
 
-  const allStages = ['Complete Details', 'Draft MOA', 'Implementation'];
+  const allStages = ['Complete Details', 'Draft MOA', 'Implementation', 'Liquidation', 'Refund', 'Completed'];
 
   const getStageIcon = (stage, current) => {
     if (allStages.indexOf(stage) < allStages.indexOf(current)) return '✅';
@@ -91,21 +91,22 @@ export default function Home() {
       <tr>
         <th className="p-2">Project Title</th>
         <th className="p-2">Company</th>
-        <th className="p-2 w-1/3">Progress</th>
+        <th className="p-2 w-1/2">Progress</th>
       </tr>
     </thead>
     <tbody>
       {projectDetails.length > 0 ? (
         projectDetails.map((project) => {
-          const stages = ['Complete Details', 'Draft MOA', 'Implementation'];
+          const stages = ['Complete Details', 'Draft MOA', 'Implementation', 'Liquidation', 'Refund', 'Completed'];
           const currentStageIndex = stages.indexOf(project.progress);
 
           // Default values for progress bar if incomplete
-          const progressWidth = project.progress
-            ? ['w-1/3', 'w-2/3', 'w-full'][currentStageIndex] || 'w-0'
+        const progressWidth = project.progress
+            ? ['w-1/6', 'w-2/6', 'w-1/2', 'w-2/3', 'w-5/6', 'w-full'][currentStageIndex] || 'w-0'
             : 'w-full';
+
           const progressColor = project.progress
-            ? ['bg-yellow-500', 'bg-blue-500', 'bg-green-600'][currentStageIndex] || 'bg-gray-300'
+            ? ['bg-yellow-500', 'bg-blue-500', 'bg-green-500', 'bg-teal-500', 'bg-purple-500', 'bg-green-700'][currentStageIndex] || 'bg-red-500'
             : 'bg-red-500';
           const progressLabel = project.progress || 'Incomplete Profile';
 

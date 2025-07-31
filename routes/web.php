@@ -38,6 +38,13 @@ Route::middleware(['auth.custom'])->group(function () {
     })->name('logout');
 });
 
+//ADMIN ONLY
+Route::middleware(['auth.custom', 'role:admin'])->group(function () {
+    Route::delete('/projects/{id}', [ProjectController::class, 'destroy'])->name('projects.destroy');
+});
+
+
+
 //SIDEBAR
 Route::middleware(['auth.custom'])->group(function () {
     Route::resource('companies', CompanyController::class);
