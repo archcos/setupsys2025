@@ -89,10 +89,13 @@ class ActivityController extends Controller
         $office = $project->company->office;
 
         NotificationModel::create([
-            'title' => 'Company Profile Updated',
-            'message' => "A company profile has been updated titled '{$project->project_title}'. Please contact PSTO {$office->office_name} for verification.",
+            'title' => 'Company Project Updated',
+            'message' => "A company project for '{$project->company->company_name}' has been updated titled '{$project->project_title}'. Please contact PSTO {$office->office_name} for verification.",
             'office_id' => 1,
+            'company_id' => $project->company_id, 
         ]);
+
+
     
         return redirect('/activities')->with('success', 'Activities created!');
     }

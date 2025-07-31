@@ -28,21 +28,22 @@ class NotificationController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'message' => 'required|string',
-            'office_id' => 'required|exists:tbl_offices,office_id',
-        ]);
+{
+    $validated = $request->validate([
+        'title' => 'required|string|max:255',
+        'message' => 'required|string',
+        'office_id' => 'required|exists:tbl_offices,office_id',
+        'company_id' => 'required|exists:tbl_companies,company_id', // ✅ Added validation
+    ]);
 
-        NotificationModel::create($validated);
+    NotificationModel::create($validated);
 
-        return back()->with('success', 'Notification sent.');
-    }
+    return back()->with('success', 'Notification sent.');
+}
 
     public function markAsRead($id)
         {
-            $notif = \App\Models\NotificationModel::find($id);
+            $notif = NotificationModel::find($id);
             if ($notif) {
                 $notif->is_read = true;
                 $notif->save();

@@ -14,6 +14,7 @@ class NotificationModel extends Model
         'message',
         'office_id',
         'is_read',
+        'company_id'
     ];
 
     public function office()
