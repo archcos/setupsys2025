@@ -83,14 +83,14 @@ class ActivityController extends Controller
         }
 
         $project = ProjectModel::with('company.office')->findOrFail($validated['project_id']);
-        $project->progress = 'Company Profile';
+        $project->progress = 'Complete Details';
         $project->save();
 
         $office = $project->company->office;
 
         NotificationModel::create([
             'title' => 'Company Project Updated',
-            'message' => "A company project for '{$project->company->company_name}' has been updated titled '{$project->project_title}'. Please contact PSTO {$office->office_name} for verification.",
+            'message' => "CREATED: A company project for '{$project->company->company_name}' has been completed, titled '{$project->project_title}'. Please contact PSTO {$office->office_name} for verification.",
             'office_id' => 1,
             'company_id' => $project->company_id, 
         ]);
@@ -122,6 +122,21 @@ class ActivityController extends Controller
         ]);
 
         $activity->update($validated);
+
+        $project = ProjectModel::with('company.office')->findOrFail($validated['project_id']);
+        $project->progress = 'Complete Details';
+        $project->save();
+
+        $office = $project->company->office;
+
+        NotificationModel::create([
+            'title' => 'Company Project Updated',
+            'message' => "UPDATED: A company project for '{$project->company->company_name}' has been updated, titled '{$project->project_title}'. Please contact PSTO {$office->office_name} for verification.",
+            'office_id' => 1,
+            'company_id' => $project->company_id, 
+        ]);
+
+
 
         return redirect('/activities')->with('success', 'Activity updated!');
     }
