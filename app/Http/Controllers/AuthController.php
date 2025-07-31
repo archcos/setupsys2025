@@ -31,17 +31,20 @@ public function signin(Request $request)
         return back()->withErrors(['message' => 'Invalid username/password.']);
     }
 
+    // ✅ Check if user is inactive
+    if ($user->status === 'inactive') {
+        return back()->withErrors(['message' => 'Your account is disabled. Please contact the administrator.']);
+    }
+
     if (! Hash::check($credentials['password'], $user->password)) {
         return back()->withErrors(['message' => 'Invalid username/password.']);
     }
-
-    // 🔍 Check what you're getting
-    // dd($user, $user->id);
 
     Session::put('user_id', $user->user_id);
 
     return redirect()->route('home');
 }
+
 
     /**
      * Show the form for creating a new resource.
