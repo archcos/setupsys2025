@@ -3,6 +3,11 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
+
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -26,5 +31,20 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
-    })->create();
+        // Handle GET /logout and similar method errors
+        $exceptions->render(function (MethodNotAllowedHttpException $e, Request $request): RedirectResponse {
+            // if ($request->is('logout')) {
+            //     return redirect('/');
+            // }
+
+            return redirect('/')
+                ->withErrors(['message' => 'Invalid request method.']);
+        });
+
+        // Optional: Handle 404 errors
+        $exceptions->render(function (NotFoundHttpException $e, Request $request): RedirectResponse {
+            return redirect('/')
+                ->withErrors(['message' => 'Page not found.']);
+        });
+    })
+    ->create();

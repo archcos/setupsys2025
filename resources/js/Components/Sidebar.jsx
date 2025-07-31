@@ -24,16 +24,17 @@ export default function Sidebar({ isOpen }) {
 
   return (
     <aside className="w-64 bg-blue-800 text-white p-6 transition-all duration-300 h-full shadow-md">
-      {/* Logo + Title */}
       <Link href="/home" className="flex items-center justify-center gap-3 mb-8 hover:opacity-90">
         <img src={logo} alt="Logo" className="w-10 h-10" />
         <h2 className="text-2xl font-bold text-white">SETUP</h2>
       </Link>
 
-      {/* Navigation */}
       <nav className="space-y-4">
-        <Link href="/home" className="block hover:text-blue-300 font-medium">
-          🏠 Overview
+          <Link
+          href={role === 'user' ? '/dashboard' : '/home'}
+          className="block hover:text-blue-300 font-medium"
+        >
+          {role === 'user' ? 'My Dashboard' : 'Overview'}
         </Link>
 
         {/* Admin Only: MOA Section */}
@@ -66,6 +67,7 @@ export default function Sidebar({ isOpen }) {
           />
         )}
 
+        {/* Staff Only: Data Forms */}
         {role === 'staff' && (
           <Dropdown
             title="📄 Development"
@@ -99,7 +101,6 @@ export default function Sidebar({ isOpen }) {
   );
 }
 
-// 🔽 Reusable Dropdown Component
 function Dropdown({ title, isOpen, onToggle, links }) {
   return (
     <div>
