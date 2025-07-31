@@ -10,9 +10,7 @@ use Illuminate\Support\Facades\Log;
 
 class CompanyController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    
 public function index(Request $request)
 {
     $userId = session('user_id');
@@ -27,7 +25,7 @@ public function index(Request $request)
         $query->where('office_id', $user->office_id);
     }
 
-    // Search filter
+    // Search
     if ($request->has('search')) {
         $search = $request->search;
         $query->where(function ($q) use ($search) {
@@ -41,29 +39,16 @@ public function index(Request $request)
         });
     }
 
-    $companies = $query->orderBy('company_name')->get();
+    $perPage = $request->input('perPage', 10); // default to 10
+
+    $companies = $query->orderBy('company_name')->paginate($perPage)->withQueryString();
 
     return Inertia::render('Companies/Index', [
-        'companies' => $companies->map(function ($company) {
-            return [
-                'company_id'   => $company->company_id,
-                'company_name' => $company->company_name,
-                'owner_name'   => $company->owner_name,
-                'email'        => $company->email,
-                'contact_number' => $company->contact_number,
-                'street'       => $company->street,
-                'barangay'     => $company->barangay,
-                'municipality' => $company->municipality,
-                'province'     => $company->province,
-                'industry_type' => $company->industry_type,
-                'setup_industry' => $company->setup_industry,
-                'products'     => $company->products, // ✅ Include products
-            ];
-        }),
-        'filters' => $request->only('search'),
+        'companies' => $companies,
+        'filters' => $request->only('search', 'perPage'),
     ]);
-
 }
+
 
     
 

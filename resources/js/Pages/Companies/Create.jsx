@@ -148,11 +148,11 @@ export default function CompanyCreate() {
               </select>
             </div>
             <div>
-              <label className="block mb-1"># of Female Workers</label>
+              <label className="block mb-1"># Indirect of Female Workers</label>
               <input type="number" value={data.female} onChange={(e) => setData('female', e.target.value)} className="w-full p-2 border rounded" min="0" required />
             </div>
             <div>
-              <label className="block mb-1"># of Male Workers</label>
+              <label className="block mb-1"># Indirect of Male Workers</label>
               <input type="number" value={data.male} onChange={(e) => setData('male', e.target.value)} className="w-full p-2 border rounded" min="0" required />
             </div>
             <div>

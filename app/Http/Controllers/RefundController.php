@@ -11,27 +11,39 @@ use Inertia\Inertia;
 
 class RefundController extends Controller
 {
-    public function index(Request $request)
-    {
-        $selectedMonth = $request->input('month') ?? Carbon::now()->format('M , Y'); // Gives "Jul , 2025"
-        $selectedStatus = $request->input('status') ?? 'all';
+   public function index(Request $request)
+{
+    $selectedMonth = $request->input('month') ?? Carbon::now()->format('M , Y');
+    $selectedStatus = $request->input('status') ?? 'all';
+    $perPage = $request->input('perPage', 10); // default 10
+    $search = $request->input('search', '');
 
-        $query = RefundModel::query()->where('refund_date', $selectedMonth);
+    $query = RefundModel::query()->where('refund_date', $selectedMonth);
 
-        if ($selectedStatus !== 'all') {
-            $query->where('status', $selectedStatus);
-        }
-
-        $refunds = $query->orderBy('project_code')->get();
-        $months = RefundModel::distinct()->pluck('refund_date');
-
-        return Inertia::render('Refunds/Index', [
-            'refunds' => $refunds,
-            'months' => $months,
-            'selectedMonth' => $selectedMonth,
-            'selectedStatus' => $selectedStatus,
-        ]);
+    if ($selectedStatus !== 'all') {
+        $query->where('status', $selectedStatus);
     }
+
+    if ($search) {
+        $query->where(function ($q) use ($search) {
+            $q->where('project_code', 'like', "%$search%")
+              ->orWhere('company_name', 'like', "%$search%");
+        });
+    }
+
+    $refunds = $query->orderBy('project_code')->paginate($perPage)->withQueryString();
+    $months = RefundModel::distinct()->pluck('refund_date');
+
+    return Inertia::render('Refunds/Index', [
+        'refunds' => $refunds,
+        'months' => $months,
+        'selectedMonth' => $selectedMonth,
+        'selectedStatus' => $selectedStatus,
+        'perPage' => (int) $perPage,
+        'search' => $search,
+    ]);
+}
+
 
 public function manualSync()
 {

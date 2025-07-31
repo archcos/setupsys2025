@@ -5,54 +5,26 @@ import Header from '../../components/Header';
 
 export default function Create({ companies }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [itemWarning, setItemWarning] = useState('');
 
   const { data, setData, post, processing, errors } = useForm({
+    project_id: '',
     project_title: '',
     company_id: '',
     phase_one: '',
     phase_two: '',
     project_cost: '',
-    items: [
-      { item_name: '', specifications: '', item_cost: '', quantity: '' },
-    ],
+    progress: 'Project Created',
+    year_obligated: new Date().getFullYear().toString(),
+    revenue: '',
+    net_income: '',
+    current_asset: '',
+    noncurrent_asset: '',
+    equity: '',
+    liability: '',
   });
-
-  const addItem = () => {
-    setData('items', [
-      ...data.items,
-      { item_name: '', specifications: '', item_cost: '', quantity: '' },
-    ]);
-  };
-
-  const updateItem = (index, field, value) => {
-    const updatedItems = [...data.items];
-    updatedItems[index][field] = value;
-    setData('items', updatedItems);
-  };
-
-  const removeItem = (index) => {
-    const updatedItems = data.items.filter((_, i) => i !== index);
-    setData('items', updatedItems);
-  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    const allItemsValid = data.items.every(
-      (item) =>
-        item.item_name.trim() !== '' &&
-        item.specifications.trim() !== '' &&
-        item.item_cost !== '' &&
-        item.quantity !== ''
-    );
-
-    if (!allItemsValid) {
-      setItemWarning('Please complete all item details before submitting.');
-      return;
-    }
-
-    setItemWarning('');
     post('/projects');
   };
 
@@ -64,7 +36,7 @@ export default function Create({ companies }) {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
         <main className="flex-1 p-6 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow p-6 max-w-xl mx-auto">
+          <div className="bg-white rounded-xl shadow p-6 max-w-4xl mx-auto">
             <div className="mb-4">
               <Link
                 href="/projects"
@@ -89,20 +61,21 @@ export default function Create({ companies }) {
               </div>
 
               <div>
-                <label className="block font-medium">Select Company</label>
+                <label className="block font-medium">Project Code</label>
                 <input
                   type="text"
-                  placeholder="Search company..."
-                  className="w-full p-2 border rounded mb-1"
-                  onChange={(e) =>
-                    setData(
-                      'company_id',
-                      companies.find((c) =>
-                        c.company_name.toLowerCase().includes(e.target.value.toLowerCase())
-                      )?.company_id || ''
-                    )
-                  }
+                  className="w-full p-2 border rounded"
+                  value={data.project_id}
+                  onChange={(e) => setData('project_id', e.target.value)}
+                  required
                 />
+                {errors.project_id && (
+                  <div className="text-red-500 text-sm">{errors.project_id}</div>
+                )}
+              </div>
+
+              <div>
+                <label className="block font-medium">Select Company</label>
                 <select
                   className="w-full p-2 border rounded"
                   value={data.company_id}
@@ -125,7 +98,7 @@ export default function Create({ companies }) {
                 <input
                   type="text"
                   className="w-full p-2 border rounded"
-                  placeholder='eg. March 2025 to December 2025'
+                  placeholder="e.g., March 2025 to December 2025"
                   value={data.phase_one}
                   onChange={(e) => setData('phase_one', e.target.value)}
                 />
@@ -136,7 +109,7 @@ export default function Create({ companies }) {
                 <input
                   type="text"
                   className="w-full p-2 border rounded"
-                  placeholder='eg. March 2026 to March 2029'
+                  placeholder="e.g., March 2026 to March 2029"
                   value={data.phase_two}
                   onChange={(e) => setData('phase_two', e.target.value)}
                 />
@@ -152,73 +125,70 @@ export default function Create({ companies }) {
                 />
               </div>
 
-              <div className="border-t pt-4 mt-6">
-                <h3 className="font-medium mb-2">Project Items</h3>
-
-                {itemWarning && (
-                  <div className="mb-4 text-red-600 font-semibold">{itemWarning}</div>
-                )}
-
-                {data.items.map((item, index) => (
-                  <div key={index} className="mb-4 border p-3 rounded bg-gray-50">
-                    <div>
-                      <label className="block text-sm font-medium">Item Name</label>
-                      <input
-                        type="text"
-                        className="w-full p-2 border rounded"
-                        value={item.item_name}
-                        onChange={(e) => updateItem(index, 'item_name', e.target.value)}
-                      />
-                    </div>
-
-                    <div className="mt-2">
-                      <label className="block text-sm font-medium">Specifications</label>
-                      <textarea
-                        className="w-full p-2 border rounded"
-                        value={item.specifications}
-                        onChange={(e) =>
-                          updateItem(index, 'specifications', e.target.value)
-                        }
-                      />
-                    </div>
-
-                    <div className="mt-2">
-                      <label className="block text-sm font-medium">Item Cost</label>
-                      <input
-                        type="number"
-                        className="w-full p-2 border rounded"
-                        value={item.item_cost}
-                        onChange={(e) => updateItem(index, 'item_cost', e.target.value)}
-                      />
-                    </div>
-
-                    <div className="mt-2">
-                      <label className="block text-sm font-medium">Quantity</label>
-                      <input
-                        type="number"
-                        className="w-full p-2 border rounded"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(index, 'quantity', e.target.value)}
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => removeItem(index)}
-                      className="mt-2 text-red-600 text-sm hover:underline"
-                    >
-                      Remove Item
-                    </button>
-                  </div>
-                ))}
-
-                <button
-                  type="button"
-                  onClick={addItem}
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  + Add Another Item
-                </button>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-medium">Year Obligated</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border rounded"
+                    value={data.year_obligated}
+                    onChange={(e) => setData('year_obligated', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block font-medium">Revenue</label>
+                  <input
+                    type="number"
+                    className="w-full p-2 border rounded"
+                    value={data.revenue}
+                    onChange={(e) => setData('revenue', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block font-medium">Net Income</label>
+                  <input
+                    type="number"
+                    className="w-full p-2 border rounded"
+                    value={data.net_income}
+                    onChange={(e) => setData('net_income', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block font-medium">Current Asset</label>
+                  <input
+                    type="number"
+                    className="w-full p-2 border rounded"
+                    value={data.current_asset}
+                    onChange={(e) => setData('current_asset', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block font-medium">Non-Current Asset</label>
+                  <input
+                    type="number"
+                    className="w-full p-2 border rounded"
+                    value={data.noncurrent_asset}
+                    onChange={(e) => setData('noncurrent_asset', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block font-medium">Equity</label>
+                  <input
+                    type="number"
+                    className="w-full p-2 border rounded"
+                    value={data.equity}
+                    onChange={(e) => setData('equity', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block font-medium">Liability</label>
+                  <input
+                    type="number"
+                    className="w-full p-2 border rounded"
+                    value={data.liability}
+                    onChange={(e) => setData('liability', e.target.value)}
+                  />
+                </div>
               </div>
 
               <button
