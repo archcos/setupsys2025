@@ -9,10 +9,12 @@ use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocxController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ImplementationController;
 use App\Http\Controllers\MOAController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PDFController;
 use App\Http\Controllers\RefundController;
+use App\Http\Controllers\TagController;
 use Inertia\Inertia;
 
 Route::middleware('web')->group(function () {
@@ -67,6 +69,9 @@ Route::middleware(['auth.custom', 'role:admin,staff'])->group(function () {
     Route::get('/moa', [MOAController::class, 'index'])->name('moa.index');
     Route::get('/moa/{moa_id}/docx', [MOAController::class, 'generateFromMoa'])->name('moa.generate.docx');
     Route::get('/moa/{moa_id}/pdf', [MOAController::class, 'viewPdf']);
+
+    Route::put('/projects/{id}/progress', [ProjectController::class, 'updateProgress'])->middleware('role:staff');
+
 });
 
 //NOTIFICATION
@@ -80,3 +85,14 @@ Route::post('/refunds/sync', [RefundController::class, 'manualSync']);
 Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index');
 Route::post('/refunds/{id}/update-status', [RefundController::class, 'updateStatus']);
 });
+
+Route::get('/implementation', [ImplementationController::class, 'index']);
+Route::get('/implementation/checklist/{implementId}', [ImplementationController::class, 'checklist']);
+Route::post('/implementation/upload/{field}', [ImplementationController::class, 'uploadToSupabase']);
+Route::delete('/implementation/delete/{field}', [ImplementationController::class, 'deleteFromSupabase']);
+Route::get('/implementation/download/{field}', [ImplementationController::class, 'download']);
+
+
+Route::post('/tags', [TagController::class, 'store']);
+Route::delete('/tags/{id}', [TagController::class, 'destroy']);
+Route::put('/tags/{tagId}', [TagController::class, 'update']);

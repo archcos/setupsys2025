@@ -55,6 +55,11 @@ class ProjectModel extends Model
         return $this->hasMany(ItemModel::class, 'project_id', 'project_id');
     }
 
+    public function implementation()
+    {
+        return $this->hasOne(ImplementationModel::class, 'project_id');
+    }
+
     // ❌ Removed this:
     // public function office()
     // {

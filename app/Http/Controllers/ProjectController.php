@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ProjectModel;
 use App\Models\CompanyModel;
+use App\Models\ImplementationModel;
 use App\Models\ItemModel;
 use App\Models\UserModel;
 use Illuminate\Http\Request;
@@ -220,6 +221,35 @@ public function index(Request $request)
 
         return redirect('/projects')->with('success', 'Project and items updated successfully.');
     }
+
+
+public function updateProgress(Request $request, $id)
+{
+    $request->validate([
+        'progress' => 'required|in:Draft MOA,Implementation',
+    ]);
+
+    $project = ProjectModel::findOrFail($id);
+    $project->progress = $request->progress;
+    $project->save();
+
+    // If progress is "Implementation", create implement record if not existing
+    if ($request->progress === 'Implementation') {
+        $exists = ImplementationModel::where('project_id', $project->project_id)->exists();
+
+        if (!$exists) {
+            ImplementationModel::create([
+                'project_id' => $project->project_id,
+                'tarp' => null,
+                'pdc' => null,
+                'liquidation' => null,
+            ]);
+        }
+    }
+
+    return back();
+}
+
 
     public function destroy($id)
     {
