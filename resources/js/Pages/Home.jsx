@@ -83,7 +83,7 @@ export default function Home() {
   {/* MOA Progress Table */}
 <div className="bg-white rounded-xl shadow p-6">
   <h2 className="text-xl font-semibold text-gray-800 mb-4">
-    MOA Progress Status
+    Project Progress Status
   </h2>
 
   <table className="w-full text-sm text-left border">
@@ -101,7 +101,7 @@ export default function Home() {
           const currentStageIndex = stages.indexOf(project.progress);
 
           // Default values for progress bar if incomplete
-        const progressWidth = project.progress
+          const progressWidth = project.progress
             ? ['w-1/6', 'w-2/6', 'w-1/2', 'w-2/3', 'w-5/6', 'w-full'][currentStageIndex] || 'w-0'
             : 'w-full';
 

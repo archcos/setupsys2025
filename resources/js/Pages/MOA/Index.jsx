@@ -13,11 +13,14 @@ export default function MOAIndex({ moas, filters }) {
     return () => clearTimeout(delay);
   }, [search]);
 
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  
   return (
-    <div className="h-screen flex bg-gray-100">
-      <Sidebar isOpen={true} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header sidebarOpen={true} toggleSidebar={() => {}} />
+       <div className="h-screen flex bg-gray-100 overflow-hidden">
+         <Sidebar isOpen={sidebarOpen} />
+         <div className="flex-1 flex flex-col overflow-hidden">
+           <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
 
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="bg-white rounded-xl shadow p-6">
@@ -45,6 +48,7 @@ export default function MOAIndex({ moas, filters }) {
                   <th className="border px-4 py-2">Project Cost</th>
                   <th className="border px-4 py-2">Created At</th>
                   <th className="border px-4 py-2">Actions</th>
+                  <th className="border px-4 py-2">Acknowledge</th>
                 </tr>
               </thead>
               <tbody>
@@ -80,6 +84,20 @@ export default function MOAIndex({ moas, filters }) {
                           Download DOCX
                         </a>
                       </div>
+                    </td>
+                    <td className="border px-4 py-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={moa.project?.progress === 'Implementation'}
+                        onChange={(e) => {
+                          const newProgress = e.target.checked ? 'Implementation' : 'Draft MOA';
+                          router.put(`/projects/${moa.project?.project_id}/progress`, {
+                            progress: newProgress,
+                          }, {
+                            preserveState: true,
+                          });
+                        }}
+                      />
                     </td>
                   </tr>
                 ))}

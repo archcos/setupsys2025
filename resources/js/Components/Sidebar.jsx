@@ -60,8 +60,8 @@ export default function Sidebar({ isOpen }) {
             isOpen={dropdowns.implementation}
             onToggle={() => toggleDropdown('implementation')}
             links={[
-              { label: '2.0 Refund Monitoring', href: '/refunds' },
-              { label: '2.1 Implementation', href: '/projects' },
+              { label: '2.0 Check List', href: `/implementation` },
+              { label: '2.1 Refund Monitoring', href: '/refunds' },
               { label: '2.2 Implementation', href: '/activities' },
             ]}
           />
@@ -101,6 +101,7 @@ export default function Sidebar({ isOpen }) {
   );
 }
 
+// 🔽 Reusable Dropdown Component
 function Dropdown({ title, isOpen, onToggle, links }) {
   return (
     <div>
