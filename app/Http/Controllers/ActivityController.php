@@ -12,36 +12,38 @@ use Illuminate\Support\Facades\Validator;
 
 class ActivityController extends Controller
 {
-   public function index(Request $request)
-    {
-        $userId = session('user_id');
-        $user = UserModel::where('user_id', $userId)->first();
+ public function index(Request $request)
+{
+    $userId = session('user_id');
+    $user = UserModel::where('user_id', $userId)->first();
 
-        $search = $request->input('search');
+    $search = $request->input('search');
+    $perPage = $request->input('perPage', 10);
 
-        $query = ActivityModel::with('project.company');
+    $query = ActivityModel::with('project.company');
 
-        if ($search) {
-            $query->where('activity_name', 'like', "%$search%")
-                ->orWhereHas('project', function ($q) use ($search) {
-                    $q->where('project_title', 'like', "%$search%");
-                });
-        }
-
-        if ($user->role === 'staff') {
-            $query->whereHas('project.company', function ($q) use ($user) {
-                $q->where('office_id', $user->office_id);
+    if ($search) {
+        $query->where('activity_name', 'like', "%$search%")
+            ->orWhereHas('project', function ($q) use ($search) {
+                $q->where('project_title', 'like', "%$search%");
             });
-        }
-        // Admin sees all — no filter
-
-        $activities = $query->get();
-
-        return Inertia::render('Activities/Index', [
-            'activities' => $activities,
-            'filters' => ['search' => $search],
-        ]);
     }
+
+    if ($user->role === 'staff') {
+        $query->whereHas('project.company', function ($q) use ($user) {
+            $q->where('office_id', $user->office_id);
+        });
+    }
+
+    $activities = $query->orderBy('activity_id', 'desc')->paginate($perPage);
+
+
+    return Inertia::render('Activities/Index', [
+        'activities' => $activities,
+        'filters' => $request->only('search', 'perPage'),
+    ]);
+}
+
 
     public function create()
     {

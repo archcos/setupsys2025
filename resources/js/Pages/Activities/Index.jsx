@@ -4,16 +4,17 @@ import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
 
 export default function Index({ activities, filters }) {
-  const [search, setSearch] = useState(filters.search || '');
+  const [search, setSearch] = useState(filters?.search || '');
+  const [perPage, setPerPage] = useState(filters?.perPage || 10);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedProjectIds, setExpandedProjectIds] = useState([]);
 
   useEffect(() => {
-    const delayDebounce = setTimeout(() => {
-      router.get('/activities', { search }, { preserveState: true, replace: true });
+    const delay = setTimeout(() => {
+      router.get('/activities', { search, perPage }, { preserveState: true, replace: true });
     }, 500);
-    return () => clearTimeout(delayDebounce);
-  }, [search]);
+    return () => clearTimeout(delay);
+  }, [search, perPage]);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -25,9 +26,7 @@ export default function Index({ activities, filters }) {
 
   const toggleProject = (projectId) => {
     setExpandedProjectIds((prev) =>
-      prev.includes(projectId)
-        ? prev.filter((id) => id !== projectId)
-        : [...prev, projectId]
+      prev.includes(projectId) ? prev.filter((id) => id !== projectId) : [...prev, projectId]
     );
   };
 
@@ -38,7 +37,7 @@ export default function Index({ activities, filters }) {
   };
 
   // Group activities by project_id
-  const grouped = activities.reduce((acc, activity) => {
+  const grouped = activities.data.reduce((acc, activity) => {
     const projectId = activity.project?.project_id || 'Unassigned';
     if (!acc[projectId]) {
       acc[projectId] = {
@@ -49,6 +48,15 @@ export default function Index({ activities, filters }) {
     acc[projectId].activities.push(activity);
     return acc;
   }, {});
+
+  const handlePageChange = (url) => {
+    router.visit(url, {
+      preserveState: true,
+      replace: true,
+      only: ['activities'],
+      data: { search, perPage },
+    });
+  };
 
   return (
     <div className="h-screen flex bg-gray-100 overflow-hidden">
@@ -64,14 +72,33 @@ export default function Index({ activities, filters }) {
               </Link>
             </div>
 
-            <input
-              type="text"
-              placeholder="Search by activity or project..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="p-2 border rounded w-full mb-4"
-            />
+            {/* Search + Per Page */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <input
+                type="text"
+                placeholder="Search by activity or project..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="p-2 border rounded w-full sm:w-64"
+              />
+              <div className="flex items-center gap-2">
+                <label className="text-sm">Show</label>
+                <select
+                  value={perPage}
+                  onChange={(e) => setPerPage(Number(e.target.value))}
+                  className="border rounded text-sm"
+                >
+                  {[10, 20, 50, 100].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-sm">entries</span>
+              </div>
+            </div>
 
+            {/* Grouped Activities */}
             {Object.entries(grouped).map(([projectId, group]) => (
               <div key={projectId} className="mb-4 border rounded">
                 <button
@@ -97,10 +124,16 @@ export default function Index({ activities, filters }) {
                             {formatMonthYear(a.start_date)} – {formatMonthYear(a.end_date)}
                           </td>
                           <td className="px-3 py-2 space-x-2">
-                            <Link href={`/activities/${a.activity_id}/edit`} className="text-blue-600 hover:underline">
+                            <Link
+                              href={`/activities/${a.activity_id}/edit`}
+                              className="text-blue-600 hover:underline"
+                            >
                               Edit
                             </Link>
-                            <button onClick={() => handleDelete(a.activity_id)} className="text-red-600 hover:underline">
+                            <button
+                              onClick={() => handleDelete(a.activity_id)}
+                              className="text-red-600 hover:underline"
+                            >
                               Delete
                             </button>
                           </td>
@@ -111,6 +144,23 @@ export default function Index({ activities, filters }) {
                 )}
               </div>
             ))}
+
+            {/* Pagination */}
+            <div className="mt-6 flex justify-end space-x-2">
+              {activities.links.map((link, i) => (
+                <button
+                  key={i}
+                  disabled={!link.url}
+                  onClick={() => handlePageChange(link.url)}
+                  className={`px-3 py-1 rounded text-sm ${
+                    link.active
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300'
+                  }`}
+                  dangerouslySetInnerHTML={{ __html: link.label }}
+                />
+              ))}
+            </div>
           </div>
         </main>
       </div>

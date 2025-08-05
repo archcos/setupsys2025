@@ -86,7 +86,7 @@ Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index'
 Route::post('/refunds/{id}/update-status', [RefundController::class, 'updateStatus']);
 });
 
-Route::get('/implementation', [ImplementationController::class, 'index']);
+Route::get('/implementation', [ImplementationController::class, 'index'])->name('implementation.index');
 Route::get('/implementation/checklist/{implementId}', [ImplementationController::class, 'checklist']);
 Route::post('/implementation/upload/{field}', [ImplementationController::class, 'uploadToSupabase']);
 Route::delete('/implementation/delete/{field}', [ImplementationController::class, 'deleteFromSupabase']);
