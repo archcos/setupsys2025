@@ -1,7 +1,19 @@
 import React, { useState } from 'react';
 import logo from '../../assets/logo.png';
 import { Link, usePage } from '@inertiajs/react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Building,
+  FileText,
+  ClipboardList,
+  List,
+  Settings,
+  LayoutDashboard,
+  Users,
+  FileSignature,
+  FileSearch,
+} from 'lucide-react';
 
 export default function Sidebar({ isOpen }) {
   const [dropdowns, setDropdowns] = useState({
@@ -23,76 +35,79 @@ export default function Sidebar({ isOpen }) {
   if (!isOpen) return null;
 
   return (
-    <aside className="w-64 bg-blue-800 text-white p-6 transition-all duration-300 h-full shadow-md">
-      <Link href="/home" className="flex items-center justify-center gap-3 mb-8 hover:opacity-90">
+    <aside className="w-64 bg-white text-gray-800 p-6 transition-all duration-300 h-full shadow-md">
+      <Link
+        href={role === 'user' ? '/dashboard' : '/home'}
+        className="flex items-center justify-center gap-3 mb-8 hover:opacity-90"
+      >
         <img src={logo} alt="Logo" className="w-10 h-10" />
-        <h2 className="text-2xl font-bold text-white">SETUP</h2>
+        <h2 className="text-2xl font-bold text-gray-800">SETUP</h2>
       </Link>
 
       <nav className="space-y-4">
-          <Link
+        <Link
           href={role === 'user' ? '/dashboard' : '/home'}
-          className="block hover:text-blue-300 font-medium"
+          className="flex items-center gap-2 px-3 py-2 rounded-md hover:shadow hover:bg-gray-100 transition"
         >
-          {role === 'user' ? 'My Dashboard' : 'Overview'}
+          <LayoutDashboard size={18} />
+          {role === 'user' ? 'Dashboard' : 'Overview'}
         </Link>
 
-        {/* Admin Only: MOA Section */}
         {role === 'admin' && (
           <Dropdown
-            title="📄 Development"
+            title="Development"
+            icon={<Building size={18} />}
             isOpen={dropdowns.development}
             onToggle={() => toggleDropdown('development')}
             links={[
-              { label: '1.0 Companies', href: '/companies' },
-              { label: '1.1 Projects', href: '/projects' },
-              { label: '1.2 Activities', href: '/activities' },
-              { label: '1.3 Draft MOA', href: '/draft-moa' },
-              { label: '1.4 MOA List', href: '/moa' },
+              { label: '1.0 Companies', href: '/companies', icon: <Users size={16} /> },
+              { label: '1.1 Projects', href: '/projects', icon: <ClipboardList size={16} /> },
+              { label: '1.2 Activities', href: '/activities', icon: <List size={16} /> },
+              { label: '1.3 Draft MOA', href: '/draft-moa', icon: <FileSignature size={16} /> },
+              { label: '1.4 MOA List', href: '/moa', icon: <FileText size={16} /> },
             ]}
           />
         )}
 
-        {/* Admin Only: Data Forms */}
         {role === 'admin' && (
           <Dropdown
-            title="📊 Implementation"
+            title="Implementation"
+            icon={<Settings size={18} />}
             isOpen={dropdowns.implementation}
             onToggle={() => toggleDropdown('implementation')}
             links={[
-              { label: '2.0 Check List', href: `/implementation` },
-              { label: '2.1 Refund Monitoring', href: '/refunds' },
-              { label: '2.2 Implementation', href: '/activities' },
+              { label: '2.0 Check List', href: `/implementation`, icon: <ClipboardList size={16} /> },
+              { label: '2.1 Refund Monitoring', href: '/refunds', icon: <FileSearch size={16} /> },
+              { label: '2.2 Implementation', href: '/activities', icon: <List size={16} /> },
             ]}
           />
         )}
 
-        {/* Staff Only: Data Forms */}
         {role === 'staff' && (
           <Dropdown
-            title="📄 Development"
+            title="Development"
+            icon={<Building size={18} />}
             isOpen={dropdowns.development}
             onToggle={() => toggleDropdown('development')}
             links={[
-              { label: '1.0 Companies', href: '/companies' },
-              { label: '1.1 Projects', href: '/projects' },
-              { label: '1.2 Activities', href: '/activities' },
-              { label: 'MOA List', href: '/moa' },
+              { label: '1.0 Companies', href: '/companies', icon: <Users size={16} /> },
+              { label: '1.1 Projects', href: '/projects', icon: <ClipboardList size={16} /> },
+              { label: '1.2 Activities', href: '/activities', icon: <List size={16} /> },
+              { label: 'MOA List', href: '/moa', icon: <FileText size={16} /> },
             ]}
           />
         )}
 
-
-        {/* User Only: Company Add */}
         {role === 'user' && (
           <Dropdown
-            title="🏢 Manage Company"
+            title="Manage Company"
+            icon={<Building size={18} />}
             isOpen={dropdowns.user}
             onToggle={() => toggleDropdown('user')}
             links={[
-              { label: 'Companies', href: '/companies' },
-              { label: 'Projects', href: '/project-list' },
-              { label: 'Activities', href: '/activities' },
+              { label: 'Companies', href: '/companies', icon: <Users size={16} /> },
+              { label: 'Projects', href: '/project-list', icon: <ClipboardList size={16} /> },
+              { label: 'Activities', href: '/activities', icon: <List size={16} /> },
             ]}
           />
         )}
@@ -102,24 +117,29 @@ export default function Sidebar({ isOpen }) {
 }
 
 // 🔽 Reusable Dropdown Component
-function Dropdown({ title, isOpen, onToggle, links }) {
+function Dropdown({ title, icon, isOpen, onToggle, links }) {
   return (
     <div>
       <button
         onClick={onToggle}
-        className="w-full flex justify-between items-center font-medium hover:text-blue-300"
+        className="w-full flex justify-between items-center px-3 py-2 rounded-md hover:shadow hover:bg-gray-100 transition font-medium"
       >
-        <span>{title}</span>
+        <div className="flex items-center gap-2">
+          {icon}
+          <span>{title}</span>
+        </div>
         {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </button>
+
       {isOpen && (
-        <div className="ml-4 mt-2 space-y-1">
+        <div className="ml-6 mt-2 space-y-1">
           {links.map((link, idx) => (
             <Link
               key={idx}
               href={link.href}
-              className="block text-sm hover:text-blue-200"
+              className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:shadow hover:bg-gray-100 transition"
             >
+              {link.icon}
               {link.label}
             </Link>
           ))}

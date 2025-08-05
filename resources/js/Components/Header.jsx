@@ -29,7 +29,7 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
   }, []);
 
   return (
-    <header className="bg-white border-b px-6 py-4 flex items-center justify-between shadow-sm">
+    <header className="bg-blue-100 border-b px-6 py-4 flex items-center justify-between shadow-sm">
       <button
         onClick={toggleSidebar}
         className="text-gray-600 hover:text-gray-900 focus:outline-none mr-4"
