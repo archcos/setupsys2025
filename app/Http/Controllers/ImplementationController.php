@@ -16,14 +16,29 @@ use Inertia\Inertia;
 
 class ImplementationController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $implementations = ImplementationModel::with('project.company')->get();
+        $search = $request->input('search');
+        $perPage = $request->input('perPage', 10);
+
+        $implementations = ImplementationModel::with('project.company')
+            ->when($search, function ($query, $search) {
+                $query->whereHas('project', function ($q) use ($search) {
+                    $q->where('project_title', 'like', "%{$search}%")
+                    ->orWhereHas('company', function ($qc) use ($search) {
+                        $qc->where('company_name', 'like', "%{$search}%");
+                    });
+                });
+            })
+            ->paginate($perPage)
+            ->appends($request->only('search', 'perPage'));
 
         return Inertia::render('Implementation/Index', [
-            'implementations' => $implementations, // <-- exactly this
+            'implementations' => $implementations,
+            'filters' => $request->only('search', 'perPage'),
         ]);
     }
+
 
     public function store(Request $request)
     {

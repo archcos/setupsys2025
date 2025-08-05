@@ -106,8 +106,8 @@ export default function Home() {
             : 'w-full';
 
           const progressColor = project.progress
-            ? ['bg-yellow-500', 'bg-blue-500', 'bg-green-500', 'bg-teal-500', 'bg-purple-500', 'bg-green-700'][currentStageIndex] || 'bg-red-500'
-            : 'bg-red-500';
+            ? ['bg-yellow-600', 'bg-orange-600', 'bg-purple-600', 'bg-blue-600', 'bg-teal-600', 'bg-green-600'][currentStageIndex] || 'bg-red-600'
+            : 'bg-red-600';
           const progressLabel = project.progress || 'Incomplete Profile';
 
           return (
@@ -119,20 +119,26 @@ export default function Home() {
                   <div
                     className={`h-6 rounded-full transition-all duration-300 ${progressWidth} ${progressColor}`}
                   ></div>
-                  <div className="absolute inset-0 flex justify-between items-center px-2 text-xs font-medium text-gray-700">
+                <div className="absolute inset-0 flex justify-between items-center px-2 text-xs font-medium drop-shadow-sm">
                     {project.progress ? (
-                      stages.map((stage, i) => (
-                        <span
-                          key={i}
-                          className={`${i <= currentStageIndex ? 'text-white' : ''}`}
-                        >
-                          {stage}
-                        </span>
-                      ))
+                      stages.map((stage, i) => {
+                        const isActive = i <= currentStageIndex;
+
+                        // Choose text color based on background for contrast
+                        const stageTextColors = ['text-white', 'text-white', 'text-white', 'text-black', 'text-white', 'text-white'];
+                        const textColor = isActive ? stageTextColors[i] : 'text-gray-800';
+
+                        return (
+                          <span key={i} className={textColor}>
+                            {stage}
+                          </span>
+                        );
+                      })
                     ) : (
-                      <span className="text-white">Incomplete Project Details</span>
+                      <span className="text-white drop-shadow-sm">Incomplete Project Details</span>
                     )}
                   </div>
+
 
                 </div>
 

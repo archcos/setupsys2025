@@ -154,7 +154,7 @@ export default function Index({ projects, filters }) {
                 })}
               </tbody>
             </table>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-6 flex justify-end space-x-2">
             {projects.links.map((link, index) => (
               <button
                 key={index}

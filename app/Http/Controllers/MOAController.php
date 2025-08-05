@@ -19,13 +19,12 @@ class MOAController extends Controller
 public function index(Request $request)
 {
     $search = $request->input('search');
+    $perPage = $request->input('perPage', 10);
     $userId = session('user_id');
     $user = UserModel::find($userId);
 
-    // Start the query with relationships
     $query = MOAModel::with('project.company.office');
 
-    // 🔍 Optional search
     if ($search) {
         $query->where(function ($q) use ($search) {
             $q->where('owner_name', 'like', "%{$search}%")
@@ -36,25 +35,22 @@ public function index(Request $request)
         });
     }
 
-    // ✅ Only allow access for staff and admin
     if ($user && $user->role === 'staff') {
         $query->whereHas('project.company', function ($q) use ($user) {
             $q->where('office_id', $user->office_id);
         });
     } elseif ($user && $user->role !== 'admin') {
-        // If not staff or admin, block data (return empty)
         $query->whereRaw('0 = 1');
     }
 
-    $moas = $query->latest()->get();
+    $moas = $query->latest()->paginate($perPage)->appends($request->only('search', 'perPage'));
 
     return inertia('MOA/Index', [
         'moas' => $moas,
-        'filters' => [
-            'search' => $search,
-        ],
+        'filters' => $request->only('search', 'perPage'),
     ]);
 }
+
 
 
 

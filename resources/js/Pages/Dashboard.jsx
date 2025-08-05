@@ -41,7 +41,7 @@ export default function Dashboard() {
                     const hasReached = (stage) => currentStageIndex >= stages.indexOf(stage);
 
                     const progressWidth = ['w-1/6', 'w-2/6', 'w-7/12', 'w-2/3', 'w-5/6', 'w-full'][currentStageIndex] || 'w-0';
-                    const progressColor = ['bg-yellow-500', 'bg-blue-500', 'bg-green-500', 'bg-teal-500', 'bg-purple-500', 'bg-green-700'][currentStageIndex] || 'bg-red-500';
+                    const progressColor = ['bg-yellow-600', 'bg-orange-600', 'bg-purple-600', 'bg-blue-600', 'bg-teal-600', 'bg-green-600'][currentStageIndex] || 'bg-red-600';
 
                     const implementation = project.implementation;
                     const tags = implementation?.tags || [];
@@ -126,7 +126,7 @@ export default function Dashboard() {
                             {/* ✅ Tagging Summary */}
                             {tags.length > 0 && (
                               <div className="text-xs mt-3 border-t pt-2 space-y-2">
-                                <h4 className="font-medium">Equipment Untagging</h4>
+                                <div className="font-semibold text-gray-700 mb-1">Equipment Untagging</div>
                                 <ul className="space-y-1">
                                   {tags.map((tag, i) => (
                                     <li key={i} className="flex justify-between bg-gray-50 rounded px-3 py-1 border">

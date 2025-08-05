@@ -164,22 +164,22 @@ export default function Index({ companies, filters }) {
                 </tbody>
               </table>
               {companies.links.length > 1 && (
-  <div className="mt-6 flex justify-end space-x-2">
-    {companies.links.map((link, index) => (
-      <button
-        key={index}
-        disabled={!link.url}
-        onClick={() => link.url && router.visit(link.url)}
-        className={`px-3 py-1 text-sm rounded border ${
-          link.active
-            ? 'bg-blue-600 text-white'
-            : 'bg-white text-gray-700 hover:bg-gray-100'
-        }`}
-        dangerouslySetInnerHTML={{ __html: link.label }}
-      />
-    ))}
-  </div>
-)}
+              <div className="mt-6 flex justify-end space-x-2">
+                {companies.links.map((link, index) => (
+                  <button
+                    key={index}
+                    disabled={!link.url}
+                    onClick={() => link.url && router.visit(link.url)}
+                    className={`px-3 py-1 text-sm rounded border ${
+                      link.active
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-100'
+                    }`}
+                    dangerouslySetInnerHTML={{ __html: link.label }}
+                  />
+                ))}
+              </div>
+            )}
             </div>
 
             {companies.length === 0 && (
