@@ -150,6 +150,7 @@ export default function Checklist({ implementation }) {
 
   const projectCost = parseFloat(implementation.project?.project_cost || 0);
   const percentage = (totalAmount / projectCost) * 100;
+  const canUploadLiquidation = percentage >= 100;
 
   return (
     <div className="flex bg-gray-100 h-screen">
@@ -385,15 +386,21 @@ export default function Checklist({ implementation }) {
                       type="file"
                       onChange={(e) => setData(field, e.target.files[0])}
                       className="block text-sm text-gray-500"
-                      disabled={fileExists}
+                      disabled={fileExists || !canUploadLiquidation}
                     />
                     <button
                       onClick={() => upload(field)}
-                      disabled={!data[field] || fileExists || isLoading}
+                      disabled={!data[field] || fileExists || isLoading || !canUploadLiquidation}
                       className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 disabled:opacity-50"
                     >
                       {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Upload'}
                     </button>
+                    {!canUploadLiquidation && (
+                      <p className="text-red-500 text-sm mt-1">
+                        You must reach 100% in tag allocation before uploading the liquidation report.
+                      </p>
+                    )}
+
                   </div>
                 </div>
               );

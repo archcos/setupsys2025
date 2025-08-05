@@ -102,7 +102,7 @@ export default function Home() {
 
           // Default values for progress bar if incomplete
           const progressWidth = project.progress
-            ? ['w-1/6', 'w-2/6', 'w-1/2', 'w-2/3', 'w-5/6', 'w-full'][currentStageIndex] || 'w-0'
+            ? ['w-1/6', 'w-2/6', 'w-7/12', 'w-2/3', 'w-5/6', 'w-full'][currentStageIndex] || 'w-0'
             : 'w-full';
 
           const progressColor = project.progress
