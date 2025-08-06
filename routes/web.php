@@ -55,6 +55,7 @@ Route::middleware(['auth.custom'])->group(function () {
     Route::resource('activities', ActivityController::class);
     Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly');
     Route::post('/companies/sync', [CompanyController::class, 'syncFromCSV'])->name('companies.sync');
+    Route::get('/activity-list', [ActivityController::class, 'readonly'])->name('activities.readonly');
 });
 
 //MOA

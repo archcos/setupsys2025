@@ -53,23 +53,27 @@ public function index(Request $request)
     ]);
 }
 
-    public function readonly(Request $request)
-    {
-        $search = $request->input('search');
-        $userId = session('user_id');
-        $user = UserModel::find($userId);
+public function readonly(Request $request)
+{
+    $search = $request->input('search');
+    $userId = session('user_id');
+    $user = UserModel::find($userId);
 
-        $projects = ProjectModel::with(['company', 'items'])
-            ->when($user && $user->role === 'user', function ($query) use ($user) {
-                $query->where('added_by', $user->user_id);
-            })
-            ->get();
+    $projects = ProjectModel::with(['company', 'items'])
+        ->when($user && $user->role === 'user', function ($query) use ($user) {
+            // Only get projects whose company was added by this user
+            $query->whereHas('company', function ($q) use ($user) {
+                $q->where('added_by', $user->user_id);
+            });
+        })
+        ->orderBy('project_title')
+        ->get();
 
-        return Inertia::render('Projects/ProjectList', [
-            'projects' => $projects,
-            'filters' => $request->only('search'),
-        ]);
-    }
+    return Inertia::render('Projects/ProjectList', [
+        'projects' => $projects,
+    ]);
+}
+
 
     public function create()
     {

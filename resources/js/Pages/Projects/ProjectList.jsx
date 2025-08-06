@@ -4,19 +4,10 @@ import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
 
 export default function ProjectList({ projects, filters }) {
-  const [search, setSearch] = useState(filters.search || '');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [openDropdowns, setOpenDropdowns] = useState({});
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
-
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      router.get('/project-list', { search }, { preserveState: true, replace: true });
-    }, 500);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [search]);
 
   return (
     <div className="h-screen flex bg-gray-100 overflow-hidden">
@@ -27,14 +18,6 @@ export default function ProjectList({ projects, filters }) {
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="bg-white rounded-xl shadow p-4">
             <h2 className="text-lg font-semibold mb-4">Project List</h2>
-
-            <input
-              type="text"
-              placeholder="Search by title, company, cost..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="p-2 border rounded mb-4 w-full"
-            />
 
             <table className="w-full text-sm table-auto border">
               <thead>

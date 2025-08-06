@@ -1,33 +1,25 @@
-import { router } from '@inertiajs/react';
+import { router, Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
 
-export default function Index({ activities, filters }) {
-  const [search, setSearch] = useState(filters.search || '');
+export default function ActivityList({ activities, filters }) {
+  const [search, setSearch] = useState(filters?.search || '');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedProjectIds, setExpandedProjectIds] = useState([]);
 
   useEffect(() => {
-    const delayDebounce = setTimeout(() => {
-      router.get('/activities', { search }, { preserveState: true, replace: true });
+    const delay = setTimeout(() => {
+      router.get('/activity-list', { search }, { preserveState: true, replace: true });
     }, 500);
-    return () => clearTimeout(delayDebounce);
+    return () => clearTimeout(delay);
   }, [search]);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  const handleDelete = (id) => {
-    if (confirm('Are you sure you want to delete this activity?')) {
-      router.delete(`/activities/${id}`);
-    }
-  };
-
   const toggleProject = (projectId) => {
     setExpandedProjectIds((prev) =>
-      prev.includes(projectId)
-        ? prev.filter((id) => id !== projectId)
-        : [...prev, projectId]
+      prev.includes(projectId) ? prev.filter((id) => id !== projectId) : [...prev, projectId]
     );
   };
 
@@ -55,17 +47,14 @@ export default function Index({ activities, filters }) {
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <Head title="Activities" />
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="bg-white rounded-xl shadow p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Activities by Project </h2>
+            </div>
 
-            <input
-              type="text"
-              placeholder="Search by activity or project..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="p-2 border rounded w-full mb-4"
-            />
-
+            {/* Grouped Activities */}
             {Object.entries(grouped).map(([projectId, group]) => (
               <div key={projectId} className="mb-4 border rounded">
                 <button
@@ -80,7 +69,6 @@ export default function Index({ activities, filters }) {
                       <tr className="bg-gray-100 text-left">
                         <th className="px-3 py-2">Activity</th>
                         <th className="px-3 py-2">Start - End</th>
-                        <th className="px-3 py-2">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -97,6 +85,12 @@ export default function Index({ activities, filters }) {
                 )}
               </div>
             ))}
+
+            {activities.length === 0 && (
+              <div className="text-center text-gray-500 py-6">
+                No activities found.
+              </div>
+            )}
           </div>
         </main>
       </div>

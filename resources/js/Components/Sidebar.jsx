@@ -107,7 +107,7 @@ export default function Sidebar({ isOpen }) {
             links={[
               { label: 'Companies', href: '/companies', icon: <Users size={16} /> },
               { label: 'Projects', href: '/project-list', icon: <ClipboardList size={16} /> },
-              { label: 'Activities', href: '/activities', icon: <List size={16} /> },
+              { label: 'Activities', href: '/activity-list', icon: <List size={16} /> },
             ]}
           />
         )}
