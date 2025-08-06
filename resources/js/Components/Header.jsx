@@ -104,7 +104,10 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
                               <span className="text-gray-400 text-xs font-medium">Read</span>
                             )}
                           </div>
-                          <div className="text-xs text-gray-500">{notif.message}</div>
+                          <div
+                            className="text-xs text-gray-500"
+                            dangerouslySetInnerHTML={{ __html: notif.message }}
+                          />
                           <div className="text-xs text-gray-400 mt-1">
                             {new Date(notif.created_at).toLocaleString()}
                           </div>

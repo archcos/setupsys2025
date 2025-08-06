@@ -52,7 +52,7 @@ Route::middleware(['auth.custom'])->group(function () {
     Route::resource('companies', CompanyController::class);
     Route::resource('projects', ProjectController::class);
     Route::get('/projects', [ProjectController::class, 'index'])->middleware('role:admin,staff');
-    Route::resource('activities', ActivityController::class);
+    Route::resource('activities', ActivityController::class)->middleware('role:admin,staff');;
     Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly');
     Route::post('/companies/sync', [CompanyController::class, 'syncFromCSV'])->name('companies.sync');
     Route::get('/activity-list', [ActivityController::class, 'readonly'])->name('activities.readonly');
