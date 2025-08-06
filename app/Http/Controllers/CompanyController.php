@@ -116,6 +116,14 @@ public function syncFromCSV()
         $csvData = array_map('str_getcsv', $lines);
         $newRecords = 0;
 
+        $officeMap = [
+            'BUK'            => 2, // 2-BUK
+            'CAM'            => 3, // 3-CAM
+            'LDN'     => 4, // 4-LDN
+            'MOC'  => 5, // 5-MOC
+            'MOR'    => 6, // 6-MOR
+        ];
+
         foreach ($csvData as $rowIndex => $row) {
             $row = array_map('trim', $row);
             $row = array_slice($row, 0, count($header));
@@ -148,7 +156,11 @@ public function syncFromCSV()
                 continue;
             }
 
-            // Safe parse integer fields
+            // Determine office_id based on province
+            $provinceName = $data['Province'] ?? null;
+            $officeId = $officeMap[$provinceName] ?? (session('office_id') ?? 1);
+
+            // Parse integer fields
             $intFields = [
                 'Female indirect employees' => 'female',
                 'Male indirect employees' => 'male',
@@ -167,11 +179,11 @@ public function syncFromCSV()
                     'owner_name'       => $data['CEO'] ?? null,
                     'email'            => $data['Email'] ?? null,
                     'added_by'         => session('user_id') ?? 1,
-                    'office_id'        => session('office_id') ?? 1,
+                    'office_id'        => $officeId, // <-- office_id based on province
                     'street'           => $data["Bldg. No/Street/Subd."] ?? null,
                     'barangay'         => $data['Barangay'] ?? null,
                     'municipality'     => $data['Municipality'] ?? null,
-                    'province'         => $data['Province'] ?? null,
+                    'province'         => $provinceName,
                     'district'         => $data['District'] ?? null,
                     'sex'              => $data['Sex'] ?? null,
                     'products'         => $data['Products'] ?? null,
@@ -184,12 +196,13 @@ public function syncFromCSV()
                     'contact_number'   => $data['Contact number'] ?? null,
                 ]);
                 $newRecords++;
-                Log::info("Inserted: $company_name");
+                Log::info("Inserted: $company_name (office_id={$officeId})");
             } catch (\Exception $e) {
                 Log::error("Row $rowIndex failed: " . $e->getMessage(), ['row' => $data]);
                 continue;
             }
         }
+
 
         Log::info("Company CSV sync complete. Total new: $newRecords");
         return back()->with('success', "$newRecords companies synced.");

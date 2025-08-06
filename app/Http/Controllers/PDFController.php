@@ -214,9 +214,9 @@ public function getCompanyDetails($id)
             ->get();
 
         foreach ($officeUsers as $user) {
-            NotificationModel::create([
+                NotificationController::createNotificationAndEmail([
                 'title' => 'MOA Generated',
-                'message' => "A new MOA has been generated for the project: {$project->project_title} of {$company->company_name}",
+                'message' => "A MOA has been generated for the: <br>Project: {$project->project_title} <br>Company: {$company->company_name}",
                 'office_id' => $company->office_id,
                 'company_id' => $company->company_id, 
             ]);
