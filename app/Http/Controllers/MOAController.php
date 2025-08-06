@@ -8,10 +8,7 @@ use App\Models\ProjectModel;
 use App\Models\CompanyModel;
 use App\Models\UserModel;
 use PhpOffice\PhpWord\TemplateProcessor;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
-use Symfony\Component\HttpFoundation\Response;
 
 class MOAController extends Controller
 {
@@ -172,8 +169,8 @@ public function generateFromMoa($moa_id)
     // Total row
     $table->addRow();
     $cell = $table->addCell(9700, ['gridSpan' => 3]);
-    $cell->addTextRun(['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::RIGHT])
-         ->addText('TOTAL', $boldArial);
+    $cell->addTextRun(['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::END])
+        ->addText('TOTAL', $boldArial);
     $table->addCell(3000)->addText(number_format($grandTotal, 2), $boldArial);
     $table->addCell(1500)->addText('');
     $table->addCell(3000)->addText(number_format($grandTotal, 2), $boldArial);

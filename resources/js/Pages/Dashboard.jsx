@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
-import { usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { CheckCircle, Circle } from 'lucide-react';
 
 export default function Dashboard() {
@@ -17,7 +17,6 @@ export default function Dashboard() {
     ) : (
       <Circle className="text-gray-400 w-5 h-5" />
     );
-
   return (
     <div className="h-screen flex bg-gray-100 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} />
@@ -25,6 +24,7 @@ export default function Dashboard() {
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
         <main className="flex-1 p-6 overflow-y-auto space-y-6">
           <div className="bg-white rounded-xl shadow p-6">
+            <Head title="Dashboard" />
             <h2 className="text-xl font-semibold text-gray-800 mb-4">My Company Progress</h2>
 
             <table className="w-full text-sm text-left border">
@@ -125,7 +125,7 @@ export default function Dashboard() {
 
                             {/* ✅ Tagging Summary */}
                             {tags.length > 0 && (
-                              <div className="text-xs mt-3 border-t pt-2 space-y-2">
+                              <div className="text-xs mt-3 pt-2 space-y-2">
                                 <div className="font-semibold text-gray-700 mb-1">Equipment Untagging</div>
                                 <ul className="space-y-1">
                                   {tags.map((tag, i) => (
@@ -140,7 +140,7 @@ export default function Dashboard() {
                                   {percentage.toFixed(1)}% of project cost ₱{project.project_cost.toLocaleString()})
                                 </div>
 
-                                <div className="w-full bg-gray-300 rounded h-3 overflow-hidden">
+                                <div className="w-full bg-gray-300 rounded h-3 overflow-hidden ">
                                   <div
                                     className="bg-blue-500 h-full transition-all"
                                     style={{ width: `${Math.min(percentage, 100)}%` }}
@@ -151,7 +151,7 @@ export default function Dashboard() {
 
                             {/* ✅ Liquidation */}
                             <div>
-                              <div className="font-semibold text-gray-700 mb-1">Liquidation</div>
+                              <div className="font-semibold text-gray-700 mb-1 border-t-2">Liquidation</div>
                               <div className="ml-4">
                                 <div className="flex items-center gap-2">
                                   {renderStatus(implementation?.liquidation)}

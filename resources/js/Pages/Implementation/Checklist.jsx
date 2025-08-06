@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useForm, usePage, router } from '@inertiajs/react';
+import { useForm, usePage, router, Head } from '@inertiajs/react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
 import {
@@ -157,6 +157,7 @@ export default function Checklist({ implementation }) {
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <Head title="Checklist" />
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-2xl mx-auto bg-white rounded-xl shadow space-y-6 p-6">
             <h2 className="text-xl font-semibold">Implementation Checklist</h2>

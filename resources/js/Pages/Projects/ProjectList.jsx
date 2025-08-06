@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
@@ -23,6 +23,7 @@ export default function ProjectList({ projects, filters }) {
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <Head title="Projects" />
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="bg-white rounded-xl shadow p-4">
             <h2 className="text-lg font-semibold mb-4">Project List</h2>

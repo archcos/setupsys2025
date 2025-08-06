@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { router, usePage } from '@inertiajs/react';
+import { router, usePage, Head } from '@inertiajs/react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
 
@@ -94,6 +94,7 @@ export default function Index({ refunds, months, selectedMonth, selectedStatus }
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <Head title="Refund Monitoring" />
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="bg-white rounded-xl shadow p-6">
             {flash.success && (

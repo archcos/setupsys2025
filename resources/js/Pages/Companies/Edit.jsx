@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useForm, Link } from '@inertiajs/react';
+import { useForm, Link, Head } from '@inertiajs/react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
 
@@ -84,6 +84,7 @@ export default function Edit({ company }) {
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <Head title="Edit Company" />
         <main className="flex-1 p-4 overflow-y-auto">
           <div className="bg-white rounded-lg shadow p-4 max-w-4xl mx-auto">
             <div className="mb-4">

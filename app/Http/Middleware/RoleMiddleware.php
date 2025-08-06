@@ -15,7 +15,7 @@ class RoleMiddleware
         $user = $userId ? UserModel::find($userId) : null;
 
         if (! $user || ! in_array($user->role, $roles)) {
-            abort(403, 'Unauthorized.');
+            abort(404, 'Page Not Available');
         }
 
         return $next($request);

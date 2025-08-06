@@ -1,4 +1,4 @@
-import { useForm, Link, router } from '@inertiajs/react';
+import { useForm, Link, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
@@ -25,6 +25,7 @@ export default function Edit({ activity, projects }) {
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <Head title="Edit Activity" />
         <main className="flex-1 p-4">
           <div className="bg-white rounded shadow p-6 max-w-2xl mx-auto">
             <div className="mb-4">

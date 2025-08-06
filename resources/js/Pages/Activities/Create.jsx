@@ -1,4 +1,4 @@
-import { useForm, Link } from '@inertiajs/react';
+import { useForm, Link, Head } from '@inertiajs/react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
 import { useState } from 'react';
@@ -39,6 +39,7 @@ export default function Create({ projects }) {
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <Head title="Create Activity" />
         <main className="flex-1 p-4">
           <div className="bg-white rounded shadow p-6 max-w-3xl mx-auto">
             <div className="mb-4">

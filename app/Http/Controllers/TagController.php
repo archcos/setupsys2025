@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\TagModel;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 
 class TagController extends Controller
 {
