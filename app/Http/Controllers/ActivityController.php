@@ -43,6 +43,33 @@ class ActivityController extends Controller
     ]);
 }
 
+    public function readonly(Request $request)
+    {
+        $search = $request->input('search');
+        $userId = session('user_id');
+        $user = UserModel::find($userId);
+
+        $query = ActivityModel::with('project.company')
+            ->when($user && $user->role === 'user', function ($q) use ($user) {
+                $q->whereHas('project.company', function ($q2) use ($user) {
+                    $q2->where('added_by', $user->user_id);
+                });
+            })
+            ->when($user && $user->role === 'staff', function ($q) use ($user) {
+                $q->whereHas('project.company', function ($q2) use ($user) {
+                    $q2->where('office_id', $user->office_id);
+                });
+            })
+            ->orderBy('activity_id', 'desc');
+
+        $activities = $query->get();
+
+        return Inertia::render('Activities/ActivityList', [
+            'activities' => $activities,
+        ]);
+    }
+
+
 
     public function create()
     {
