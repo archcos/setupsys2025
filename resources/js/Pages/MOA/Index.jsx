@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, router } from '@inertiajs/react';
+import { router, usePage, Head } from '@inertiajs/react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
 
@@ -9,6 +9,8 @@ export default function MOAIndex({ moas, filters }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
+  const { auth } = usePage().props;
+  const isStaff = auth?.user?.role === 'staff';
   useEffect(() => {
     const delay = setTimeout(() => {
       router.get('/moa', { search, perPage }, { preserveState: true, replace: true });
@@ -30,6 +32,7 @@ export default function MOAIndex({ moas, filters }) {
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <Head title="MOA List" />
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="bg-white rounded-xl shadow p-6">
             <h1 className="text-xl font-bold mb-4">List of MOAs</h1>
@@ -91,18 +94,19 @@ export default function MOAIndex({ moas, filters }) {
                         <a href={`/moa/${moa.moa_id}/docx`} className="text-green-600 hover:underline">Download DOCX</a>
                       </div>
                     </td>
-                    <td className="border px-4 py-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={moa.project?.progress === 'Implementation'}
-                        onChange={(e) => {
-                          const newProgress = e.target.checked ? 'Implementation' : 'Draft MOA';
-                          router.put(`/projects/${moa.project?.project_id}/progress`, {
-                            progress: newProgress,
-                          }, { preserveState: true });
-                        }}
-                      />
-                    </td>
+                   <td className="border px-4 py-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={moa.project?.progress === 'Implementation'}
+                      disabled={!isStaff}
+                      onChange={(e) => {
+                        const newProgress = e.target.checked ? 'Implementation' : 'Draft MOA';
+                        router.put(`/projects/${moa.project?.project_id}/progress`, {
+                          progress: newProgress,
+                        }, { preserveState: true });
+                      }}
+                    />
+                  </td>
                   </tr>
                 ))}
               </tbody>

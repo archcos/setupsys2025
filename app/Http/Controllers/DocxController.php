@@ -7,7 +7,6 @@ use App\Models\ProjectModel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use PhpOffice\PhpWord\TemplateProcessor;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocxController extends Controller
 {
@@ -34,7 +33,7 @@ public function generate(Request $request)
     ]);
 
     $templatePath = public_path('template.docx');
-    $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor($templatePath);
+    $templateProcessor = new TemplateProcessor($templatePath);
 
     $templateProcessor->setValue('name', $request->name);
     $templateProcessor->setValue('date', $request->date);

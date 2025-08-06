@@ -1,4 +1,4 @@
-import { Link, router } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';

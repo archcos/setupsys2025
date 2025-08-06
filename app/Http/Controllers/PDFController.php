@@ -6,14 +6,12 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\CompanyModel;
 use App\Models\ProjectModel;
-use App\Models\ActivityModel;
 use App\Models\DirectorModel;
 use App\Models\MOAModel;
 use App\Models\NotificationModel;
 use App\Models\OfficeModel;
 use App\Models\UserModel;
 use PhpOffice\PhpWord\TemplateProcessor;
-use Illuminate\Support\Facades\Storage;
 use \NumberFormatter;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\SimpleType\Jc; // for alignment constants
@@ -180,7 +178,7 @@ public function getCompanyDetails($id)
         $mergedCell = $table->addCell(9700, ['gridSpan' => 3]);
 
         // Add "TOTAL" aligned to the right of the merged cell
-        $mergedTextRun = $mergedCell->addTextRun(['alignment' => Jc::RIGHT]);
+        $mergedTextRun = $mergedCell->addTextRun(['alignment' => Jc::END]);
         $mergedTextRun->addText('TOTAL', $boldArial);
 
         // SETUP column total (same as grand total for now)

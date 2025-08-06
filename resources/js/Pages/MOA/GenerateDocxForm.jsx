@@ -1,4 +1,4 @@
-import { useForm, router } from '@inertiajs/react';
+import { useForm, router, Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
@@ -58,6 +58,7 @@ export default function GenerateDocxForm({ companies }) {
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <Head title="Draft MOA" />
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="bg-white rounded-xl shadow p-6 max-w-3xl mx-auto">
             <h1 className="text-xl font-bold mb-4">Generate Draft MOA</h1>

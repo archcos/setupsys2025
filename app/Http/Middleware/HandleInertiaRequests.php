@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\NotificationModel;
+use App\Models\UserModel;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -31,7 +32,7 @@ class HandleInertiaRequests extends Middleware
   public function share(Request $request): array
 {
     $user = $request->session()->has('user_id')
-        ? \App\Models\UserModel::find($request->session()->get('user_id'))
+        ? UserModel::find($request->session()->get('user_id'))
         : null;
 
     return array_merge(parent::share($request), [

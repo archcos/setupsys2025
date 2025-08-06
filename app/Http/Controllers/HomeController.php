@@ -6,7 +6,6 @@ use App\Models\UserModel;
 use App\Models\OfficeModel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Session;
 
 class HomeController extends Controller
 {

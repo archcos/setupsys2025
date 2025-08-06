@@ -17,7 +17,7 @@ use App\Http\Controllers\RefundController;
 use App\Http\Controllers\TagController;
 use Inertia\Inertia;
 
-Route::middleware('web')->group(function () {
+Route::middleware(['redirectIfAuthenticated'])->group(function () {
     // Register
     Route::get('/register', [RegisterController::class, 'index'])->name('offices.index');
     Route::post('/registration', [RegisterController::class, 'register'])->name('registration');
@@ -31,7 +31,7 @@ Route::middleware('web')->group(function () {
 Route::middleware(['auth.custom'])->group(function () {
    // Protected Home Page
     Route::get('/home', [HomeController::class, 'index'])->middleware('role:admin,staff')->name('home');
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('user.dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('user.dashboard')->middleware('role:user');
 
     // Logout
     Route::post('/logout', function () {

@@ -1,4 +1,4 @@
-import { useForm, router, Link } from '@inertiajs/react';
+import { useForm, Link, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
@@ -35,6 +35,7 @@ export default function Create({ companies }) {
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <Head title="Create Project" />
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="bg-white rounded-xl shadow p-6 max-w-4xl mx-auto">
             <div className="mb-4">

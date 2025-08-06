@@ -8,7 +8,6 @@ use App\Models\ProjectModel;
 use App\Models\UserModel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Validator;
 
 class ActivityController extends Controller
 {
