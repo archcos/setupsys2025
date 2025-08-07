@@ -8,11 +8,17 @@ import {
   FileText,
   ClipboardList,
   List,
-  Settings,
   LayoutDashboard,
   Users,
   FileSignature,
   FileSearch,
+  User,
+  ShieldUser,
+  Building2,
+  ListTodo,
+  PencilRuler,
+  ChartNoAxesCombined,
+  SquareKanban
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen }) {
@@ -20,6 +26,7 @@ export default function Sidebar({ isOpen }) {
     development: true,
     implementation: true,
     user: true,
+    adminpanel: false
   });
 
   const toggleDropdown = (key) => {
@@ -56,13 +63,13 @@ export default function Sidebar({ isOpen }) {
         {role === 'admin' && (
           <Dropdown
             title="Development"
-            icon={<Building size={18} />}
+            icon={<ChartNoAxesCombined size={18} />}
             isOpen={dropdowns.development}
             onToggle={() => toggleDropdown('development')}
             links={[
-              { label: '1.0 Companies', href: '/companies', icon: <Users size={16} /> },
+              { label: '1.0 Companies', href: '/companies', icon: <Building2 size={16} /> },
               { label: '1.1 Projects', href: '/projects', icon: <ClipboardList size={16} /> },
-              { label: '1.2 Activities', href: '/activities', icon: <List size={16} /> },
+              { label: '1.2 Activities', href: '/activities', icon: <SquareKanban size={16} /> },
               { label: '1.3 Draft MOA', href: '/draft-moa', icon: <FileSignature size={16} /> },
               { label: '1.4 MOA List', href: '/moa', icon: <FileText size={16} /> },
             ]}
@@ -72,13 +79,27 @@ export default function Sidebar({ isOpen }) {
         {role === 'admin' && (
           <Dropdown
             title="Implementation"
-            icon={<Settings size={18} />}
+            icon={<PencilRuler size={18} />}
             isOpen={dropdowns.implementation}
             onToggle={() => toggleDropdown('implementation')}
             links={[
-              { label: '2.0 Check List', href: `/implementation`, icon: <ClipboardList size={16} /> },
+              { label: '2.0 Check List', href: `/implementation`, icon: <ListTodo size={16} /> },
               { label: '2.1 Refund Monitoring', href: '/refunds', icon: <FileSearch size={16} /> },
-              { label: '2.2 Implementation', href: '/activities', icon: <List size={16} /> },
+                // { label: '2.2 Implementation', href: '/activities', icon: <List size={16} /> },
+            ]}
+          />
+        )}
+
+                {role === 'admin' && (
+          <Dropdown
+            title="Admin Panel"
+            icon={<ShieldUser size={18} />}
+            isOpen={dropdowns.adminpanel}
+            onToggle={() => toggleDropdown('adminpanel')}
+            links={[
+              { label: 'User Management', href: `/admin/users`, icon: <User size={16} /> },
+              // { label: '2.1 Refund Monitoring', href: '/refunds', icon: <FileSearch size={16} /> },
+                // { label: '2.2 Implementation', href: '/activities', icon: <List size={16} /> },
             ]}
           />
         )}

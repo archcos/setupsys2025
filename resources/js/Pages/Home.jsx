@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
-import { usePage } from '@inertiajs/react';
+import { usePage, Head } from '@inertiajs/react';
 
 export default function Home() {
   const {
@@ -33,8 +33,8 @@ export default function Home() {
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <Head title="Dashboard" />
         <main className="flex-1 p-6 overflow-y-auto space-y-6">
-
           {/* Project Count Table */}
           <div className="bg-white rounded-xl shadow p-6">
             <div className="flex justify-between items-center mb-4 flex-wrap gap-4">

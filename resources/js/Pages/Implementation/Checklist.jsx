@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useForm, usePage, router, Head } from '@inertiajs/react';
+import { useForm, usePage, router, Head, Link } from '@inertiajs/react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
 import {
@@ -157,11 +157,21 @@ export default function Checklist({ implementation }) {
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <Head title="Checklist" />
+        <Head title="View Checklist" />
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-2xl mx-auto bg-white rounded-xl shadow space-y-6 p-6">
-            <h2 className="text-xl font-semibold">Implementation Checklist</h2>
 
+          <div className="max-w-2xl mx-auto bg-white rounded-xl shadow space-y-6 p-6">
+                      <div className="mb-4">
+              <Link href="/implementation" className="inline-block text-sm text-blue-600 hover:underline">
+                ← Back to Checklist
+              </Link>
+            </div>
+            <h2 className="text-xl font-semibold">Implementation Checklist</h2>
+            <div className="text-sm text-gray-700 space-y-1 mb-2">
+              <div>Company: <strong>{implementation.company_name}</strong></div>
+              <div>Project: <strong>{implementation.project_title}</strong></div>
+
+            </div>
             <div className="text-sm text-gray-700 border-b pb-4">
               Project Cost:{' '}
               <strong>₱{projectCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong>
@@ -231,13 +241,13 @@ export default function Checklist({ implementation }) {
 
             {/* Tags Section */}
             <div className="space-y-3">
-              <h3 className="font-semibold text-lg">Tags</h3>
+              <h6 className=" text-lg">Tagging</h6>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={data.tag_name}
                   onChange={(e) => setData('tag_name', e.target.value)}
-                  placeholder="Tag name"
+                  placeholder="Equipment Name"
                   className="border rounded px-3 py-1 flex-1"
                 />
                 <input
