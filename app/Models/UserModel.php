@@ -27,7 +27,6 @@ class UserModel extends Authenticatable
 
     protected $hidden = [
         'password',
-        'session_id',
     ];
     public function office()
 {

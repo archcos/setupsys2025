@@ -24,7 +24,6 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SessionTimeout::class,
         ]);
         $middleware->alias([
-            'auth.custom' => \App\Http\Middleware\AuthenticateUser::class,
             'role' => \App\Http\Middleware\RoleMiddleware::class,
             'redirectIfAuthenticated' => \App\Http\Middleware\RedirectIfAuthenticated::class,
 

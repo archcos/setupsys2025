@@ -31,7 +31,7 @@ Route::middleware(['web'])->group(function () {
 });
 
 
-Route::middleware(['auth.custom'])->group(function () {
+Route::middleware(['auth'])->group(function () {
    // Protected Home Page
     Route::get('/home', [HomeController::class, 'index'])->middleware('role:admin,staff')->name('home');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('user.dashboard')->middleware('role:user');
@@ -43,7 +43,7 @@ Route::middleware(['auth.custom'])->group(function () {
 
 
 // SIDEBAR
-Route::middleware(['auth.custom'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::resource('companies', CompanyController::class);
     Route::resource('projects', ProjectController::class)->middleware('role:admin,staff')
         ->except(['destroy']); // exclude destroy from staff
@@ -59,7 +59,7 @@ Route::middleware(['auth.custom'])->group(function () {
 
 
 //MOA
-Route::middleware(['auth.custom', 'role:admin,staff'])->group(function () {
+Route::middleware(['auth', 'role:admin,staff'])->group(function () {
     Route::get('/moa/generate-pdf', [PDFController::class, 'index']);
     Route::post('/moa/generate-pdf', [PDFController::class, 'generate']);
 
@@ -76,18 +76,18 @@ Route::middleware(['auth.custom', 'role:admin,staff'])->group(function () {
 });
 
 //NOTIFICATION
-Route::middleware(['auth.custom', 'role:admin,staff'])->group(function () {
+Route::middleware(['auth', 'role:admin,staff'])->group(function () {
 Route::post('/notifications/read/{id}', [NotificationController::class, 'markAsRead']);
 });
 
 //REFUND
-Route::middleware(['auth.custom', 'role:admin'])->group(function () {
+Route::middleware(['auth', 'role:admin'])->group(function () {
 Route::post('/refunds/sync', [RefundController::class, 'manualSync']);
 Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index');
 Route::post('/refunds/{id}/update-status', [RefundController::class, 'updateStatus']);
 });
 
-Route::middleware(['auth.custom', 'role:admin,staff'])->group(function () {
+Route::middleware(['auth', 'role:admin,staff'])->group(function () {
     Route::get('/implementation', [ImplementationController::class, 'index'])->name('implementation.index');
     Route::get('/implementation/checklist/{implementId}', [ImplementationController::class, 'checklist']);
     Route::post('/implementation/upload/{field}', [ImplementationController::class, 'uploadToSupabase']);
@@ -100,7 +100,7 @@ Route::middleware(['auth.custom', 'role:admin,staff'])->group(function () {
 });
 
 
-Route::middleware(['auth.custom', 'role:admin'])->group(function () {
+Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/users', [UserManagementController::class, 'index'])->name('admin.users');
     Route::put('/admin/users/{id}', [UserManagementController::class, 'update'])->name('admin.users.update');
     Route::post('/admin/users/{id}/logout', [UserManagementController::class, 'forceLogout']);
