@@ -14,5 +14,10 @@ class OfficeModel extends Model
 {
     return $this->hasOne(DirectorModel::class, 'office_id', 'office_id');
 }
+
+public function users()
+{
+    return $this->hasMany(UserModel::class, 'office_id', 'office_id');
+}
 }
 

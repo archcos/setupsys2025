@@ -21,7 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Session\Middleware\StartSession::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
-
+            \App\Http\Middleware\SessionTimeout::class,
         ]);
         $middleware->alias([
             'auth.custom' => \App\Http\Middleware\AuthenticateUser::class,

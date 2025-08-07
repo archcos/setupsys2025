@@ -74,8 +74,13 @@ public function checklist($implementId)
     });
 
     return inertia('Implementation/Checklist', [
-        'implementation' => $cleaned,
+        'implementation' => [
+            ...$cleaned,
+            'project_title' => $implementation->project->project_title,
+            'company_name' => $implementation->project->company->company_name,
+        ],
     ]);
+
 }
 
 

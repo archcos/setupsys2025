@@ -1,4 +1,4 @@
-import { useForm } from '@inertiajs/react';
+import { useForm, Link } from '@inertiajs/react'; // ✅ import Link here
 import logo from '../../assets/logo.png';
 
 export default function LoginPage() {
@@ -9,7 +9,12 @@ export default function LoginPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    post('/signin'); // Laravel web.php route
+
+    post('/signin', {
+      onError: (errors) => {
+        console.error(errors.message);
+      }
+    });
   };
 
   return (
@@ -72,6 +77,17 @@ export default function LoginPage() {
             {processing ? 'Logging in...' : 'Login'}
           </button>
         </form>
+
+        {/* ✅ Sign Up Link */}
+        <p className="text-sm text-center text-gray-600 mt-4">
+          Don’t have an account?{' '}
+          <Link
+            href="/register"
+            className="text-blue-600 hover:underline font-medium"
+          >
+            Sign up
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\UserModel;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 
 class AuthController extends Controller
@@ -27,29 +28,53 @@ public function signin(Request $request)
 
     $user = UserModel::where('username', $credentials['username'])->first();
 
-    if (! $user) {
+    if (! $user || ! Hash::check($credentials['password'], $user->password)) {
         return back()->withErrors(['message' => 'Invalid username/password.']);
     }
 
-    // ✅ Check if user is inactive
     if ($user->status === 'inactive') {
         return back()->withErrors(['message' => 'Your account is disabled. Please contact the administrator.']);
     }
 
-    if (! Hash::check($credentials['password'], $user->password)) {
-        return back()->withErrors(['message' => 'Invalid username/password.']);
+    // 🔒 Check if user is already logged in (has active session)
+    if ($user->session_id && DB::table('sessions')->where('id', $user->session_id)->exists()) {
+        return back()->withErrors(['message' => 'You are already logged in on another device.']);
     }
+
+    // ✅ Proceed with login
+    $request->session()->invalidate();
+    $request->session()->regenerate();
+
+    $user->session_id = Session::getId();
+    $user->save();
 
     Session::put('user_id', $user->user_id);
     Session::put('role', $user->role);
 
-    // Redirect based on role
-    if ($user->role === 'user') {
-        return redirect()->route('user.dashboard'); // Route for Dashboard.jsx
+    return $user->role === 'user'
+        ? redirect()->route('user.dashboard')
+        : redirect()->route('home');
+}
+
+
+
+public function logout(Request $request)
+{
+    $user = UserModel::find(Session::get('user_id'));
+
+    if ($user) {
+        $user->session_id = null;
+        $user->save();
     }
 
-    return redirect()->route('home');
+    Session::flush();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    return redirect()->route('login');
 }
+
+
 
 
     /**

@@ -27,6 +27,12 @@ class UserModel extends Authenticatable
 
     protected $hidden = [
         'password',
-        'login_token',
+        'session_id',
     ];
+    public function office()
+{
+    return $this->belongsTo(OfficeModel::class, 'office_id', 'office_id');
 }
+}
+
+

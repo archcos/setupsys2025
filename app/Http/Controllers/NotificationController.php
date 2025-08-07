@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\NotificationCreatedMail;
+use App\Models\CompanyModel;
 use App\Models\NotificationModel;
 use App\Models\UserModel;
 use Illuminate\Http\Request;
@@ -12,16 +13,17 @@ use Illuminate\Support\Facades\Log;
 
 class NotificationController extends Controller
 {
-    public function index()
-    {
-        $userId = session('user_id');
-        $user = UserModel::findOrFail($userId);
+  public function index()
+{
+    $userId = session('user_id');
+    $user = UserModel::findOrFail($userId);
 
-        if ($user->role === 'user') {
-            abort(403, 'Users are not allowed to view notifications.');
-        }
+    if ($user->role === 'user') {
+        // Get companies that this user added
+        $companyIds = CompanyModel::where('added_by', $userId)->pluck('company_id');
 
-        $notifications = NotificationModel::where('office_id', $user->office_id)
+        // Show only notifications tied to those companies
+        $notifications = NotificationModel::whereIn('company_id', $companyIds)
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -29,6 +31,16 @@ class NotificationController extends Controller
             'notifications' => $notifications,
         ]);
     }
+
+    // For admins and staff: use your existing office filter
+    $notifications = NotificationModel::where('office_id', $user->office_id)
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+    return Inertia::render('Notifications/Index', [
+        'notifications' => $notifications,
+    ]);
+}
 
 
 public function store(Request $request)

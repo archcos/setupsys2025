@@ -1,9 +1,8 @@
 import { useState } from 'react';
+import { Link } from '@inertiajs/react'; 
 import logo from '../../assets/logo.png';
-import { baseUrl } from '../Components/Fetch';
 import { fetchWithCsrf } from '../Utils/fetchWithCsrf';
 
-// ✅ Reusable error display component
 const InputError = ({ error }) =>
   error ? <p className="text-red-500 text-sm mt-1">{error[0]}</p> : null;
 
@@ -21,6 +20,7 @@ export default function RegisterPage({ offices }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
+  const [loading, setLoading] = useState(false); // ⬅️ Added loading state
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -31,6 +31,7 @@ export default function RegisterPage({ offices }) {
     setError('');
     setMessage('');
     setValidationErrors({});
+    setLoading(true); // ⬅️ Start loading
 
     try {
       const response = await fetchWithCsrf('/registration', {
@@ -41,7 +42,6 @@ export default function RegisterPage({ offices }) {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('token', data.token);
         setMessage('Registration successful!');
       } else if (response.status === 422) {
         setValidationErrors(data.errors || {});
@@ -50,6 +50,8 @@ export default function RegisterPage({ offices }) {
       }
     } catch (err) {
       setError('Something went wrong.');
+    } finally {
+      setLoading(false); // ⬅️ End loading
     }
   };
 
@@ -72,112 +74,106 @@ export default function RegisterPage({ offices }) {
         {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="text"
+            name="first_name"
+            value={form.first_name}
+            onChange={handleChange}
+            placeholder="First Name"
+            className="w-full border px-4 py-2 rounded-lg"
+            required
+          />
+          <InputError error={validationErrors.first_name} />
 
-          <div>
-            <input
-              type="text"
-              name="first_name"
-              value={form.first_name}
-              onChange={handleChange}
-              placeholder="First Name"
-              className="w-full border px-4 py-2 rounded-lg"
-              required
-            />
-            <InputError error={validationErrors.first_name} />
-          </div>
+          <input
+            type="text"
+            name="middle_name"
+            value={form.middle_name}
+            onChange={handleChange}
+            placeholder="Middle Name (optional)"
+            className="w-full border px-4 py-2 rounded-lg"
+          />
+          <InputError error={validationErrors.middle_name} />
 
-          <div>
-            <input
-              type="text"
-              name="middle_name"
-              value={form.middle_name}
-              onChange={handleChange}
-              placeholder="Middle Name (optional)"
-              className="w-full border px-4 py-2 rounded-lg"
-            />
-            <InputError error={validationErrors.middle_name} />
-          </div>
+          <input
+            type="text"
+            name="last_name"
+            value={form.last_name}
+            onChange={handleChange}
+            placeholder="Last Name"
+            className="w-full border px-4 py-2 rounded-lg"
+            required
+          />
+          <InputError error={validationErrors.last_name} />
 
-          <div>
-            <input
-              type="text"
-              name="last_name"
-              value={form.last_name}
-              onChange={handleChange}
-              placeholder="Last Name"
-              className="w-full border px-4 py-2 rounded-lg"
-              required
-            />
-            <InputError error={validationErrors.last_name} />
-          </div>
+          <input
+            type="text"
+            name="username"
+            value={form.username}
+            onChange={handleChange}
+            placeholder="Username"
+            className="w-full border px-4 py-2 rounded-lg"
+            required
+          />
+          <InputError error={validationErrors.username} />
 
-          <div>
-            <input
-              type="text"
-              name="username"
-              value={form.username}
-              onChange={handleChange}
-              placeholder="Username"
-              className="w-full border px-4 py-2 rounded-lg"
-              required
-            />
-            <InputError error={validationErrors.username} />
-          </div>
+          <input
+            type="email"
+            name="email"
+            value={form.email}
+            onChange={handleChange}
+            placeholder="Email"
+            className="w-full border px-4 py-2 rounded-lg"
+            required
+          />
+          <InputError error={validationErrors.email} />
 
-          <div>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="Email"
-              className="w-full border px-4 py-2 rounded-lg"
-              required
-            />
-            <InputError error={validationErrors.email} />
-          </div>
+          <input
+            type="password"
+            name="password"
+            value={form.password}
+            onChange={handleChange}
+            placeholder="Password"
+            className="w-full border px-4 py-2 rounded-lg"
+            required
+          />
+          <InputError error={validationErrors.password} />
 
-          <div>
-            <input
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              placeholder="Password"
-              className="w-full border px-4 py-2 rounded-lg"
-              required
-            />
-            <InputError error={validationErrors.password} />
-          </div>
-
-          <div>
-            <select
-              name="office_id"
-              value={form.office_id}
-              onChange={handleChange}
-              className="w-full border px-4 py-2 rounded-lg"
-              required
-            >
-              <option value="">Select Office</option>
-              {offices.map((office) => (
-                <option key={office.office_id} value={office.office_id}>
-                  {office.office_name}
-                </option>
-              ))}
-            </select>
-            <InputError error={validationErrors.office_id} />
-          </div>
+          <select
+            name="office_id"
+            value={form.office_id}
+            onChange={handleChange}
+            className="w-full border px-4 py-2 rounded-lg"
+            required
+          >
+            <option value="">Select Office</option>
+            {offices.map((office) => (
+              <option key={office.office_id} value={office.office_id}>
+                {office.office_name}
+              </option>
+            ))}
+          </select>
+          <InputError error={validationErrors.office_id} />
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+            disabled={loading}
+            className={`w-full ${
+              loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+            } text-white py-2 rounded-lg font-semibold transition`}
           >
-            Register
+            {loading ? 'Registering...' : 'Register'}
           </button>
         </form>
 
         <p className="text-sm text-center text-gray-600 mt-4">
-          Already have an account?
+          Already have an account?{' '}
+          <Link
+            href="/"
+            className="text-blue-600 hover:underline font-medium"
+          >
+            Login
+          </Link>
         </p>
       </div>
     </div>

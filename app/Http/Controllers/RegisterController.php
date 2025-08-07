@@ -21,7 +21,7 @@ class RegisterController extends Controller
         return inertia('Register',['offices' => $offices]);
     }
 
-    public function register(Request $request)
+public function register(Request $request)
 {
     $validator = Validator::make($request->all(), [
         'first_name'   => 'required|string|max:50',
@@ -33,13 +33,12 @@ class RegisterController extends Controller
         'office_id'    => 'required|exists:tbl_offices,office_id',
     ]);
 
-
     if ($validator->fails()) {
         return response()->json([
             'errors' => $validator->errors(),
         ], 422);
     }
-    
+
     $user = UserModel::create([
         'first_name'   => $request->first_name,
         'middle_name'  => $request->middle_name,
@@ -52,15 +51,11 @@ class RegisterController extends Controller
         'status'       => 'inactive'
     ]);
 
-    $token = $user->createToken('auth_token')->plainTextToken;
-    $user->login_token = $token;
-    $user->save();
-
     return response()->json([
         'message' => 'Registration successful',
-        'token'   => $token,
     ], 201);
 }
+
 
     /**
      * Show the form for creating a new resource.
