@@ -1,4 +1,4 @@
-import { useForm, Link } from '@inertiajs/react'; // ✅ import Link here
+import { useForm, Link , Head} from '@inertiajs/react'; // ✅ import Link here
 import logo from '../../assets/logo.png';
 
 export default function LoginPage() {
@@ -23,6 +23,7 @@ export default function LoginPage() {
         <div className="flex items-center justify-center gap-3 mb-6">
           <img src={logo} alt="Logo" className="w-10 h-10" />
           <div className="flex flex-col">
+            <Head title="Login"/>
             <h2 className="text-2xl font-bold text-gray-800">SETUP</h2>
             <h3 className="text-sm text-gray-500 font-medium">
               Small Enterprise Technology Upgrading Program

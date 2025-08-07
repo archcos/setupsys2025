@@ -9,19 +9,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Session;
+use Inertia\Inertia;
 
 class UserManagementController extends Controller
 {
-    /**
-     * Display the admin user management panel.
-     */public function index(Request $request)
+
+public function index(Request $request)
 {
-    // ✅ Optional: Only allow admin access
     if (Session::get('role') !== 'admin') {
         abort(403, 'Unauthorized');
     }
 
-    // ✅ Build query with search
     $query = UserModel::with('office');
 
     if ($request->filled('search')) {
@@ -32,19 +30,24 @@ class UserManagementController extends Controller
         });
     }
 
-    // ✅ Paginate with search query string preserved
-    $users = $query->paginate(10)->withQueryString();
+    $users = $query->paginate(10);
 
-    // ✅ All offices for dropdowns
-    $offices = OfficeModel::all();
+    // ✅ Get user IDs of currently online users from session table
+    $onlineUserIds = DB::table('sessions')
+        ->pluck('user_id') // adjust if different column
+        ->filter()         // remove nulls
+        ->unique()
+        ->toArray();
 
-    // ✅ Return to Inertia
-    return inertia('Admin/UserManagement', [
+    // ✅ Add `is_online` to each user object
+    foreach ($users as $user) {
+        $user->is_online = in_array($user->user_id, $onlineUserIds);
+    }
+
+    return Inertia::render('Admin/UserManagement', [
         'users' => $users,
-        'offices' => $offices,
-        'filters' => [
-            'search' => $request->search,
-        ]
+        'offices' => OfficeModel::all(),
+        'filters' => $request->only('search'),
     ]);
 }
 
@@ -101,22 +104,18 @@ public function forceLogout(Request $request, $id)
         return back()->withErrors(['admin_password' => 'Incorrect admin password.']);
     }
 
-    // Find the user to be logged out
+    // Check if user exists
     $user = UserModel::find($id);
-
-    if (!$user || !$user->session_id) {
-        return back()->withErrors(['message' => 'User has no active session.']);
+    if (! $user) {
+        return back()->withErrors(['message' => 'User not found.']);
     }
 
-    // Delete the session from the sessions table
-    DB::table('sessions')->where('id', $user->session_id)->delete();
-
-    // Clear session_id from user table
-    $user->session_id = null;
-    $user->save();
+    // Force logout by deleting all sessions where user_id = $id
+    DB::table('sessions')->where('user_id', $user->user_id)->delete();
 
     return back()->with('success', 'User has been forcibly logged out.');
 }
+
 
 public function deleteUser(Request $request, $id)
 {

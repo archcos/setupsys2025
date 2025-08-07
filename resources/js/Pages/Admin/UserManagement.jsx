@@ -118,24 +118,36 @@ export default function UserManagement({ users, offices, filters }) {
               <table className="w-full text-sm table-auto border">
                 <thead className="bg-gray-200 text-left">
                   <tr>
+                    <th className="px-3 py-2 w-10">Status</th>
                     <th className="px-3 py-2">Name</th>
                     <th className="px-3 py-2">Username</th>
                     <th className="px-3 py-2">Office</th>
                     <th className="px-3 py-2">Role</th>
-                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Login</th>
                     <th className="px-3 py-2">Edit</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.data.map((user) => (
                     <tr key={user.user_id} className="border-t hover:bg-gray-50">
+                    <td className="px-3 py-2">
+                     <span
+                      className={`h-3 w-3 rounded-full inline-block ${
+                        user.is_online ? 'bg-green-500' : 'bg-gray-400'
+                      }`}
+                      title={user.is_online ? 'Online' : 'Offline'}
+                    ></span>
+
+                    </td>
                       <td className="px-3 py-2">{user.first_name} {user.last_name}</td>
                       <td className="px-3 py-2">{user.username}</td>
                       <td className="px-3 py-2">
                         {offices.find(o => o.office_id === user.office_id)?.office_name}
                       </td>
                       <td className="px-3 py-2">{user.role}</td>
-                      <td className="px-3 py-2">{user.status}</td>
+                      <td className="px-3 py-2">
+                        {user.status === 'active' ? 'Allowed' : 'Disabled'}
+                      </td>
                       <td className="px-3 py-2 flex gap-2">
                       <button
                         onClick={() => startEdit(user)}
@@ -169,7 +181,7 @@ export default function UserManagement({ users, offices, filters }) {
                       key={i}
                       disabled={!link.url}
                       onClick={() => link.url && router.visit(link.url)}
-                      className={`px-3 py-1 text-sm rounded border ${
+                     className={`px-3 py-1 text-sm rounded border ${
                         link.active
                           ? 'bg-blue-600 text-white'
                           : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -222,14 +234,14 @@ export default function UserManagement({ users, offices, filters }) {
                     </div>
 
                     <div className="mb-3">
-                      <label className="block text-sm font-medium">Status:</label>
+                      <label className="block text-sm font-medium">Login:</label>
                       <select
                         value={form.status}
                         onChange={e => setForm({ ...form, status: e.target.value })}
                         className="w-full border p-2 rounded"
                       >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
+                        <option value="active">Allow</option>
+                        <option value="inactive">Disable</option>
                       </select>
                     </div>
 
@@ -317,7 +329,9 @@ export default function UserManagement({ users, offices, filters }) {
                     </button>
                     <button
                       type="submit"
-                      className={`px-4 py-2 rounded text-white ${isConfirming ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+                      className={`px-4 py-2 rounded text-white ${
+                        isConfirming ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+                      }`}
                       disabled={isConfirming}
                     >
                       {isConfirming ? 'Verifying...' : 'Confirm'}

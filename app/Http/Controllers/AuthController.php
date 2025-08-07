@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\UserModel;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 
@@ -29,25 +30,31 @@ public function signin(Request $request)
     $user = UserModel::where('username', $credentials['username'])->first();
 
     if (! $user || ! Hash::check($credentials['password'], $user->password)) {
-        return back()->withErrors(['message' => 'Invalid username/password.']);
+        return back()->withErrors(['message' => 'Invalid username or password.']);
     }
 
     if ($user->status === 'inactive') {
-        return back()->withErrors(['message' => 'Your account is disabled. Please contact the administrator.']);
+        return back()->withErrors(['message' => 'Your account is disabled.']);
     }
 
-    // 🔒 Check if user is already logged in (has active session)
-    if ($user->session_id && DB::table('sessions')->where('id', $user->session_id)->exists()) {
-        return back()->withErrors(['message' => 'You are already logged in on another device.']);
+    // ✅ Check if there's already an active session for this user
+    $hasSession = DB::table('sessions')
+        ->where('user_id', $user->user_id)
+        ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->timestamp)
+        ->exists();
+
+    if ($hasSession) {
+        return back()->withErrors(['message' => 'This account is already logged in on another device.']);
     }
 
-    // ✅ Proceed with login
+    // ✅ Invalidate and regenerate session
     $request->session()->invalidate();
     $request->session()->regenerate();
 
-    $user->session_id = Session::getId();
-    $user->save();
+    // ✅ Log in the user
+    Auth::login($user); // automatically stores user_id in session row
 
+    // ✅ Store extras in session if needed
     Session::put('user_id', $user->user_id);
     Session::put('role', $user->role);
 
@@ -57,22 +64,20 @@ public function signin(Request $request)
 }
 
 
-
 public function logout(Request $request)
 {
-    $user = UserModel::find(Session::get('user_id'));
+    // Log the user out (removes user_id from session)
+    Auth::logout();
 
-    if ($user) {
-        $user->session_id = null;
-        $user->save();
-    }
-
-    Session::flush();
+    // Invalidate the current session
     $request->session()->invalidate();
+
+    // Regenerate CSRF token for safety
     $request->session()->regenerateToken();
 
     return redirect()->route('login');
 }
+
 
 
 
