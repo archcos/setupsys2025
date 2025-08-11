@@ -6,7 +6,9 @@ use App\Models\ProjectModel;
 use App\Models\CompanyModel;
 use App\Models\ImplementationModel;
 use App\Models\ItemModel;
+use App\Models\MOAModel;
 use App\Models\UserModel;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -249,11 +251,17 @@ public function updateProgress(Request $request, $id)
                 'liquidation' => null,
             ]);
         }
+
+        // Update acknowledge_date in tbl_moa
+        $moa = MOAModel::where('project_id', $project->project_id)->first();
+        if ($moa) {
+            $moa->acknowledge_date = Carbon::now();
+            $moa->save();
+        }
     }
 
     return back();
 }
-
 
     public function destroy($id)
     {

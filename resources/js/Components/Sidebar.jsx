@@ -18,7 +18,8 @@ import {
   ListTodo,
   PencilRuler,
   ChartNoAxesCombined,
-  SquareKanban
+  SquareKanban,
+  HandCoins
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen }) {
@@ -83,8 +84,8 @@ export default function Sidebar({ isOpen }) {
             isOpen={dropdowns.implementation}
             onToggle={() => toggleDropdown('implementation')}
             links={[
-              { label: '2.0 Check List', href: `/implementation`, icon: <ListTodo size={16} /> },
-              { label: '2.1 Refund Monitoring', href: '/refunds', icon: <FileSearch size={16} /> },
+              { label: 'Phase One', href: `/implementation`, icon: <ListTodo size={16} /> },
+              { label: 'Phase Two', href: '/refunds', icon: <FileSearch size={16} /> },
                 // { label: '2.2 Implementation', href: '/activities', icon: <List size={16} /> },
             ]}
           />
@@ -128,7 +129,8 @@ export default function Sidebar({ isOpen }) {
             links={[
               { label: 'Companies', href: '/companies', icon: <Users size={16} /> },
               { label: 'Projects', href: '/project-list', icon: <ClipboardList size={16} /> },
-              { label: 'Activities', href: '/activity-list', icon: <List size={16} /> },
+              { label: 'Activities', href: '/activity-list', icon: <SquareKanban size={16} /> },
+              { label: 'Repayment History', href: route('refunds.history'), icon: <HandCoins size={16} /> },
             ]}
           />
         )}

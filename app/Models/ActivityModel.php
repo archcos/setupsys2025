@@ -8,7 +8,7 @@ class ActivityModel extends Model
 {
     protected $table = 'tbl_activities';
     protected $primaryKey = 'activity_id';
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
         'project_id',

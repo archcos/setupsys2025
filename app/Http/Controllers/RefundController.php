@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ProjectModel;
 use App\Models\RefundModel;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
@@ -41,6 +43,39 @@ class RefundController extends Controller
         'selectedStatus' => $selectedStatus,
         'perPage' => (int) $perPage,
         'search' => $search,
+    ]);
+}
+
+public function projectRefundHistory()
+{
+    $userId = Auth::id();
+
+    // Fetch projects owned by companies added by this user
+    $projects = ProjectModel::query()
+        ->with(['company', 'refunds']) // eager load
+        ->whereHas('company', function ($q) use ($userId) {
+            $q->where('added_by', $userId);
+        })
+        ->get();
+
+    // Format data for frontend
+    $data = $projects->map(function ($project) {
+        return [
+            'project_id'    => $project->project_id,
+            'project_title' => $project->project_title,
+            'project_code'  => $project->project_code ?? '',
+            'company_name'  => $project->company->company_name ?? '',
+            'refunds'       => $project->refunds->map(function ($refund) {
+                return [
+                    'refund_date' => $refund->refund_date,
+                    'status'      => $refund->status, // 'paid' or 'unpaid'
+                ];
+            }),
+        ];
+    });
+
+    return Inertia::render('Refunds/RefundHistory', [
+        'projects' => $data,
     ]);
 }
 

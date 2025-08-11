@@ -20,6 +20,7 @@ class MOAModel extends Model
         'witness',
         'project_cost',
         'amount_words',
+        'acknowledge_at'
     ];
 
     public function project()

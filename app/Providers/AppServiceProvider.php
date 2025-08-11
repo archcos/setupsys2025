@@ -22,6 +22,7 @@ class AppServiceProvider extends ServiceProvider
      */public function boot(): void
 {
     Vite::prefetch(concurrency: 3);
+    date_default_timezone_set('Asia/Manila');
 
 //   if ($this->app->environment('production')) {
 //         URL::forceScheme('https'); // Laravel routes use HTTPS

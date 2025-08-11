@@ -17,4 +17,9 @@ class RefundModel extends Model
     ];
 
     public $timestamps = true;
+
+    public function project()
+{
+    return $this->belongsTo(ProjectModel::class, 'project_id', 'project_code');
+}
 }
