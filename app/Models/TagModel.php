@@ -11,13 +11,15 @@ class TagModel extends Model
 
     protected $table = 'tbl_tags';
     protected $primaryKey = 'tag_id';
-    public $timestamps = false; // Your table doesn't have created_at/updated_at
+    public $timestamps = true; // Your table doesn't have created_at/updated_at
 
     protected $fillable = [
         'implement_id',
         'tag_name',
         'tag_amount',
     ];
+
+    
 
     public function implement()
     {

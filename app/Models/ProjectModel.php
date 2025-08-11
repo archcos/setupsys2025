@@ -60,10 +60,8 @@ class ProjectModel extends Model
         return $this->hasOne(ImplementationModel::class, 'project_id');
     }
 
-    // ❌ Removed this:
-    // public function office()
-    // {
-    //     return $this->hasMany(OfficeModel::class, 'office_id', 'office_id');
-    // }
-    // There’s **no office_id** column in `tbl_projects`, so this is incorrect unless added manually later.
+    public function refunds()
+    {
+        return $this->hasMany(RefundModel::class, 'project_code', 'project_id');
+    }
 }

@@ -85,7 +85,11 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 Route::post('/refunds/sync', [RefundController::class, 'manualSync']);
 Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index');
 Route::post('/refunds/{id}/update-status', [RefundController::class, 'updateStatus']);
+
 });
+
+Route::get('/refunds-history', [RefundController::class, 'projectRefundHistory'])
+    ->name('refunds.history');
 
 Route::middleware(['auth', 'role:admin,staff'])->group(function () {
     Route::get('/implementation', [ImplementationController::class, 'index'])->name('implementation.index');

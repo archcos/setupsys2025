@@ -8,7 +8,7 @@ class CompanyModel extends Model
 {
     protected $table = 'tbl_companies';
     protected $primaryKey = 'company_id';
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
         'company_name',

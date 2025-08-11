@@ -180,6 +180,8 @@ export default function Checklist({ implementation }) {
             {['tarp', 'pdc'].map((field) => {
               const fileExists = !!implementation[field];
               const isLoading = loadingField === field;
+              const uploadDateField = `${field}_upload`; // dynamic datetime field from DB
+
               return (
                 <div key={field} className="flex flex-col border-b pb-4 mb-4">
                   <div className="flex justify-between items-center">
@@ -215,6 +217,14 @@ export default function Checklist({ implementation }) {
                       </button>
                     )}
                   </div>
+
+                  {/* Upload date display */}
+                  {implementation[uploadDateField] && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Uploaded on: {new Date(implementation[uploadDateField]).toLocaleString()}
+                    </p>
+                  )}
+
                   {fileExists && (
                     <p className="text-sm text-yellow-600 mt-1">
                       A file has already been uploaded. You must delete it before uploading a new one.
@@ -238,6 +248,7 @@ export default function Checklist({ implementation }) {
                 </div>
               );
             })}
+
 
             {/* Tags Section */}
             <div className="space-y-3">
@@ -269,7 +280,7 @@ export default function Checklist({ implementation }) {
               <div className="w-full bg-gray-200 rounded h-4 overflow-hidden">
                 <div
                   className="bg-blue-500 h-full transition-all"
-                   style={{ width: `${Math.min(percentage, 100)}%` }}
+                  style={{ width: `${Math.min(percentage, 100)}%` }}
                 ></div>
               </div>
               <div className="text-xs text-gray-600">
@@ -334,7 +345,7 @@ export default function Checklist({ implementation }) {
             <div className="flex flex-col gap-3 border-t pt-4">
               <div className="flex items-center gap-3">
                 {renderStatus(implementation.first_untagged)}
-                <span>First Untagging (≥ 50%)</span>
+                <span>First Untagging (50%)</span>
               </div>
               <div className="flex items-center gap-3">
                 {renderStatus(implementation.final_untagged)}
@@ -343,79 +354,78 @@ export default function Checklist({ implementation }) {
             </div>
 
             {/* Liquidation Upload */}
-            {['liquidation'].map((field) => {
-              const fileExists = !!implementation[field];
-              const isLoading = loadingField === field;
+           {['liquidation'].map((field) => {
+            const fileExists = !!implementation[field];
+            const isLoading = loadingField === field;
+            const uploadDateField = `${field}_upload`;
 
-              return (
-                <div key={field} className="flex flex-col border-t pt-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      {renderStatus(fileExists)}
-                      <span>{fieldLabels[field]}</span>
-
-                      {fileExists && (
-                        <>
-                          <button
-                            onClick={() => previewFile(implementation[field])}
-                            className="text-blue-500 hover:underline text-sm flex items-center gap-1"
-                          >
-                            <Eye className="w-4 h-4" /> View
-                          </button>
-
-                          <a
-                            href={`/implementation/download/${field}?url=${encodeURIComponent(
-                              implementation[field]
-                            )}`}
-                            className="text-green-600 hover:underline text-sm flex items-center gap-1"
-                          >
-                            <Download className="w-4 h-4" /> Download
-                          </a>
-                        </>
-                      )}
-                    </div>
-
+            return (
+              <div key={field} className="flex flex-col border-t pt-4">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    {renderStatus(fileExists)}
+                    <span>{fieldLabels[field]}</span>
                     {fileExists && (
-                      <button
-                        onClick={() => deleteFile(field)}
-                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 disabled:opacity-50"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Delete'}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => previewFile(implementation[field])}
+                          className="text-blue-500 hover:underline text-sm flex items-center gap-1"
+                        >
+                          <Eye className="w-4 h-4" /> View
+                        </button>
+                        <a
+                          href={`/implementation/download/${field}?url=${encodeURIComponent(
+                            implementation[field]
+                          )}`}
+                          className="text-green-600 hover:underline text-sm flex items-center gap-1"
+                        >
+                          <Download className="w-4 h-4" /> Download
+                        </a>
+                      </>
                     )}
                   </div>
-
                   {fileExists && (
-                    <p className="text-sm text-yellow-600 mt-1">
-                      A file has already been uploaded. You must delete it before uploading a new one.
-                    </p>
-                  )}
-
-                  <div className="mt-2 flex items-center gap-2">
-                    <input
-                      type="file"
-                      onChange={(e) => setData(field, e.target.files[0])}
-                      className="block text-sm text-gray-500"
-                      disabled={fileExists || !canUploadLiquidation}
-                    />
                     <button
-                      onClick={() => upload(field)}
-                      disabled={!data[field] || fileExists || isLoading || !canUploadLiquidation}
-                      className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 disabled:opacity-50"
+                      onClick={() => deleteFile(field)}
+                      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 disabled:opacity-50"
+                      disabled={isLoading}
                     >
-                      {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Upload'}
+                      {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Delete'}
                     </button>
-                    {!canUploadLiquidation && (
-                      <p className="text-red-500 text-sm mt-1">
-                        You must reach 100% in tag allocation before uploading the liquidation report.
-                      </p>
-                    )}
-
-                  </div>
+                  )}
                 </div>
-              );
-            })}
+
+                {/* Upload date */}
+                {implementation[uploadDateField] && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Uploaded on: {new Date(implementation[uploadDateField]).toLocaleString()}
+                  </p>
+                )}
+
+                {fileExists && (
+                  <p className="text-sm text-yellow-600 mt-1">
+                    A file has already been uploaded. You must delete it before uploading a new one.
+                  </p>
+                )}
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="file"
+                    onChange={(e) => setData(field, e.target.files[0])}
+                    className="block text-sm text-gray-500"
+                    disabled={fileExists || !canUploadLiquidation}
+                  />
+                  <button
+                    onClick={() => upload(field)}
+                    disabled={!data[field] || fileExists || isLoading || !canUploadLiquidation}
+                    className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 disabled:opacity-50"
+                  >
+                    {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Upload'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
           </div>
         </div>
       </div>

@@ -120,9 +120,6 @@ public function uploadToSupabase(Request $request, $field)
     $folder = "implementation/{$implementation->project_id}";
     $path = "{$folder}/{$filename}";
 
-// Supabase config and upload logic stays the same...
-
-
     // Supabase config
     $bucket = env('SUPABASE_BUCKET');
     $supabaseUrl = env('SUPABASE_URL');
@@ -155,8 +152,9 @@ public function uploadToSupabase(Request $request, $field)
         $publicUrl = "{$supabaseUrl}/storage/v1/object/public/{$bucket}/{$path}";
         Log::info("✅ File uploaded successfully: $publicUrl");
 
-        // Save to the correct field
+        // Save URL and upload timestamp
         $implementation->$field = $publicUrl;
+        $implementation->{$field . '_upload'} = now('Asia/Manila');
         $implementation->save();
 
         return redirect()->back()->with('success', ucfirst($field) . ' uploaded successfully.');
@@ -166,6 +164,7 @@ public function uploadToSupabase(Request $request, $field)
         return redirect()->back()->withErrors(['upload' => 'Upload failed. Please try again.']);
     }
 }
+
 
 
 
