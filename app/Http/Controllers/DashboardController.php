@@ -6,6 +6,7 @@ use App\Models\ProjectModel;
 use App\Models\UserModel;
 use App\Models\ActivityModel;
 use App\Models\MoaModel;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -13,7 +14,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $userId = session('user_id');
+        $userId = Auth::id();
 
         // Load user with companies (one user can have many companies)
         $user = UserModel::with('companies')->find($userId);
