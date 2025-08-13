@@ -1,13 +1,28 @@
-import { router, Head } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { Head } from '@inertiajs/react';
+import { useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
 
-export default function ProjectList({ projects, filters }) {
+export default function ProjectList({ projects }) {
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [openDropdowns, setOpenDropdowns] = useState({});
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+  // Format YYYY-MM-DD to "MMM YYYY"
+  const formatMonth = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const date = new Date(dateStr);
+    if (isNaN(date)) return 'Invalid date';
+    return date.toLocaleString('default', { month: 'short', year: 'numeric' });
+  };
+
+  // Format Phase as "initial - end"
+  const formatPhase = (initial, end) => {
+    if (!initial && !end) return 'N/A';
+    return `${formatMonth(initial)} - ${formatMonth(end)}`;
+  };
 
   return (
     <div className="h-screen flex bg-gray-100 overflow-hidden">
@@ -24,8 +39,8 @@ export default function ProjectList({ projects, filters }) {
                 <tr className="bg-gray-200 text-left">
                   <th className="px-3 py-2">Title</th>
                   <th className="px-3 py-2">Company</th>
-                  <th className="px-3 py-2">Phase 1</th>
-                  <th className="px-3 py-2">Phase 2</th>
+                  <th className="px-3 py-2">Phase One</th>
+                  <th className="px-3 py-2">Phase Two</th>
                   <th className="px-3 py-2">Cost</th>
                 </tr>
               </thead>
@@ -46,8 +61,8 @@ export default function ProjectList({ projects, filters }) {
                     >
                       <td className="px-3 py-2">{project.project_title}</td>
                       <td className="px-3 py-2">{project.company?.company_name}</td>
-                      <td className="px-3 py-2">{project.phase_one}</td>
-                      <td className="px-3 py-2">{project.phase_two}</td>
+                      <td className="px-3 py-2">{formatPhase(project.release_initial, project.release_end)}</td>
+                      <td className="px-3 py-2">{formatPhase(project.refund_initial, project.refund_end)}</td>
                       <td className="px-3 py-2">{project.project_cost}</td>
                     </tr>,
 

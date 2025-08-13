@@ -1,5 +1,5 @@
 import { useForm, Link, Head } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
 
@@ -10,8 +10,10 @@ export default function Create({ companies }) {
     project_id: '',
     project_title: '',
     company_id: '',
-    phase_one: '',
-    phase_two: '',
+    release_initial: '',
+    release_end: '',
+    refund_initial: '',
+    refund_end: '',
     project_cost: '',
     progress: 'Project Created',
     year_obligated: new Date().getFullYear().toString(),
@@ -27,8 +29,32 @@ export default function Create({ companies }) {
     e.preventDefault();
     post('/projects');
   };
+  
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+
+   useEffect(() => {
+    if (data.release_initial) {
+      const [year, month] = data.release_initial.split('-').map(Number);
+      const nextYear = year + 1;
+      const newReleaseEnd = `${nextYear}-${month.toString().padStart(2, '0')}`;
+      const newRefundInt = `${nextYear}-${month.toString().padStart(2, '0')}`;
+      const newRefundeEnd = `${nextYear}-${month.toString().padStart(2, '0')}`;
+
+
+      // Update release_end only if empty or before release_initial (optional)
+      if (!data.release_end || data.release_end <= data.release_initial) {
+        setData('release_end', newReleaseEnd);
+      }
+        if (!data.release_end || data.release_end <= data.release_initial) {
+        setData('release_end', newReleaseEnd);
+      }
+        if (!data.release_end || data.release_end <= data.release_initial) {
+        setData('release_end', newReleaseEnd);
+      }
+    }
+  }, [data.release_initial]);
 
   return (
     <div className="h-screen flex bg-gray-100 overflow-hidden">
@@ -94,27 +120,64 @@ export default function Create({ companies }) {
                 )}
               </div>
 
-              <div>
-                <label className="block font-medium">Phase One</label>
-                <input
-                  type="text"
-                  className="w-full p-2 border rounded"
-                  placeholder="e.g., March 2025 to December 2025"
-                  value={data.phase_one}
-                  onChange={(e) => setData('phase_one', e.target.value)}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                {/* Release Initial */}
+                <div>
+                  <label className="block font-medium">Release Initial</label>
+                  <input
+                    type="month"
+                    className="w-full p-2 border rounded"
+                    value={data.release_initial}
+                    onChange={(e) => setData('release_initial', e.target.value)}
+                  />
+                  {errors.release_initial && (
+                    <div className="text-red-500 text-sm">{errors.release_initial}</div>
+                  )}
+                </div>
+
+                {/* Release End */}
+                <div>
+                  <label className="block font-medium">Release End</label>
+                  <input
+                    type="month"
+                    className="w-full p-2 border rounded"
+                    value={data.release_end}
+                    onChange={(e) => setData('release_end', e.target.value)}
+                  />
+                  {errors.release_end && (
+                    <div className="text-red-500 text-sm">{errors.release_end}</div>
+                  )}
+                </div>
+
+                {/* Refund Initial */}
+                <div>
+                  <label className="block font-medium">Refund Initial</label>
+                  <input
+                    type="month"
+                    className="w-full p-2 border rounded"
+                    value={data.refund_initial}
+                    onChange={(e) => setData('refund_initial', e.target.value)}
+                  />
+                  {errors.refund_initial && (
+                    <div className="text-red-500 text-sm">{errors.refund_initial}</div>
+                  )}
+                </div>
+
+                {/* Refund End */}
+                <div>
+                  <label className="block font-medium">Refund End</label>
+                  <input
+                    type="month"
+                    className="w-full p-2 border rounded"
+                    value={data.refund_end}
+                    onChange={(e) => setData('refund_end', e.target.value)}
+                  />
+                  {errors.refund_end && (
+                    <div className="text-red-500 text-sm">{errors.refund_end}</div>
+                  )}
+                </div>
               </div>
 
-              <div>
-                <label className="block font-medium">Phase Two</label>
-                <input
-                  type="text"
-                  className="w-full p-2 border rounded"
-                  placeholder="e.g., March 2026 to March 2029"
-                  value={data.phase_two}
-                  onChange={(e) => setData('phase_two', e.target.value)}
-                />
-              </div>
 
               <div>
                 <label className="block font-medium">Project Cost</label>

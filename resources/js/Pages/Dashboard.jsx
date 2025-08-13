@@ -18,7 +18,11 @@ export default function Dashboard() {
       <Circle className="text-gray-400 w-5 h-5" />
     );
 
-  const fmtDate = (date) => (date ? new Date(date).toLocaleDateString() : 'In Progress');
+  const fmtDate = (date) => {
+    return date
+      ? <span className="font-medium text-green-700">{`Completed on ${new Date(date).toLocaleDateString()}`}</span>
+      : <span className="italic text-gray-500">In Progress</span>;
+  };
 
   return (
     <div className="h-screen flex bg-gray-100 overflow-hidden">
@@ -28,15 +32,15 @@ export default function Dashboard() {
         <main className="flex-1 p-6 overflow-y-auto space-y-6">
           <div className="bg-white rounded-xl shadow p-6">
             <Head title="Dashboard" />
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">
               {userCompanyName}'s Project Progress
             </h2>
 
-            <table className="w-full text-sm text-left border">
-              <thead className="bg-gray-200">
+            <table className="w-full text-sm text-left border border-gray-200 rounded-lg overflow-hidden">
+              <thead className="bg-gray-100">
                 <tr>
-                  <th className="p-2">Project Title</th>
-                  <th className="p-2 w-2/3">Progress</th>
+                  <th className="p-3 font-semibold text-gray-700">Project Title</th>
+                  <th className="p-3 w-2/3 font-semibold text-gray-700">Progress</th>
                 </tr>
               </thead>
               <tbody>
@@ -52,73 +56,85 @@ export default function Dashboard() {
                     const percentage = projectCost > 0 ? (totalTagged / projectCost) * 100 : 0;
 
                     return (
-                      <tr key={project.project_id || index} className="border-t align-top">
-                        <td className="p-2 font-medium">{project.project_title}</td>
+                      <tr
+                        key={project.project_id || index}
+                        className="border-t hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="p-3 font-medium text-gray-800">{project.project_title}</td>
+                        <td className="p-3 space-y-4">
 
-                        <td className="p-2 space-y-3">
-                          {/* Complete Details */}
-                          <div>
-                            <div className="font-semibold text-gray-700 mb-1">Complete Details</div>
-                            <div className="ml-4 space-y-1">
-                              <div className="flex items-center gap-2">
-                                {renderStatus(hasReached('Complete Details'))}
-                                <span>Company Profile - <span className="text-gray-600">{fmtDate(project.company?.created_at)}</span></span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {renderStatus(hasReached('Complete Details'))}
-                                <span>Project Details - <span className="text-gray-600">{fmtDate(project.last_activity_date)}</span></span>
+                          {/* Stage Block */}
+                          {[
+                            {
+                              title: 'Complete Details',
+                              items: [
+                                { label: 'Company Profile', date: project.company?.created_at, status: hasReached('Complete Details') },
+                                { label: 'Project Details', date: project.last_activity_date, status: hasReached('Complete Details') }
+                              ]
+                            },
+                            {
+                              title: 'Draft MOA',
+                              items: [
+                                { label: 'Generated MOA', date: project.moa?.updated_at, status: hasReached('Draft MOA') },
+                                { label: 'Verified MOA', date: project.moa?.acknowledge_date, status: hasReached('Implementation') }
+                              ]
+                            },
+                            {
+                              title: 'Implementation',
+                              items: [
+                                { label: 'Tarpaulin', date: implementation.tarp_upload, status: Boolean(implementation.tarp_upload) },
+                                { label: 'Post-Dated Check', date: implementation.pdc_upload, status: Boolean(implementation.pdc_upload) },
+                                { label: 'First Untagging (50%)', date: null, status: percentage >= 50 },
+                                { label: 'Final Untagging (100%)', date: null, status: percentage >= 100 }
+                              ]
+                            },
+                            {
+                              title: 'Liquidation',
+                              items: [
+                                { label: 'Liquidation Report', date: implementation.liquidation_upload, status: Boolean(implementation.liquidation_upload) }
+                              ]
+                            },
+                            {
+                              title: 'Refund',
+                              items: [
+                                { label: 'Refund Date', date: null, status: hasReached('Refund') }
+                              ]
+                            },
+                            {
+                              title: 'Completed',
+                              items: [
+                                { label: project.progress === 'Completed' ? 'Completed' : 'Not Yet Completed', date: null, status: project.progress === 'Completed' }
+                              ]
+                            }
+                          ].map((stage, i) => (
+                            <div key={i} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                              <div className="font-semibold text-gray-700 mb-2">{stage.title}</div>
+                              <div className="ml-4 space-y-2">
+                                {stage.items.map((item, idx) => (
+                                  <div key={idx} className="flex items-center gap-2">
+                                    {renderStatus(item.status)}
+                                    <span>
+                                      {item.label}
+                                      {item.date !== null && (
+                                        <>
+                                          {' - '}
+                                          {fmtDate(item.date)}
+                                        </>
+                                      )}
+                                    </span>
+                                  </div>
+                                ))}
                               </div>
                             </div>
-                          </div>
-
-                          {/* Draft MOA */}
-                          <div>
-                            <div className="font-semibold text-gray-700 mb-1">Draft MOA</div>
-                            <div className="ml-4 space-y-1">
-                              <div className="flex items-center gap-2">
-                                {renderStatus(hasReached('Draft MOA'))}
-                                <span>Generated MOA - <span className="text-gray-600">{fmtDate(project.moa?.updated_at)}</span></span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {renderStatus(hasReached('Implementation'))}
-                                <span>Verified MOA - <span className="text-gray-600">{fmtDate(project.moa?.acknowledge_date)}</span></span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Implementation */}
-                          <div>
-                            <div className="font-semibold text-gray-700 mb-1">Implementation</div>
-                            <div className="ml-4 space-y-1">
-                              <div className="flex items-center gap-2">
-                                {renderStatus(Boolean(implementation.tarp_upload))}
-                                <span>Tarpaulin - <span className="text-gray-600">{fmtDate(implementation.tarp_upload)}</span></span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {renderStatus(Boolean(implementation.pdc_upload))}
-                                <span>Post-Dated Check - <span className="text-gray-600">{fmtDate(implementation.pdc_upload)}</span></span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {renderStatus(percentage >= 50)}
-                                <span>First Untagging (50%)</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {renderStatus(percentage >= 100)}
-                                <span>Final Untagging (100%)</span>
-                              </div>
-                            </div>
-                          </div>
+                          ))}
 
                           {/* Tagging Summary */}
                           {tags.length > 0 && (
-                            <div className="text-xs mt-3 pt-2 space-y-2">
+                            <div className="text-xs mt-4 pt-3 border-t space-y-2">
                               <div className="font-semibold text-gray-700 mb-1">Equipment Untagging</div>
                               <ul className="space-y-1">
                                 {tags.map((tag, i) => (
-                                  <li
-                                    key={i}
-                                    className="flex justify-between bg-gray-50 rounded px-3 py-1 border"
-                                  >
+                                  <li key={i} className="flex justify-between bg-white rounded px-3 py-1 border">
                                     <span>{tag.tag_name}</span>
                                     <span>₱{parseFloat(tag.tag_amount).toLocaleString()}</span>
                                   </li>
@@ -130,7 +146,7 @@ export default function Dashboard() {
                                 {project.project_cost.toLocaleString()})
                               </div>
 
-                              <div className="w-full bg-gray-300 rounded h-3 overflow-hidden ">
+                              <div className="w-full bg-gray-200 rounded h-3 overflow-hidden">
                                 <div
                                   className="bg-blue-500 h-full transition-all"
                                   style={{ width: `${Math.min(percentage, 100)}%` }}
@@ -139,38 +155,6 @@ export default function Dashboard() {
                             </div>
                           )}
 
-                          {/* Liquidation */}
-                          <div>
-                            <div className="font-semibold text-gray-700 mb-1 border-t-2">Liquidation</div>
-                            <div className="ml-4">
-                              <div className="flex items-center gap-2">
-                                {renderStatus(Boolean(implementation.liquidation_upload))}
-                                <span>Liquidation Report - <span className="text-gray-600">{fmtDate(implementation.liquidation_upload)}</span></span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Refund */}
-                          <div>
-                            <div className="font-semibold text-gray-700 mb-1">Refund</div>
-                            <div className="ml-4">
-                              <div className="flex items-center gap-2">
-                                {renderStatus(hasReached('Refund'))}
-                                <span>Refund Date</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Completed */}
-                          <div>
-                            <div className="font-semibold text-gray-700 mb-1">Completed</div>
-                            <div className="ml-4">
-                              <div className="flex items-center gap-2">
-                                {renderStatus(project.progress === 'Completed')}
-                                <span>{project.progress === 'Completed' ? 'Completed' : 'Not Yet Completed'}</span>
-                              </div>
-                            </div>
-                          </div>
                         </td>
                       </tr>
                     );

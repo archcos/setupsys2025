@@ -19,7 +19,10 @@ import {
   PencilRuler,
   ChartNoAxesCombined,
   SquareKanban,
-  HandCoins
+  HandCoins,
+  ArrowBigLeft,
+  ArrowLeftRight,
+  Banknote
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen }) {
@@ -85,8 +88,8 @@ export default function Sidebar({ isOpen }) {
             onToggle={() => toggleDropdown('implementation')}
             links={[
               { label: 'Phase One', href: `/implementation`, icon: <ListTodo size={16} /> },
-              { label: 'Phase Two', href: '/refunds', icon: <FileSearch size={16} /> },
-                // { label: '2.2 Implementation', href: '/activities', icon: <List size={16} /> },
+              { label: 'Phase Two(NEW)', href: '/loans', icon: <FileSearch size={16} /> },
+              { label: 'Phase Two(CSV)', href: '/refunds', icon: <FileSearch size={16} /> },
             ]}
           />
         )}
@@ -130,6 +133,18 @@ export default function Sidebar({ isOpen }) {
               { label: 'Companies', href: '/companies', icon: <Users size={16} /> },
               { label: 'Projects', href: '/project-list', icon: <ClipboardList size={16} /> },
               { label: 'Activities', href: '/activity-list', icon: <SquareKanban size={16} /> },
+            ]}
+          />
+        )}
+
+        {role === 'user' && (
+          <Dropdown
+            title="My Transactions"
+            icon={<ArrowLeftRight size={18} />}
+            isOpen={dropdowns.user}
+            onToggle={() => toggleDropdown('user')}
+            links={[
+              { label: 'Loan Details', href: '/my-loans', icon: <Banknote size={16} /> },
               { label: 'Repayment History', href: route('refunds.history'), icon: <HandCoins size={16} /> },
             ]}
           />

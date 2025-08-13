@@ -6,24 +6,33 @@ import Header from '../../components/Header';
 export default function Edit({ project, companies }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const { data, setData, put, processing, errors } = useForm({
-    project_id: project.project_id,
-    project_title: project.project_title || '',
-    company_id: project.company_id || '',
-    phase_one: project.phase_one || '',
-    phase_two: project.phase_two || '',
-    project_cost: project.project_cost || '',
+const formatDateToMonth = (dateStr) => {
+  if (!dateStr) return '';
+  return dateStr.slice(0, 7); // YYYY-MM
+};
 
-    year_obligated: project.year_obligated || '',
-    revenue: project.revenue || '',
-    net_income: project.net_income || '',
-    current_asset: project.current_asset || '',
-    noncurrent_asset: project.noncurrent_asset || '',
-    equity: project.equity || '',
-    liability: project.liability || '',
+const { data, setData, put, processing, errors } = useForm({
+  project_id: project.project_id,
+  project_title: project.project_title || '',
+  company_id: project.company_id || '',
 
-    items: project.items || [],
-  });
+  release_initial: formatDateToMonth(project.release_initial),
+  release_end: formatDateToMonth(project.release_end),
+  refund_initial: formatDateToMonth(project.refund_initial),
+  refund_end: formatDateToMonth(project.refund_end),
+
+  project_cost: project.project_cost || '',
+  year_obligated: project.year_obligated || '',
+  revenue: project.revenue || '',
+  net_income: project.net_income || '',
+  current_asset: project.current_asset || '',
+  noncurrent_asset: project.noncurrent_asset || '',
+  equity: project.equity || '',
+  liability: project.liability || '',
+
+  items: project.items || [],
+});
+
 
   const handleItemChange = (index, field, value) => {
     const updatedItems = [...data.items];
@@ -93,26 +102,52 @@ export default function Edit({ project, companies }) {
                   {errors.company_id && <div className="text-red-500 text-sm">{errors.company_id}</div>}
                 </div>
 
+                {/* Release Initial */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Phase One</label>
+                  <label className="block text-sm font-medium text-gray-700">Release Initial</label>
                   <input
-                    type="text"
-                    value={data.phase_one}
-                    onChange={(e) => setData('phase_one', e.target.value)}
+                    type="month"
+                    value={data.release_initial}
+                    onChange={(e) => setData('release_initial', e.target.value)}
                     className="w-full p-2 border rounded"
                   />
-                  {errors.phase_one && <div className="text-red-500 text-sm">{errors.phase_one}</div>}
+                  {errors.release_initial && <div className="text-red-500 text-sm">{errors.release_initial}</div>}
                 </div>
 
+                {/* Release End */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Phase Two</label>
+                  <label className="block text-sm font-medium text-gray-700">Release End</label>
                   <input
-                    type="text"
-                    value={data.phase_two}
-                    onChange={(e) => setData('phase_two', e.target.value)}
+                    type="month"
+                    value={data.release_end}
+                    onChange={(e) => setData('release_end', e.target.value)}
                     className="w-full p-2 border rounded"
                   />
-                  {errors.phase_two && <div className="text-red-500 text-sm">{errors.phase_two}</div>}
+                  {errors.release_end && <div className="text-red-500 text-sm">{errors.release_end}</div>}
+                </div>
+
+                {/* Refund Initial */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Refund Initial</label>
+                  <input
+                    type="month"
+                    value={data.refund_initial}
+                    onChange={(e) => setData('refund_initial', e.target.value)}
+                    className="w-full p-2 border rounded"
+                  />
+                  {errors.refund_initial && <div className="text-red-500 text-sm">{errors.refund_initial}</div>}
+                </div>
+
+                {/* Refund End */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Refund End</label>
+                  <input
+                    type="month"
+                    value={data.refund_end}
+                    onChange={(e) => setData('refund_end', e.target.value)}
+                    className="w-full p-2 border rounded"
+                  />
+                  {errors.refund_end && <div className="text-red-500 text-sm">{errors.refund_end}</div>}
                 </div>
 
                 <div>
@@ -219,7 +254,6 @@ export default function Edit({ project, companies }) {
                     key={index}
                     className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4 border p-3 rounded bg-gray-50"
                   >
-                    {/* Item Name */}
                     <input
                       type="text"
                       placeholder="Item Name"
@@ -227,8 +261,6 @@ export default function Edit({ project, companies }) {
                       onChange={(e) => handleItemChange(index, 'item_name', e.target.value)}
                       className="p-2 border rounded"
                     />
-
-                    {/* Item Cost */}
                     <input
                       type="number"
                       placeholder="Item Cost"
@@ -237,8 +269,6 @@ export default function Edit({ project, companies }) {
                       onChange={(e) => handleItemChange(index, 'item_cost', e.target.value)}
                       className="p-2 border rounded"
                     />
-
-                    {/* Quantity */}
                     <input
                       type="number"
                       placeholder="Qty"
@@ -246,8 +276,6 @@ export default function Edit({ project, companies }) {
                       onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
                       className="p-2 border rounded"
                     />
-
-                    {/* Remove Button */}
                     <button
                       type="button"
                       onClick={() => removeItem(index)}
@@ -255,8 +283,6 @@ export default function Edit({ project, companies }) {
                     >
                       Remove
                     </button>
-
-                    {/* Specifications (Full width, below other fields) */}
                     <textarea
                       placeholder="Specifications"
                       value={item.specifications || ''}
@@ -275,14 +301,13 @@ export default function Edit({ project, companies }) {
               </div>
 
               <div className="pt-6">
-              <button
-                type="submit"
-                disabled={processing}
-                className={`px-4 py-2 rounded text-white text-sm ${processing ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
-              >
-                {processing ? 'Updating...' : 'Update Company'}
-              </button>
-
+                <button
+                  type="submit"
+                  disabled={processing}
+                  className={`px-4 py-2 rounded text-white text-sm ${processing ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                >
+                  {processing ? 'Updating...' : 'Update Project'}
+                </button>
               </div>
             </form>
           </div>

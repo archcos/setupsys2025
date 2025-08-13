@@ -10,7 +10,9 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImplementationController;
+use App\Http\Controllers\LoanController;
 use App\Http\Controllers\MOAController;
+use App\Http\Controllers\NewRefundController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PDFController;
 use App\Http\Controllers\RefundController;
@@ -109,5 +111,11 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::put('/admin/users/{id}', [UserManagementController::class, 'update'])->name('admin.users.update');
     Route::post('/admin/users/{id}/logout', [UserManagementController::class, 'forceLogout']);
     Route::post('/admin/users/{id}/delete', [UserManagementController::class, 'deleteUser']);
+});
 
+Route::middleware(['auth'])->group(function () {
+    Route::get('/loans', [LoanController::class, 'index']);
+    Route::post('/loans/save', [LoanController::class, 'save']);
+    Route::get('/my-loans', [LoanController::class, 'userLoans'])
+        ->name('loans.user');
 });
