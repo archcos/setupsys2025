@@ -48,7 +48,7 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::resource('companies', CompanyController::class);
     Route::resource('projects', ProjectController::class)->middleware('role:admin,staff')
-        ->except(['destroy']); // exclude destroy from staff
+        ->except(['destroy', 'show']); // exclude destroy from staff
     Route::delete('/projects/{id}', [ProjectController::class, 'destroy'])
         ->middleware('role:admin')
         ->name('projects.destroy');    
@@ -119,3 +119,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/my-loans', [LoanController::class, 'userLoans'])
         ->name('loans.user');
 });
+
+Route::get('/projects/sync-csv', [ProjectController::class, 'syncProjectsFromCSV'])
+    ->name('projects.sync.csv');

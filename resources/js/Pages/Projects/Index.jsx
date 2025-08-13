@@ -68,13 +68,34 @@ export default function Index({ projects, filters }) {
               </Link>
             </div>
 
-            <input
-              type="text"
-              placeholder="Search by title, company, cost..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="p-2 border rounded mb-4 w-full"
-            />
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                placeholder="Search by title, company, cost..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="p-2 border rounded w-full"
+              />
+              <button
+                onClick={() => {
+                  router.visit(route('projects.sync.csv'), {
+                    method: 'get',
+                    preserveScroll: true,
+                    onSuccess: () => {
+                      // This will re-fetch the current index page
+                      router.visit(route('projects.index'), {
+                        preserveScroll: true,
+                        preserveState: true,
+                      });
+                    }
+                  });
+                }}
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm"
+              >
+                Sync CSV
+              </button>
+            </div>
+
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-2">

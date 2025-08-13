@@ -82,7 +82,7 @@ useEffect(() => {
   return (
     <div className="h-screen flex bg-gray-100 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-y-auto">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
         <Head title="Loan Management" />
 
@@ -153,7 +153,7 @@ useEffect(() => {
                         key={p.project_id}
                         className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
                       >
-                        <td className="p-3 border-b">{p.project_title}</td>
+                        <td className="p-3 border-b max-w-xs overflow-hidden break-words" style={{ maxHeight: '4rem', lineHeight: '1.25rem' }}>{p.project_title}</td>
                         <td className="p-3 border-b">{p.company.company_name}</td>
                         <td className="p-3 border-b">
                           <input
