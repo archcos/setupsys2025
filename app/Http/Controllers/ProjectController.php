@@ -10,6 +10,7 @@ use App\Models\MOAModel;
 use App\Models\UserModel;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
@@ -263,6 +264,158 @@ public function update(Request $request, $id)
     return redirect('/projects')->with('success', 'Project and items updated successfully.');
 }
 
+public function syncProjectsFromCSV()
+{
+    $csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTsjw8nNLTrJYI2fp0ZrKbXQvqHpiGLqpgYk82unky4g_WNf8xCcISaigp8VsllxE2dCwl-aY3wjd1W/pub?gid=84108771&single=true&output=csv';
+
+    try {
+        $response = Http::timeout(300)->get($csvUrl);
+        if (!$response->ok()) {
+            Log::error('Failed to fetch CSV: ' . $response->status());
+            return back()->with('error', 'Failed to fetch CSV data.');
+        }
+
+        $lines = explode("\n", trim($response->body()));
+        if (count($lines) < 2) {
+            Log::warning('CSV contains no data rows.');
+            return back()->with('error', 'CSV contains no data.');
+        }
+
+        $rawHeader = str_getcsv(array_shift($lines));
+        $header = [];
+        foreach ($rawHeader as $key => $col) {
+            if (trim($col) !== '') {
+                $header[$key] = trim($col);
+            }
+        }
+
+        $csvData = array_map('str_getcsv', $lines);
+        $newRecords = 0;
+
+        foreach ($csvData as $rowIndex => $row) {
+            $row = array_map('trim', $row);
+            $row = array_slice($row, 0, count($header));
+            $row = array_pad($row, count($header), '');
+
+            if (count(array_filter($row)) === 0) {
+                continue;
+            }
+
+            $data = array_combine(array_values($header), $row);
+            if (!$data) {
+                Log::warning("Malformed row $rowIndex", ['row' => $row]);
+                continue;
+            }
+
+            // Skip invalid years
+            $yearObligated = $data['Year Obligated'] ?? null;
+            if (!in_array($yearObligated, ['2024', '2025'])) {
+                continue;
+            }
+
+            // Match company_id from Name of the Business
+            $companyName = trim($data['Name of the Business'] ?? '');
+            if (!$companyName) {
+                Log::warning("Skipping row $rowIndex: Missing business name");
+                continue;
+            }
+
+            $company = CompanyModel::where('company_name', $companyName)->first();
+            if (!$company) {
+                Log::warning("Skipping project: No matching company for {$companyName}");
+                continue;
+            }
+
+            // Parse release dates from Original Project Duration
+            [$releaseInitial, $releaseEnd] = $this->splitMonthYear($data['Original Project Duration'] ?? '');
+
+            // Parse refund dates from Original Refund Schedule
+            [$refundInitial, $refundEnd] = $this->splitMonthYear($data['Original Refund Schedule'] ?? '');
+
+            $projectCostRaw = $data['Amount of DOST Assistance'] ?? '0';
+
+            // Remove commas and spaces if any, trim first
+            $projectCostRaw = str_replace([',', ' '], '', trim($projectCostRaw));
+
+            // Check if numeric (decimal or integer)
+            if (is_numeric($projectCostRaw)) {
+                // Convert to float first, then to int to handle decimals safely
+                $projectCost = (int) round(floatval($projectCostRaw));
+            } else {
+                $projectCost = 0;
+                Log::warning("Row $rowIndex has invalid project_cost value: " . $projectCostRaw);
+            }
+
+            try {
+                ProjectModel::updateOrCreate(
+                    [
+                        'project_id' => str_replace('-', '', $data['Project Code'] ?? '')
+                    ],
+                    [
+                        'project_title'   => $data['Name of Project'] ?? null,
+                        'company_id'      => $company->company_id,
+                        'release_initial' => $releaseInitial,
+                        'release_end'     => $releaseEnd,
+                        'refund_initial'  => $refundInitial,
+                        'refund_end'      => $refundEnd,
+                        'year_obligated'  => $yearObligated,
+                        'added_by'        => session('user_id') ?? 1,
+                        'project_cost'    => $projectCost ?? 0,
+                        'progress'        => 'Implementation',
+                        'revenue'         => $this->sanitizeNumeric($data['Revenue'] ?? null),
+                        'equity'          => $this->sanitizeNumeric($data['Equity'] ?? null),
+                        'liability'       => $this->sanitizeNumeric($data['Liability'] ?? null),
+                        'net_income'      => $this->sanitizeNumeric($data['Net Income (Before SETUP)'] ?? null),
+                        'current_asset'   => $this->sanitizeNumeric($data['Current Asset (Before SETUP)'] ?? null),
+                        'noncurrent_asset'=> $this->sanitizeNumeric($data['Non-Current Asset (Before SETUP)'] ?? null),
+                    ]
+                );
+                $newRecords++;
+            } catch (\Exception $e) {
+                Log::error("Row $rowIndex failed: " . $e->getMessage(), ['row' => $data]);
+                continue;
+            }
+        }
+
+        Log::info("Project CSV sync complete. Total new/updated: $newRecords");
+        return back()->with('success', "$newRecords projects synced.");
+    } catch (\Exception $e) {
+        Log::error('Project CSV Sync failed: ' . $e->getMessage());
+        return back()->with('error', 'Sync failed. Please try again.');
+    }
+}
+
+/**
+ * Split "MMM YYYY - MMM YYYY" into two Y-m-d dates ("YYYY-MM-DD")
+ */
+private function splitMonthYear($value)
+{
+    if (!$value) return [null, null];
+    $parts = array_map('trim', explode('-', $value));
+
+    $parseDate = function ($part) {
+        if (!$part) return null;
+        try {
+            // Parse month-year string and set day as 1
+        $dt = Carbon::createFromFormat('M Y', $part)->startOfMonth();
+        return $dt->format('Y-m-d');
+        } catch (\Exception $e) {
+            return null;
+        }
+    };
+
+    return [
+        $parseDate($parts[0] ?? null),
+        $parseDate($parts[1] ?? null)
+    ];
+}
+
+private function sanitizeNumeric($value)
+{
+    if (!$value) return null;
+    $clean = str_replace([',', ' '], '', trim($value));
+    return is_numeric($clean) ? (float)$clean : null;
+}
 
 public function readonly()
 {
@@ -293,6 +446,8 @@ public function readonly()
         'projects' => $projects,
     ]);
 }
+
+
 
 
 public function updateProgress(Request $request, $id)

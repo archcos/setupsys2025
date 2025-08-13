@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ProjectModel;
 use App\Models\LoanModel;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -17,28 +18,29 @@ public function index()
     $selectedYear = request('year', now()->year);
     $search = request('search');
 
-    $projects = ProjectModel::with([
-        'company',
-        'loans' => function ($q) use ($selectedMonth, $selectedYear) {
-            $q->whereMonth('month_paid', $selectedMonth)
-              ->whereYear('month_paid', $selectedYear)
-              ->latest();
-        }
-    ])
-    ->whereMonth('refund_initial', '<=', $selectedMonth)
-    ->whereMonth('refund_end', '>=', $selectedMonth)
-    ->whereYear('refund_initial', '<=', $selectedYear)
-    ->whereYear('refund_end', '>=', $selectedYear)
-    ->when($search, function ($query, $search) {
-        $query->where(function ($q) use ($search) {
-            $q->where('project_title', 'like', "%{$search}%")
-              ->orWhereHas('company', function ($q) use ($search) {
-                  $q->where('company_name', 'like', "%{$search}%");
-              });
-        });
-    })
-    ->paginate(10)
-    ->withQueryString();
+$selectedDate = Carbon::create($selectedYear, $selectedMonth, 1);
+
+$projects = ProjectModel::with([
+    'company',
+    'loans' => function ($q) use ($selectedDate) {
+        $q->whereMonth('month_paid', $selectedDate->month)
+          ->whereYear('month_paid', $selectedDate->year)
+          ->latest();
+    }
+])
+->whereDate('refund_initial', '<=', $selectedDate)
+->whereDate('refund_end', '>=', $selectedDate)
+->when($search, function ($query, $search) {
+    $query->where(function ($q) use ($search) {
+        $q->where('project_title', 'like', "%{$search}%")
+          ->orWhereHas('company', function ($q) use ($search) {
+              $q->where('company_name', 'like', "%{$search}%");
+          });
+    });
+})
+->paginate(10)
+->withQueryString();
+
 
     return Inertia::render('Refunds/Loan', [
         'projects' => $projects,
@@ -105,36 +107,75 @@ public function save()
 
 public function userLoans()
 {
-    $userId = Auth::id(); // Get logged-in user ID
+    $userId = Auth::id();
     $search = request('search');
+    $year   = request('year');
 
-    $projects = ProjectModel::with([
-        'company',
-        'loans' => function ($q) {
-            $q->latest(); // Just order, no month/year filter
-        }
-    ])
-    // Filter projects by companies where added_by = logged-in user
-    ->whereHas('company', function ($q) use ($userId) {
-        $q->where('added_by', $userId);
-    })
-    ->when($search, function ($query, $search) {
-        $query->where(function ($q) use ($search) {
-            $q->where('project_title', 'like', "%{$search}%")
-              ->orWhereHas('company', function ($q) use ($search) {
-                  $q->where('company_name', 'like', "%{$search}%");
-              });
+    // Get all projects for this user
+    $projects = ProjectModel::with(['company', 'loans'])
+        ->whereHas('company', function ($q) use ($userId) {
+            $q->where('added_by', $userId);
+        })
+        ->when($search, function ($query, $search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('project_title', 'like', "%{$search}%")
+                  ->orWhereHas('company', function ($q) use ($search) {
+                      $q->where('company_name', 'like', "%{$search}%");
+                  });
+            });
+        })
+        ->when($year, function ($query, $year) {
+            $query->where('year_obligated', $year);
+        })
+        ->get()
+        ->map(function ($project) {
+            $totalRefund = $project->loans->sum('refund_amount');
+            $outstanding = $project->project_cost - $totalRefund;
+
+            // Generate all months between refund_initial and refund_end
+            $months = [];
+            if ($project->refund_initial && $project->refund_end) {
+                $start = \Carbon\Carbon::parse($project->refund_initial)->startOfMonth();
+                $end   = \Carbon\Carbon::parse($project->refund_end)->startOfMonth();
+
+                while ($start <= $end) {
+                    $monthLoan = $project->loans
+                        ->where('month_paid', $start->format('Y-m-d'))
+                        ->first();
+
+                    $months[] = [
+                        'month'         => $start->format('F Y'),
+                        'refund_amount' => $monthLoan->refund_amount ?? 0
+                    ];
+
+                    $start->addMonth();
+                }
+            }
+
+            return [
+                'project_id'         => $project->project_id,
+                'project_title'      => $project->project_title,
+                'company'            => $project->company->company_name ?? '-',
+                'project_cost'       => $project->project_cost,
+                'total_refund'       => $totalRefund,
+                'outstanding_balance'=> $outstanding,
+                'months'             => $months
+            ];
         });
-    })
-    ->paginate(10)
-    ->withQueryString();
+
+    // Get distinct years for filter dropdown
+    $years = ProjectModel::whereHas('company', function ($q) use ($userId) {
+            $q->where('added_by', $userId);
+        })
+        ->select('year_obligated')
+        ->distinct()
+        ->pluck('year_obligated');
 
     return Inertia::render('Refunds/UserLoan', [
-        'projects' => $projects,
-        'search' => $search,
+        'projects'      => $projects,
+        'search'        => $search,
+        'years'         => $years,
+        'selectedYear'  => $year
     ]);
 }
-
-
-
 }

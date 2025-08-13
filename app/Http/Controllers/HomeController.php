@@ -16,7 +16,7 @@ public function index(Request $request)
     $user = UserModel::find($userId);
 
     $query = ProjectModel::with('company.office')
-        ->whereYear('created_at', $year);
+        ->whereYear('year_obligated', $year);
 
     if ($user && $user->role === 'staff') {
         $query->whereHas('company', function ($q) use ($user) {
@@ -32,7 +32,7 @@ public function index(Request $request)
         ->groupBy(fn($p) => $p->company->office->office_name ?? 'No Office')
         ->map(fn($group) => $group->count());
 
-    $availableYears = ProjectModel::selectRaw('YEAR(created_at) as year')
+    $availableYears = ProjectModel::selectRaw('YEAR(year_obligated) as year')
         ->distinct()
         ->orderByDesc('year')
         ->pluck('year');
