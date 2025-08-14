@@ -69,7 +69,7 @@ public function save()
 
     try {
         // Parse and normalize save date
-        $savedMonthDate = \Carbon\Carbon::parse($data['save_date'])->startOfMonth()->format('Y-m-d');
+        $savedMonthDate = Carbon::parse($data['save_date'])->startOfMonth()->format('Y-m-d');
 
         // Update refund_amount in projects
         $project = ProjectModel::findOrFail($data['project_id']);
@@ -135,8 +135,8 @@ public function userLoans()
             // Generate all months between refund_initial and refund_end
             $months = [];
             if ($project->refund_initial && $project->refund_end) {
-                $start = \Carbon\Carbon::parse($project->refund_initial)->startOfMonth();
-                $end   = \Carbon\Carbon::parse($project->refund_end)->startOfMonth();
+                $start = Carbon::parse($project->refund_initial)->startOfMonth();
+                $end   = Carbon::parse($project->refund_end)->startOfMonth();
 
                 while ($start <= $end) {
                     $monthLoan = $project->loans
