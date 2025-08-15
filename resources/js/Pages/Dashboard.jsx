@@ -68,7 +68,13 @@ export default function Dashboard() {
                             {
                               title: 'Complete Details',
                               items: [
-                                { label: 'Company Profile', date: project.company?.created_at, status: hasReached('Complete Details') },
+                                {
+                                    label: 'Company Profile',
+                                    date: project.company?.created_at
+                                        ? new Date(project.company.created_at).toLocaleDateString()
+                                        : null,
+                                    status: Boolean(project.company?.created_at) // ✅ checked if created_at is present
+                                },
                                 { label: 'Project Details', date: project.last_activity_date, status: hasReached('Complete Details') }
                               ]
                             },
