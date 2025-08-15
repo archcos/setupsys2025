@@ -49,9 +49,6 @@ public function index(Request $request)
     ]);
 }
 
-
-    
-
 public function create()
 {
     return Inertia::render('Companies/Create');
