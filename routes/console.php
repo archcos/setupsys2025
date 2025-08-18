@@ -1,8 +1,9 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+Schedule::command('loans:send-unpaid-reminders')->dailyAt('14:59');
+
+//crontab -e
+//cd /path/to/your/project
+//artisan schedule:run >> /dev/null 2>&1 or php artisan schedule:run >> /dev/null 2>&1
