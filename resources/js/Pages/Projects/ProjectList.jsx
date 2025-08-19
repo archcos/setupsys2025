@@ -2,6 +2,17 @@ import { Head } from '@inertiajs/react';
 import { useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
+import {
+  FolderOpen,
+  Building2,
+  Calendar,
+  DollarSign,
+  ChevronDown,
+  ChevronUp,
+  Package,
+  Sparkles,
+  Activity
+} from 'lucide-react';
 
 export default function ProjectList({ projects }) {
 
@@ -25,71 +36,235 @@ export default function ProjectList({ projects }) {
   };
 
   return (
-    <div className="h-screen flex bg-gray-100 overflow-hidden">
+    <div className="h-screen flex bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
         <Head title="Projects" />
+        
         <main className="flex-1 p-6 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow p-4">
-            <h2 className="text-lg font-semibold mb-4">Project List</h2>
+          <div className="max-w-7xl mx-auto">
+            {/* Header Section */}
+            <div className="mb-8">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                  <FolderOpen className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">Project Management</h1>
+                  <p className="text-gray-600 mt-1">Overview of all projects and their details</p>
+                </div>
+              </div>
+            </div>
 
-            <table className="w-full text-sm table-auto border">
-              <thead>
-                <tr className="bg-gray-200 text-left">
-                  <th className="px-3 py-2">Title</th>
-                  <th className="px-3 py-2">Company</th>
-                  <th className="px-3 py-2">Phase One</th>
-                  <th className="px-3 py-2">Phase Two</th>
-                  <th className="px-3 py-2">Cost</th>
-                </tr>
-              </thead>
-              <tbody>
-                {projects.map((project) => {
-                  const isOpen = openDropdowns[project.project_id] || false;
+            {/* Projects Table Card */}
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+              <div className="p-8 pb-0">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Activity className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">Project List</h2>
+                    <p className="text-sm text-gray-600">Click on any row to view project items</p>
+                  </div>
+                  <div className="ml-auto">
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Sparkles className="w-4 h-4" />
+                      <span>{projects.length} project{projects.length !== 1 ? 's' : ''} total</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-                  return [
-                    <tr
-                      key={`main-${project.project_id}`}
-                      className="border-t hover:bg-gray-50 cursor-pointer"
-                      onClick={() =>
-                        setOpenDropdowns((prev) => ({
-                          ...prev,
-                          [project.project_id]: !prev[project.project_id],
-                        }))
-                      }
-                    >
-                      <td className="px-3 py-2">{project.project_title}</td>
-                      <td className="px-3 py-2">{project.company?.company_name}</td>
-                      <td className="px-3 py-2">{formatPhase(project.release_initial, project.release_end)}</td>
-                      <td className="px-3 py-2">{formatPhase(project.refund_initial, project.refund_end)}</td>
-                      <td className="px-3 py-2">{project.project_cost}</td>
-                    </tr>,
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-b border-gray-200">
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <FolderOpen className="w-4 h-4" />
+                          Project Title
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4" />
+                          Company
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          Phase One
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          Phase Two
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-4 h-4" />
+                          Cost
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">
+                        Details
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projects.map((project, index) => {
+                      const isOpen = openDropdowns[project.project_id] || false;
 
-                    isOpen && (
-                      <tr key={`details-${project.project_id}`} className="bg-gray-50 border-b">
-                        <td colSpan="5" className="px-3 py-2">
-                          <div className="pl-4">
-                            <strong>Items:</strong>
-                            {project.items && project.items.length > 0 ? (
-                              <ul className="list-disc ml-6 mt-2 text-sm">
-                                {project.items.map((item) => (
-                                  <li key={item.item_id}>
-                                    {item.item_name} — Qty: {item.quantity}, Cost: ₱{item.item_cost}
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="text-gray-500 mt-1">No items for this project.</p>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ),
-                  ];
-                })}
-              </tbody>
-            </table>
+                      return [
+                        <tr
+                          key={`main-${project.project_id}`}
+                          className={`
+                            border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-all duration-200
+                            ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}
+                            ${isOpen ? 'bg-blue-50' : ''}
+                          `}
+                          onClick={() =>
+                            setOpenDropdowns((prev) => ({
+                              ...prev,
+                              [project.project_id]: !prev[project.project_id],
+                            }))
+                          }
+                        >
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-gray-900">
+                              {project.project_title}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 bg-gradient-to-r from-gray-400 to-gray-500 rounded-lg flex items-center justify-center">
+                                <Building2 className="w-4 h-4 text-white" />
+                              </div>
+                              <span className="text-gray-700">
+                                {project.company?.company_name || 'N/A'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                              <span className="text-gray-700">
+                                {formatPhase(project.release_initial, project.release_end)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                              <span className="text-gray-700">
+                                {formatPhase(project.refund_initial, project.refund_end)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-1">
+                              <span className="text-lg font-semibold text-green-600">₱</span>
+                              <span className="font-medium text-gray-900">
+                                {project.project_cost || '0'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center">
+                              {isOpen ? (
+                                <ChevronUp className="w-5 h-5 text-blue-500 transition-transform duration-200" />
+                              ) : (
+                                <ChevronDown className="w-5 h-5 text-gray-400 transition-transform duration-200" />
+                              )}
+                            </div>
+                          </td>
+                        </tr>,
+
+                        isOpen && (
+                          <tr key={`details-${project.project_id}`} className="bg-gradient-to-r from-blue-50/50 to-blue-50/30 border-b border-blue-200">
+                            <td colSpan="6" className="px-6 py-6">
+                              <div className="bg-white rounded-xl p-6 shadow-sm border border-blue-100">
+                                <div className="flex items-center gap-3 mb-4">
+                                  <div className="p-2 bg-blue-100 rounded-lg">
+                                    <Package className="w-5 h-5 text-blue-600" />
+                                  </div>
+                                  <h3 className="text-lg font-semibold text-gray-900">Project Items</h3>
+                                  {project.items && project.items.length > 0 && (
+                                    <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full">
+                                      {project.items.length} item{project.items.length !== 1 ? 's' : ''}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {project.items && project.items.length > 0 ? (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {project.items.map((item) => (
+                                      <div key={item.item_id} className="bg-gradient-to-r from-gray-50 to-gray-50/50 rounded-lg p-4 border border-gray-200">
+                                        <div className="flex items-start justify-between mb-2">
+                                          <h4 className="font-medium text-gray-900 flex-1">
+                                            {item.item_name}
+                                          </h4>
+                                          <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-blue-500 rounded-lg flex items-center justify-center ml-2">
+                                            <Package className="w-4 h-4 text-white" />
+                                          </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                          <div className="flex items-center justify-between text-sm">
+                                            <span className="text-gray-600">Quantity:</span>
+                                            <span className="font-medium text-gray-900">{item.quantity}</span>
+                                          </div>
+                                          <div className="flex items-center justify-between text-sm">
+                                            <span className="text-gray-600">Cost:</span>
+                                            <span className="font-semibold text-green-600">₱{item.item_cost}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-8">
+                                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                      <Package className="w-8 h-8 text-gray-400" />
+                                    </div>
+                                    <p className="text-gray-500">No items found for this project</p>
+                                    <p className="text-sm text-gray-400 mt-1">Items will appear here when added</p>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ),
+                      ];
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Footer */}
+              <div className="px-8 py-4 bg-gradient-to-r from-gray-50 to-gray-50/50 border-t border-gray-200">
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                    <span>Click any row to view project details</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      <span>Phase One</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                      <span>Phase Two</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </main>
       </div>
