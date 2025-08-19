@@ -2,12 +2,29 @@ import { Head, router } from "@inertiajs/react";
 import { useState, useRef, useEffect } from "react";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
-import { Search } from "lucide-react";
+import { 
+    Search, 
+    Calendar, 
+    DollarSign, 
+    TrendingUp, 
+    AlertCircle,
+    CheckCircle,
+    Clock,
+    CreditCard,
+    Building,
+    Target,
+    FileText,
+    Activity,
+    Wallet,
+    ChevronDown,
+    ChevronUp
+} from "lucide-react";
 
 export default function UserLoan({ projects, search, years, selectedYear }) {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [searchInput, setSearchInput] = useState(search || "");
     const [yearFilter, setYearFilter] = useState(selectedYear || "");
+    const [expandedSections, setExpandedSections] = useState({});
     const isFirstRun = useRef(true);
 
     // Delay search
@@ -25,139 +42,348 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
     const formatPeso = (amount) =>
         `₱${Number(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
+    // Toggle section expansion
+    const toggleSection = (projectId, section) => {
+        const key = `${projectId}-${section}`;
+        setExpandedSections(prev => ({
+            ...prev,
+            [key]: !prev[key]
+        }));
+    };
+
+    // Calculate summary stats
+    const totalProjects = projects.length;
+    const totalProjectCost = projects.reduce((sum, p) => sum + (parseFloat(p.project_cost) || 0), 0);
+    const totalOutstanding = projects.reduce((sum, p) => sum + (parseFloat(p.outstanding_balance) || 0), 0);
+    const projectsWithBalance = projects.filter(p => parseFloat(p.outstanding_balance) > 0).length;
+
     return (
         <>
             <Head title="My Loans" />
-            <div className="h-screen flex bg-gray-100 overflow-hidden">
+            <div className="h-screen flex bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
                 <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <Header title="My Loans" toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
-                    <main className="flex-1 overflow-y-auto p-4 space-y-4">
-                        {/* Filters */}
-                        <div className="bg-white p-4 rounded-lg shadow flex flex-wrap items-center gap-3 sticky top-0 z-10 border border-gray-200">
-                            <div className="relative flex-1 min-w-[220px]">
-                                <Search className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-                                <input
-                                    type="text"
-                                    placeholder="Search projects or companies..."
-                                    value={searchInput}
-                                    onChange={(e) => setSearchInput(e.target.value)}
-                                    className="border border-gray-300 rounded-md pl-9 pr-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-500"
-                                />
+                    <main className="flex-1 overflow-y-auto p-6 space-y-8">
+                        <div className="max-w-7xl mx-auto">
+                            {/* Header Section */}
+                            <div className="mb-8">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg">
+                                        <CreditCard className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <h1 className="text-3xl font-bold text-gray-900">My Loans</h1>
+                                        <p className="text-gray-600 mt-1">Manage and track your project financing</p>
+                                    </div>
+                                </div>
                             </div>
 
-                            <select
-                                value={yearFilter}
-                                onChange={(e) => setYearFilter(e.target.value)}
-                                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="">All Years</option>
-                                {years.map((y) => (
-                                    <option key={y} value={y}>{y}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Projects List */}
-                        <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
-                            {projects.length > 0 ? (
-                                <div className="divide-y divide-gray-200">
-                                    {projects.map((p, idx) => (
-                                      <div
-    key={p.project_id}
-    className={`flex flex-col md:flex-row gap-4 p-4 ${
-        idx % 2 === 0 ? "bg-white" : "bg-gray-50"
-    } hover:bg-blue-50 transition`}
->
-    {/* Left Column - Project Info */}
-    <div className="flex-1 flex flex-col">
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4 space-y-3 flex-1">
-            {/* Project Title */}
-            <h3 className="text-lg font-bold text-gray-800">{p.project_title}</h3>
-
-            {/* Company Name */}
-            <p className="text-gray-500 text-sm">
-                <span className="font-medium text-gray-700">Company:</span> {p.company}
-            </p>
-
-            {/* Stats Section */}
-            <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                    <span className="block font-medium text-green-800">Project Cost</span>
-                    <span className="text-green-700 font-semibold">{formatPeso(p.project_cost)}</span>
-                </div>
-                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                    <span className="block font-medium text-blue-800">Total Repayment</span>
-                    <span className="text-blue-700 font-semibold">{formatPeso(p.total_refund)}</span>
-                </div>
-                <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                    <span className="block font-medium text-red-800">Outstanding Balance</span>
-                    <span className="text-red-700 font-semibold">{formatPeso(p.outstanding_balance)}</span>
-                </div>
-                {p.next_payment > 0 && (
-                    <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
-                        <span className="block font-medium text-orange-800">Next Payment</span>
-                        <span className="text-orange-700 font-semibold">{formatPeso(p.next_payment)}</span>
-                    </div>
-                )}
-            </div>
-        </div>
-    </div>
-{/* Right Column - Refund Months */}
-<div className="md:w-1/2 flex flex-col">
-    <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4 flex-1">
-        <h4 className="font-medium text-gray-700 mb-3">Repayment History</h4>
-
-        {/* Paid Months */}
-        {p.months.filter(m => m.status === 'paid').length > 0 && (
-            <div className="mb-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                <h5 className="text-green-700 font-semibold mb-2 text-sm">Paid</h5>
-                <div className="space-y-1 text-sm">
-                    {p.months
-                        .filter(m => m.status === 'paid')
-                        .map((m, i) => (
-                            <div key={i} className="flex justify-between">
-                                <span className="text-gray-600">{m.month}</span>
-                                <span className="font-medium text-green-700">
-                                    {formatPeso(m.refund_amount)}
-                                </span>
+                            {/* Stats Cards */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
+                                            <FileText className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-600">Total Projects</p>
+                                            <p className="text-2xl font-bold text-gray-900">{totalProjects}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-xl">
+                                            <DollarSign className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-600">Total Financing</p>
+                                            <p className="text-xl font-bold text-gray-900">{formatPeso(totalProjectCost)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-gradient-to-r from-red-500 to-red-600 rounded-xl">
+                                            <AlertCircle className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-600">Outstanding</p>
+                                            <p className="text-xl font-bold text-gray-900">{formatPeso(totalOutstanding)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl">
+                                            <Activity className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-600">Active Loans</p>
+                                            <p className="text-2xl font-bold text-gray-900">{projectsWithBalance}</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        ))}
-                </div>
-            </div>
-        )}
 
-{/* Unpaid Months */}
-{p.months.filter(m => m.status === 'unpaid').length > 0 && (
-    <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-        <h5 className="text-red-700 font-semibold mb-2 text-sm">Unpaid</h5>
-        <div className="space-y-1 text-sm">
-            {p.months
-                .filter(m => m.status === 'unpaid')
-                .map((m, i, arr) => (
-                    <div key={i} className="flex justify-between">
-                        <span className="text-gray-600">{m.month}</span>
-                        <span className="font-medium text-red-700">
-                            {formatPeso(p.next_payment)}
-                            {i === arr.length - 1 && ` (Subject to Adjustment)`}
-                        </span>
-                    </div>
-                ))}
-        </div>
-    </div>
-)}
+                            {/* Filters */}
+                            <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 mb-8">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                        <Search className="w-5 h-5 text-blue-600" />
+                                    </div>
+                                    <h2 className="text-lg font-semibold text-gray-900">Search & Filter</h2>
+                                </div>
+                                
+                                <div className="flex flex-wrap items-center gap-4">
+                                    <div className="relative flex-1 min-w-[280px]">
+                                        <Search className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search projects or companies..."
+                                            value={searchInput}
+                                            onChange={(e) => setSearchInput(e.target.value)}
+                                            className="border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-sm w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                                        />
+                                    </div>
 
-    </div>
-</div>
-</div>
-                                    ))}
+                                    <div className="relative">
+                                        <Calendar className="absolute left-3 top-3.5 text-gray-400 w-4 h-4" />
+                                        <select
+                                            value={yearFilter}
+                                            onChange={(e) => setYearFilter(e.target.value)}
+                                            className="border border-gray-200 rounded-xl pl-10 pr-8 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white appearance-none"
+                                        >
+                                            <option value="">All Years</option>
+                                            {years.map((y) => (
+                                                <option key={y} value={y}>{y}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
-                            ) : (
-                                <div className="p-6 text-center text-gray-500">
-                                    No projects found.
+                            </div>
+
+                            {/* Projects List */}
+                            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                                <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/30">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-green-100 rounded-lg">
+                                            <Wallet className="w-5 h-5 text-green-600" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-bold text-gray-900">Project Loans</h2>
+                                            <p className="text-gray-600 text-sm">View detailed breakdown of your financing</p>
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
+
+                                {projects.length > 0 ? (
+                                    <div className="divide-y divide-gray-100">
+                                        {projects.map((p, idx) => {
+                                            const paidMonths = p.months.filter(m => m.status === 'paid');
+                                            const unpaidMonths = p.months.filter(m => m.status === 'unpaid');
+                                            const paidExpanded = expandedSections[`${p.project_id}-paid`];
+                                            const unpaidExpanded = expandedSections[`${p.project_id}-unpaid`];
+
+                                            return (
+                                                <div
+                                                    key={p.project_id}
+                                                    className="p-6 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200"
+                                                >
+                                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                                        {/* Left Column - Project Info */}
+                                                        <div className="space-y-4">
+                                                            <div className="bg-gradient-to-r from-gray-50 to-gray-50/30 rounded-xl p-6 border border-gray-200">
+                                                                <div className="flex items-start gap-3 mb-4">
+                                                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                                                        <Target className="w-5 h-5 text-blue-600" />
+                                                                    </div>
+                                                                    <div className="flex-1">
+                                                                        <h3 className="text-xl font-bold text-gray-900 mb-2">{p.project_title}</h3>
+                                                                        <div className="flex items-center gap-2 text-gray-600">
+                                                                            <Building className="w-4 h-4" />
+                                                                            <span className="text-sm font-medium">{p.company}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Financial Stats Grid */}
+                                                                <div className="grid grid-cols-2 gap-3">
+                                                                    <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                            <DollarSign className="w-4 h-4 text-green-600" />
+                                                                            <span className="text-xs font-semibold text-green-800">PROJECT COST</span>
+                                                                        </div>
+                                                                        <span className="text-lg font-bold text-green-700">{formatPeso(p.project_cost)}</span>
+                                                                    </div>
+                                                                    
+                                                                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                            <TrendingUp className="w-4 h-4 text-blue-600" />
+                                                                            <span className="text-xs font-semibold text-blue-800">TOTAL REPAYMENT</span>
+                                                                        </div>
+                                                                        <span className="text-lg font-bold text-blue-700">{formatPeso(p.total_refund)}</span>
+                                                                    </div>
+                                                                    
+                                                                    <div className="bg-red-50 p-4 rounded-xl border border-red-200">
+                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                            <AlertCircle className="w-4 h-4 text-red-600" />
+                                                                            <span className="text-xs font-semibold text-red-800">OUTSTANDING</span>
+                                                                        </div>
+                                                                        <span className="text-lg font-bold text-red-700">{formatPeso(p.outstanding_balance)}</span>
+                                                                    </div>
+                                                                    
+                                                                    {p.next_payment > 0 && (
+                                                                        <div className="bg-orange-50 p-4 rounded-xl border border-orange-200">
+                                                                            <div className="flex items-center gap-2 mb-1">
+                                                                                <Clock className="w-4 h-4 text-orange-600" />
+                                                                                <span className="text-xs font-semibold text-orange-800">NEXT PAYMENT</span>
+                                                                            </div>
+                                                                            <span className="text-lg font-bold text-orange-700">{formatPeso(p.next_payment)}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Right Column - Repayment History */}
+                                                        <div className="space-y-4">
+                                                            <div className="bg-gradient-to-r from-gray-50 to-gray-50/30 rounded-xl p-6 border border-gray-200">
+                                                                <div className="flex items-center gap-3 mb-4">
+                                                                    <div className="p-2 bg-purple-100 rounded-lg">
+                                                                        <Calendar className="w-5 h-5 text-purple-600" />
+                                                                    </div>
+                                                                    <h4 className="font-bold text-gray-900">Repayment History</h4>
+                                                                </div>
+
+                                                                <div className="space-y-4">
+                                                                    {/* Paid Months */}
+                                                                    {paidMonths.length > 0 && (
+                                                                        <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                                                                            <button
+                                                                                onClick={() => toggleSection(p.project_id, 'paid')}
+                                                                                className="flex items-center justify-between w-full mb-3 group"
+                                                                            >
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <CheckCircle className="w-4 h-4 text-green-600" />
+                                                                                    <h5 className="text-green-800 font-bold text-sm">
+                                                                                        PAID MONTHS ({paidMonths.length})
+                                                                                    </h5>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    {paidExpanded ? (
+                                                                                        <ChevronUp className="w-4 h-4 text-green-600 group-hover:text-green-700 transition-colors" />
+                                                                                    ) : (
+                                                                                        <ChevronDown className="w-4 h-4 text-green-600 group-hover:text-green-700 transition-colors" />
+                                                                                    )}
+                                                                                </div>
+                                                                            </button>
+                                                                            
+                                                                            <div className={`transition-all duration-300 overflow-hidden ${
+                                                                                paidExpanded ? 'max-h-96 opacity-100' : 'max-h-20 opacity-70'
+                                                                            }`}>
+                                                                                <div className="space-y-2 max-h-80 overflow-y-auto">
+                                                                                    {paidMonths.map((m, i) => (
+                                                                                        <div key={i} className="flex justify-between items-center bg-white rounded-lg px-3 py-2 border border-green-100">
+                                                                                            <span className="text-sm font-medium text-gray-700">{m.month}</span>
+                                                                                            <span className="font-bold text-green-700">
+                                                                                                {formatPeso(m.refund_amount)}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
+                                                                            
+                                                                            {!paidExpanded && paidMonths.length > 3 && (
+                                                                                <div className="text-center mt-2">
+                                                                                    <span className="text-xs text-green-600 bg-white px-2 py-1 rounded-full border border-green-200">
+                                                                                        {paidMonths.length - 3} more months...
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Unpaid Months */}
+                                                                    {unpaidMonths.length > 0 && (
+                                                                        <div className="bg-red-50 rounded-xl p-4 border border-red-200">
+                                                                            <button
+                                                                                onClick={() => toggleSection(p.project_id, 'unpaid')}
+                                                                                className="flex items-center justify-between w-full mb-3 group"
+                                                                            >
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <AlertCircle className="w-4 h-4 text-red-600" />
+                                                                                    <h5 className="text-red-800 font-bold text-sm">
+                                                                                        UNPAID MONTHS ({unpaidMonths.length})
+                                                                                    </h5>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    {unpaidExpanded ? (
+                                                                                        <ChevronUp className="w-4 h-4 text-red-600 group-hover:text-red-700 transition-colors" />
+                                                                                    ) : (
+                                                                                        <ChevronDown className="w-4 h-4 text-red-600 group-hover:text-red-700 transition-colors" />
+                                                                                    )}
+                                                                                </div>
+                                                                            </button>
+                                                                            
+                                                                            <div className={`transition-all duration-300 overflow-hidden ${
+                                                                                unpaidExpanded ? 'max-h-96 opacity-100' : 'max-h-20 opacity-70'
+                                                                            }`}>
+                                                                                <div className="space-y-2 max-h-80 overflow-y-auto">
+                                                                                    {unpaidMonths.map((m, i, arr) => (
+                                                                                        <div key={i} className="flex justify-between items-center bg-white rounded-lg px-3 py-2 border border-red-100">
+                                                                                            <span className="text-sm font-medium text-gray-700">{m.month}</span>
+                                                                                            <div className="text-right">
+                                                                                                <span className="font-bold text-red-700">
+                                                                                                    {formatPeso(p.next_payment)}
+                                                                                                </span>
+                                                                                                {i === arr.length - 1 && (
+                                                                                                    <div className="text-xs text-red-600 italic">
+                                                                                                        Subject to Adjustment
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
+                                                                            
+                                                                            {!unpaidExpanded && unpaidMonths.length > 3 && (
+                                                                                <div className="text-center mt-2">
+                                                                                    <span className="text-xs text-red-600 bg-white px-2 py-1 rounded-full border border-red-200">
+                                                                                        {unpaidMonths.length - 3} more months...
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="p-12 text-center">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <div className="p-4 bg-gray-100 rounded-full">
+                                                <CreditCard className="w-8 h-8 text-gray-400" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-medium text-gray-900 mb-1">No Loans Found</h3>
+                                                <p className="text-gray-500">No project loans match your current search criteria.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </main>
                 </div>
