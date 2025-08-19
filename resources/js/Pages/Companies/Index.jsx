@@ -2,14 +2,35 @@ import { Link, router, Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
+import {
+  Search,
+  Plus,
+  RefreshCw,
+  Eye,
+  Edit3,
+  Trash2,
+  Building,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Factory,
+  Package,
+  Users,
+  X,
+  Sparkles,
+  Filter,
+  ChevronDown,
+  ArrowUpDown
+} from 'lucide-react';
 
 export default function Index({ companies, filters }) {
   const [search, setSearch] = useState(filters.search || '');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false); // NEW: Syncing state
+  const [isSyncing, setIsSyncing] = useState(false);
   const [perPage, setPerPage] = useState(filters.perPage || 10);
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   const [selectedCompany, setSelectedCompany] = useState(null);
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   useEffect(() => {
     const delaySearch = setTimeout(() => {
@@ -54,139 +75,345 @@ export default function Index({ companies, filters }) {
   };
 
   return (
-    <div className="h-screen flex bg-gray-100 overflow-hidden">
+    <div className="h-screen flex bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
         <Head title="Companies" />
+        
         <main className="flex-1 p-6 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Companies</h2>
-              <div className="flex items-center gap-2">
-                <Link
-                  href="/companies/create"
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
-                >
-                  + Add Company
-                </Link>
-                <button
-                  onClick={handleSync}
-                  disabled={isSyncing}
-                  className={`px-4 py-2 rounded text-sm text-white ${
-                    isSyncing ? 'bg-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
-                  }`}
-                >
-                  {isSyncing ? '🔄 Syncing...' : '🔁 Sync from CSV'}
-                </button>
+          <div className="max-w-7xl mx-auto">
+            {/* Header Section */}
+            <div className="mb-8">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                  <Building className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">Companies Directory</h1>
+                  <p className="text-gray-600 mt-1">Manage your company database and partnerships</p>
+                </div>
               </div>
-            </div>
 
-            <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Search by company or owner name..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="p-2 border rounded w-full"
-              />
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-700">Show</label>
-                <select
-                  value={perPage}
-                  onChange={handlePerPageChange}
-                  className="block rounded-md border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  {[10, 20, 50, 100].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-                <span className="text-sm text-gray-700">entries</span>
-              </div>
-            </div>
-
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm table-auto border">
-                <thead>
-                  <tr className="bg-gray-200 text-left">
-                    <th className="px-3 py-2">Company</th>
-                    <th className="px-3 py-2">Owner</th>
-                    <th className="px-3 py-2">Email</th>
-                    <th className="px-3 py-2">Contact</th>
-                    <th className="px-3 py-2">Location</th>
-                    <th className="px-3 py-2">Industry</th>
-                    <th className="px-3 py-2">Products</th>
-                    <th className="px-3 py-2">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {companies.data.map((company) => (
-                    <tr key={company.company_id} className="border-t hover:bg-gray-50">
-                      <td className="px-3 py-2">{company.company_name}</td>
-                      <td className="px-3 py-2">{company.owner_name}</td>
-                      <td className="px-3 py-2">{company.email}</td>
-                      <td className="px-3 py-2">{company.contact_number}</td>
-                      <td className="px-3 py-2">
-                        {company.street}, {company.barangay}, {company.municipality}, {company.province}
-                      </td>
-                      <td className="px-3 py-2">{company.industry_type || company.setup_industry}</td>
-                      <td className="px-3 py-2">{company.products}</td>
-                    <td className="px-3 py-2">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setSelectedCompany(company)}
-                        className="px-3 py-1 text-sm text-white bg-indigo-600 rounded hover:bg-indigo-700 transition"
-                      >
-                        View
-                      </button>
-
-                      <Link
-                        href={`/companies/${company.company_id}/edit`}
-                        className="px-3 py-1 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 transition"
-                      >
-                        Edit
-                      </Link>
-
-                      <button
-                        onClick={() => handleDelete(company.company_id)}
-                        className="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700 transition"
-                      >
-                        Delete
-                      </button>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Building className="w-5 h-5 text-blue-600" />
                     </div>
-                  </td>
+                    <div>
+                      <p className="text-sm text-gray-600">Total Companies</p>
+                      <p className="text-xl font-bold text-gray-900">{companies.total || companies.data.length}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <Users className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Active Entries</p>
+                      <p className="text-xl font-bold text-gray-900">{companies.data.length}</p>
+                    </div>
+                  </div>
+                </div>
 
+                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <Factory className="w-5 h-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Industries</p>
+                      <p className="text-xl font-bold text-gray-900">{new Set(companies.data.map(c => c.industry_type || c.setup_industry)).size}</p>
+                    </div>
+                  </div>
+                </div>
 
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {companies.links.length > 1 && (
-              <div className="mt-6 flex justify-end space-x-2">
-                {companies.links.map((link, index) => (
-                  <button
-                    key={index}
-                    disabled={!link.url}
-                    onClick={() => link.url && router.visit(link.url)}
-                    className={`px-3 py-1 text-sm rounded border ${
-                      link.active
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-100'
-                    }`}
-                    dangerouslySetInnerHTML={{ __html: link.label }}
-                  />
-                ))}
+                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <Sparkles className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Recent Updates</p>
+                      <p className="text-xl font-bold text-gray-900">12</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
             </div>
 
-            {companies.length === 0 && (
-              <p className="text-center text-sm text-gray-500 mt-4">No companies found.</p>
-            )}
+            {/* Main Content Card */}
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+              {/* Card Header */}
+              <div className="bg-gradient-to-r from-gray-50 to-white p-6 border-b border-gray-100">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Building className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900">Company Management</h2>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href="/companies/create"
+                      className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2.5 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Company
+                    </Link>
+                    
+                    <button
+                      onClick={handleSync}
+                      disabled={isSyncing}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                        isSyncing 
+                          ? 'bg-gray-400 text-white cursor-not-allowed' 
+                          : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-xl'
+                      }`}
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                      {isSyncing ? 'Syncing...' : 'Sync CSV'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filters Section */}
+              <div className="p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
+                <div className="flex flex-col lg:flex-row gap-4">
+                  {/* Search Bar */}
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="Search by company name, owner, or email..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                    />
+                    {search && (
+                      <button
+                        onClick={() => setSearch('')}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Per Page Selector */}
+                  <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-gray-200 shadow-sm">
+                    <Filter className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm text-gray-700 font-medium">Show</span>
+                    <select
+                      value={perPage}
+                      onChange={handlePerPageChange}
+                      className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
+                    >
+                      {[10, 20, 50, 100].map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                    <span className="text-sm text-gray-700">entries</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Table Section */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <Building className="w-4 h-4" />
+                          Company
+                          <ArrowUpDown className="w-3 h-3 text-gray-400" />
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4" />
+                          Owner
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-4 h-4" />
+                          Contact
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4" />
+                          Location
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <Factory className="w-4 h-4" />
+                          Industry
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <Package className="w-4 h-4" />
+                          Products
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {companies.data.map((company) => (
+                      <tr key={company.company_id} className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                              <Building className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold text-gray-900">{company.company_name}</div>
+                              <div className="text-xs text-gray-500">ID: {company.company_id}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-900 font-medium">{company.owner_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-sm text-gray-900">
+                              <Mail className="w-4 h-4 text-gray-400" />
+                              {company.email}
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Phone className="w-4 h-4 text-gray-400" />
+                              {company.contact_number}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                            <div className="text-sm text-gray-900">
+                              <div>{company.street}, {company.barangay}</div>
+                              <div className="text-gray-600">{company.municipality}, {company.province}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <Factory className="w-4 h-4 text-gray-400" />
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {company.industry_type || company.setup_industry}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <Package className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-900 truncate max-w-32" title={company.products}>
+                              {company.products}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => setSelectedCompany(company)}
+                              className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200 group"
+                              title="View Details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+
+                            <Link
+                              href={`/companies/${company.company_id}/edit`}
+                              className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                              title="Edit Company"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </Link>
+
+                            <button
+                              onClick={() => handleDelete(company.company_id)}
+                              className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                              title="Delete Company"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {companies.data.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Building className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-1">No companies found</h3>
+                        <p className="text-gray-500 text-sm">Get started by adding your first company</p>
+                      </div>
+                      <Link
+                        href="/companies/create"
+                        className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add First Company
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Pagination */}
+              {companies.links && companies.links.length > 1 && (
+                <div className="bg-gradient-to-r from-gray-50/50 to-white px-6 py-4 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      Showing {companies.from || 1} to {companies.to || companies.data.length} of {companies.total || companies.data.length} results
+                    </div>
+                    <div className="flex gap-1">
+                      {companies.links.map((link, index) => (
+                        <button
+                          key={index}
+                          disabled={!link.url}
+                          onClick={() => link.url && router.visit(link.url)}
+                          className={`px-3 py-2 text-sm rounded-lg border transition-all duration-200 ${
+                            link.active
+                              ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-transparent shadow-md'
+                              : link.url
+                              ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                              : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                          }`}
+                          dangerouslySetInnerHTML={{ __html: link.label }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Company Modal */}
           {selectedCompany && (
             <CompanyModal
               company={selectedCompany}
@@ -194,45 +421,193 @@ export default function Index({ companies, filters }) {
               onClose={() => setSelectedCompany(null)}
             />
           )}
-
         </main>
       </div>
     </div>
   );
 }
+
 function CompanyModal({ company, isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-        >
-          ✖
-        </button>
-        <h3 className="text-xl font-semibold mb-4">Company & Owner Details</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <p><strong>Company Name:</strong> {company.company_name}</p>
-            <p><strong>Email:</strong> {company.email}</p>
-            <p><strong>Contact:</strong> {company.contact_number}</p>
-            <p><strong>Location:</strong><br />
-              {company.street}, {company.barangay},<br />
-              {company.municipality}, {company.province}
-            </p>
-            <p><strong>Industry:</strong> {company.industry_type || company.setup_industry}</p>
-            <p><strong>Products:</strong> {company.products}</p>
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-t-2xl text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <Building className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">Company Details</h3>
+                <p className="text-blue-100 text-sm">Complete company and owner information</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white/20 rounded-xl transition-colors duration-200"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
           </div>
-          <div>
-            <p><strong>Owner Name:</strong> {company.owner_name}</p>
-            <p><strong>Sex:</strong> {company.sex}</p>
-            <p><strong>Male Employees:</strong> {company.male}</p>
-            <p><strong>Female Employees:</strong> {company.female}</p>
-            <p><strong>Direct Male:</strong> {company.direct_male}</p>
-            <p><strong>Direct Female:</strong> {company.direct_female}</p>
-            <p><strong>District:</strong> {company.district}</p>
+        </div>
+
+        {/* Modal Content */}
+        <div className="p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Company Information */}
+            <div className="space-y-6">
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-blue-500 rounded-lg">
+                    <Building className="w-5 h-5 text-white" />
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Company Information</h4>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <Building className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Company Name</p>
+                      <p className="text-gray-900 font-semibold">{company.company_name}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Mail className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Email Address</p>
+                      <p className="text-gray-900">{company.email}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Phone className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Contact Number</p>
+                      <p className="text-gray-900">{company.contact_number}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Address</p>
+                      <p className="text-gray-900">
+                        {company.street}, {company.barangay}<br />
+                        {company.municipality}, {company.province}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Factory className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Industry Type</p>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 mt-1">
+                        {company.industry_type || company.setup_industry}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Package className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Products/Services</p>
+                      <p className="text-gray-900">{company.products}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Owner & Employee Information */}
+            <div className="space-y-6">
+              <div className="bg-gradient-to-r from-green-50 to-green-100/50 rounded-xl p-5 border border-green-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-green-500 rounded-lg">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Owner Information</h4>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <User className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Owner Name</p>
+                      <p className="text-gray-900 font-semibold">{company.owner_name}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Users className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Gender</p>
+                      <p className="text-gray-900">{company.sex}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">District</p>
+                      <p className="text-gray-900">{company.district}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-purple-50 to-purple-100/50 rounded-xl p-5 border border-purple-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-purple-500 rounded-lg">
+                    <Users className="w-5 h-5 text-white" />
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Employee Statistics</h4>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-3 bg-white rounded-lg border border-purple-100">
+                    <p className="text-2xl font-bold text-purple-600">{company.male}</p>
+                    <p className="text-xs text-gray-600">Male Employees</p>
+                  </div>
+                  <div className="text-center p-3 bg-white rounded-lg border border-purple-100">
+                    <p className="text-2xl font-bold text-purple-600">{company.female}</p>
+                    <p className="text-xs text-gray-600">Female Employees</p>
+                  </div>
+                  <div className="text-center p-3 bg-white rounded-lg border border-purple-100">
+                    <p className="text-2xl font-bold text-purple-600">{company.direct_male}</p>
+                    <p className="text-xs text-gray-600">Direct Male</p>
+                  </div>
+                  <div className="text-center p-3 bg-white rounded-lg border border-purple-100">
+                    <p className="text-2xl font-bold text-purple-600">{company.direct_female}</p>
+                    <p className="text-xs text-gray-600">Direct Female</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="bg-gray-50 px-6 py-4 rounded-b-2xl border-t border-gray-200">
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+            >
+              Close
+            </button>
+            <Link
+              href={`/companies/${company.company_id}/edit`}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium"
+            >
+              <Edit3 className="w-4 h-4" />
+              Edit Company
+            </Link>
           </div>
         </div>
       </div>

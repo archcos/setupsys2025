@@ -32,6 +32,26 @@ class ProjectModel extends Model
         'updated_at',
     ];
 
+        public function setReleaseInitialAttribute($value)
+    {
+        $this->attributes['release_initial'] = $value ? $value . '-01' : null;
+    }
+
+    public function setReleaseEndAttribute($value)
+    {
+        $this->attributes['release_end'] = $value ? $value . '-01' : null;
+    }
+
+    public function setRefundInitialAttribute($value)
+    {
+        $this->attributes['refund_initial'] = $value ? $value . '-01' : null;
+    }
+
+    public function setRefundEndAttribute($value)
+    {
+        $this->attributes['refund_end'] = $value ? $value . '-01' : null;
+    }
+
     public function company()
     {
         return $this->belongsTo(CompanyModel::class, 'company_id', 'company_id');
@@ -65,5 +85,15 @@ class ProjectModel extends Model
         public function loans()
     {
         return $this->hasMany(LoanModel::class, 'project_id', 'project_id');
+    }
+
+    public function objectives()
+    {
+        return $this->hasMany(ObjectiveModel::class, 'project_id', 'project_id');
+    }
+
+    public function markets()
+    {
+        return $this->hasMany(MarketModel::class, 'project_id', 'project_id');
     }
 }

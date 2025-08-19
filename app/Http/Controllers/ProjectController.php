@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ObjectiveModel;
 use App\Models\ProjectModel;
 use App\Models\CompanyModel;
 use App\Models\ImplementationModel;
 use App\Models\ItemModel;
+use App\Models\MarketModel;
 use App\Models\MOAModel;
 use App\Models\UserModel;
 use Carbon\Carbon;
@@ -106,163 +108,223 @@ public function store(Request $request)
     }
 
 
-    $validated = $request->validate([
-        'project_id'        => 'required|string|max:255',
-        'project_title'     => 'required|string|max:255',
-        'company_id'        => 'required|exists:tbl_companies,company_id',
-        'project_cost'      => 'nullable|numeric',
+$validated = $request->validate([
+    'project_id'        => 'required|string|max:255',
+    'project_title'     => 'required|string|max:255',
+    'company_id'        => 'required|exists:tbl_companies,company_id',
+    'project_cost'      => 'required|numeric',
 
-        'progress'          => 'nullable|string',
-        'year_obligated'    => 'nullable|string',
-        'revenue'           => 'nullable|numeric',
-        'net_income'        => 'nullable|numeric',
-        'current_asset'     => 'nullable|numeric',
-        'noncurrent_asset'  => 'nullable|numeric',
-        'equity'            => 'nullable|numeric',
-        'liability'         => 'nullable|numeric',
+    'progress'          => 'required|string',
+    'year_obligated'    => 'nullable|string',
+    'revenue'           => 'nullable|numeric',
+    'net_income'        => 'nullable|numeric',
+    'current_asset'     => 'nullable|numeric',
+    'noncurrent_asset'  => 'nullable|numeric',
+    'equity'            => 'nullable|numeric',
+    'liability'         => 'nullable|numeric',
 
-        'release_initial'   => 'nullable|date',
-        'release_end'       => 'nullable|date',
-        'refund_initial'    => 'nullable|date',
-        'refund_end'        => 'nullable|date',
+    'release_initial'   => 'nullable|date',
+    'release_end'       => 'nullable|date',
+    'refund_initial'    => 'nullable|date',
+    'refund_end'        => 'nullable|date',
+    'place_name'          => 'nullable|string',
 
-        'items'                     => 'array',
-        'items.*.item_name'         => 'required|string|max:255',
-        'items.*.specifications'    => 'nullable|string',
-        'items.*.item_cost'         => 'required|numeric|min:0',
-        'items.*.quantity'          => 'required|integer|min:1',
-    ]);
+    // Items
+    'items'                     => 'array',
+    'items.*.item_name'         => 'required|string|max:255',
+    'items.*.specifications'    => 'nullable|string',
+    'items.*.item_cost'         => 'required|numeric|min:0',
+    'items.*.quantity'          => 'required|integer|min:1',
 
-    $project = ProjectModel::create([
-        'project_id'        => $validated['project_id'],
-        'project_title'     => $validated['project_title'],
-        'company_id'        => $validated['company_id'],
-        'project_cost'      => $validated['project_cost'] ?? null,
-        'progress'          => $validated['progress'] ?? null,
-        'year_obligated'    => $validated['year_obligated'] ?? null,
-        'revenue'           => $validated['revenue'] ?? null,
-        'net_income'        => $validated['net_income'] ?? null,
-        'current_asset'     => $validated['current_asset'] ?? null,
-        'noncurrent_asset'  => $validated['noncurrent_asset'] ?? null,
-        'equity'            => $validated['equity'] ?? null,
-        'liability'         => $validated['liability'] ?? null,
-        'release_initial'   => $validated['release_initial'] ?? null,
-        'release_end'       => $validated['release_end'] ?? null,
-        'refund_initial'    => $validated['refund_initial'] ?? null,
-        'refund_end'        => $validated['refund_end'] ?? null,
-        'added_by'          => $user->user_id,
-    ]);
+    // Objectives
+    'objectives'                => 'array',
+    'objectives.*.details'      => 'required|string',
+]);
 
-    if (!empty($validated['items'])) {
-        foreach ($validated['items'] as $item) {
-            ItemModel::create([
-                'project_id'     => $project->project_id,
-                'item_name'      => $item['item_name'],
-                'specifications' => $item['specifications'] ?? null,
-                'item_cost'      => $item['item_cost'],
-                'quantity'       => $item['quantity'],
-            ]);
-        }
-    }
 
-    return redirect('/projects')->with('success', 'Project and items created successfully.');
+if (ProjectModel::where('project_id', $validated['project_id'])->exists()) {
+    return redirect()->back()->withErrors([
+        'project_id' => 'This Project ID already exists.'
+    ])->withInput();
 }
 
-    public function edit($id)
-    {
-        $project = ProjectModel::with('items')->findOrFail($id);
-        $companies = CompanyModel::all();
+$project = ProjectModel::create([
+    'project_id'        => $validated['project_id'],
+    'project_title'     => $validated['project_title'],
+    'company_id'        => $validated['company_id'],
+    'project_cost'      => $validated['project_cost'] ?? null,
+    'progress'          => $validated['progress'] ?? null,
+    'year_obligated'    => $validated['year_obligated'] ?? null,
+    'revenue'           => $validated['revenue'] ?? null,
+    'net_income'        => $validated['net_income'] ?? null,
+    'current_asset'     => $validated['current_asset'] ?? null,
+    'noncurrent_asset'  => $validated['noncurrent_asset'] ?? null,
+    'equity'            => $validated['equity'] ?? null,
+    'liability'         => $validated['liability'] ?? null,
+    'release_initial'   => $validated['release_initial'] ?? null,
+    'release_end'       => $validated['release_end'] ?? null,
+    'refund_initial'    => $validated['refund_initial'] ?? null,
+    'refund_end'        => $validated['refund_end'] ?? null,
+    'added_by'          => $user->user_id,
+]);
 
-        return Inertia::render('Projects/Edit', [
-            'project' => $project,
-            'companies' => $companies,
+
+// Save items
+if (!empty($validated['items'])) {
+    foreach ($validated['items'] as $item) {
+        ItemModel::create([
+            'project_id'     => $validated['project_id'],
+            'item_name'      => $item['item_name'],
+            'specifications' => $item['specifications'] ?? null,
+            'item_cost'      => $item['item_cost'],
+            'quantity'       => $item['quantity'],
         ]);
     }
+}
+
+// Save objectives
+if (!empty($validated['objectives'])) {
+    foreach ($validated['objectives'] as $objective) {
+        ObjectiveModel::create([
+            'project_id' => $validated['project_id'],
+            'details'    => $objective['details'],
+        ]);
+    }
+}
+
+if (!empty($validated['place_name'])) {
+    MarketModel::create([
+        'project_id' => $validated['project_id'],
+        'place_name' => $validated['place_name'],
+    ]);
+}
+
+
+
+return redirect('/projects')->with('success', 'Project, items, and objectives created successfully.');
+
+}
+
+public function edit($id)
+{
+    $project = ProjectModel::with(['items', 'objectives', 'markets' => function ($query) {
+        $query->where('type', 'existing');
+    }])->findOrFail($id);
+    
+    $companies = CompanyModel::all();
+
+    return Inertia::render('Projects/Edit', [
+        'project' => $project,
+        'companies' => $companies,
+    ]);
+}
+
 public function update(Request $request, $id)
 {
     $project = ProjectModel::findOrFail($id);
 
-    if ($request->has('release_initial')) {
-        $releaseInitial = $request->input('release_initial');
-        $request->merge(['release_initial' => $releaseInitial . '-01']);
-    }
+    Log::info("Updating project: {$project->project_id}");
 
-    if ($request->has('release_end')) {
-        $releaseEnd = $request->input('release_end');
-        $request->merge(['release_end' => $releaseEnd . '-01']);
-    }
-
-    if ($request->has('refund_initial')) {
-        $refundInitial = $request->input('refund_initial');
-        $request->merge(['refund_initial' => $refundInitial . '-01']);
-    }
-
-    if ($request->has('refund_end')) {
-        $refundEnd = $request->input('refund_end');
-        $request->merge(['refund_end' => $refundEnd . '-01']);
-    }
-
-
+    // Fixed validation - removed unique constraint that was causing issues
     $validated = $request->validate([
-        'project_title'     => 'required|string|max:255|unique:tbl_projects,project_id,' . $id . ',project_id',
+        'project_title'     => 'required|string|max:255',
         'company_id'        => 'required|exists:tbl_companies,company_id',
-        'project_cost'      => 'nullable|numeric',
-
-        'progress'          => 'nullable|string',
-        'year_obligated'    => 'nullable|string',
+        'project_cost'      => 'required|numeric',
+        'year_obligated'    => 'required|string',
         'revenue'           => 'nullable|numeric',
         'net_income'        => 'nullable|numeric',
         'current_asset'     => 'nullable|numeric',
         'noncurrent_asset'  => 'nullable|numeric',
         'equity'            => 'nullable|numeric',
         'liability'         => 'nullable|numeric',
-
-        'release_initial'   => 'nullable|date',
-        'release_end'       => 'nullable|date',
-        'refund_initial'    => 'nullable|date',
-        'refund_end'        => 'nullable|date',
-
-        'items'                     => 'array',
-        'items.*.item_name'         => 'required|string|max:255',
-        'items.*.specifications'    => 'nullable|string',
-        'items.*.item_cost'         => 'required|numeric|min:0',
-        'items.*.quantity'          => 'required|integer|min:1',
+        'release_initial'   => 'required|regex:/^\d{4}-\d{2}$/',
+        'release_end'       => 'required|regex:/^\d{4}-\d{2}$/',
+        'refund_initial'    => 'required|regex:/^\d{4}-\d{2}$/',
+        'refund_end'        => 'required|regex:/^\d{4}-\d{2}$/',
+        'place_name'        => 'required|string',
+        'items'             => 'nullable|array',
+        'items.*.item_name' => 'required_with:items|string|max:255',
+        'items.*.specifications' => 'nullable|string',
+        'items.*.item_cost' => 'required_with:items|numeric|min:0',
+        'items.*.quantity' => 'required_with:items|integer|min:1',
+        'objectives'        => 'nullable|array',
+        'objectives.*.details' => 'required_with:objectives|string',
     ]);
 
+    Log::info('Validated data:', $validated);
+
+    // Update main project fields
     $project->update([
         'project_title'     => $validated['project_title'],
         'company_id'        => $validated['company_id'],
-        'project_cost'      => $validated['project_cost'] ?? null,
-        'progress'          => $validated['progress'] ?? null,
-        'year_obligated'    => $validated['year_obligated'] ?? null,
+        'project_cost'      => $validated['project_cost'],
+        'year_obligated'    => $validated['year_obligated'],
         'revenue'           => $validated['revenue'] ?? null,
         'net_income'        => $validated['net_income'] ?? null,
         'current_asset'     => $validated['current_asset'] ?? null,
         'noncurrent_asset'  => $validated['noncurrent_asset'] ?? null,
         'equity'            => $validated['equity'] ?? null,
         'liability'         => $validated['liability'] ?? null,
-        'release_initial'   => $validated['release_initial'] ?? null,
-        'release_end'       => $validated['release_end'] ?? null,
-        'refund_initial'    => $validated['refund_initial'] ?? null,
-        'refund_end'        => $validated['refund_end'] ?? null,
+        'release_initial'   => $validated['release_initial'],
+        'release_end'       => $validated['release_end'],
+        'refund_initial'    => $validated['refund_initial'],
+        'refund_end'        => $validated['refund_end'],
     ]);
 
+    Log::info("Project updated successfully.");
+
+    // Replace items
     $project->items()->delete();
+    Log::info("Deleted old items.");
 
     if (!empty($validated['items'])) {
         foreach ($validated['items'] as $item) {
-            ItemModel::create([
-                'project_id'     => $project->project_id,
+            $project->items()->create([
                 'item_name'      => $item['item_name'],
                 'specifications' => $item['specifications'] ?? null,
                 'item_cost'      => $item['item_cost'],
                 'quantity'       => $item['quantity'],
             ]);
         }
+        Log::info("Items recreated.", $validated['items']);
     }
 
-    return redirect('/projects')->with('success', 'Project and items updated successfully.');
+    // Replace objectives
+    $project->objectives()->delete();
+    Log::info("Deleted old objectives.");
+
+    if (!empty($validated['objectives'])) {
+        foreach ($validated['objectives'] as $objective) {
+            $project->objectives()->create([
+                'details' => $objective['details'],
+            ]);
+        }
+        Log::info("Objectives recreated.", $validated['objectives']);
+    }
+
+    // Handle market update/creation
+    $market = $project->markets()
+        ->where('type', 'existing')
+        ->where('project_id', $project->project_id)
+        ->first();
+
+    if ($market) {
+        // Update existing market
+        $market->place_name = $validated['place_name'];
+        $market->save();
+        Log::info('Market updated', ['id' => $market->id, 'place_name' => $market->place_name]);
+    } else {
+        // Create a new market linked to this project
+        $project->markets()->create([
+            'type' => 'existing',
+            'place_name' => $validated['place_name'],
+        ]);
+        Log::info('Market created', ['place_name' => $validated['place_name']]);
+    }
+
+    return redirect('/projects')->with('success', 'Project updated successfully.');
 }
+
 
 public function syncProjectsFromCSV()
 {
