@@ -12,12 +12,31 @@ import {
   Plus,
   Pencil,
   Save,
+  ChevronLeft,
+  FileText,
+  Package,
+  ClipboardList,
+  Building2,
+  DollarSign,
+  Target,
+  Activity,
+  Upload,
+  Trash2,
+  Calendar,
+  BarChart3,
+  Sparkles
 } from 'lucide-react';
 
 const fieldLabels = {
   tarp: 'Tarpaulin',
   pdc: 'Post-Dated Check',
   liquidation: 'Liquidation Report',
+};
+
+const fieldIcons = {
+  tarp: FileText,
+  pdc: ClipboardList,
+  liquidation: BarChart3,
 };
 
 export default function Checklist({ implementation }) {
@@ -152,146 +171,228 @@ export default function Checklist({ implementation }) {
   const percentage = (totalAmount / projectCost) * 100;
   const canUploadLiquidation = percentage >= 100;
 
-  return (
-    <div className="flex bg-gray-100 h-screen">
-      <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <Head title="View Checklist" />
-        <div className="flex-1 overflow-y-auto p-6">
+  const renderFileUploadSection = (field) => {
+    const fileExists = !!implementation[field];
+    const isLoading = loadingField === field;
+    const uploadDateField = `${field}_upload`;
+    const Icon = fieldIcons[field];
+    
+    return (
+      <div key={field} className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <Icon className="w-5 h-5 text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900">{fieldLabels[field]}</h3>
+            {implementation[uploadDateField] && (
+              <p className="text-xs text-gray-500">
+                Uploaded on: {new Date(implementation[uploadDateField]).toLocaleString()}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {renderStatus(fileExists)}
+          </div>
+        </div>
 
-          <div className="max-w-2xl mx-auto bg-white rounded-xl shadow space-y-6 p-6">
-                      <div className="mb-4">
-              <Link href="/implementation" className="inline-block text-sm text-blue-600 hover:underline">
-                ← Back to Checklist
-              </Link>
-            </div>
-            <h2 className="text-xl font-semibold">Implementation Checklist</h2>
-            <div className="text-sm text-gray-700 space-y-1 mb-2">
-              <div>Company: <strong>{implementation.company_name}</strong></div>
-              <div>Project: <strong>{implementation.project_title}</strong></div>
-
-            </div>
-            <div className="text-sm text-gray-700 border-b pb-4">
-              Project Cost:{' '}
-              <strong>₱{projectCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong>
-            </div>
-
-            {['tarp', 'pdc'].map((field) => {
-              const fileExists = !!implementation[field];
-              const isLoading = loadingField === field;
-              const uploadDateField = `${field}_upload`; // dynamic datetime field from DB
-
-              return (
-                <div key={field} className="flex flex-col border-b pb-4 mb-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      {renderStatus(fileExists)}
-                      <span>{fieldLabels[field]}</span>
-                      {fileExists && (
-                        <>
-                          <button
-                            onClick={() => previewFile(implementation[field])}
-                            className="text-blue-500 hover:underline text-sm flex items-center gap-1"
-                          >
-                            <Eye className="w-4 h-4" /> View
-                          </button>
-                          <a
-                            href={`/implementation/download/${field}?url=${encodeURIComponent(
-                              implementation[field]
-                            )}`}
-                            className="text-green-600 hover:underline text-sm flex items-center gap-1"
-                          >
-                            <Download className="w-4 h-4" /> Download
-                          </a>
-                        </>
-                      )}
-                    </div>
-                    {fileExists && (
-                      <button
-                        onClick={() => deleteFile(field)}
-                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 disabled:opacity-50"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Delete'}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Upload date display */}
-                  {implementation[uploadDateField] && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Uploaded on: {new Date(implementation[uploadDateField]).toLocaleString()}
-                    </p>
-                  )}
-
-                  {fileExists && (
-                    <p className="text-sm text-yellow-600 mt-1">
-                      A file has already been uploaded. You must delete it before uploading a new one.
-                    </p>
-                  )}
-                  <div className="mt-2 flex items-center gap-2">
-                    <input
-                      type="file"
-                      onChange={(e) => setData(field, e.target.files[0])}
-                      className="block text-sm text-gray-500"
-                      disabled={fileExists}
-                    />
-                    <button
-                      onClick={() => upload(field)}
-                      disabled={!data[field] || fileExists || isLoading}
-                      className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 disabled:opacity-50"
-                    >
-                      {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Upload'}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-
-
-            {/* Tags Section */}
-            <div className="space-y-3">
-              <h6 className=" text-lg">Tagging</h6>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={data.tag_name}
-                  onChange={(e) => setData('tag_name', e.target.value)}
-                  placeholder="Equipment Name"
-                  className="border rounded px-3 py-1 flex-1"
-                />
-                <input
-                  type="number"
-                  value={data.tag_amount}
-                  onChange={(e) => setData('tag_amount', e.target.value)}
-                  placeholder="Amount"
-                  className="border rounded px-3 py-1 w-32"
-                />
+        <div className="space-y-4">
+          {fileExists && (
+            <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+              <CheckCircle className="w-5 h-5 text-green-500" />
+              <span className="text-green-700 font-medium">File uploaded successfully</span>
+              <div className="flex gap-2 ml-auto">
                 <button
-                  onClick={addTag}
-                  className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+                  onClick={() => previewFile(implementation[field])}
+                  className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                 >
-                  <Plus className="w-4 h-4 inline mr-1" /> Add
+                  <Eye className="w-4 h-4" /> View
+                </button>
+                <a
+                  href={`/implementation/download/${field}?url=${encodeURIComponent(
+                    implementation[field]
+                  )}`}
+                  className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                >
+                  <Download className="w-4 h-4" /> Download
+                </a>
+                <button
+                  onClick={() => deleteFile(field)}
+                  className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                  disabled={isLoading}
+                >
+                  {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+                  Delete
                 </button>
               </div>
+            </div>
+          )}
 
-              {/* Progress Bar */}
-              <div className="w-full bg-gray-200 rounded h-4 overflow-hidden">
-                <div
-                  className="bg-blue-500 h-full transition-all"
-                  style={{ width: `${Math.min(percentage, 100)}%` }}
-                ></div>
+          {fileExists && (
+            <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+              <p className="text-sm text-yellow-700">
+                A file has already been uploaded. You must delete it before uploading a new one.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <input
+              type="file"
+              onChange={(e) => setData(field, e.target.files[0])}
+              className="flex-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              disabled={fileExists}
+            />
+            <button
+              onClick={() => upload(field)}
+              disabled={!data[field] || fileExists || isLoading}
+              className="inline-flex items-center gap-2 px-6 py-2 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="animate-spin w-4 h-4" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Upload
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="h-screen flex bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
+      <Sidebar isOpen={sidebarOpen} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <Head title="Implementation Checklist" />
+        
+        <main className="flex-1 p-6 overflow-y-auto">
+          <div className="max-w-5xl mx-auto">
+            {/* Header Section */}
+            <div className="mb-8">
+              <Link
+                href="/implementation"
+                className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-4 group"
+              >
+                <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                Back to Implementation
+              </Link>
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                  <ClipboardList className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">Implementation Checklist</h1>
+                  <p className="text-gray-600 mt-1">Track project deliverables and requirements</p>
+                </div>
               </div>
-              <div className="text-xs text-gray-600">
-                Tag Total: <strong>₱{totalAmount?.toLocaleString()}</strong> ({percentage.toFixed(1)}% of project cost)
+            </div>
+
+            {/* Project Information Card */}
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 mb-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <Building2 className="w-5 h-5 text-indigo-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900">Project Information</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Company</label>
+                    <p className="text-lg font-semibold text-gray-900">{implementation.company_name}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Project</label>
+                    <p className="text-lg font-semibold text-gray-900">{implementation.project_title}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-center">
+                  <div className="text-center p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
+                    <DollarSign className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                    <label className="text-sm font-medium text-gray-500 block">Project Cost</label>
+                    <p className="text-2xl font-bold text-green-600">
+                      ₱{projectCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* File Upload Sections */}
+            <div className="space-y-6 mb-8">
+              {['tarp', 'pdc'].map((field) => renderFileUploadSection(field))}
+            </div>
+
+            {/* Tagging Section */}
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 mb-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Package className="w-5 h-5 text-purple-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900">Equipment Tagging</h2>
               </div>
 
-              <ul className="space-y-1">
+              {/* Add Tag Form */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="text"
+                    value={data.tag_name}
+                    onChange={(e) => setData('tag_name', e.target.value)}
+                    placeholder="Equipment Name"
+                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                  />
+                  <input
+                    type="number"
+                    value={data.tag_amount}
+                    onChange={(e) => setData('tag_amount', e.target.value)}
+                    placeholder="Amount"
+                    className="w-32 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                  />
+                  <button
+                    onClick={addTag}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    <Plus className="w-4 h-4" /> Add Tag
+                  </button>
+                </div>
+              </div>
+
+              {/* Progress Section */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">Project Completion</span>
+                  <span className="text-sm font-bold text-purple-600">{percentage.toFixed(1)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-purple-500 to-purple-600 h-full transition-all duration-500 ease-out"
+                    style={{ width: `${Math.min(percentage, 100)}%` }}
+                  ></div>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <Target className="w-4 h-4 text-purple-500" />
+                  <span className="text-sm text-gray-600">
+                    Tag Total: <strong>₱{totalAmount?.toLocaleString()}</strong> of ₱{projectCost.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Tags List */}
+              <div className="space-y-3">
                 {implementation.tags?.map((tag) => (
-                  <li
+                  <div
                     key={tag.tag_id}
-                    className="bg-gray-100 border px-3 py-1 rounded flex justify-between items-center gap-2"
+                    className="flex items-center gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-50/30 rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200"
                   >
                     {editingTag === tag.tag_id ? (
                       <>
@@ -300,7 +401,7 @@ export default function Checklist({ implementation }) {
                           onChange={(e) =>
                             setEditedTag((prev) => ({ ...prev, name: e.target.value }))
                           }
-                          className="border rounded px-2 py-0.5 text-sm w-1/3"
+                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                         <input
                           type="number"
@@ -308,23 +409,26 @@ export default function Checklist({ implementation }) {
                           onChange={(e) =>
                             setEditedTag((prev) => ({ ...prev, amount: e.target.value }))
                           }
-                          className="border rounded px-2 py-0.5 text-sm w-1/4"
+                          className="w-32 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                         <button
                           onClick={() => saveEditTag(tag.tag_id)}
-                          className="text-green-600 hover:text-green-800"
+                          className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
                         >
                           <Save className="w-4 h-4" />
                         </button>
                       </>
                     ) : (
                       <>
-                        <span className="flex-1">
-                          {tag.tag_name} - ₱{parseFloat(tag.tag_amount).toLocaleString()}
-                        </span>
+                        <div className="flex-1">
+                          <span className="font-medium text-gray-900">{tag.tag_name}</span>
+                          <span className="text-purple-600 font-semibold ml-2">
+                            ₱{parseFloat(tag.tag_amount).toLocaleString()}
+                          </span>
+                        </div>
                         <button
                           onClick={() => startEditTag(tag)}
-                          className="text-gray-600 hover:text-blue-700"
+                          className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
@@ -332,102 +436,134 @@ export default function Checklist({ implementation }) {
                     )}
                     <button
                       onClick={() => deleteTag(tag.tag_id)}
-                      className="text-red-600 hover:text-red-800"
+                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
                     >
                       <X className="w-4 h-4" />
                     </button>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
 
             {/* Untagging Status */}
-            <div className="flex flex-col gap-3 border-t pt-4">
-              <div className="flex items-center gap-3">
-                {renderStatus(implementation.first_untagged)}
-                <span>First Untagging (50%)</span>
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 mb-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <Activity className="w-5 h-5 text-orange-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900">Untagging Status</h2>
               </div>
-              <div className="flex items-center gap-3">
-                {renderStatus(implementation.final_untagged)}
-                <span>Final Untagging (100%)</span>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-orange-50 to-orange-50/30 rounded-xl border border-orange-200">
+                  {renderStatus(implementation.first_untagged)}
+                  <div>
+                    <h3 className="font-medium text-gray-900">First Untagging</h3>
+                    <p className="text-sm text-gray-500">50% Progress Milestone</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-green-50 to-green-50/30 rounded-xl border border-green-200">
+                  {renderStatus(implementation.final_untagged)}
+                  <div>
+                    <h3 className="font-medium text-gray-900">Final Untagging</h3>
+                    <p className="text-sm text-gray-500">100% Completion</p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Liquidation Upload */}
-           {['liquidation'].map((field) => {
-            const fileExists = !!implementation[field];
-            const isLoading = loadingField === field;
-            const uploadDateField = `${field}_upload`;
-
-            return (
-              <div key={field} className="flex flex-col border-t pt-4">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    {renderStatus(fileExists)}
-                    <span>{fieldLabels[field]}</span>
-                    {fileExists && (
-                      <>
-                        <button
-                          onClick={() => previewFile(implementation[field])}
-                          className="text-blue-500 hover:underline text-sm flex items-center gap-1"
-                        >
-                          <Eye className="w-4 h-4" /> View
-                        </button>
-                        <a
-                          href={`/implementation/download/${field}?url=${encodeURIComponent(
-                            implementation[field]
-                          )}`}
-                          className="text-green-600 hover:underline text-sm flex items-center gap-1"
-                        >
-                          <Download className="w-4 h-4" /> Download
-                        </a>
-                      </>
-                    )}
-                  </div>
-                  {fileExists && (
-                    <button
-                      onClick={() => deleteFile(field)}
-                      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 disabled:opacity-50"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Delete'}
-                    </button>
-                  )}
+            {/* Liquidation Section */}
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-emerald-100 rounded-lg">
+                  <BarChart3 className="w-5 h-5 text-emerald-600" />
                 </div>
-
-                {/* Upload date */}
-                {implementation[uploadDateField] && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Uploaded on: {new Date(implementation[uploadDateField]).toLocaleString()}
-                  </p>
-                )}
-
-                {fileExists && (
-                  <p className="text-sm text-yellow-600 mt-1">
-                    A file has already been uploaded. You must delete it before uploading a new one.
-                  </p>
-                )}
-                <div className="mt-2 flex items-center gap-2">
-                  <input
-                    type="file"
-                    onChange={(e) => setData(field, e.target.files[0])}
-                    className="block text-sm text-gray-500"
-                    disabled={fileExists || !canUploadLiquidation}
-                  />
-                  <button
-                    onClick={() => upload(field)}
-                    disabled={!data[field] || fileExists || isLoading || !canUploadLiquidation}
-                    className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 disabled:opacity-50"
-                  >
-                    {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Upload'}
-                  </button>
+                <div className="flex-1">
+                  <h2 className="text-xl font-semibold text-gray-900">Liquidation Report</h2>
+                  <p className="text-sm text-gray-600">Available when tagging reaches 100%</p>
                 </div>
+                {renderStatus(implementation.liquidation)}
               </div>
-            );
-          })}
 
+              {!canUploadLiquidation && (
+                <div className="mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-yellow-600" />
+                    <p className="text-sm text-yellow-700">
+                      <strong>Complete all tagging first!</strong> Liquidation upload becomes available when tagging reaches 100% of project cost.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {implementation.liquidation && implementation.liquidation_upload && (
+                <div className="mb-4">
+                  <p className="text-xs text-gray-500">
+                    <Calendar className="w-4 h-4 inline mr-1" />
+                    Uploaded on: {new Date(implementation.liquidation_upload).toLocaleString()}
+                  </p>
+                </div>
+              )}
+
+              {implementation.liquidation && (
+                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200 mb-4">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span className="text-green-700 font-medium">Liquidation report uploaded successfully</span>
+                  <div className="flex gap-2 ml-auto">
+                    <button
+                      onClick={() => previewFile(implementation.liquidation)}
+                      className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                      <Eye className="w-4 h-4" /> View
+                    </button>
+                    <a
+                      href={`/implementation/download/liquidation?url=${encodeURIComponent(
+                        implementation.liquidation
+                      )}`}
+                      className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                    >
+                      <Download className="w-4 h-4" /> Download
+                    </a>
+                    <button
+                      onClick={() => deleteFile('liquidation')}
+                      className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                      disabled={loadingField === 'liquidation'}
+                    >
+                      {loadingField === 'liquidation' ? <Loader2 className="animate-spin w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="file"
+                  onChange={(e) => setData('liquidation', e.target.files[0])}
+                  className="flex-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                  disabled={implementation.liquidation || !canUploadLiquidation}
+                />
+                <button
+                  onClick={() => upload('liquidation')}
+                  disabled={!data.liquidation || implementation.liquidation || loadingField === 'liquidation' || !canUploadLiquidation}
+                  className="inline-flex items-center gap-2 px-6 py-2 bg-emerald-500 text-white font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingField === 'liquidation' ? (
+                    <>
+                      <Loader2 className="animate-spin w-4 h-4" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Upload
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        </main>
       </div>
 
       {/* Preview Modal */}
@@ -437,28 +573,35 @@ export default function Checklist({ implementation }) {
           onClick={() => setPreviewUrl(null)}
         >
           <div
-            className="bg-white rounded-lg max-w-3xl w-full p-4 relative"
+            className="bg-white rounded-2xl max-w-4xl w-full mx-4 p-6 relative shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              className="absolute top-0 right-0 text-red-600 hover:text-red-800 text-3xl font-bold"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
               onClick={() => setPreviewUrl(null)}
               aria-label="Close"
             >
               &times;
             </button>
 
-            {previewType === 'image' && (
-              <img src={previewUrl} alt="Preview" className="w-full max-h-[80vh] object-contain" />
-            )}
+            <div className="mt-8">
+              {previewType === 'image' && (
+                <img src={previewUrl} alt="Preview" className="w-full max-h-[70vh] object-contain rounded-lg" />
+              )}
 
-            {previewType === 'pdf' && (
-              <iframe src={previewUrl} className="w-full h-[80vh] border" title="PDF Preview" />
-            )}
+              {previewType === 'pdf' && (
+                <iframe src={previewUrl} className="w-full h-[70vh] border rounded-lg" title="PDF Preview" />
+              )}
 
-            {previewType === 'other' && (
-              <p className="text-center text-gray-700">No preview available for this file type.</p>
-            )}
+              {previewType === 'other' && (
+                <div className="flex items-center justify-center h-64 text-gray-500">
+                  <div className="text-center">
+                    <FileText className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                    <p>No preview available for this file type.</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
