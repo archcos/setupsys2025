@@ -1,4 +1,4 @@
-import { Link, router, Head } from '@inertiajs/react';
+import { Link, router, Head, usePage } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
@@ -18,9 +18,7 @@ import {
   Package,
   Users,
   X,
-  Sparkles,
   Filter,
-  ChevronDown,
   ArrowUpDown
 } from 'lucide-react';
 
@@ -31,6 +29,9 @@ export default function Index({ companies, filters }) {
   const [perPage, setPerPage] = useState(filters.perPage || 10);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+  const { auth } = usePage().props;
+  const role = auth?.user?.role;
 
   useEffect(() => {
     const delaySearch = setTimeout(() => {
@@ -96,55 +97,24 @@ export default function Index({ companies, filters }) {
               </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Building className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Total Companies</p>
-                      <p className="text-xl font-bold text-gray-900">{companies.total || companies.data.length}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <Users className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Active Entries</p>
-                      <p className="text-xl font-bold text-gray-900">{companies.data.length}</p>
+              {role !== "user" && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <Building className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Total Companies</p>
+                        <p className="text-xl font-bold text-gray-900">
+                          {companies.total || companies.data.length}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
+              )}
 
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-orange-100 rounded-lg">
-                      <Factory className="w-5 h-5 text-orange-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Industries</p>
-                      <p className="text-xl font-bold text-gray-900">{new Set(companies.data.map(c => c.industry_type || c.setup_industry)).size}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <Sparkles className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Recent Updates</p>
-                      <p className="text-xl font-bold text-gray-900">12</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Main Content Card */}
