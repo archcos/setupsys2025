@@ -7,6 +7,10 @@ use App\Models\MOAModel;
 use App\Models\ProjectModel;
 use App\Models\CompanyModel;
 use App\Models\UserModel;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
+use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\SimpleType\Jc;
 use PhpOffice\PhpWord\TemplateProcessor;
 use Symfony\Component\Process\Process;
 
@@ -102,95 +106,174 @@ public function generateFromMoa($moa_id)
         'ratio' => true,
     ]);
 
+    $companyAddress = collect([
+        $company->street,
+        $company->barangay,
+        $company->municipality,
+        $company->province,
+    ])->filter()->implode(', ');
+
+    $releaseInitial = $project->release_initial ? Carbon::parse($project->release_initial)->format('F Y') : 'N/A';
+    $releaseEnd     = $project->release_end ? Carbon::parse($project->release_end)->format('F Y') : 'N/A';
+    $refundInitial  = $project->refund_initial ? Carbon::parse($project->refund_initial)->format('F Y') : 'N/A';
+    $refundEnd      = $project->refund_end ? Carbon::parse($project->refund_end)->format('F Y') : 'N/A';
+
+    // ✅ Group into phase strings
+    $phaseOne = "$releaseInitial - $releaseEnd";
+    $phaseTwo = "$refundInitial - $refundEnd";
+
     // Fill in text placeholders
     $templateProcessor->setValue('OWNER_NAME', $moa->owner_name);
     $templateProcessor->setValue('position', $moa->owner_position);
     $templateProcessor->setValue('witness', $moa->witness);
     $templateProcessor->setValue('COMPANY_NAME', $company->company_name);
-    $templateProcessor->setValue('COMPANY_LOCATION', $company->company_location);
+    $templateProcessor->setValue('COMPANY_LOCATION', $companyAddress);
     $templateProcessor->setValue('office_name', $office->office_name ?? 'N/A');
     $templateProcessor->setValue('PROJECT_TITLE', $project->project_title);
-    $templateProcessor->setValue('phase_one', $project->phase_one);
-    $templateProcessor->setValue('phase_two', $project->phase_two);
+    $templateProcessor->setValue('phase_one', $phaseOne);
+    $templateProcessor->setValue('phase_two', $phaseTwo);
     $templateProcessor->setValue('project_cost', number_format($project->project_cost, 2));
     $templateProcessor->setValue('amount', $moa->amount_words);
     $templateProcessor->setValue('pd_name', $moa->pd_name ?? 'N/A');
     $templateProcessor->setValue('pd_title', $moa->pd_title ?? 'N/A');
 
-    // Activities list
-    $activities = $project->activities->pluck('activity_name')->implode(', ');
-    $templateProcessor->setValue('ACTIVITIES', $activities);
-
+    
     // Create table block from project items
-    $phpWord = new \PhpOffice\PhpWord\PhpWord();
-    $arialFont = ['name' => 'Arial'];
-    $boldArial = ['name' => 'Arial', 'bold' => true];
-    $section = $phpWord->addSection();
+    $phpWord = new PhpWord();
+        $arialFont = ['name' => 'Arial'];
+        $boldArial = ['name' => 'Arial', 'bold' => true];
+        $section = $phpWord->addSection();
 
-    $table = $section->addTable([
-        'borderSize' => 6,
-        'borderColor' => '999999',
-        'cellMargin' => 80,
-    ]);
+        $table = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => '999999',
+            'cellMargin' => 80,
+        ]);
 
-    // Table headers
-    $table->addRow();
-    $table->addCell(5500, ['vMerge' => 'restart'])->addText('Item of Expenditure', $boldArial);
-    $table->addCell(1200, ['vMerge' => 'restart'])->addText('Qty.', $boldArial);
-    $table->addCell(3000, ['vMerge' => 'restart'])->addText('Unit Cost (Php)', $boldArial);
-    $table->addCell(3000)->addText('SETUP', $boldArial);
-    $table->addCell(1500)->addText('Prop.', $boldArial);
-    $table->addCell(3000)->addText('Total', $boldArial);
-
-    $grandTotal = 0;
-
-    // Table rows
-    foreach ($project->items as $item) {
         $table->addRow();
 
-        $cell = $table->addCell(5500);
-        $textRun = $cell->addTextRun();
+        // Merge vertically down: vMerge = 'restart'
+        $table->addCell(5500, ['vMerge' => 'restart'])->addText('Item of Expenditure', $boldArial);
+        $table->addCell(1200, ['vMerge' => 'restart'])->addText('Qty.', $boldArial);
+        $table->addCell(3000, ['vMerge' => 'restart'])->addText('Unit Cost (Php)' , $boldArial);
 
-        $textRun->addText($item->item_name, $boldArial); // Item name
-        $textRun->addTextBreak(); // New line
-        $textRun->addText("Specifications:", ['italic' => true, $arialFont]); // Subtitle
-        $textRun->addTextBreak(); // New line
-        $table->addCell(1200)->addText($item->quantity, $arialFont);
-        $table->addCell(3000)->addText(number_format($item->item_cost, 2), $arialFont);
+        // Merge horizontally across 3 cells
+        $cell = $table->addCell(7500, ['gridSpan' => 3]);
+        $cell->addText('Amount (PhP)', $boldArial, ['alignment' => Jc::CENTER]);
 
-        $total = $item->quantity * $item->item_cost;
-        $grandTotal += $total;
+        // Second row
+        $table->addRow();
 
-        $table->addCell(3000)->addText(number_format($total, 2), $arialFont);
-        $table->addCell(1500)->addText('', $arialFont);
-        $table->addCell(3000)->addText(number_format($total, 2), $arialFont);
+        // vMerge = 'continue' fills vertically merged cells
+        $table->addCell(5500, ['vMerge' => 'continue']);
+        $table->addCell(1200, ['vMerge' => 'continue']);
+        $table->addCell(3000, ['vMerge' => 'continue']);
+
+        // Subheaders
+        $table->addCell(3000)->addText('SETUP' , $boldArial);
+        $table->addCell(1500)->addText('Prop.', $boldArial);
+        $table->addCell(3000)->addText('Total', $boldArial);
+
+
+        foreach ($project->items as $item) {
+            $table->addRow();
+
+            $cell = $table->addCell(5500);
+            $textRun = $cell->addTextRun();
+
+            $textRun->addText($item->item_name, $boldArial); // Item name
+            $textRun->addTextBreak(); // New line
+            $textRun->addText("Specifications:", ['italic' => true, $arialFont]); // Subtitle
+            $textRun->addTextBreak(); // New line
+            $textRun->addText($item->specifications ?? 'N/A', ); // Actual specs
+
+            $table->addCell(1200)->addText($item->quantity, $arialFont);
+            $table->addCell(3000)->addText(number_format($item->item_cost, 2), $arialFont);
+
+            $totalCost = $item->item_cost * $item->quantity;
+            $table->addCell(3000)->addText(number_format($totalCost, 2), $arialFont);
+            $table->addCell(1500)->addText('');
+            $table->addCell(3000)->addText(number_format($totalCost, 2), $arialFont);
+        }
+
+        $grandTotal = 0;
+        foreach ($project->items as $item) {
+            $grandTotal += $item->item_cost * $item->quantity;
+        }
+
+        // Add Total row
+        $table->addRow();
+
+        // Merge first 3 columns for the "Total" label
+        $mergedCell = $table->addCell(9700, ['gridSpan' => 3]);
+
+        // Add "TOTAL" aligned to the right of the merged cell
+        $mergedTextRun = $mergedCell->addTextRun(['alignment' => Jc::END]);
+        $mergedTextRun->addText('TOTAL', $boldArial);
+
+        // SETUP column total (same as grand total for now)
+        $table->addCell(3000)->addText(number_format($grandTotal, 2), $boldArial);
+        $table->addCell(1500)->addText(''); // Prop. column left blank
+        $table->addCell(3000)->addText(number_format($grandTotal, 2), $boldArial);
+
+
+        // Now inject it to template
+        $templateProcessor->setComplexBlock('LIB_TABLE', $table);
+
+
+        $phpWord = new PhpWord();
+        $arialFont = ['name' => 'Arial', 'size' => 9];
+        $boldArial = ['name' => 'Arial', 'bold' => true, 'size' => 9];
+
+        $section = $phpWord->addSection();
+        $activitiesTable = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => '999999',
+            'cellMargin' => 80,
+            'alignment' => Jc::CENTER,
+        ]);
+
+        // Header row
+        $activitiesTable->addRow();
+        $activitiesTable->addCell(5000)->addText("Activity", $boldArial);
+        $activitiesTable->addCell(4000)->addText("Period Covered", $boldArial, ['alignment' => Jc::CENTER]);
+
+        // Rows for each activity
+        foreach ($project->activities as $activity) {
+            $activitiesTable->addRow();
+            $activitiesTable->addCell(5000)->addText($activity->activity_name, $arialFont);
+
+            // Combine start_date and end_date
+            $start = $activity->start_date ? Carbon::parse($activity->start_date)->format('F Y') : 'N/A';
+            $end   = $activity->end_date ? Carbon::parse($activity->end_date)->format('F Y') : 'N/A';
+            $period = "$start - $end";
+
+            $activitiesTable->addCell(4000)->addText($period, $arialFont, ['alignment' => Jc::CENTER]);
+        }
+
+        // Last row = Refund Period
+        $activitiesTable->addRow();
+        $activitiesTable->addCell(5000)->addText("Refund Period", $boldArial);
+
+        // ✅ This will now correctly use your $phaseTwo string (Refund Start - Refund End)
+        $activitiesTable->addCell(4000)->addText($phaseTwo, $arialFont, ['alignment' => Jc::CENTER]);
+
+        // Insert into template
+        $templateProcessor->setComplexBlock('ACTIVITY_TABLE', $activitiesTable);
+
+        // Ensure output folder exists
+        $outputFolder = storage_path('app/generated');
+        if (!file_exists($outputFolder)) {
+            mkdir($outputFolder, 0777, true);
+        }
+
+        // Save and return file
+        $fileName = now()->timestamp . '_MOA.docx';
+        $outputPath = "$outputFolder/$fileName";
+        $templateProcessor->saveAs($outputPath);
+
+        return response()->download($outputPath)->deleteFileAfterSend(true);
     }
-
-    // Total row
-    $table->addRow();
-    $cell = $table->addCell(9700, ['gridSpan' => 3]);
-    $cell->addTextRun(['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::END])
-        ->addText('TOTAL', $boldArial);
-    $table->addCell(3000)->addText(number_format($grandTotal, 2), $boldArial);
-    $table->addCell(1500)->addText('');
-    $table->addCell(3000)->addText(number_format($grandTotal, 2), $boldArial);
-
-    // Set table in template
-    $templateProcessor->setComplexBlock('LIB_TABLE', $table);
-
-    // Ensure output folder exists
-    $outputFolder = storage_path('app/generated');
-    if (!file_exists($outputFolder)) {
-        mkdir($outputFolder, 0777, true);
-    }
-
-    // Save and return file
-    $fileName = now()->timestamp . '_MOA.docx';
-    $outputPath = "$outputFolder/$fileName";
-    $templateProcessor->saveAs($outputPath);
-
-    return response()->download($outputPath)->deleteFileAfterSend(true);
-}
 
 public function viewPdf($moa_id)
 {
@@ -203,12 +286,12 @@ public function viewPdf($moa_id)
     $templatePath = storage_path('app/templates/template.docx');
     $templateProcessor = new TemplateProcessor($templatePath);
 
-    $templateProcessor->setImageValue('image', [
-        'path' => storage_path('app/templates/signature.png'),
-        'width' => 130,
-        'height' => 80,
-        'ratio' => true,
-    ]);
+    // $templateProcessor->setImageValue('image', [
+    //     'path' => storage_path('app/templates/signature.png'),
+    //     'width' => 130,
+    //     'height' => 80,
+    //     'ratio' => true,
+    // ]);
 
     $templateProcessor->setValue('OWNER_NAME', $moa->owner_name);
     $templateProcessor->setValue('position', $moa->owner_position);
@@ -226,49 +309,120 @@ public function viewPdf($moa_id)
     $templateProcessor->setValue('ACTIVITIES', $project->activities->pluck('activity_name')->implode(', '));
 
     // Build item table
-    $phpWord = new \PhpOffice\PhpWord\PhpWord();
-    $section = $phpWord->addSection();
-    $arialFont = ['name' => 'Arial'];
-    $boldArial = ['name' => 'Arial', 'bold' => true];
+        $phpWord = new PhpWord();
+        $arialFont = ['name' => 'Arial'];
+        $boldArial = ['name' => 'Arial', 'bold' => true];
+        $section = $phpWord->addSection();
 
-    $table = $section->addTable([
-        'borderSize' => 6,
-        'borderColor' => '999999',
-        'cellMargin' => 80,
-    ]);
-
-    $table->addRow();
-    $table->addCell(5500)->addText('Item of Expenditure', $boldArial);
-    $table->addCell(1200)->addText('Qty.', $boldArial);
-    $table->addCell(3000)->addText('Unit Cost (Php)', $boldArial);
-    $table->addCell(3000)->addText('SETUP', $boldArial);
-    $table->addCell(1500)->addText('Prop.', $boldArial);
-    $table->addCell(3000)->addText('Total', $boldArial);
-
-    $grandTotal = 0;
-
-    foreach ($project->items as $item) {
-        $total = $item->quantity * $item->item_cost;
-        $grandTotal += $total;
+        $table = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => '999999',
+            'cellMargin' => 80,
+        ]);
 
         $table->addRow();
-        $text = $item->item_name . "\nSpecifications:\n" . ($item->specifications ?? 'N/A');
 
-        $table->addCell(5500)->addText($text, $arialFont);
-        $table->addCell(1200)->addText($item->quantity, $arialFont);
-        $table->addCell(3000)->addText(number_format($item->item_cost, 2), $arialFont);
-        $table->addCell(3000)->addText(number_format($total, 2), $arialFont);
-        $table->addCell(1500)->addText('', $arialFont);
-        $table->addCell(3000)->addText(number_format($total, 2), $arialFont);
-    }
+        // Merge vertically down: vMerge = 'restart'
+        $table->addCell(5500, ['vMerge' => 'restart'])->addText('Item of Expenditure', $boldArial);
+        $table->addCell(1200, ['vMerge' => 'restart'])->addText('Qty.', $boldArial);
+        $table->addCell(3000, ['vMerge' => 'restart'])->addText('Unit Cost (Php)' , $boldArial);
 
-    $table->addRow();
-    $table->addCell(9700, ['gridSpan' => 3])->addText('TOTAL', $boldArial);
-    $table->addCell(3000)->addText(number_format($grandTotal, 2), $boldArial);
-    $table->addCell(1500)->addText('');
-    $table->addCell(3000)->addText(number_format($grandTotal, 2), $boldArial);
+        // Merge horizontally across 3 cells
+        $cell = $table->addCell(7500, ['gridSpan' => 3]);
+        $cell->addText('Amount (PhP)', $boldArial, ['alignment' => Jc::CENTER]);
 
-    $templateProcessor->setComplexBlock('LIB_TABLE', $table);
+        // Second row
+        $table->addRow();
+
+        // vMerge = 'continue' fills vertically merged cells
+        $table->addCell(5500, ['vMerge' => 'continue']);
+        $table->addCell(1200, ['vMerge' => 'continue']);
+        $table->addCell(3000, ['vMerge' => 'continue']);
+
+        // Subheaders
+        $table->addCell(3000)->addText('SETUP' , $boldArial);
+        $table->addCell(1500)->addText('Prop.', $boldArial);
+        $table->addCell(3000)->addText('Total', $boldArial);
+
+
+        foreach ($project->items as $item) {
+            $table->addRow();
+
+            $cell = $table->addCell(5500);
+            $textRun = $cell->addTextRun();
+
+            $textRun->addText($item->item_name, $boldArial); // Item name
+            $textRun->addTextBreak(); // New line
+            $textRun->addText("Specifications:", ['italic' => true, $arialFont]); // Subtitle
+            $textRun->addTextBreak(); // New line
+            $textRun->addText($item->specifications ?? 'N/A', ); // Actual specs
+
+            $table->addCell(1200)->addText($item->quantity, $arialFont);
+            $table->addCell(3000)->addText(number_format($item->item_cost, 2), $arialFont);
+
+            $totalCost = $item->item_cost * $item->quantity;
+            $table->addCell(3000)->addText(number_format($totalCost, 2), $arialFont);
+            $table->addCell(1500)->addText('');
+            $table->addCell(3000)->addText(number_format($totalCost, 2), $arialFont);
+        }
+
+        $grandTotal = 0;
+        foreach ($project->items as $item) {
+            $grandTotal += $item->item_cost * $item->quantity;
+        }
+
+        // Add Total row
+        $table->addRow();
+
+        // Merge first 3 columns for the "Total" label
+        $mergedCell = $table->addCell(9700, ['gridSpan' => 3]);
+
+        // Add "TOTAL" aligned to the right of the merged cell
+        $mergedTextRun = $mergedCell->addTextRun(['alignment' => Jc::END]);
+        $mergedTextRun->addText('TOTAL', $boldArial);
+
+        // SETUP column total (same as grand total for now)
+        $table->addCell(3000)->addText(number_format($grandTotal, 2), $boldArial);
+        $table->addCell(1500)->addText(''); // Prop. column left blank
+        $table->addCell(3000)->addText(number_format($grandTotal, 2), $boldArial);
+
+
+        // Now inject it to template
+        $templateProcessor->setComplexBlock('LIB_TABLE', $table);
+
+
+$phpWord = new \PhpOffice\PhpWord\PhpWord();
+$arialFont = ['name' => 'Arial', 'size' => 9];
+$boldArial = ['name' => 'Arial', 'bold' => true, 'size' => 9];
+
+$section = $phpWord->addSection();
+$activitiesTable = $section->addTable([
+    'borderSize' => 6,
+    'borderColor' => '999999',
+    'cellMargin' => 80,
+    'alignment' => Jc::CENTER,
+]);
+
+// Header row
+$activitiesTable->addRow();
+$activitiesTable->addCell(5000)->addText("Activity", $boldArial);
+$activitiesTable->addCell(2500)->addText("Start Date", $boldArial, ['alignment' => Jc::CENTER]);
+$activitiesTable->addCell(2500)->addText("End Date", $boldArial, ['alignment' => Jc::CENTER]);
+
+// Rows for each activity
+foreach ($project->activities as $activity) {
+    $activitiesTable->addRow();
+    $activitiesTable->addCell(5000)->addText($activity->activity_name, $arialFont);
+
+    $start = Carbon::parse($activity->start_date)->format("F Y"); // May 2025
+    $end   = Carbon::parse($activity->end_date)->format("F Y");
+
+    $activitiesTable->addCell(2500)->addText($start, $arialFont, ['alignment' => Jc::CENTER]);
+    $activitiesTable->addCell(2500)->addText($end, $arialFont, ['alignment' => Jc::CENTER]);
+}
+
+// Inject into template (make sure ${ACTIVITY_TABLE} is in your .docx)
+$templateProcessor->setComplexBlock('ACTIVITY_TABLE', $activitiesTable);
 
     // File paths
     $timestamp = now()->timestamp;
