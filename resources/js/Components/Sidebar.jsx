@@ -145,6 +145,7 @@ export default function Sidebar({ isOpen }) {
             onToggle={() => toggleDropdown('user')}
             links={[
               { label: 'Repayment History', href: '/my-loans', icon: <HandCoins size={16} /> },
+              { label: 'Repayment History', href: '/file-report', icon: <HandCoins size={16} /> },
               // { label: 'Repayment History', href: route('refunds.history'), icon: <HandCoins size={16} /> },
             ]}
           />

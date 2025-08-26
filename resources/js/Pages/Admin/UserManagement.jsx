@@ -238,7 +238,6 @@ export default function UserManagement({ users, offices, filters }) {
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
                         <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4" />
                           Office
                         </div>
                       </th>

@@ -167,7 +167,7 @@ export default function Home() {
                   <select
                     value={selectedYear}
                     onChange={handleYearChange}
-                    className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                    className="pl-3 pr-7 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                   >
                     {availableYears.map((year) => (
                       <option key={year} value={year}>
@@ -194,7 +194,6 @@ export default function Home() {
                       <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                         {count}
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
                     </div>
                   </div>
                 ))}

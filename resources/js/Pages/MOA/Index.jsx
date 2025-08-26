@@ -107,15 +107,13 @@ export default function MOAIndex({ moas, filters }) {
                 
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-gray-500" />
-                    <label className="text-sm font-semibold text-gray-700">Show</label>
                     <select
                       value={perPage}
                       onChange={(e) => setPerPage(Number(e.target.value))}
-                      className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      className="pl-4 pr-7 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                     >
                       {[10, 20, 50, 100].map((n) => (
-                        <option key={n} value={n}>{n} entries</option>
+                        <option key={n} value={n}>{n}</option>
                       ))}
                     </select>
                   </div>
@@ -231,10 +229,6 @@ export default function MOAIndex({ moas, filters }) {
 
                       {/* Acknowledgment */}
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                          <CheckCircle className="w-4 h-4 text-teal-500" />
-                          Implementation Status
-                        </div>
                         <label className="flex items-center gap-3 cursor-pointer group">
                           <div className="relative">
                             <input
@@ -257,7 +251,7 @@ export default function MOAIndex({ moas, filters }) {
                           <span className={`text-sm font-medium ${
                             moa.project?.progress === 'Implementation' ? 'text-green-700' : 'text-gray-600'
                           }`}>
-                            {moa.project?.progress === 'Implementation' ? 'Acknowledged' : 'Mark as Implemented'}
+                            {moa.project?.progress === 'Implementation' ? 'Acknowledged' : 'Mark as Acknowledged'}
                           </span>
                         </label>
                         {!isStaff && (

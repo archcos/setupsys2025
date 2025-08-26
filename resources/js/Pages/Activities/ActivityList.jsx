@@ -76,35 +76,6 @@ export default function ActivityList({ activities, filters }) {
               </div>
             </div>
 
-            {/* Search and Statistics Card */}
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Search className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Search Activities</h2>
-                    <p className="text-sm text-gray-600">Find activities across all projects</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <Sparkles className="w-4 h-4" />
-                  <span>{activities.length} activit{activities.length !== 1 ? 'ies' : 'y'} total</span>
-                </div>
-              </div>
-
-              <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search activities..."
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
-                />
-              </div>
-            </div>
 
             {/* Activities by Project */}
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
