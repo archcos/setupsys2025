@@ -192,7 +192,6 @@ export default function Index({ projects, filters }) {
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
                         <div className="flex items-center gap-2">
-                          <DollarSign className="w-4 h-4" />
                           Cost
                         </div>
                       </th>
@@ -225,9 +224,6 @@ export default function Index({ projects, filters }) {
                         >
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="p-2 bg-blue-100 rounded-lg">
-                                <Building2 className="w-4 h-4 text-blue-600" />
-                              </div>
                               <div>
                                 <div className="font-semibold text-gray-900">{project.project_title}</div>
                                 <div className="text-sm text-gray-500">
@@ -238,7 +234,6 @@ export default function Index({ projects, filters }) {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${phaseOneDisplay !== '-' ? 'bg-green-400' : 'bg-gray-300'}`}></div>
                               <span className={`text-sm ${phaseOneDisplay !== '-' ? 'text-gray-900' : 'text-gray-400'}`}>
                                 {phaseOneDisplay}
                               </span>
@@ -246,7 +241,6 @@ export default function Index({ projects, filters }) {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${phaseTwoDisplay !== '-' ? 'bg-green-400' : 'bg-gray-300'}`}></div>
                               <span className={`text-sm ${phaseTwoDisplay !== '-' ? 'text-gray-900' : 'text-gray-400'}`}>
                                 {phaseTwoDisplay}
                               </span>

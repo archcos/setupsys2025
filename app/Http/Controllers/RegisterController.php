@@ -48,7 +48,7 @@ public function register(Request $request)
         'password'     => Hash::make($request->password),
         'office_id'    => $request->office_id,
         'role'         => 'user',
-        'status'       => 'inactive'
+        'status'       => 'active'
     ]);
 
     return response()->json([

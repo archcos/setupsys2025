@@ -107,12 +107,10 @@ export default function ProjectList({ projects }) {
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
                         <div className="flex items-center gap-2">
-                          <DollarSign className="w-4 h-4" />
-                          Cost
+                          Project Cost
                         </div>
                       </th>
                       <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">
-                        Details
                       </th>
                     </tr>
                   </thead>
@@ -142,9 +140,7 @@ export default function ProjectList({ projects }) {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 bg-gradient-to-r from-gray-400 to-gray-500 rounded-lg flex items-center justify-center">
-                                <Building2 className="w-4 h-4 text-white" />
-                              </div>
+                          
                               <span className="text-gray-700">
                                 {project.company?.company_name || 'N/A'}
                               </span>
@@ -152,7 +148,6 @@ export default function ProjectList({ projects }) {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                               <span className="text-gray-700">
                                 {formatPhase(project.release_initial, project.release_end)}
                               </span>
@@ -160,7 +155,6 @@ export default function ProjectList({ projects }) {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-green-500"></div>
                               <span className="text-gray-700">
                                 {formatPhase(project.refund_initial, project.refund_end)}
                               </span>
@@ -168,7 +162,7 @@ export default function ProjectList({ projects }) {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-1">
-                              <span className="text-lg font-semibold text-green-600">₱</span>
+                              <span className="text-lg font-semibold">₱</span>
                               <span className="font-medium text-gray-900">
                                 {project.project_cost || '0'}
                               </span>
@@ -253,14 +247,7 @@ export default function ProjectList({ projects }) {
                     <span>Click any row to view project details</span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                      <span>Phase One</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                      <span>Phase Two</span>
-                    </div>
+                  
                   </div>
                 </div>
               </div>

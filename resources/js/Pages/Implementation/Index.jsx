@@ -178,12 +178,10 @@ export default function ImplementationIndex({ implementations, filters }) {
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  <Filter className="w-5 h-5 text-gray-400" />
-                  <label className="text-sm font-medium text-gray-700">Show</label>
                   <select
                     value={perPage}
                     onChange={handlePerPageChange}
-                    className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-medium"
+                    className="pl-3 pr-6 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-medium"
                   >
                     {[10, 20, 50, 100].map((n) => (
                       <option key={n} value={n}>{n}</option>

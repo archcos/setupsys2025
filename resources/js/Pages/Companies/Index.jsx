@@ -179,8 +179,6 @@ export default function Index({ companies, filters }) {
 
                   {/* Per Page Selector */}
                   <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-gray-200 shadow-sm">
-                    <Filter className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-700 font-medium">Show</span>
                     <select
                       value={perPage}
                       onChange={handlePerPageChange}
@@ -247,9 +245,7 @@ export default function Index({ companies, filters }) {
                       <tr key={company.company_id} className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                              <Building className="w-5 h-5 text-white" />
-                            </div>
+
                             <div>
                               <div className="text-sm font-semibold text-gray-900">{company.company_name}</div>
                               <div className="text-xs text-gray-500">ID: {company.company_id}</div>
@@ -258,7 +254,6 @@ export default function Index({ companies, filters }) {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-gray-400" />
                             <span className="text-sm text-gray-900 font-medium">{company.owner_name}</span>
                           </div>
                         </td>
@@ -276,7 +271,6 @@ export default function Index({ companies, filters }) {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-start gap-2">
-                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                             <div className="text-sm text-gray-900">
                               <div>{company.street}, {company.barangay}</div>
                               <div className="text-gray-600">{company.municipality}, {company.province}</div>
@@ -285,7 +279,6 @@ export default function Index({ companies, filters }) {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <Factory className="w-4 h-4 text-gray-400" />
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                               {company.industry_type || company.setup_industry}
                             </span>
@@ -293,7 +286,6 @@ export default function Index({ companies, filters }) {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <Package className="w-4 h-4 text-gray-400" />
                             <span className="text-sm text-gray-900 truncate max-w-32" title={company.products}>
                               {company.products}
                             </span>

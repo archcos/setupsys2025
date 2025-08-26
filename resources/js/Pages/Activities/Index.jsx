@@ -121,12 +121,10 @@ export default function Index({ activities, filters }) {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-gray-500" />
-                    <label className="text-sm font-medium text-gray-700">Show</label>
                     <select
                       value={perPage}
                       onChange={(e) => setPerPage(Number(e.target.value))}
-                      className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      className="border border-gray-200 rounded-lg pl-3 pr-6 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                     >
                       {[10, 20, 50, 100].map((n) => (
                         <option key={n} value={n}>
