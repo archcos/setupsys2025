@@ -10,23 +10,31 @@ return new class extends Migration
     {
 
 Schema::create('tbl_projects', function (Blueprint $table) {
-    $table->integer('project_id')->autoIncrement();
-    $table->text('project_title')->nullable();
-    $table->integer('company_id')->nullable();
-    $table->string('phase_one', 45)->nullable();
-    $table->string('phase_two', 45)->nullable();
-    $table->string('project_cost', 45)->nullable();
-    $table->date('created_at')->nullable();
-    $table->dateTime('updated_at')->nullable();
-    $table->integer('added_by')->nullable();
-    $table->string('progress', 45)->nullable();
-    $table->year('year_obligated')->nullable();
-    $table->integer('revenue')->nullable();
-    $table->integer('net_income')->nullable();
-    $table->integer('current_asset')->nullable();
-    $table->integer('noncurrent_asset')->nullable();
-    $table->integer('equity')->nullable();
-    $table->integer('liability')->nullable();
+            $table->id('project_id');
+            
+            $table->text('project_title')->nullable();
+            $table->unsignedBigInteger('company_id')->nullable();
+            $table->integer('project_cost')->nullable();
+
+            $table->date('created_at')->nullable();
+            $table->dateTime('updated_at')->nullable();
+
+            $table->unsignedBigInteger('added_by')->nullable();
+            $table->string('progress', 45)->nullable();
+            $table->year('year_obligated')->nullable();
+
+            $table->float('revenue')->nullable();
+            $table->float('net_income')->nullable();
+            $table->float('current_asset')->nullable();
+            $table->float('noncurrent_asset')->nullable();
+            $table->float('equity')->nullable();
+            $table->float('liability')->nullable();
+
+            $table->date('release_initial')->nullable();
+            $table->date('release_end')->nullable();
+            $table->date('refund_initial')->nullable();
+            $table->date('refund_end')->nullable();
+            $table->integer('refund_amount')->nullable();
     $table->foreign('company_id')->references('company_id')->on('tbl_companies')->onDelete('cascade')->onUpdate('cascade');
     $table->foreign('added_by')->references('user_id')->on('tbl_users')->onDelete('set null');
 });

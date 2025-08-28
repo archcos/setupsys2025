@@ -10,11 +10,14 @@ return new class extends Migration
     {
 
 Schema::create('tbl_implements', function (Blueprint $table) {
-    $table->integer('implement_id')->autoIncrement();
-    $table->integer('project_id')->nullable();
+
+ $table->unsignedBigInteger('project_id')->nullable();
     $table->text('tarp')->nullable();
+    $table->timestamp('tarp_upload')->nullable();
     $table->text('pdc')->nullable();
+    $table->timestamp('pdc_upload')->nullable();
     $table->text('liquidation')->nullable();
+    $table->timestamp('liquidation_upload')->nullable();
     $table->foreign('project_id')->references('project_id')->on('tbl_projects')->onDelete('cascade')->onUpdate('cascade');
 });
 

@@ -17,6 +17,7 @@ Schema::create('tbl_items', function (Blueprint $table) {
     $table->integer('quantity')->nullable();
     $table->integer('item_cost')->nullable();
     $table->integer('added_by')->nullable();
+    $table->timestamp('created_at')->nullable();
     $table->foreign('project_id')->references('project_id')->on('tbl_projects')->onDelete('cascade');
     $table->foreign('added_by')->references('user_id')->on('tbl_users')->onDelete('set null');
 });
