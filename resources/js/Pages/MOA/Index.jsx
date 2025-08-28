@@ -5,19 +5,15 @@ import Header from '../../components/Header';
 import {
   Search,
   FileText,
-  Eye,
   Download,
   Building2,
   User,
   Calendar,
-  DollarSign,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
   CheckCircle,
   Clock,
   Users,
-  MapPin
+  X,
+  ArrowUpDown
 } from 'lucide-react';
 
 export default function MOAIndex({ moas, filters }) {
@@ -30,28 +26,31 @@ export default function MOAIndex({ moas, filters }) {
   const isStaff = auth?.user?.role === 'staff';
 
   useEffect(() => {
-    const delay = setTimeout(() => {
-      router.get('/moa', { search, perPage }, { preserveState: true, replace: true });
-    }, 500);
-    return () => clearTimeout(delay);
-  }, [search, perPage]);
+    const delaySearch = setTimeout(() => {
+      router.get('/moa', { search }, { preserveState: true, replace: true });
+    }, 400);
+    return () => clearTimeout(delaySearch);
+  }, [search]);
 
-  const handlePageChange = (url) => {
-    router.visit(url, {
+  const handlePerPageChange = (e) => {
+    const newPerPage = e.target.value;
+    setPerPage(newPerPage);
+    router.get('/moa', {
+      search,
+      perPage: newPerPage,
+    }, {
+      preserveScroll: true,
       preserveState: true,
-      replace: true,
-      only: ['moas'],
-      data: { search, perPage },
     });
   };
 
   const getStatusBadge = (progress) => {
     const isImplementation = progress === 'Implementation';
     return (
-      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
         isImplementation 
-          ? 'bg-green-100 text-green-700' 
-          : 'bg-amber-100 text-amber-700'
+          ? 'bg-green-100 text-green-800' 
+          : 'bg-amber-100 text-amber-800'
       }`}>
         {isImplementation ? (
           <CheckCircle className="w-3 h-3" />
@@ -63,8 +62,20 @@ export default function MOAIndex({ moas, filters }) {
     );
   };
 
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
+  const formatCurrency = (amount) => {
+    return `₱${parseFloat(amount).toLocaleString()}`;
+  };
+
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
+    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
@@ -72,258 +83,247 @@ export default function MOAIndex({ moas, filters }) {
         
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
-            {/* Header Section */}
-            <div className="mb-8">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
-                  <FileText className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900">MOA Management</h1>
-                  <p className="text-gray-600 mt-1">View and manage all Memorandums of Agreement</p>
+            {/* Main Content Card */}
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+              {/* Card Header */}
+              <div className="bg-gradient-to-r from-gray-50 to-white p-6 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <FileText className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-gray-900">MOA Management</h2>
                 </div>
               </div>
-            </div>
 
-            {/* Search and Filter Card */}
-            <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 mb-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                <div className="flex-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    <Search className="w-4 h-4 inline mr-1" />
-                    Search MOAs
-                  </label>
-                  <div className="relative">
+                           {/* Filters Section */}
+              <div className="p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
+                <div className="flex flex-col lg:flex-row gap-4">
+                  {/* Search Bar */}
+                  <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <input
                       type="text"
-                      placeholder="Search by project title, company representative, witness..."
-                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                      placeholder="Search by project title ..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                     />
+                    {search && (
+                      <button
+                        onClick={() => setSearch('')}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
-                </div>
-                
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
+
+                  {/* Per Page Selector */}
+                  <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm">
                     <select
                       value={perPage}
-                      onChange={(e) => setPerPage(Number(e.target.value))}
-                      className="pl-4 pr-7 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      onChange={handlePerPageChange}
+                      className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
                     >
                       {[10, 20, 50, 100].map((n) => (
                         <option key={n} value={n}>{n}</option>
                       ))}
                     </select>
-                  </div>
-                  
-                  <div className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
-                    Total: <span className="font-semibold text-gray-900">{moas.total}</span> MOAs
+                    <span className="text-sm text-gray-700">entries</span>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* MOA Cards */}
-            <div className="space-y-6">
-              {moas.data.map((moa) => (
-                <div key={moa.moa_id} className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden hover:shadow-2xl transition-shadow duration-300">
-                  <div className="p-8">
-                    {/* Header */}
-                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="p-2 bg-purple-100 rounded-lg">
-                            <FileText className="w-5 h-5 text-purple-600" />
-                          </div>
-                          <h3 className="text-xl font-bold text-gray-900 line-clamp-2">
-                            {moa.project?.project_title}
-                          </h3>
+              {/* Table Section */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Project
+                          <ArrowUpDown className="w-3 h-3 text-gray-400" />
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {new Date(moa.created_at).toLocaleDateString('en-US', { 
-                              year: 'numeric', 
-                              month: 'short', 
-                              day: 'numeric' 
-                            })}
-                          </span>
-                          {getStatusBadge(moa.project?.progress)}
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4" />
+                          Company Rep
                         </div>
-                      </div>
-                      
-                      <div className="flex flex-col lg:flex-row gap-3">
-                        <a 
-                          href={`/moa/${moa.moa_id}/pdf`} 
-                          target="_blank"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-200 font-medium"
-                        >
-                          <Eye className="w-4 h-4" />
-                          View PDF
-                        </a>
-                        <a 
-                          href={`/moa/${moa.moa_id}/docx`}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors duration-200 font-medium"
-                        >
-                          <Download className="w-4 h-4" />
-                          Download DOCX
-                        </a>
-                      </div>
-                    </div>
-
-                    {/* Details Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {/* Company Representative */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                          <Building2 className="w-4 h-4 text-blue-500" />
-                          Company Representative
-                        </div>
-                        <p className="text-gray-900 font-medium">
-                          {moa.owner_name || '—'}
-                        </p>
-                      </div>
-
-                      {/* Witness */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                          <Users className="w-4 h-4 text-green-500" />
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4" />
                           Witness
                         </div>
-                        <p className="text-gray-900 font-medium">{moa.witness}</p>
-                      </div>
-
-                      {/* Project Director */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                          <User className="w-4 h-4 text-purple-500" />
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4" />
                           Project Director
                         </div>
-                        <p className="text-gray-900 font-medium">{moa.pd_name}</p>
-                        <p className="text-sm text-gray-600">{moa.pd_title}</p>
-                      </div>
-
-                      {/* Office */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                          <MapPin className="w-4 h-4 text-orange-500" />
-                          Office
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          Date Created
                         </div>
-                        <p className="text-gray-900 font-medium">
-                          {moa.project?.company?.office?.office_name || '—'}
-                        </p>
-                      </div>
-
-                      {/* Project Cost */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                          <DollarSign className="w-4 h-4 text-emerald-500" />
-                          Project Cost
-                        </div>
-                        <p className="text-gray-900 font-bold text-lg">
-                          ₱ {parseFloat(moa.project_cost).toLocaleString()}
-                        </p>
-                      </div>
-
-                      {/* Acknowledgment */}
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-3 cursor-pointer group">
-                          <div className="relative">
-                            <input
-                              type="checkbox"
-                              checked={moa.project?.progress === 'Implementation'}
-                              disabled={!isStaff}
-                              onChange={(e) => {
-                                const newProgress = e.target.checked ? 'Implementation' : 'Draft MOA';
-                                router.put(`/projects/${moa.project?.project_id}/progress`, {
-                                  progress: newProgress,
-                                }, { preserveState: true });
-                              }}
-                              className={`w-5 h-5 rounded border-2 transition-all duration-200 ${
-                                isStaff 
-                                  ? 'border-gray-300 text-green-600 focus:ring-green-500 focus:ring-2 cursor-pointer' 
-                                  : 'border-gray-200 cursor-not-allowed opacity-50'
-                              }`}
-                            />
+                      </th>
+                      <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Status & Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {moas.data.map((moa) => (
+                      <tr key={moa.moa_id} className="hover:bg-gradient-to-r hover:from-purple-50/30 hover:to-transparent transition-all duration-200 group">
+                        <td className="px-6 py-4">
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900 mb-1">
+                              {moa.project?.project_title}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Cost: {formatCurrency(moa.project_cost)}
+                            </div>
                           </div>
-                          <span className={`text-sm font-medium ${
-                            moa.project?.progress === 'Implementation' ? 'text-green-700' : 'text-gray-600'
-                          }`}>
-                            {moa.project?.progress === 'Implementation' ? 'Acknowledged' : 'Mark as Acknowledged'}
-                          </span>
-                        </label>
-                        {!isStaff && (
-                          <p className="text-xs text-gray-500">Staff access required</p>
-                        )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 font-medium">
+                            {moa.owner_name || '—'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 font-medium">
+                            {moa.witness}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div>
+                            <div className="text-sm text-gray-900 font-medium">
+                              {moa.pd_name}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {moa.pd_title}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">
+                            {formatDate(moa.created_at)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-3">
+                            {/* Status Badge */}
+                            <div className="mb-2">
+                              {getStatusBadge(moa.project?.progress)}
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              {/* Acknowledgment Toggle */}
+                              <label
+                                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all duration-200 ${
+                                  isStaff 
+                                    ? 'cursor-pointer hover:bg-gray-100' 
+                                    : 'cursor-not-allowed opacity-50'
+                                }`}
+                                title={!isStaff ? "Only PSTO staff can acknowledge this" : ""}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={moa.project?.progress === 'Implementation'}
+                                  disabled={!isStaff}
+                                  onChange={(e) => {
+                                    const newProgress = e.target.checked ? 'Implementation' : 'Draft MOA';
+                                    router.put(`/projects/${moa.project?.project_id}/progress`, {
+                                      progress: newProgress,
+                                    }, { preserveState: true });
+                                  }}
+                                  className={`w-3 h-3 rounded border transition-all ${
+                                    isStaff 
+                                      ? 'border-gray-300 text-green-600 focus:ring-green-500' 
+                                      : 'border-gray-200 cursor-not-allowed'
+                                  }`}
+                                />
+                                <span className={`${
+                                  moa.project?.progress === 'Implementation'
+                                    ? 'text-green-700'
+                                    : 'text-blue-600'
+                                }`}>
+                                  {moa.project?.progress === 'Implementation' ? 'Ack.' : 'Mark'}
+                                </span>
+                              </label>
+
+                              {/* Download Button */}
+                              <a 
+                                href={`/moa/${moa.moa_id}/docx`}
+                                className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200"
+                                title="Download MOA"
+                              >
+                                <Download className="w-4 h-4" />
+                              </a>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {moas.data.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                        <FileText className="w-8 h-8 text-gray-400" />
                       </div>
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-1">No MOAs found</h3>
+                        <p className="text-gray-500 text-sm">
+                          {search ? `No MOAs match your search "${search}"` : 'No MOAs have been generated yet'}
+                        </p>
+                      </div>
+                      {search && (
+                        <button
+                          onClick={() => setSearch('')}
+                          className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                        >
+                          Clear Search
+                        </button>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                )}
+              </div>
 
-              {/* Empty State */}
-              {moas.data.length === 0 && (
-                <div className="bg-white rounded-2xl shadow-xl p-12 text-center border border-gray-100">
-                  <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                    <FileText className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No MOAs Found</h3>
-                  <p className="text-gray-600 mb-6">
-                    {search ? `No MOAs match your search "${search}"` : 'No MOAs have been generated yet.'}
-                  </p>
-                  {search && (
-                    <button
-                      onClick={() => setSearch('')}
-                      className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200"
-                    >
-                      Clear Search
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Pagination */}
-            {moas.data.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 mt-8">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="text-sm text-gray-600">
-                    Showing <span className="font-semibold text-gray-900">{moas.from}</span> to{' '}
-                    <span className="font-semibold text-gray-900">{moas.to}</span> of{' '}
-                    <span className="font-semibold text-gray-900">{moas.total}</span> results
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {moas.links.map((link, index) => {
-                      if (!link.url) {
-                        return (
-                          <span
-                            key={index}
-                            className="px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
-                            dangerouslySetInnerHTML={{ __html: link.label }}
-                          />
-                        );
-                      }
-                      
-                      return (
+              {/* Pagination */}
+              {moas.links && moas.links.length > 1 && (
+                <div className="bg-gradient-to-r from-gray-50/50 to-white px-6 py-4 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      Showing {moas.from || 1} to {moas.to || moas.data.length} of {moas.total || moas.data.length} results
+                    </div>
+                    <div className="flex gap-1">
+                      {moas.links.map((link, index) => (
                         <button
                           key={index}
-                          onClick={() => handlePageChange(link.url)}
-                          className={`px-3 py-2 text-sm rounded-lg transition-all duration-200 ${
+                          disabled={!link.url}
+                          onClick={() => link.url && router.visit(link.url)}
+                          className={`px-3 py-2 text-sm rounded-lg border transition-all duration-200 ${
                             link.active
-                              ? 'bg-blue-500 text-white shadow-md'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white border-transparent shadow-md'
+                              : link.url
+                              ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                              : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                           }`}
                           dangerouslySetInnerHTML={{ __html: link.label }}
                         />
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </main>
       </div>

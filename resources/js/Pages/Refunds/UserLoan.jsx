@@ -60,7 +60,7 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
     return (
         <>
             <Head title="My Loans" />
-            <div className="h-screen flex bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
+            <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
                 <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <Header title="My Loans" toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
@@ -68,91 +68,79 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
                     <main className="flex-1 overflow-y-auto p-6 space-y-8">
                         <div className="max-w-7xl mx-auto">
                             {/* Header Section */}
-                            <div className="mb-8">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg">
-                                        <CreditCard className="w-6 h-6 text-white" />
-                                    </div>
-                                    <div>
-                                        <h1 className="text-3xl font-bold text-gray-900">My Loans</h1>
-                                        <p className="text-gray-600 mt-1">Manage and track your project financing</p>
-                                    </div>
-                                </div>
-                            </div>
+                            
 
                             {/* Stats Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
-                                            <FileText className="w-6 h-6 text-white" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-600">Total Projects</p>
-                                            <p className="text-2xl font-bold text-gray-900">{totalProjects}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-xl">
-                                            <DollarSign className="w-6 h-6 text-white" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-600">Total Financing</p>
-                                            <p className="text-xl font-bold text-gray-900">{formatPeso(totalProjectCost)}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-3 bg-gradient-to-r from-red-500 to-red-600 rounded-xl">
-                                            <AlertCircle className="w-6 h-6 text-white" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-600">Outstanding</p>
-                                            <p className="text-xl font-bold text-gray-900">{formatPeso(totalOutstanding)}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl">
-                                            <Activity className="w-6 h-6 text-white" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-600">Active Loans</p>
-                                            <p className="text-2xl font-bold text-gray-900">{projectsWithBalance}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+{/* Stats Cards */}
+<div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+  {/* Total Projects */}
+  <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">Total Projects</p>
+        <p className="text-2xl font-bold text-gray-900">{totalProjects}</p>
+      </div>
+      <div className="p-3 bg-blue-100 rounded-lg">
+        <FileText className="w-6 h-6 text-blue-600" />
+      </div>
+    </div>
+  </div>
 
-                            {/* Filters */}
-                            <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 mb-8">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="p-2 bg-blue-100 rounded-lg">
-                                        <Search className="w-5 h-5 text-blue-600" />
-                                    </div>
-                                    <h2 className="text-lg font-semibold text-gray-900">Search & Filter</h2>
-                                </div>
-                                
-                                <div className="flex flex-wrap items-center gap-4">
-                                    <div className="relative flex-1 min-w-[280px]">
-                                        <Search className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" />
-                                        <input
-                                            type="text"
-                                            placeholder="Search projects or companies..."
-                                            value={searchInput}
-                                            onChange={(e) => setSearchInput(e.target.value)}
-                                            className="border border-gray-200 rounded-xl pl-12 pr-4 py-3 text-sm w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
-                                        />
-                                    </div>
+  {/* Total Financing */}
+  <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">Total Financing</p>
+        <p className="text-xl font-bold text-gray-900">{formatPeso(totalProjectCost)}</p>
+      </div>
+      <div className="p-3 bg-green-100 rounded-lg">
+        <DollarSign className="w-6 h-6 text-green-600" />
+      </div>
+    </div>
+  </div>
 
-                                    <div className="relative">
+  {/* Outstanding */}
+  <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">Outstanding</p>
+        <p className="text-xl font-bold text-gray-900">{formatPeso(totalOutstanding)}</p>
+      </div>
+      <div className="p-3 bg-red-100 rounded-lg">
+        <AlertCircle className="w-6 h-6 text-red-600" />
+      </div>
+    </div>
+  </div>
+
+  {/* Active Loans */}
+  <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">Active Loans</p>
+        <p className="text-2xl font-bold text-gray-900">{projectsWithBalance}</p>
+      </div>
+      <div className="p-3 bg-orange-100 rounded-lg">
+        <Activity className="w-6 h-6 text-orange-600" />
+      </div>
+    </div>
+  </div>
+</div>
+
+
+                           
+                            {/* Projects List */}
+                            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                                <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/30">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-green-100 rounded-lg">
+                                            <Wallet className="w-5 h-5 text-green-600" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-bold text-gray-900">Project Loans</h2>
+                                            <p className="text-gray-600 text-sm">View detailed breakdown of your financing</p>
+                                        </div>
+
+                                           <div className="relative">
                                         <Calendar className="absolute left-3 top-3.5 text-gray-400 w-4 h-4" />
                                         <select
                                             value={yearFilter}
@@ -165,20 +153,6 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
                                             ))}
                                         </select>
                                     </div>
-                                </div>
-                            </div>
-
-                            {/* Projects List */}
-                            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-                                <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-50/30">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-green-100 rounded-lg">
-                                            <Wallet className="w-5 h-5 text-green-600" />
-                                        </div>
-                                        <div>
-                                            <h2 className="text-xl font-bold text-gray-900">Project Loans</h2>
-                                            <p className="text-gray-600 text-sm">View detailed breakdown of your financing</p>
-                                        </div>
                                     </div>
                                 </div>
 

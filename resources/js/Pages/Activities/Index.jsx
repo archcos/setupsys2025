@@ -8,16 +8,12 @@ import {
   Calendar,
   ChevronDown,
   ChevronRight,
-  Edit,
+  Edit3,
   Trash2,
   Activity,
-  FolderOpen,
-  Clock,
-  ArrowRight,
-  Filter,
-  Settings,
-  Eye,
-  Building2
+  Building2,
+  X,
+  ArrowUpDown
 } from 'lucide-react';
 
 export default function Index({ activities, filters }) {
@@ -27,11 +23,11 @@ export default function Index({ activities, filters }) {
   const [expandedProjectIds, setExpandedProjectIds] = useState([]);
 
   useEffect(() => {
-    const delay = setTimeout(() => {
-      router.get('/activities', { search, perPage }, { preserveState: true, replace: true });
-    }, 500);
-    return () => clearTimeout(delay);
-  }, [search, perPage]);
+    const delaySearch = setTimeout(() => {
+      router.get('/activities', { search }, { preserveState: true, replace: true });
+    }, 400);
+    return () => clearTimeout(delaySearch);
+  }, [search]);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -39,6 +35,18 @@ export default function Index({ activities, filters }) {
     if (confirm('Are you sure you want to delete this activity?')) {
       router.delete(`/activities/${id}`);
     }
+  };
+
+  const handlePerPageChange = (e) => {
+    const newPerPage = e.target.value;
+    setPerPage(newPerPage);
+    router.get('/activities', {
+      search,
+      perPage: newPerPage,
+    }, {
+      preserveScroll: true,
+      preserveState: true,
+    });
   };
 
   const toggleProject = (projectId) => {
@@ -55,7 +63,7 @@ export default function Index({ activities, filters }) {
 
   // Group activities by project_id
   const grouped = activities.data.reduce((acc, activity) => {
-    const projectId = activity.project?.project_id || 'Unassigned';
+    const projectId = activity.project?.project_id || 'unassigned';
     if (!acc[projectId]) {
       acc[projectId] = {
         projectTitle: activity.project?.project_title || 'Unassigned Project',
@@ -66,17 +74,8 @@ export default function Index({ activities, filters }) {
     return acc;
   }, {});
 
-  const handlePageChange = (url) => {
-    router.visit(url, {
-      preserveState: true,
-      replace: true,
-      only: ['activities'],
-      data: { search, perPage },
-    });
-  };
-
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
+    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
@@ -84,188 +83,238 @@ export default function Index({ activities, filters }) {
         
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
-            {/* Header Section */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
-                    <Activity className="w-6 h-6 text-white" />
+            {/* Main Content Card */}
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+              {/* Card Header */}
+              <div className="bg-gradient-to-r from-gray-50 to-white p-6 border-b border-gray-100">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Activity className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900">Activity Management</h2>
                   </div>
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Project Activities</h1>
-                    <p className="text-gray-600 mt-1">Manage project milestones and timeline activities</p>
+                  
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href="/activities/create"
+                      className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2.5 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Activity
+                    </Link>
                   </div>
                 </div>
-                <Link
-                  href="/activities/create"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-xl hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add Activity
-                </Link>
               </div>
-            </div>
 
-            {/* Controls Card */}
-            <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 mb-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    placeholder="Search by activity or project..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
-                  />
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
+                           {/* Filters Section */}
+              <div className="p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
+                <div className="flex flex-col lg:flex-row gap-4">
+                  {/* Search Bar */}
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="Search by project title or company..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                    />
+                    {search && (
+                      <button
+                        onClick={() => setSearch('')}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Per Page Selector */}
+                  <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm">
                     <select
                       value={perPage}
-                      onChange={(e) => setPerPage(Number(e.target.value))}
-                      className="border border-gray-200 rounded-lg pl-3 pr-6 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      onChange={handlePerPageChange}
+                      className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
                     >
                       {[10, 20, 50, 100].map((n) => (
-                        <option key={n} value={n}>
-                          {n}
-                        </option>
+                        <option key={n} value={n}>{n}</option>
                       ))}
                     </select>
                     <span className="text-sm text-gray-700">entries</span>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Activities by Project */}
-            <div className="space-y-6">
-              {Object.entries(grouped).map(([projectId, group]) => (
-                <div key={projectId} className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-                  {/* Project Header */}
-                  <button
-                    onClick={() => toggleProject(projectId)}
-                    className="w-full px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 transition-all duration-200 border-b border-gray-200"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                          <Building2 className="w-5 h-5 text-blue-600" />
+              {/* Table Section */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4" />
+                          Project
+                          <ArrowUpDown className="w-3 h-3 text-gray-400" />
                         </div>
-                        <div className="text-left">
-                          <h3 className="text-lg font-semibold text-gray-900">{group.projectTitle}</h3>
-                          <p className="text-sm text-gray-500">{group.activities.length} activities</p>
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <Activity className="w-4 h-4" />
+                          Activity
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
-                          {group.activities.length} items
-                        </span>
-                        {expandedProjectIds.includes(projectId) ? (
-                          <ChevronDown className="w-5 h-5 text-gray-500" />
-                        ) : (
-                          <ChevronRight className="w-5 h-5 text-gray-500" />
-                        )}
-                      </div>
-                    </div>
-                  </button>
-
-                  {/* Activities List */}
-                  {expandedProjectIds.includes(projectId) && (
-                    <div className="divide-y divide-gray-100">
-                      {group.activities.map((activity, index) => (
-                        <div key={activity.activity_id} className="px-6 py-4 hover:bg-gray-50 transition-colors duration-200">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4 flex-1">
-                              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl text-sm font-bold shadow-sm">
-                                {index + 1}
-                              </div>
-                              <div className="flex-1">
-                                <h4 className="text-lg font-semibold text-gray-900 mb-1">
-                                  {activity.activity_name}
-                                </h4>
-                                <div className="flex items-center gap-4 text-sm text-gray-600">
-                                  <div className="flex items-center gap-1">
-                                    <Calendar className="w-4 h-4" />
-                                    <span>{formatMonthYear(activity.start_date)}</span>
-                                  </div>
-                                  <ArrowRight className="w-4 h-4 text-gray-400" />
-                                  <div className="flex items-center gap-1">
-                                    <Calendar className="w-4 h-4" />
-                                    <span>{formatMonthYear(activity.end_date)}</span>
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          Duration
+                        </div>
+                      </th>
+                      <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    {Object.entries(grouped).map(([projectId, group]) => (
+                      <>
+                        {/* Project Header Row */}
+                        <tr
+                          key={`project-${projectId}`}
+                          className="bg-gradient-to-r from-blue-50 to-blue-100/30 border-b border-blue-200 hover:from-blue-100/50 hover:to-blue-200/30 transition-all duration-200 cursor-pointer"
+                          onClick={() => toggleProject(projectId)}
+                        >
+                          <td colSpan={4} className="px-6 py-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
+                                  {expandedProjectIds.includes(projectId) ? (
+                                    <ChevronDown className="w-5 h-5 text-blue-600" />
+                                  ) : (
+                                    <ChevronRight className="w-5 h-5 text-blue-600" />
+                                  )}
+                                  <div className="p-2 bg-blue-100 rounded-lg">
+                                    <Building2 className="w-4 h-4 text-blue-600" />
                                   </div>
                                 </div>
+                                <div>
+                                  <h3 className="text-base font-semibold text-gray-900">{group.projectTitle}</h3>
+                                  <p className="text-sm text-gray-600">{group.activities.length} activities</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  {group.activities.length} items
+                                </span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Link
-                                href={`/activities/${activity.activity_id}/edit`}
-                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors duration-200"
-                              >
-                                <Edit className="w-4 h-4" />
-                                Edit
-                              </Link>
-                              <button
-                                onClick={() => handleDelete(activity.activity_id)}
-                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors duration-200"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                                Delete
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                          </td>
+                        </tr>
+                        
+                        {/* Activity Rows */}
+                        {expandedProjectIds.includes(projectId) && group.activities.map((activity, index) => (
+                          <tr
+                            key={activity.activity_id}
+                            className="hover:bg-gradient-to-r hover:from-gray-50/30 hover:to-transparent transition-all duration-200 group border-b border-gray-100"
+                          >
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3 pl-8">
+                                <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-xs font-bold">
+                                  {index + 1}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  Activity #{activity.activity_id}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div>
+                                <div className="text-sm font-semibold text-gray-900">{activity.activity_name}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <span>{formatMonthYear(activity.start_date)}</span>
+                                <span className="text-gray-400">→</span>
+                                <span>{formatMonthYear(activity.end_date)}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-center gap-2">
+                                <Link
+                                  href={`/activities/${activity.activity_id}/edit`}
+                                  className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                                  title="Edit Activity"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </Link>
+
+                                <button
+                                  onClick={() => handleDelete(activity.activity_id)}
+                                  className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                  title="Delete Activity"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </>
+                    ))}
+                  </tbody>
+                </table>
+
+                {Object.keys(grouped).length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Activity className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-1">No activities found</h3>
+                        <p className="text-gray-500 text-sm">Get started by adding your first activity</p>
+                      </div>
+                      <Link
+                        href="/activities/create"
+                        className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add First Activity
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Pagination */}
+              {activities.links && activities.links.length > 1 && (
+                <div className="bg-gradient-to-r from-gray-50/50 to-white px-6 py-4 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      Showing {activities.from || 1} to {activities.to || activities.data.length} of {activities.total || activities.data.length} results
+                    </div>
+                    <div className="flex gap-1">
+                      {activities.links.map((link, index) => (
+                        <button
+                          key={index}
+                          disabled={!link.url}
+                          onClick={() => link.url && router.visit(link.url)}
+                          className={`px-3 py-2 text-sm rounded-lg border transition-all duration-200 ${
+                            link.active
+                              ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-transparent shadow-md'
+                              : link.url
+                              ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                              : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                          }`}
+                          dangerouslySetInnerHTML={{ __html: link.label }}
+                        />
                       ))}
                     </div>
-                  )}
-                </div>
-              ))}
-
-              {Object.keys(grouped).length === 0 && (
-                <div className="bg-white rounded-2xl shadow-xl p-12 border border-gray-100 text-center">
-                  <div className="p-4 bg-gray-100 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
-                    <Activity className="w-8 h-8 text-gray-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Activities Found</h3>
-                  <p className="text-gray-600 mb-6">Get started by creating your first project activity.</p>
-                  <Link
-                    href="/activities/create"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-xl hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Create Activity
-                  </Link>
                 </div>
               )}
             </div>
-
-            {/* Pagination */}
-            {activities.links && activities.links.length > 3 && (
-              <div className="mt-8 bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Showing {activities.from || 0} to {activities.to || 0} of {activities.total || 0} results
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {activities.links.map((link, i) => (
-                      <button
-                        key={i}
-                        disabled={!link.url}
-                        onClick={() => link.url && handlePageChange(link.url)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                          link.active
-                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
-                            : link.url
-                            ? 'text-gray-700 hover:bg-gray-100'
-                            : 'text-gray-400 cursor-not-allowed'
-                        }`}
-                        dangerouslySetInnerHTML={{ __html: link.label }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </main>
       </div>

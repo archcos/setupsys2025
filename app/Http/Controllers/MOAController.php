@@ -391,7 +391,7 @@ public function viewPdf($moa_id)
         $templateProcessor->setComplexBlock('LIB_TABLE', $table);
 
 
-$phpWord = new \PhpOffice\PhpWord\PhpWord();
+$phpWord = new PhpWord();
 $arialFont = ['name' => 'Arial', 'size' => 9];
 $boldArial = ['name' => 'Arial', 'bold' => true, 'size' => 9];
 

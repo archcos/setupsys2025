@@ -76,7 +76,7 @@ export default function Index({ companies, filters }) {
   };
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
+    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
@@ -84,38 +84,7 @@ export default function Index({ companies, filters }) {
         
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
-            {/* Header Section */}
-            <div className="mb-8">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
-                  <Building className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900">Companies Directory</h1>
-                  <p className="text-gray-600 mt-1">Manage your company database and partnerships</p>
-                </div>
-              </div>
-
-              {/* Stats Cards */}
-              {role !== "user" && (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <Building className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Total Companies</p>
-                        <p className="text-xl font-bold text-gray-900">
-                          {companies.total || companies.data.length}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            </div>
+            
 
             {/* Main Content Card */}
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
@@ -154,7 +123,7 @@ export default function Index({ companies, filters }) {
                 </div>
               </div>
 
-              {/* Filters Section */}
+                           {/* Filters Section */}
               <div className="p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
                 <div className="flex flex-col lg:flex-row gap-4">
                   {/* Search Bar */}
@@ -162,10 +131,10 @@ export default function Index({ companies, filters }) {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <input
                       type="text"
-                      placeholder="Search by company name, owner, or email..."
+                      placeholder="Search ..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                     />
                     {search && (
                       <button
@@ -178,7 +147,7 @@ export default function Index({ companies, filters }) {
                   </div>
 
                   {/* Per Page Selector */}
-                  <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-gray-200 shadow-sm">
+                  <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm">
                     <select
                       value={perPage}
                       onChange={handlePerPageChange}

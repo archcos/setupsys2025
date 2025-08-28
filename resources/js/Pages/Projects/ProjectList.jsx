@@ -36,7 +36,7 @@ export default function ProjectList({ projects }) {
   };
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
+    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
@@ -45,17 +45,7 @@ export default function ProjectList({ projects }) {
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
             {/* Header Section */}
-            <div className="mb-8">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
-                  <FolderOpen className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900">Project Management</h1>
-                  <p className="text-gray-600 mt-1">Overview of all projects and their details</p>
-                </div>
-              </div>
-            </div>
+            
 
             {/* Projects Table Card */}
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
