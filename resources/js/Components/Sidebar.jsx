@@ -22,7 +22,8 @@ import {
   HandCoins,
   ArrowBigLeft,
   ArrowLeftRight,
-  Banknote
+  Banknote,
+  FileDiff
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen }) {
@@ -30,6 +31,7 @@ export default function Sidebar({ isOpen }) {
     development: true,
     implementation: true,
     user: true,
+    transaction: true,
     adminpanel: false
   });
 
@@ -141,11 +143,11 @@ export default function Sidebar({ isOpen }) {
           <Dropdown
             title="My Transactions"
             icon={<ArrowLeftRight size={18} />}
-            isOpen={dropdowns.user}
-            onToggle={() => toggleDropdown('user')}
+            isOpen={dropdowns.transaction}
+            onToggle={() => toggleDropdown('transaction')}
             links={[
               { label: 'Repayment History', href: '/my-loans', icon: <HandCoins size={16} /> },
-              { label: 'Repayment History', href: '/file-report', icon: <HandCoins size={16} /> },
+              { label: 'Quarterly Report', href: '/file-report', icon: <FileDiff size={16} /> },
               // { label: 'Repayment History', href: route('refunds.history'), icon: <HandCoins size={16} /> },
             ]}
           />

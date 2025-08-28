@@ -55,7 +55,7 @@ export default function ActivityList({ activities, filters }) {
   }, {});
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
+    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
@@ -64,17 +64,7 @@ export default function ActivityList({ activities, filters }) {
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
             {/* Header Section */}
-            <div className="mb-8">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg">
-                  <Activity className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900">Activity Management</h1>
-                  <p className="text-gray-600 mt-1">Overview of all activities organized by project</p>
-                </div>
-              </div>
-            </div>
+            
 
 
             {/* Activities by Project */}
@@ -86,7 +76,6 @@ export default function ActivityList({ activities, filters }) {
                   </div>
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900">Activities by Project</h2>
-                    <p className="text-sm text-gray-600">Click on project headers to expand activity details</p>
                   </div>
                 </div>
               </div>

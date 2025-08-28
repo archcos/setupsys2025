@@ -17,7 +17,10 @@ class LoanModel extends Model
         'refund_amount',
         'status',
         'project_id',
-        'month_paid'
+        'month_paid',
+        'amount_due',
+        'check_num',
+        'receipt_num'
     ];
 
     // Rename relation to project for clarity

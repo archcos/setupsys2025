@@ -69,7 +69,7 @@ export default function Edit({ project, companies }) {
   };
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
+    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />

@@ -15,17 +15,22 @@ class LoanController extends Controller
 public function index()
 {
     $selectedMonth = request('month', now()->month);
-    $selectedYear = request('year', now()->year);
-    $search = request('search');
+    $selectedYear  = request('year', now()->year);
+    $search        = request('search');
+    $status        = request('status'); // 👈 new
 
-$selectedDate = Carbon::create($selectedYear, $selectedMonth, 1);
+    $selectedDate = Carbon::create($selectedYear, $selectedMonth, 1);
 
 $projects = ProjectModel::with([
     'company',
-    'loans' => function ($q) use ($selectedDate) {
+    'loans' => function ($q) use ($selectedDate, $status) {
         $q->whereMonth('month_paid', $selectedDate->month)
           ->whereYear('month_paid', $selectedDate->year)
           ->latest();
+
+        if ($status) {
+            $q->where('status', $status);
+        }
     }
 ])
 ->whereDate('refund_initial', '<=', $selectedDate)
@@ -38,17 +43,27 @@ $projects = ProjectModel::with([
           });
     });
 })
+// 🔹 Add this so projects without a matching loan don’t appear
+->when($status, function ($query, $status) use ($selectedDate) {
+    $query->whereHas('loans', function ($q) use ($selectedDate, $status) {
+        $q->whereMonth('month_paid', $selectedDate->month)
+          ->whereYear('month_paid', $selectedDate->year)
+          ->where('status', $status);
+    });
+})
 ->paginate(10)
 ->withQueryString();
 
 
     return Inertia::render('Refunds/Loan', [
-        'projects' => $projects,
-        'selectedMonth' => $selectedMonth,
-        'selectedYear' => $selectedYear,
-        'search' => $search,
+        'projects'       => $projects,
+        'selectedMonth'  => $selectedMonth,
+        'selectedYear'   => $selectedYear,
+        'search'         => $search,
+        'selectedStatus' => $status, // 👈 pass back to frontend
     ]);
 }
+
 
 
 
@@ -61,6 +76,9 @@ public function save()
     $data = request()->validate([
         'project_id'     => 'required|exists:tbl_projects,project_id',
         'refund_amount'  => 'required|numeric|min:0',
+        'amount_due'    => 'nullable|numeric|min:0',
+        'check_num'     => 'nullable|numeric|min:0',
+        'receipt_num'   => 'nullable|numeric|min:0',
         'status'         => 'required|in:paid,unpaid',
         'save_date'      => 'required|date_format:Y-m-d', // new
     ]);
@@ -89,6 +107,9 @@ public function save()
             ],
             [
                 'refund_amount' => $data['refund_amount'],
+                'amount_due'    => $data['amount_due'],
+                'check_num'     => $data['check_num'] ?? null,
+                'receipt_num'   => $data['receipt_num'] ?? null,
                 'status'        => $data['status'],
             ]
         );
