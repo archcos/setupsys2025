@@ -10,11 +10,11 @@ return new class extends Migration
     {
 
 Schema::create('tbl_users', function (Blueprint $table) {
-    $table->integer('user_id')->autoIncrement();
+    $table->id('user_id'); // unsigned BIGINT auto-increment
     $table->string('username', 50)->unique();
     $table->string('password', 255);
     $table->string('email', 100)->unique();
-    $table->integer('office_id');
+    $table->unsignedSmallInteger('office_id')->nullable(); // in tbl_companies
     $table->timestamp('created_at')->useCurrent();
     $table->timestamp('last_login')->nullable();
     $table->string('first_name', 50);

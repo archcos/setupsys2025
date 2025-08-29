@@ -24,11 +24,11 @@ return new class extends Migration
             
             $table->timestamps();
 
-            // Foreign key constraint
             $table->foreign('project_id')
-                  ->references('id')  // assuming tbl_projects has "id" as PK
-                  ->on('tbl_projects')
-                  ->onDelete('set null');
+                ->references('project_id')
+                ->on('tbl_projects')
+                ->onDelete('set null');
+
         });
     }
 

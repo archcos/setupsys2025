@@ -11,7 +11,8 @@ return new class extends Migration
 
 Schema::create('tbl_implements', function (Blueprint $table) {
 
- $table->unsignedBigInteger('project_id')->nullable();
+    $table->integer('implement_id')->autoIncrement(); // primary key
+    $table->unsignedBigInteger('project_id')->nullable();
     $table->text('tarp')->nullable();
     $table->timestamp('tarp_upload')->nullable();
     $table->text('pdc')->nullable();

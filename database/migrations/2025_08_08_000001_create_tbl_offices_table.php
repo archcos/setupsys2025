@@ -10,7 +10,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('tbl_offices', function (Blueprint $table) {
-            $table->integer('office_id')->autoIncrement();
+            $table->smallIncrements('office_id'); // in tbl_offices
             $table->string('office_name', 100)->unique();
         });
 

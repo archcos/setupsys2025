@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from '@inertiajs/react'; 
+import { Eye, EyeOff } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import { fetchWithCsrf } from '../Utils/fetchWithCsrf';
 
@@ -14,13 +15,16 @@ export default function RegisterPage({ offices }) {
     username: '',
     email: '',
     password: '',
+    confirm_password: '',
     office_id: '',
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
-  const [loading, setLoading] = useState(false); // ⬅️ Added loading state
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -31,7 +35,13 @@ export default function RegisterPage({ offices }) {
     setError('');
     setMessage('');
     setValidationErrors({});
-    setLoading(true); // ⬅️ Start loading
+    setLoading(true);
+
+    if (form.password !== form.confirm_password) {
+      setValidationErrors({ confirm_password: ['Passwords do not match'] });
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await fetchWithCsrf('/registration', {
@@ -51,7 +61,7 @@ export default function RegisterPage({ offices }) {
     } catch (err) {
       setError('Something went wrong.');
     } finally {
-      setLoading(false); // ⬅️ End loading
+      setLoading(false);
     }
   };
 
@@ -74,6 +84,7 @@ export default function RegisterPage({ offices }) {
         {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* First Name */}
           <input
             type="text"
             name="first_name"
@@ -85,6 +96,7 @@ export default function RegisterPage({ offices }) {
           />
           <InputError error={validationErrors.first_name} />
 
+          {/* Middle Name */}
           <input
             type="text"
             name="middle_name"
@@ -95,6 +107,7 @@ export default function RegisterPage({ offices }) {
           />
           <InputError error={validationErrors.middle_name} />
 
+          {/* Last Name */}
           <input
             type="text"
             name="last_name"
@@ -106,6 +119,7 @@ export default function RegisterPage({ offices }) {
           />
           <InputError error={validationErrors.last_name} />
 
+          {/* Username */}
           <input
             type="text"
             name="username"
@@ -117,6 +131,7 @@ export default function RegisterPage({ offices }) {
           />
           <InputError error={validationErrors.username} />
 
+          {/* Email */}
           <input
             type="email"
             name="email"
@@ -128,17 +143,49 @@ export default function RegisterPage({ offices }) {
           />
           <InputError error={validationErrors.email} />
 
-          <input
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            placeholder="Password"
-            className="w-full border px-4 py-2 rounded-lg"
-            required
-          />
+          {/* Password */}
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              placeholder="Password"
+              className="w-full border px-4 py-2 rounded-lg"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-2.5 text-gray-500"
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
           <InputError error={validationErrors.password} />
 
+          {/* Confirm Password */}
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? 'text' : 'password'}
+              name="confirm_password"
+              value={form.confirm_password}
+              onChange={handleChange}
+              placeholder="Confirm Password"
+              className="w-full border px-4 py-2 rounded-lg"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-2.5 text-gray-500"
+            >
+              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
+          <InputError error={validationErrors.confirm_password} />
+
+          {/* Office */}
           <select
             name="office_id"
             value={form.office_id}
