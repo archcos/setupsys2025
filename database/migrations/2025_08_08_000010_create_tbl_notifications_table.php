@@ -13,11 +13,11 @@ Schema::create('tbl_notifications', function (Blueprint $table) {
     $table->integer('notification_id')->autoIncrement();
     $table->string('title', 255);
     $table->text('message');
-    $table->integer('office_id');
+    $table->unsignedSmallInteger('office_id')->nullable(); // in tbl_companies
     $table->boolean('is_read')->default(0);
     $table->timestamp('created_at')->useCurrent();
     $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
-    $table->integer('company_id')->nullable();
+    $table->unsignedBigInteger('company_id')->nullable();
     $table->foreign('office_id')->references('office_id')->on('tbl_offices')->onDelete('cascade');
     $table->foreign('company_id')->references('company_id')->on('tbl_companies')->onDelete('set null')->onUpdate('cascade');
 });

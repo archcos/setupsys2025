@@ -14,8 +14,8 @@ return new class extends Migration
             $table->string('company_name', 254)->nullable();
             $table->string('owner_name', 254)->nullable();
             $table->string('email', 150)->nullable();
-            $table->unsignedBigInteger('added_by')->nullable();
-            $table->unsignedSmallInteger('office_id')->nullable();
+            $table->unsignedBigInteger(column: 'added_by')->nullable();
+            $table->unsignedSmallInteger('office_id')->nullable(); // in tbl_companies
 
             $table->string('street', 45)->nullable();
             $table->string('barangay', 45)->nullable();
