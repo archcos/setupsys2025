@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CompanyModel;
+use App\Models\ItemModel;
 use App\Models\ReportModel;
 use App\Models\ProjectModel;
 use App\Models\UserModel;
@@ -93,6 +94,17 @@ public function index(Request $request)
     ]);
 }
 
+public function destroy($id)
+{
+    // Delete items linked by the "report" column
+    ItemModel::where('report', $id)->delete();
+
+    // Delete the report
+    $report = ReportModel::findOrFail($id);
+    $report->delete();
+
+    return redirect()->back()->with('success', 'Report and its related items deleted successfully.');
+}
 public function downloadReport($report_id)
 {
     // Fetch the report (with relations)
@@ -152,7 +164,7 @@ public function downloadReport($report_id)
 
     // Load template
     $templatePath = storage_path('app/templates/form.docx');
-    $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor($templatePath);
+    $templateProcessor = new TemplateProcessor($templatePath);
 
     // Fill placeholders
     $templateProcessor->setValue('project_title', $project->project_title);
