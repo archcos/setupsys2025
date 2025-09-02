@@ -99,12 +99,12 @@ public function generateFromMoa($moa_id)
     $templateProcessor = new TemplateProcessor($templatePath);
 
     // Load image
-    $templateProcessor->setImageValue('image', [
-        'path' => storage_path('app/templates/signature.png'),
-        'width' => 130,
-        'height' => 80,
-        'ratio' => true,
-    ]);
+    // $templateProcessor->setImageValue('image', [
+    //     'path' => storage_path('app/templates/signature.png'),
+    //     'width' => 130,
+    //     'height' => 80,
+    //     'ratio' => true,
+    // ]);
 
     $companyAddress = collect([
         $company->street,

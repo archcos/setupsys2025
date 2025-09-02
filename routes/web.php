@@ -129,5 +129,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/reports', action: [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/create/{project}', [ReportController::class, 'create'])->name('reports.create');
     Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');
+    Route::get('/reports/download/{report}', [ReportController::class, 'downloadReport'])
+        ->name('reports.download');
 });
+
+
 

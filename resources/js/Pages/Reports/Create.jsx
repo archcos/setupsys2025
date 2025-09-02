@@ -15,6 +15,7 @@ import {
   Plus,
   Calendar,
   DollarSign,
+  FlaskConical,
 } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
@@ -352,7 +353,7 @@ export default function Create({ project, objects, equipments, nonequipments, lo
 <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
   <div className="flex items-center gap-3 mb-6">
     <div className="p-2 bg-blue-100 rounded-lg">
-      <Wrench className="w-5 h-5 text-blue-600" />
+      <FlaskConical className="w-5 h-5 text-blue-600" />
     </div>
     <h2 className="text-xl font-semibold text-gray-900">List of Non-Equipment</h2>
   </div>
@@ -824,7 +825,7 @@ export default function Create({ project, objects, equipments, nonequipments, lo
                     <textarea
                       rows="4"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 bg-gray-50"
-                      placeholder="Describe any problems encountered during the project"
+                      placeholder="Problems met & actions taken during project implementation"
                       value={data.problems}
                       onChange={(e) => setData("problems", e.target.value)}
                     />
@@ -835,18 +836,18 @@ export default function Create({ project, objects, equipments, nonequipments, lo
                     <textarea
                       rows="4"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 bg-gray-50"
-                      placeholder="Describe actions taken to address problems or improve the project"
+                      placeholder="Action/plan for the improvement of project’s operation"
                       value={data.actions}
                       onChange={(e) => setData("actions", e.target.value)}
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Promotional Activities</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Promotional/Linkages Plan</label>
                     <textarea
                       rows="4"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 bg-gray-50"
-                      placeholder="Describe promotional activities conducted for the project"
+                      placeholder="Describe promotional or linkages plan"
                       value={data.promotional}
                       onChange={(e) => setData("promotional", e.target.value)}
                     />
