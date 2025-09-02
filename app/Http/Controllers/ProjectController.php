@@ -132,9 +132,10 @@ $validated = $request->validate([
     // Items
     'items'                     => 'array',
     'items.*.item_name'         => 'required|string|max:255',
-    'items.*.specifications'    => 'nullable|string',
+    'items.*.specifications'    => 'required|string',
     'items.*.item_cost'         => 'required|numeric|min:0',
     'items.*.quantity'          => 'required|integer|min:1',
+    'items.*.type'              => 'required|string|max:10',
 
     // Objectives
     'objectives'                => 'array',
@@ -178,6 +179,9 @@ if (!empty($validated['items'])) {
             'specifications' => $item['specifications'] ?? null,
             'item_cost'      => $item['item_cost'],
             'quantity'       => $item['quantity'],
+            'type'       => $item['type'],
+            'report'       => 'approved',
+            
         ]);
     }
 }

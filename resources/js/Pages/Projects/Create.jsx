@@ -36,7 +36,7 @@ export default function Create({ companies }) {
     noncurrent_asset: '',
     equity: '',
     liability: '',
-    items: [{ item_name: '', specifications: '', item_cost: '', quantity: 1 }],
+    items: [{ item_name: '', specifications: '', item_cost: '', quantity: 1, type: '' }],
     objectives: [{ details: '' }],
     place_name: '',
   });
@@ -415,60 +415,81 @@ export default function Create({ companies }) {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Item Name</label>
-                          <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                            placeholder="Enter item name"
-                            value={item.item_name}
-                            onChange={(e) => {
-                              const newItems = [...data.items];
-                              newItems[index].item_name = e.target.value;
-                              setData('items', newItems);
-                            }}
-                            required
-                          />
-                        </div>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+  {/* Item Name */}
+  <div className="md:col-span-2">
+    <label className="block text-sm font-medium text-gray-700 mb-2">Item Name</label>
+    <input
+      type="text"
+      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+      placeholder="Enter item name"
+      value={item.item_name}
+      onChange={(e) => {
+        const newItems = [...data.items];
+        newItems[index].item_name = e.target.value;
+        setData('items', newItems);
+      }}
+      required
+    />
+  </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Cost</label>
-                          <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <span className="text-gray-500 text-sm">₱</span>
-                            </div>
-                            <input
-                              type="number"
-                              className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                              placeholder="0.00"
-                              value={item.item_cost}
-                              onChange={(e) => {
-                                const newItems = [...data.items];
-                                newItems[index].item_cost = e.target.value;
-                                setData('items', newItems);
-                              }}
-                              required
-                            />
-                          </div>
-                        </div>
+  {/* Cost */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">Cost</label>
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <span className="text-gray-500 text-sm">₱</span>
+      </div>
+      <input
+        type="number"
+        className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+        placeholder="0.00"
+        value={item.item_cost}
+        onChange={(e) => {
+          const newItems = [...data.items];
+          newItems[index].item_cost = e.target.value;
+          setData('items', newItems);
+        }}
+        required
+      />
+    </div>
+  </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
-                          <input
-                            type="number"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                            placeholder="1"
-                            value={item.quantity}
-                            onChange={(e) => {
-                              const newItems = [...data.items];
-                              newItems[index].quantity = e.target.value;
-                              setData('items', newItems);
-                            }}
-                            required
-                          />
-                        </div>
-                      </div>
+  {/* Quantity (smaller) */}
+  <div className="w-24">
+    <label className="block text-sm font-medium text-gray-700 mb-2">Qty</label>
+    <input
+      type="number"
+      className="w-full px-2 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-center"
+      placeholder="1"
+      value={item.quantity}
+      onChange={(e) => {
+        const newItems = [...data.items];
+        newItems[index].quantity = e.target.value;
+        setData('items', newItems);
+      }}
+      required
+    />
+  </div>
+
+  {/* Equipment Type (dropdown, smaller) */}
+  <div className="w-40">
+    <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+    <select
+      className="w-full px-2 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+      value={item.type}
+      onChange={(e) => {
+        const newItems = [...data.items];
+        newItems[index].type = e.target.value;
+        setData('items', newItems);
+      }}
+      required
+    >
+      <option value="equipment">Equipment</option>
+      <option value="nonequip">Non-Equipment</option>
+    </select>
+  </div>
+</div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Specifications</label>
