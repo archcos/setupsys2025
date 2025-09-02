@@ -30,6 +30,7 @@ export default function Sidebar({ isOpen }) {
   const [dropdowns, setDropdowns] = useState({
     development: true,
     implementation: true,
+    reports: true,
     user: true,
     transaction: true,
     adminpanel: false
@@ -96,20 +97,6 @@ export default function Sidebar({ isOpen }) {
           />
         )}
 
-                {role === 'admin' && (
-          <Dropdown
-            title="Admin Panel"
-            icon={<ShieldUser size={18} />}
-            isOpen={dropdowns.adminpanel}
-            onToggle={() => toggleDropdown('adminpanel')}
-            links={[
-              { label: 'User Management', href: `/admin/users`, icon: <User size={16} /> },
-              // { label: '2.1 Refund Monitoring', href: '/refunds', icon: <FileSearch size={16} /> },
-                // { label: '2.2 Implementation', href: '/activities', icon: <List size={16} /> },
-            ]}
-          />
-        )}
-
         {role === 'staff' && (
           <Dropdown
             title="Development"
@@ -124,6 +111,36 @@ export default function Sidebar({ isOpen }) {
             ]}
           />
         )}
+
+        {role === 'staff' || role === 'admin'  && (
+          <Dropdown
+            title="Reports"
+            icon={<Building size={18} />}
+            isOpen={dropdowns.reports}
+            onToggle={() => toggleDropdown('reports')}
+            links={[
+              { label: '2.0 Quarterly Reports', href: '/reports', icon: <ClipboardList size={16} /> },
+            ]}
+          />
+        )}
+
+        {role === 'admin' && (
+          <Dropdown
+            title="Admin Panel"
+            icon={<ShieldUser size={18} />}
+            isOpen={dropdowns.adminpanel}
+            onToggle={() => toggleDropdown('adminpanel')}
+            links={[
+              { label: 'User Management', href: `/admin/users`, icon: <User size={16} /> },
+              // { label: '2.1 Refund Monitoring', href: '/refunds', icon: <FileSearch size={16} /> },
+                // { label: '2.2 Implementation', href: '/activities', icon: <List size={16} /> },
+            ]}
+          />
+        )}
+
+
+
+
 
         {role === 'user' && (
           <Dropdown

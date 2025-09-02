@@ -6,77 +6,181 @@ use App\Models\CompanyModel;
 use App\Models\ReportModel;
 use App\Models\ProjectModel;
 use App\Models\UserModel;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use PhpOffice\PhpWord\TemplateProcessor;
 
 class ReportController extends Controller
 {
-    public function index(Request $request)
-    {
-        $userId = Auth::id();
-        $user = UserModel::where('user_id', $userId)->first();
-        $search = $request->input('search');
-        $perPage = $request->input('perPage', 10);
+public function index(Request $request)
+{
+    $userId = Auth::id();
+    $user   = UserModel::where('user_id', $userId)->firstOrFail();
 
-        Log::info('Reports Index Accessed', [
-            'user_id'   => $userId,
-            'role'      => $user->role ?? null,
-            'office_id' => $user->office_id ?? null,
-            'search'    => $search,
-            'perPage'   => $perPage,
-        ]);
+    $search  = $request->input('search');
+    $perPage = $request->input('perPage', 10);
 
-        $query = ProjectModel::with([
-            // eager load company
-            'company:company_id,company_name,office_id',
+    Log::info('Reports Index Accessed', [
+        'user_id'   => $userId,
+        'role'      => $user->role ?? null,
+        'office_id' => $user->office_id ?? null,
+        'search'    => $search,
+        'perPage'   => $perPage,
+    ]);
 
-            // eager load reports
-            'reports' => function ($q) {
-                $q->select('report_id', 'project_id', 'created_at')
-                  ->orderBy('created_at', 'desc');
-            }
-        ])->select('project_id', 'project_title', 'company_id');
+    $query = ProjectModel::with([
+        // eager load company
+        'company:company_id,company_name,office_id',
 
-        // Role restrictions
-        if ($user->role === 'user') {
-            Log::debug('Filtering projects for user role', ['user_id' => $user->user_id]);
-            $companyIds = CompanyModel::where('added_by', $user->user_id)->pluck('company_id');
-            $query->whereIn('company_id', $companyIds);
-        } elseif ($user->role === 'staff') {
-            Log::debug('Filtering projects for staff role', ['office_id' => $user->office_id]);
-            $query->whereHas('company', function ($q) use ($user) {
-                $q->where('office_id', $user->office_id);
-            });
-        } else {
-            Log::debug('No role restriction applied (admin or other)');
+        // eager load latest reports
+        'reports' => function ($q) {
+            $q->select('report_id', 'project_id', 'created_at')
+              ->orderBy('created_at', 'desc');
         }
+    ])->select('project_id', 'project_title', 'company_id');
 
-        // Search filter
-        if ($search) {
-            Log::debug('Applying search filter', ['search' => $search]);
-            $query->where(function ($q) use ($search) {
-                $q->where('project_title', 'like', "%{$search}%")
-                  ->orWhereHas('company', function ($q) use ($search) {
-                      $q->where('company_name', 'like', "%{$search}%");
-                  });
-            });
-        }
+    // ✅ Role-based filtering
+    if ($user->role === 'user') {
+        Log::debug('Filtering projects for USER role', ['user_id' => $user->user_id]);
 
-        $projects = $query->orderBy('project_title')->paginate($perPage)->withQueryString();
+        $companyIds = CompanyModel::where('added_by', $user->user_id)->pluck('company_id');
+        $query->whereIn('company_id', $companyIds);
 
-        Log::info('Projects retrieved', [
-            'count' => $projects->count(),
-            'total' => $projects->total(),
-        ]);
+    } elseif ($user->role === 'staff') {
+        Log::debug('Filtering projects for STAFF role', ['office_id' => $user->office_id]);
 
-        return Inertia::render('Reports/Index', [
-            'projects' => $projects,
-            'filters'  => $request->only('search', 'perPage'),
-        ]);
+        $query->whereHas('company', function ($q) use ($user) {
+            $q->where('office_id', $user->office_id);
+        });
+
+    } elseif ($user->role === 'admin') {
+        Log::debug('ADMIN role detected - no restrictions applied');
+        // admin sees all projects
+
+    } else {
+        Log::warning('Unknown role - applying no filters', ['role' => $user->role]);
     }
+
+    // ✅ Search filter
+    if (!empty($search)) {
+        Log::debug('Applying search filter', ['search' => $search]);
+
+        $query->where(function ($q) use ($search) {
+            $q->where('project_title', 'like', "%{$search}%")
+              ->orWhereHas('company', function ($q) use ($search) {
+                  $q->where('company_name', 'like', "%{$search}%");
+              });
+        });
+    }
+
+    // ✅ Pagination
+    $projects = $query->orderBy('project_title')
+                      ->paginate($perPage)
+                      ->withQueryString();
+
+    Log::info('Projects retrieved', [
+        'count' => $projects->count(),
+        'total' => $projects->total(),
+    ]);
+
+    return Inertia::render('Reports/Index', [
+        'projects' => $projects,
+        'filters'  => $request->only('search', 'perPage'),
+    ]);
+}
+
+public function downloadReport($report_id)
+{
+    // Fetch the report (with relations)
+    $report = ReportModel::with(['project.company'])->findOrFail($report_id);
+    $project = $report->project;
+    $company = $project->company;
+
+    // Fetch ALL reports linked to this project_id
+    $reports = DB::table('tbl_reports')
+        ->where('project_id', $project->project_id)
+        ->get();
+
+    // Extract problems, actions, promotional (concatenated if multiple reports exist)
+    $problems    = $reports->pluck('problems')->filter()->implode("; ");
+    $actions     = $reports->pluck('actions')->filter()->implode("; ");
+    $promotional = $reports->pluck('promotional')->filter()->implode("; ");
+
+    // Owner name from company
+    $ownerName = $company->owner_name ?? 'N/A';
+
+    // Phase One (Release Dates)
+    $releaseInitial = $project->release_initial ? Carbon::parse($project->release_initial)->format('F Y') : 'N/A';
+    $releaseEnd     = $project->release_end ? Carbon::parse($project->release_end)->format('F Y') : 'N/A';
+    $phaseOne       = "$releaseInitial - $releaseEnd";
+
+    // Phase Two (Refund Dates)
+    $refundInitial = $project->refund_initial ? Carbon::parse($project->refund_initial)->format('F Y') : 'N/A';
+    $refundEnd     = $project->refund_end ? Carbon::parse($project->refund_end)->format('F Y') : 'N/A';
+    $phaseTwo      = "$refundInitial - $refundEnd";
+
+    // Refund Data
+    $loans = DB::table('tbl_loans')
+        ->where('project_id', $project->project_id)
+        ->get();
+
+    $totalRefund = $loans->sum('refund_amount');
+    $toRefunded  = $project->project_cost - $totalRefund;
+    $unsetRefund = $project->project_cost - $totalRefund;
+
+    $currentDate = Carbon::now()->format('F, Y');
+
+    $totalUnpaid = DB::table('tbl_loans')
+        ->where('project_id', $project->project_id)
+        ->where('status', 'unpaid')
+        ->where('month_paid', Carbon::now()->format('Y-m-01'))
+        ->sum('refund_amount');
+
+    $oldestUnpaid = DB::table('tbl_loans')
+        ->where('project_id', $project->project_id)
+        ->where('status', 'unpaid')
+        ->orderBy('month_paid', 'asc')
+        ->first();
+
+    $oldUnpaid = $oldestUnpaid
+        ? Carbon::parse($oldestUnpaid->month_paid)->format('F Y')
+        : 'N/A';
+
+    // Load template
+    $templatePath = storage_path('app/templates/form.docx');
+    $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor($templatePath);
+
+    // Fill placeholders
+    $templateProcessor->setValue('project_title', $project->project_title);
+    $templateProcessor->setValue('owner_name', $ownerName);
+    $templateProcessor->setValue('phase_one', $phaseOne);
+    $templateProcessor->setValue('release_initial', $releaseInitial);
+    $templateProcessor->setValue('phase_two', $phaseTwo);
+    $templateProcessor->setValue('project_cost', number_format($project->project_cost, 2));
+
+    // From tbl_reports (aggregated by project_id)
+    $templateProcessor->setValue('problems', $problems ?: 'N/A');
+    $templateProcessor->setValue('actions', $actions ?: 'N/A');
+    $templateProcessor->setValue('promotional', $promotional ?: 'N/A');
+
+    // From tbl_loans
+    $templateProcessor->setValue('to_refunded', number_format($toRefunded, 2));
+    $templateProcessor->setValue('current_date', $currentDate);
+    $templateProcessor->setValue('total_unpaid', number_format($totalUnpaid, 2));
+    $templateProcessor->setValue('total_refund', number_format($totalRefund, 2));
+    $templateProcessor->setValue('unset_refund', number_format($unsetRefund, 2));
+    $templateProcessor->setValue('old_unpaid', $oldUnpaid);
+
+    // Generate temporary file (auto-deleted after download)
+    $tempFile = tempnam(sys_get_temp_dir(), 'word');
+    $templateProcessor->saveAs($tempFile);
+
+    return response()->download($tempFile, "Report_{$project->project_id}.docx")->deleteFileAfterSend(true);
+}
 
 
     public function create(ProjectModel $project)

@@ -137,19 +137,28 @@ export default function Index({ projects, filters }) {
                           {/* Dropdown reports */}
                           {openDropdown === project.project_id && (
                             <div className="mt-2 ml-4 bg-gray-50 border border-gray-200 rounded-lg shadow p-3 space-y-2">
-                              {project.reports && project.reports.length > 0 ? (
-                                project.reports.map((report) => (
-                                  <span
-                                      key={report.report_id}
-                                      className="block text-xs text-gray-700"
-                                    >
-                                      {formatReportDate(report.created_at)}
-                                    </span>
+                                {project.reports && project.reports.length > 0 ? (
+  project.reports.map((report) => (
+    <div
+      key={report.report_id}
+      className="flex items-center justify-between text-xs text-gray-700"
+    >
+      <span>{formatReportDate(report.created_at)}</span>
 
-                                ))
-                              ) : (
-                                <p className="text-xs text-gray-500">No reports submitted yet</p>
-                              )}
+      {/* Use <a> instead of Inertia <Link> for downloads */}
+      <a
+        href={route("reports.download", report.report_id)}
+        className="ml-2 px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-[10px]"
+      >
+        Download
+      </a>
+    </div>
+  ))
+) : (
+  <p className="text-xs text-gray-500">No reports submitted yet</p>
+)}
+
+
                             </div>
                           )}
                         </td>
