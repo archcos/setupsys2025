@@ -11,7 +11,12 @@ import {
   ChevronUp,
 } from "lucide-react";
 
-// Helper: format date into readable + quarter
+function handleDelete(reportId) {
+  if (confirm("Are you sure you want to delete this report?")) {
+    router.delete(route("reports.destroy", reportId));
+  }
+}
+
 function formatReportDate(dateStr) {
   if (!dateStr) return "-";
   const date = new Date(dateStr);
@@ -136,30 +141,39 @@ export default function Index({ projects, filters }) {
 
                           {/* Dropdown reports */}
                           {openDropdown === project.project_id && (
-                            <div className="mt-2 ml-4 bg-gray-50 border border-gray-200 rounded-lg shadow p-3 space-y-2">
-                                {project.reports && project.reports.length > 0 ? (
-  project.reports.map((report) => (
-    <div
-      key={report.report_id}
-      className="flex items-center justify-between text-xs text-gray-700"
-    >
-      <span>{formatReportDate(report.created_at)}</span>
-
-      {/* Use <a> instead of Inertia <Link> for downloads */}
-      <a
-        href={route("reports.download", report.report_id)}
-        className="ml-2 px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-[10px]"
+<div className="mt-2 ml-4 bg-gray-50 border border-gray-200 rounded-lg shadow p-3 space-y-2">
+  {project.reports && project.reports.length > 0 ? (
+    project.reports.map((report) => (
+      <div
+        key={report.report_id}
+        className="flex items-center justify-between text-xs text-gray-700"
       >
-        Download
-      </a>
-    </div>
-  ))
-) : (
-  <p className="text-xs text-gray-500">No reports submitted yet</p>
-)}
+        <span>{formatReportDate(report.created_at)}</span>
 
+        <div className="flex gap-2">
+          {/* Download */}
+          <a
+            href={route("reports.download", report.report_id)}
+            className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-[10px]"
+          >
+            Download
+          </a>
 
-                            </div>
+          {/* Delete */}
+          <button
+            onClick={() => handleDelete(report.report_id)}
+            className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition text-[10px]"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    ))
+  ) : (
+    <p className="text-xs text-gray-500">No reports submitted yet</p>
+  )}
+</div>
+
                           )}
                         </td>
 
