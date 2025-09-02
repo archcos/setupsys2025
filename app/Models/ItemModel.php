@@ -19,9 +19,11 @@ class ItemModel extends Model
         'specifications',
         'item_cost',
         'quantity',
+        'type',
+        'report'
     ];
 
-    public $timestamps = false;
+    public $timestamps = true;
 
 
     public function project()

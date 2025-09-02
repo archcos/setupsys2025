@@ -16,6 +16,7 @@ use App\Http\Controllers\NewRefundController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PDFController;
 use App\Http\Controllers\RefundController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TagController;
 
 Route::middleware(['redirectIfAuthenticated'])->group(function () {
@@ -122,3 +123,11 @@ Route::middleware(['auth'])->group(function () {
 
 Route::get('/projects/sync-csv', [ProjectController::class, 'syncProjectsFromCSV'])
     ->name('projects.sync.csv');
+
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/reports', action: [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/create/{project}', [ReportController::class, 'create'])->name('reports.create');
+    Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');
+});
+
