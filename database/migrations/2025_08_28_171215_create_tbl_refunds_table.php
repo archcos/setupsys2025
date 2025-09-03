@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tbl_loans', function (Blueprint $table) {
-            $table->id('loan_id');
+        Schema::create('tbl_refunds', function (Blueprint $table) {
+            $table->id('refund_id');
             
             $table->unsignedBigInteger('project_id')->nullable();
             $table->integer('amount_due')->nullable();

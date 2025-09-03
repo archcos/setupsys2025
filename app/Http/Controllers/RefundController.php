@@ -4,194 +4,215 @@ namespace App\Http\Controllers;
 
 use App\Models\ProjectModel;
 use App\Models\RefundModel;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Carbon;
-use Illuminate\Http\Request;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class RefundController extends Controller
 {
-   public function index(Request $request)
+
+public function index()
 {
-    $selectedMonth = $request->input('month') ?? Carbon::now()->format('M , Y');
-    $selectedStatus = $request->input('status') ?? 'all';
-    $perPage = $request->input('perPage', 10); // default 10
-    $search = $request->input('search', '');
+    $selectedMonth = request('month', now()->month);
+    $selectedYear  = request('year', now()->year);
+    $search        = request('search');
+    $status        = request('status'); // 👈 new
 
-    $query = RefundModel::query()->where('refund_date', $selectedMonth);
+    $selectedDate = Carbon::create($selectedYear, $selectedMonth, 1);
 
-    if ($selectedStatus !== 'all') {
-        $query->where('status', $selectedStatus);
+$projects = ProjectModel::with([
+    'company',
+    'refunds' => function ($q) use ($selectedDate, $status) {
+        $q->whereMonth('month_paid', $selectedDate->month)
+          ->whereYear('month_paid', $selectedDate->year)
+          ->latest();
+
+        if ($status) {
+            $q->where('status', $status);
+        }
     }
+])
+->whereDate('refund_initial', '<=', $selectedDate)
+->whereDate('refund_end', '>=', $selectedDate)
+->when($search, function ($query, $search) {
+    $query->where(function ($q) use ($search) {
+        $q->where('project_title', 'like', "%{$search}%")
+          ->orWhereHas('company', function ($q) use ($search) {
+              $q->where('company_name', 'like', "%{$search}%");
+          });
+    });
+})
+// 🔹 Add this so projects without a matching loan don’t appear
+->when($status, function ($query, $status) use ($selectedDate) {
+    $query->whereHas('refunds', function ($q) use ($selectedDate, $status) {
+        $q->whereMonth('month_paid', $selectedDate->month)
+          ->whereYear('month_paid', $selectedDate->year)
+          ->where('status', $status);
+    });
+})
+->paginate(10)
+->withQueryString();
 
-    if ($search) {
-        $query->where(function ($q) use ($search) {
-            $q->where('project_code', 'like', "%$search%")
-              ->orWhere('company_name', 'like', "%$search%");
-        });
-    }
 
-    $refunds = $query->orderBy('project_code')->paginate($perPage)->withQueryString();
-    $months = RefundModel::distinct()->pluck('refund_date');
-
-    return Inertia::render('Refunds/Index', [
-        'refunds' => $refunds,
-        'months' => $months,
-        'selectedMonth' => $selectedMonth,
-        'selectedStatus' => $selectedStatus,
-        'perPage' => (int) $perPage,
-        'search' => $search,
+    return Inertia::render('Refunds/Refund', [
+        'projects'       => $projects,
+        'selectedMonth'  => $selectedMonth,
+        'selectedYear'   => $selectedYear,
+        'search'         => $search,
+        'selectedStatus' => $status, // 👈 pass back to frontend
     ]);
 }
 
-public function projectRefundHistory()
+
+
+
+public function save()
+{
+    Log::info('RefundController@save called', [
+        'incoming_data' => request()->all()
+    ]);
+
+    $data = request()->validate([
+        'project_id'     => 'required|exists:tbl_projects,project_id',
+        'refund_amount'  => 'required|numeric|min:0',
+        'amount_due'    => 'nullable|numeric|min:0',
+        'check_num'     => 'nullable|numeric|min:0',
+        'receipt_num'   => 'nullable|numeric|min:0',
+        'status'         => 'required|in:paid,unpaid',
+        'save_date'      => 'required|date_format:Y-m-d', // new
+    ]);
+
+    Log::info('RefundController@save validated data', $data);
+
+    try {
+        // Parse and normalize save date
+        $savedMonthDate = Carbon::parse($data['save_date'])->startOfMonth()->format('Y-m-d');
+
+        // Update refund_amount in projects
+        $project = ProjectModel::findOrFail($data['project_id']);
+        $project->refund_amount = $data['refund_amount'];
+        $project->save();
+
+        Log::info('Project updated', [
+            'project_id' => $project->project_id,
+            'refund_amount' => $project->refund_amount
+        ]);
+
+        // Save or update loan
+        $refund = RefundModel::updateOrCreate(
+            [
+                'project_id' => $data['project_id'],
+                'month_paid' => $savedMonthDate
+            ],
+            [
+                'refund_amount' => $data['refund_amount'],
+                'amount_due'    => $data['amount_due'],
+                'check_num'     => $data['check_num'] ?? null,
+                'receipt_num'   => $data['receipt_num'] ?? null,
+                'status'        => $data['status'],
+            ]
+        );
+
+        Log::info('Refund saved/updated', $refund->toArray());
+
+        return back()->with('success', 'Refund saved successfully.');
+    } catch (\Exception $e) {
+        Log::error('Error saving refund', [
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        return back()->with('error', 'An error occurred while saving.');
+    }
+}
+
+public function userRefunds()
 {
     $userId = Auth::id();
+    $search = request('search');
+    $year   = request('year');
 
-    // Fetch projects owned by companies added by this user
-    $projects = ProjectModel::query()
-        ->with(['company', 'refunds']) // eager load
+    // Get all projects for this user
+    $projects = ProjectModel::with(['company', 'refunds'])
         ->whereHas('company', function ($q) use ($userId) {
             $q->where('added_by', $userId);
         })
-        ->get();
+        ->when($search, function ($query, $search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('project_title', 'like', "%{$search}%")
+                  ->orWhereHas('company', function ($q) use ($search) {
+                      $q->where('company_name', 'like', "%{$search}%");
+                  });
+            });
+        })
+        ->when($year, function ($query, $year) {
+            $query->where('year_obligated', $year);
+        })
+        ->get()
+       ->map(function ($project) {
+    $totalRefund = $project->refunds
+        ->where('status', 'paid')
+        ->sum('refund_amount');
+    $outstanding = $project->project_cost - $totalRefund;
 
-    // Format data for frontend
-    $data = $projects->map(function ($project) {
-        return [
-            'project_id'    => $project->project_id,
-            'project_title' => $project->project_title,
-            'project_code'  => $project->project_code ?? '',
-            'company_name'  => $project->company->company_name ?? '',
-            'refunds'       => $project->refunds->map(function ($refund) {
-                return [
-                    'refund_date' => $refund->refund_date,
-                    'status'      => $refund->status, // 'paid' or 'unpaid'
-                ];
-            }),
-        ];
-    });
+    $months = [];
+    $nextPaymentAmount = null;
+    $today = Carbon::now()->startOfMonth();
 
-    return Inertia::render('Refunds/RefundHistory', [
-        'projects' => $data,
+    if ($project->refund_initial && $project->refund_end) {
+        $start = Carbon::parse($project->refund_initial)->startOfMonth();
+        $end   = Carbon::parse($project->refund_end)->startOfMonth();
+
+while ($start <= $end) {
+    $monthRefund = $project->refunds
+        ->where('month_paid', $start->format('Y-m-d'))
+        ->first();
+
+    $refundAmount = $monthRefund->refund_amount ?? 0;
+    $status = $monthRefund->status ?? 'unpaid'; // default if no record
+
+    $months[] = [
+        'month'         => $start->format('F Y'),
+        'refund_amount' => $refundAmount,
+        'status'        => strtolower($status) // normalize for frontend
+    ];
+
+    // First unpaid month from current month onwards
+    if ($nextPaymentAmount === null && $status !== 'paid' && $start >= $today) {
+        $nextPaymentAmount = $project->refund_amount; // from tbl_projects
+    }
+
+    $start->addMonth();
+}
+
+    }
+
+    return [
+        'project_id'          => $project->project_id,
+        'project_title'       => $project->project_title,
+        'company'             => $project->company->company_name ?? '-',
+        'project_cost'        => $project->project_cost,
+        'total_refund'        => $totalRefund,
+        'outstanding_balance' => $outstanding,
+        'months'              => $months,
+        'next_payment'        => $nextPaymentAmount ?? 0
+    ];
+});
+
+
+    // Get distinct years for filter dropdown
+    $years = ProjectModel::whereHas('company', function ($q) use ($userId) {
+            $q->where('added_by', $userId);
+        })
+        ->select('year_obligated')
+        ->distinct()
+        ->pluck('year_obligated');
+
+    return Inertia::render('Refunds/UserRefund', [
+        'projects'      => $projects,
+        'search'        => $search,
+        'years'         => $years,
+        'selectedYear'  => $year
     ]);
 }
-
-
-public function manualSync()
-{
-    $csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTsjw8nNLTrJYI2fp0ZrKbXQvqHpiGLqpgYk82unky4g_WNf8xCcISaigp8VsllxE2dCwl-aY3wjd1W/pub?gid=1408398601&single=true&output=csv';
-
-    try {
-        $response = Http::timeout(300)->get($csvUrl);
-        if (!$response->ok()) {
-            Log::error('Failed to fetch CSV: ' . $response->status());
-            return back()->with('error', 'Failed to fetch CSV data.');
-        }
-
-        $lines = explode("\n", trim($response->body()));
-        if (count($lines) < 2) {
-            Log::warning('CSV contains no data rows.');
-            return back()->with('error', 'CSV contains no data.');
-        }
-
-        $header = str_getcsv(array_shift($lines));
-        $csvData = array_map('str_getcsv', $lines);
-        $newRecords = 0;
-
-        Log::debug('CSV Headers: ' . json_encode($header));
-        Log::debug('Sample row 0: ' . json_encode($csvData[0] ?? []));
-
-        foreach ($csvData as $rowIndex => $row) {
-            $row = array_map('trim', $row);
-            $row = array_pad($row, count($header), null);
-            $data = array_combine($header, $row);
-
-            $project_code = trim($data['Project Code'] ?? '');
-            $company_name = trim($data['Name of the Business'] ?? '');
-            $status = strtoupper($data['Status'] ?? '');
-
-            if (!$project_code || !$company_name) {
-                Log::warning("Skipping row $rowIndex: Missing Project Code or Business Name");
-                continue;
-            }
-
-            if (in_array($status, ['TERMINATED', 'WITHDRAWN', 'GRADUATED'])) {
-                Log::info("Skipping row $rowIndex ($project_code): Status is $status");
-                continue;
-            }
-
-            Log::info("Processing row $rowIndex: $project_code - $company_name");
-
-            foreach ($header as $i => $columnName) {
-                if (preg_match('/^Refund\s*#\d+/i', $columnName)) {
-                    $refund_date = trim($row[$i] ?? '');
-
-                    if ($refund_date) {
-                        $exists = RefundModel::where('project_code', $project_code)
-                            ->where('refund_date', $refund_date)
-                            ->exists();
-
-                        if (!$exists) {
-                            RefundModel::create([
-                                'project_code' => $project_code,
-                                'company_name' => $company_name,
-                                'refund_date' => $refund_date,
-                                'status' => 'unpaid',
-                            ]);
-                            Log::info("Inserted refund: $project_code | $refund_date");
-                            $newRecords++;
-                        } else {
-                            Log::info("Skipped duplicate: $project_code | $refund_date");
-                        }
-                    } else {
-                        Log::debug("Empty refund date at row $rowIndex for $columnName");
-                    }
-                }
-            }
-        }
-
-        Log::info("Sync complete. Total new records: $newRecords");
-        return back()->with('success', "$newRecords new refund(s) added.");
-    } catch (\Exception $e) {
-        Log::error('CSV Sync failed: ' . $e->getMessage());
-        return back()->with('error', 'Sync failed. Please try again.');
-    }
-}
-
-
-
-public function updateStatus(Request $request, $id)
-{
-    try {
-        if ($id != 0) {
-            // Update by ID
-            $refund = RefundModel::findOrFail($id);
-        } else {
-            // Check if record exists by unique fields
-            $refund = RefundModel::where('project_code', $request->input('project_code'))
-                ->where('company_name', $request->input('company_name'))
-                ->where('refund_date', $request->input('refund_date'))
-                ->first();
-
-            if (!$refund) {
-                // If not found, create new
-                $refund = new RefundModel();
-                $refund->project_code = $request->input('project_code');
-                $refund->company_name = $request->input('company_name');
-                $refund->refund_date = $request->input('refund_date');
-            }
-        }
-
-        $refund->status = $request->input('status', 'unpaid');
-        $refund->save();
-
-        return back()->with('success', 'Status updated successfully.');
-    } catch (\Exception $e) {
-        return back()->with('error', 'Failed to update status: ' . $e->getMessage());
-    }
-}
-
 }

@@ -36,12 +36,13 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
     if (projects?.data) {
       const initialData = {};
       projects.data.forEach((p) => {
-        const latestLoan = p.loans?.[0];
-        const refundAmount = latestLoan?.refund_amount ?? p.refund_amount ?? '';
+        const latestRefund = p.refunds?.[0];
+        const refundAmount = latestRefund?.refund_amount ?? p.refund_amount ?? '';
+
 
         initialData[`refund_amount_${p.project_id}`] = refundAmount;
-        initialData[`status_${p.project_id}`] = latestLoan?.status ?? 'unpaid';
-        initialData[`amount_due_${p.project_id}`] = latestLoan?.amount_due ?? refundAmount;
+        initialData[`status_${p.project_id}`] = latestRefund?.status ?? 'unpaid';
+        initialData[`amount_due_${p.project_id}`] = latestRefund?.amount_due ?? refundAmount;
       });
       setData((prev) => ({ ...prev, ...initialData }));
     }
@@ -58,7 +59,7 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
   const handleFilterChange = (month, year, searchValue, statusValue = statusFilter) => {
-    router.get('/loans', { month, year, search: searchValue, status: statusValue }, { preserveScroll: true });
+    router.get('/refunds', { month, year, search: searchValue, status: statusValue }, { preserveScroll: true });
   };
 
   const handleSave = (projectId) => {
@@ -67,7 +68,7 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
     const saveDate = `${selectedYear}-${month}-01`;
 
     setSavingProject(projectId);
-    router.post('/loans/save', {
+    router.post('/refunds/save', {
       project_id: projectId,
       refund_amount: data[`refund_amount_${projectId}`] ?? project.refund_amount ?? 0,
       amount_due: data[`amount_due_${projectId}`] ?? project.amount_due ?? 0,
@@ -86,7 +87,7 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
       <Sidebar isOpen={sidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header sidebarOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-        <Head title="Loan Management" />
+        <Head title="Refund Management" />
 
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
@@ -95,8 +96,8 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
               {/* Card Header */}
               <div className="bg-gradient-to-r from-gray-50 to-white p-6 border-b border-gray-100">
-                <h2 className="text-xl font-semibold text-gray-900">Loan Management</h2>
-                <p className="text-sm text-gray-600 mt-1">Manage project loans and refund amounts</p>
+                <h2 className="text-xl font-semibold text-gray-900">Refund Management</h2>
+                <p className="text-sm text-gray-600 mt-1">Manage project refund amounts</p>
               </div>
 
               {/* Filters Section */}
@@ -249,8 +250,8 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
                   <tbody className="bg-white divide-y divide-gray-100">
                     {projects.data.length > 0 ? (
                       projects.data.map((p, idx) => {
-                        const latestLoan = p.loans?.[0];
-                        const currentStatus = data[`status_${p.project_id}`] ?? latestLoan?.status ?? 'unpaid';
+                        const latestRefund = p.refunds?.[0];
+                        const currentStatus = data[`status_${p.project_id}`] ?? latestRefund?.status ?? 'unpaid';
                         
                         return (
                           <tr
@@ -302,7 +303,7 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
                             <td className="px-6 py-4">
                               <input
                                 type="text"
-                                value={data[`check_num_${p.project_id}`] ?? latestLoan?.check_num ?? ''}
+                                value={data[`check_num_${p.project_id}`] ?? latestRefund?.check_num ?? ''}
                                 onChange={(e) => setData(`check_num_${p.project_id}`, e.target.value)}
                                 className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                                 placeholder="Check No."
@@ -311,7 +312,7 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
                             <td className="px-6 py-4">
                               <input
                                 type="text"
-                                value={data[`receipt_num_${p.project_id}`] ?? latestLoan?.receipt_num ?? ''}
+                                value={data[`receipt_num_${p.project_id}`] ?? latestRefund?.receipt_num ?? ''}
                                 onChange={(e) => setData(`receipt_num_${p.project_id}`, e.target.value)}
                                 className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                                 placeholder="Receipt No."

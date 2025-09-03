@@ -10,9 +10,7 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImplementationController;
-use App\Http\Controllers\LoanController;
 use App\Http\Controllers\MOAController;
-use App\Http\Controllers\NewRefundController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PDFController;
 use App\Http\Controllers\RefundController;
@@ -83,16 +81,6 @@ Route::middleware(['auth', 'role:admin,staff'])->group(function () {
 Route::post('/notifications/read/{id}', [NotificationController::class, 'markAsRead']);
 });
 
-//REFUND
-Route::middleware(['auth', 'role:admin'])->group(function () {
-Route::post('/refunds/sync', [RefundController::class, 'manualSync']);
-Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index');
-Route::post('/refunds/{id}/update-status', [RefundController::class, 'updateStatus']);
-
-});
-
-Route::get('/refunds-history', [RefundController::class, 'projectRefundHistory'])
-    ->name('refunds.history');
 
 Route::middleware(['auth', 'role:admin,staff'])->group(function () {
     Route::get('/implementation', [ImplementationController::class, 'index'])->name('implementation.index');
@@ -115,14 +103,16 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 });
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/loans', [LoanController::class, 'index']);
-    Route::post('/loans/save', [LoanController::class, 'save']);
-    Route::get('/my-loans', [LoanController::class, 'userLoans'])
-        ->name('loans.user');
+    Route::get('/refunds', [RefundController::class, 'index']);
+    Route::post('/refunds/save', [RefundController::class, 'save']);
+    Route::get('/my-refunds', [RefundController::class, 'userRefunds'])
+        ->name('refunds.user');
 });
 
-Route::get('/projects/sync-csv', [ProjectController::class, 'syncProjectsFromCSV'])
-    ->name('projects.sync.csv');
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/projects/sync-csv', [ProjectController::class, 'syncProjectsFromCSV'])
+        ->name('projects.sync.csv');
+});
 
 
 Route::middleware(['auth'])->group(function () {
