@@ -66,7 +66,6 @@ public function index(Request $request)
         Log::warning('Unknown role - applying no filters', ['role' => $user->role]);
     }
 
-    // ✅ Search filter
     if (!empty($search)) {
         Log::debug('Applying search filter', ['search' => $search]);
 

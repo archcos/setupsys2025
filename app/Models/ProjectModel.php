@@ -77,14 +77,9 @@ class ProjectModel extends Model
         return $this->hasOne(ImplementationModel::class, 'project_id');
     }
 
-    public function refunds()
+        public function refunds()
     {
-        return $this->hasMany(RefundModel::class, 'project_code', 'project_id');
-    }
-
-        public function loans()
-    {
-        return $this->hasMany(LoanModel::class, 'project_id', 'project_id');
+        return $this->hasMany(RefundModel::class, 'project_id', 'project_id');
     }
 
     public function objectives()

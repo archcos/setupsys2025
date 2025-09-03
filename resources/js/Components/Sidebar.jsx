@@ -91,7 +91,7 @@ export default function Sidebar({ isOpen }) {
             onToggle={() => toggleDropdown('implementation')}
             links={[
               { label: 'Phase One', href: `/implementation`, icon: <ListTodo size={16} /> },
-              { label: 'Phase Two', href: '/loans', icon: <FileSearch size={16} /> },
+              { label: 'Phase Two', href: '/refunds', icon: <FileSearch size={16} /> },
               // { label: 'Phase Two(CSV)', href: '/refunds', icon: <FileSearch size={16} /> },
             ]}
           />
@@ -112,7 +112,7 @@ export default function Sidebar({ isOpen }) {
           />
         )}
 
-        {role === 'staff' || role === 'admin'  && (
+        {(role === 'staff' || role === 'admin')  && (
           <Dropdown
             title="Reports"
             icon={<Building size={18} />}
@@ -139,9 +139,6 @@ export default function Sidebar({ isOpen }) {
         )}
 
 
-
-
-
         {role === 'user' && (
           <Dropdown
             title="Manage Company"
@@ -163,7 +160,7 @@ export default function Sidebar({ isOpen }) {
             isOpen={dropdowns.transaction}
             onToggle={() => toggleDropdown('transaction')}
             links={[
-              { label: 'Repayment History', href: '/my-loans', icon: <HandCoins size={16} /> },
+              { label: 'Repayment History', href: '/my-refunds', icon: <HandCoins size={16} /> },
               { label: 'Quarterly Report', href: '/reports', icon: <FileDiff size={16} /> },
               // { label: 'Repayment History', href: route('refunds.history'), icon: <HandCoins size={16} /> },
             ]}

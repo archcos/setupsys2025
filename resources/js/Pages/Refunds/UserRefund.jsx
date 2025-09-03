@@ -34,7 +34,7 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
             return;
         }
         const delay = setTimeout(() => {
-            router.get("/my-loans", { search: searchInput, year: yearFilter }, { preserveScroll: true });
+            router.get("/my-refunds", { search: searchInput, year: yearFilter }, { preserveScroll: true });
         }, 400);
         return () => clearTimeout(delay);
     }, [searchInput, yearFilter]);
@@ -59,11 +59,11 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
 
     return (
         <>
-            <Head title="My Loans" />
+            <Head title="My Refunds" />
             <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
                 <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    <Header title="My Loans" toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+                    <Header title="My Refunds" toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
                     <main className="flex-1 overflow-y-auto p-6 space-y-8">
                         <div className="max-w-7xl mx-auto">
@@ -116,7 +116,7 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
   <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
     <div className="flex items-center justify-between">
       <div>
-        <p className="text-sm font-medium text-gray-600">Active Loans</p>
+        <p className="text-sm font-medium text-gray-600">Active Refunds</p>
         <p className="text-2xl font-bold text-gray-900">{projectsWithBalance}</p>
       </div>
       <div className="p-3 bg-orange-100 rounded-lg">
@@ -136,7 +136,7 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
                                             <Wallet className="w-5 h-5 text-green-600" />
                                         </div>
                                         <div>
-                                            <h2 className="text-xl font-bold text-gray-900">Project Loans</h2>
+                                            <h2 className="text-xl font-bold text-gray-900">Project Refunds</h2>
                                             <p className="text-gray-600 text-sm">View detailed breakdown of your financing</p>
                                         </div>
 
@@ -351,8 +351,8 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
                                                 <CreditCard className="w-8 h-8 text-gray-400" />
                                             </div>
                                             <div>
-                                                <h3 className="text-lg font-medium text-gray-900 mb-1">No Loans Found</h3>
-                                                <p className="text-gray-500">No project loans match your current search criteria.</p>
+                                                <h3 className="text-lg font-medium text-gray-900 mb-1">No Refund Found</h3>
+                                                <p className="text-gray-500">No project refund match your current search criteria.</p>
                                             </div>
                                         </div>
                                     </div>
