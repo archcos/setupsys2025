@@ -22,7 +22,7 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 
-export default function Index({ companies, filters }) {
+export default function Index({ companies, filters, allUsers = [] }) {
   const [search, setSearch] = useState(filters.search || '');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -107,7 +107,7 @@ export default function Index({ companies, filters }) {
                       Add Company
                     </Link>
                     
-                    {/* <button
+                    <button
                       onClick={handleSync}
                       disabled={isSyncing}
                       className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 ${
@@ -118,7 +118,7 @@ export default function Index({ companies, filters }) {
                     >
                       <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
                       {isSyncing ? 'Syncing...' : 'Sync CSV'}
-                    </button> */}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -260,33 +260,56 @@ export default function Index({ companies, filters }) {
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => setSelectedCompany(company)}
-                              className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200 group"
-                              title="View Details"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
+<td className="px-6 py-4">
+  <div className="flex flex-col items-center gap-2">
+    {/* Added By (only visible to Admins) */}
+    {role === "admin" && (
+      <select
+        defaultValue={company.added_by}
+        onChange={(e) =>
+          router.put(`/companies/${company.company_id}/update-added-by`, {
+            added_by: e.target.value,
+          })
+        }
+        className="border rounded-lg px-2 py-1 text-sm w-full"
+      >
+        {allUsers?.map((user) => (
+          <option key={user.user_id} value={user.user_id}>
+            {user.first_name} {user.last_name}
+          </option>
+        ))}
+      </select>
+    )}
 
-                            <Link
-                              href={`/companies/${company.company_id}/edit`}
-                              className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                              title="Edit Company"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </Link>
+    {/* Action Buttons */}
+    <div className="flex items-center justify-center gap-2">
+      <button
+        onClick={() => setSelectedCompany(company)}
+        className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200 group"
+        title="View Details"
+      >
+        <Eye className="w-4 h-4" />
+      </button>
 
-                            <button
-                              onClick={() => handleDelete(company.company_id)}
-                              className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
-                              title="Delete Company"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
+      <Link
+        href={`/companies/${company.company_id}/edit`}
+        className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
+        title="Edit Company"
+      >
+        <Edit3 className="w-4 h-4" />
+      </Link>
+
+      <button
+        onClick={() => handleDelete(company.company_id)}
+        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+        title="Delete Company"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  </div>
+</td>
+
                       </tr>
                     ))}
                   </tbody>
