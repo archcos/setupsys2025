@@ -109,10 +109,14 @@ Route::middleware(['auth'])->group(function () {
         ->name('refunds.user');
 });
 
-Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::get('/projects/sync-csv', [ProjectController::class, 'syncProjectsFromCSV'])
-        ->name('projects.sync.csv');
-});
+Route::put('/companies/{id}/update-added-by', [CompanyController::class, 'updateAddedBy']);
+
+
+
+Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
+    ->middleware('role:admin')
+    ->name('projects.sync');
+
 
 
 Route::middleware(['auth'])->group(function () {

@@ -16,7 +16,10 @@ public function index(Request $request)
     $userId = session('user_id');
     $user = UserModel::where('user_id', $userId)->first();
 
-    $query = CompanyModel::with('office');
+    $query = CompanyModel::with(['office', 'addedByUser']);
+
+    $allUsers = UserModel::select('user_id', 'first_name', 'last_name')->get();
+
 
     // Role-based filtering
     if ($user->role === 'user') {
@@ -46,8 +49,23 @@ public function index(Request $request)
     return Inertia::render('Companies/Index', [
         'companies' => $companies,
         'filters' => $request->only('search', 'perPage'),
+        'allUsers' => $user->role === 'admin' ? $allUsers : null,
+
     ]);
 }
+
+public function updateAddedBy(Request $request, $id)
+{
+    $request->validate([
+        'added_by' => 'required|exists:tbl_users,user_id',
+    ]);
+
+    $company = CompanyModel::findOrFail($id);
+    $company->update(['added_by' => $request->added_by]);
+
+    return back()->with('success', 'Added By updated successfully.');
+}
+
 
 public function create()
 {
@@ -137,7 +155,7 @@ public function syncFromCSV()
             }
 
             $yearObligated = $data['Year Obligated'] ?? null;
-            if (!in_array($yearObligated, ['2024', '2025'])) {
+            if (!in_array($yearObligated, ['2023', '2024', '2025'])) {
                 continue;
             }
 

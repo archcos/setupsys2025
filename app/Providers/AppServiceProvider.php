@@ -21,12 +21,16 @@ class AppServiceProvider extends ServiceProvider
      * Bootstrap any application services.
      */public function boot(): void
 {
+
+
+
     Vite::prefetch(concurrency: 3);
     date_default_timezone_set('Asia/Manila');
 
-//   if ($this->app->environment('production')) {
-//         URL::forceScheme('https'); // Laravel routes use HTTPS
-//     }
+
+        if (app()->environment('local')) {
+            URL::forceScheme('https');
+        }
 
     // Inertia::share([
     //     'auth' => function () {

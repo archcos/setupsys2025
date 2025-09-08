@@ -109,7 +109,7 @@ export default function Index({ projects, filters }) {
                       <Plus className="w-4 h-4" />
                       Add Project
                     </Link>
-{/*                     
+                    
                     <button
                       onClick={handleSync}
                       disabled={isSyncing}
@@ -121,7 +121,7 @@ export default function Index({ projects, filters }) {
                     >
                       <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
                       {isSyncing ? 'Syncing...' : 'Sync CSV'}
-                    </button> */}
+                    </button>
                   </div>
                 </div>
               </div>

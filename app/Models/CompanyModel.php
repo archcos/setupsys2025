@@ -45,8 +45,8 @@ class CompanyModel extends Model
     }
 
     // A company belongs to a user who added it
-    public function addedBy()
+    public function addedByUser()
     {
-        return $this->belongsTo(User::class, 'added_by', 'user_id');
+        return $this->belongsTo(UserModel::class, 'added_by', 'user_id');
     }
 }

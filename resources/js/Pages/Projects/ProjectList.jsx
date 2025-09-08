@@ -6,7 +6,6 @@ import {
   FolderOpen,
   Building2,
   Calendar,
-  DollarSign,
   ChevronDown,
   ChevronUp,
   Package,

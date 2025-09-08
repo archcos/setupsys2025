@@ -375,7 +375,7 @@ public function syncProjectsFromCSV()
 
             // Skip invalid years
             $yearObligated = $data['Year Obligated'] ?? null;
-            if (!in_array($yearObligated, ['2024', '2025'])) {
+            if (!in_array($yearObligated, ['2023', '2024', '2025'])) {
                 continue;
             }
 
@@ -454,34 +454,49 @@ public function syncProjectsFromCSV()
 /**
  * Split "MMM YYYY - MMM YYYY" into two Y-m-d dates ("YYYY-MM-DD")
  */
-private function splitMonthYear($value)
-{
-    if (!$value) return [null, null];
-    $parts = array_map('trim', explode('-', $value));
-
-    $parseDate = function ($part) {
+private function parseMonthYear($part)
+    {
         if (!$part) return null;
-        try {
-            // Parse month-year string and set day as 1
-        $dt = Carbon::createFromFormat('M Y', $part)->startOfMonth();
-        return $dt->format('Y-m-d');
-        } catch (\Exception $e) {
-            return null;
-        }
-    };
+        $part = strtoupper(trim($part)); // normalize (e.g. jun → JUN)
 
-    return [
-        $parseDate($parts[0] ?? null),
-        $parseDate($parts[1] ?? null)
-    ];
-}
+        try {
+            // Try abbreviated format: JAN 2023
+            return Carbon::createFromFormat('M Y', $part)->startOfMonth();
+        } catch (\Exception $e) {
+            try {
+                // Try full month format: January 2023
+                return Carbon::createFromFormat('F Y', ucwords(strtolower($part)))->startOfMonth();
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+    }
+
+    private function splitMonthYear($value)
+    {
+        if (!$value) return [null, null];
+        $parts = explode('-', $value);
+        $start = trim($parts[0] ?? '');
+        $end   = trim($parts[1] ?? '');
+
+        return [
+            'start' => $this->parseMonthYear($start),
+            'end'   => $this->parseMonthYear($end),
+        ];
+    }
 
 private function sanitizeNumeric($value)
 {
-    if (!$value) return null;
-    $clean = str_replace([',', ' '], '', trim($value));
-    return is_numeric($clean) ? (float)$clean : null;
+    if (is_null($value) || $value === '') {
+        return null;
+    }
+
+    // Remove anything that's not a digit, decimal point, or minus sign
+    $clean = preg_replace('/[^\d.-]/', '', $value);
+
+    return is_numeric($clean) ? (float) $clean : null;
 }
+
 
 public function readonly()
 {
