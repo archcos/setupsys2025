@@ -231,122 +231,123 @@ export default function ImplementationIndex({ implementations, filters }) {
                       const taggingProgress = getTaggingProgress(impl);
                       const untaggingStatus = getUntaggingStatus(impl);
 
-                      return (
-                        <div 
-                          key={impl.implement_id} 
-                          className="bg-gradient-to-br from-white to-gray-50 border border-gray-500 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group hover:-translate-y-1"
-                        >
-                          {/* Card Header */}
-                          <div className="p-6 border-b border-gray-100">
-                            <div className="flex items-start justify-between mb-4">
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 bg-indigo-100 rounded-lg">
-                                  <FolderOpen className="w-5 h-5 text-indigo-600" />
-                                </div>
-                                {getStatusBadge(impl)}
-                              </div>
-                            </div>
-                            
-                            <h3 className="font-semibold text-gray-900 text-base mb-2 line-clamp-2 leading-5">
-                              {impl.project?.project_title || 'No Title'}
-                            </h3>
-                            
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Building2 className="w-4 h-4" />
-                              <span className="truncate">{impl.project?.company?.company_name || 'N/A'}</span>
-                            </div>
-                          </div>
+return (
+  <div 
+    key={impl.implement_id} 
+    className="bg-gradient-to-br from-white to-gray-50 border border-gray-400 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden group hover:-translate-y-0.5"
+  >
+    {/* Card Header */}
+    <div className="p-4 border-b border-gray-100">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-indigo-100 rounded-lg">
+            <FolderOpen className="w-4 h-4 text-indigo-600" />
+          </div>
+          {getStatusBadge(impl)}
+        </div>
+      </div>
+      
+      <h3 className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2 leading-4">
+        {impl.project?.project_title || 'No Title'}
+      </h3>
+      
+      <div className="flex items-center gap-1 text-xs text-gray-600">
+        <Building2 className="w-3.5 h-3.5" />
+        <span className="truncate">{impl.project?.company?.company_name || 'N/A'}</span>
+      </div>
+    </div>
 
-                          {/* Card Body */}
-                          <div className="p-6 space-y-4">
-                            {/* Tarp and PDC - First Row */}
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                <div className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center mb-2 ${
-                                  impl.tarp ? 'bg-green-100' : 'bg-gray-200'
-                                }`}>
-                                  {impl.tarp ? (
-                                    <CheckCircle className="w-4 h-4 text-green-600" />
-                                  ) : (
-                                    <Clock className="w-4 h-4 text-gray-400" />
-                                  )}
-                                </div>
-                                <span className="text-xs font-medium text-gray-700">Tarp</span>
-                              </div>
-                              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                <div className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center mb-2 ${
-                                  impl.pdc ? 'bg-green-100' : 'bg-gray-200'
-                                }`}>
-                                  {impl.pdc ? (
-                                    <CheckCircle className="w-4 h-4 text-green-600" />
-                                  ) : (
-                                    <Clock className="w-4 h-4 text-gray-400" />
-                                  )}
-                                </div>
-                                <span className="text-xs font-medium text-gray-700">PDC</span>
-                              </div>
-                            </div>
+    {/* Card Body */}
+    <div className="p-4 space-y-3">
+      {/* Tarp and PDC */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="text-center p-2 bg-gray-50 rounded-lg">
+          <div className={`w-6 h-6 mx-auto rounded-full flex items-center justify-center mb-1 ${
+            impl.tarp ? 'bg-green-100' : 'bg-gray-200'
+          }`}>
+            {impl.tarp ? (
+              <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+            ) : (
+              <Clock className="w-3.5 h-3.5 text-gray-400" />
+            )}
+          </div>
+          <span className="text-[11px] font-medium text-gray-700">Tarp</span>
+        </div>
+        <div className="text-center p-2 bg-gray-50 rounded-lg">
+          <div className={`w-6 h-6 mx-auto rounded-full flex items-center justify-center mb-1 ${
+            impl.pdc ? 'bg-green-100' : 'bg-gray-200'
+          }`}>
+            {impl.pdc ? (
+              <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+            ) : (
+              <Clock className="w-3.5 h-3.5 text-gray-400" />
+            )}
+          </div>
+          <span className="text-[11px] font-medium text-gray-700">PDC</span>
+        </div>
+      </div>
 
-                            {/* First Untag and Final Untag - Second Row */}
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                <div className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center mb-2 ${
-                                  untaggingStatus.firstUntagged ? 'bg-green-100' : 'bg-gray-200'
-                                }`}>
-                                  {untaggingStatus.firstUntagged ? (
-                                    <CheckCircle className="w-4 h-4 text-green-600" />
-                                  ) : (
-                                    <Clock className="w-4 h-4 text-gray-400" />
-                                  )}
-                                </div>
-                                <span className="text-xs font-medium text-gray-700 block">First Untag</span>
-                                <span className="text-xs text-gray-500">(50%)</span>
-                              </div>
-                              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                <div className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center mb-2 ${
-                                  untaggingStatus.finalUntagged ? 'bg-green-100' : 'bg-gray-200'
-                                }`}>
-                                  {untaggingStatus.finalUntagged ? (
-                                    <CheckCircle className="w-4 h-4 text-green-600" />
-                                  ) : (
-                                    <Clock className="w-4 h-4 text-gray-400" />
-                                  )}
-                                </div>
-                                <span className="text-xs font-medium text-gray-700 block">Final Untag</span>
-                                <span className="text-xs text-gray-500">(100%)</span>
-                              </div>
-                            </div>
+      {/* Untaggings */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="text-center p-2 bg-gray-50 rounded-lg">
+          <div className={`w-6 h-6 mx-auto rounded-full flex items-center justify-center mb-1 ${
+            untaggingStatus.firstUntagged ? 'bg-green-100' : 'bg-gray-200'
+          }`}>
+            {untaggingStatus.firstUntagged ? (
+              <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+            ) : (
+              <Clock className="w-3.5 h-3.5 text-gray-400" />
+            )}
+          </div>
+          <span className="text-[11px] font-medium text-gray-700 block">First Untag</span>
+          <span className="text-[10px] text-gray-500">(50%)</span>
+        </div>
+        <div className="text-center p-2 bg-gray-50 rounded-lg">
+          <div className={`w-6 h-6 mx-auto rounded-full flex items-center justify-center mb-1 ${
+            untaggingStatus.finalUntagged ? 'bg-green-100' : 'bg-gray-200'
+          }`}>
+            {untaggingStatus.finalUntagged ? (
+              <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+            ) : (
+              <Clock className="w-3.5 h-3.5 text-gray-400" />
+            )}
+          </div>
+          <span className="text-[11px] font-medium text-gray-700 block">Final Untag</span>
+          <span className="text-[10px] text-gray-500">(100%)</span>
+        </div>
+      </div>
 
-                            {/* Liquidation - Bottom Row (Full Width) */}
-                            <div className="w-full">
-                              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                <div className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center mb-2 ${
-                                  impl.liquidation ? 'bg-green-100' : 'bg-gray-200'
-                                }`}>
-                                  {impl.liquidation ? (
-                                    <CheckCircle className="w-4 h-4 text-green-600" />
-                                  ) : (
-                                    <Clock className="w-4 h-4 text-gray-400" />
-                                  )}
-                                </div>
-                                <span className="text-xs font-medium text-gray-700">Liquidation</span>
-                              </div>
-                            </div>
-                          </div>
+      {/* Liquidation */}
+      <div className="w-full">
+        <div className="text-center p-2 bg-gray-50 rounded-lg">
+          <div className={`w-6 h-6 mx-auto rounded-full flex items-center justify-center mb-1 ${
+            impl.liquidation ? 'bg-green-100' : 'bg-gray-200'
+          }`}>
+            {impl.liquidation ? (
+              <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+            ) : (
+              <Clock className="w-3.5 h-3.5 text-gray-400" />
+            )}
+          </div>
+          <span className="text-[11px] font-medium text-gray-700">Liquidation</span>
+        </div>
+      </div>
+    </div>
 
-                          {/* Card Footer */}
-                          <div className="p-6 pt-0">
-                            <Link
-                              href={`/implementation/checklist/${impl.implement_id}`}
-                              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-medium rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-lg hover:shadow-xl group"
-                            >
-                              <Eye className="w-4 h-4" />
-                              View Checklist
-                              <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                            </Link>
-                          </div>
-                        </div>
-                      );
+    {/* Footer */}
+    <div className="p-4 pt-0">
+      <Link
+        href={`/implementation/checklist/${impl.implement_id}`}
+        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-medium rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-md hover:shadow-lg group"
+      >
+        <Eye className="w-3.5 h-3.5" />
+        View Checklist
+        <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+      </Link>
+    </div>
+  </div>
+);
+
                     })}
                   </div>
                 </div>
