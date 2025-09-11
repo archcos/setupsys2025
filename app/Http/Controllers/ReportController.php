@@ -135,23 +135,23 @@ public function downloadReport($report_id)
     $phaseTwo      = "$refundInitial - $refundEnd";
 
     // Refund Data
-    $loans = DB::table('tbl_loans')
+    $refunds = DB::table('tbl_refunds')
         ->where('project_id', $project->project_id)
         ->get();
 
-    $totalRefund = $loans->sum('refund_amount');
+    $totalRefund = $refunds->sum('refund_amount');
     $toRefunded  = $project->project_cost - $totalRefund;
     $unsetRefund = $project->project_cost - $totalRefund;
 
     $currentDate = Carbon::now()->format('F, Y');
 
-    $totalUnpaid = DB::table('tbl_loans')
+    $totalUnpaid = DB::table('tbl_refunds')
         ->where('project_id', $project->project_id)
         ->where('status', 'unpaid')
         ->where('month_paid', Carbon::now()->format('Y-m-01'))
         ->sum('refund_amount');
 
-    $oldestUnpaid = DB::table('tbl_loans')
+    $oldestUnpaid = DB::table('tbl_refunds')
         ->where('project_id', $project->project_id)
         ->where('status', 'unpaid')
         ->orderBy('month_paid', 'asc')
@@ -178,7 +178,7 @@ public function downloadReport($report_id)
     $templateProcessor->setValue('actions', $actions ?: 'N/A');
     $templateProcessor->setValue('promotional', $promotional ?: 'N/A');
 
-    // From tbl_loans
+    // From tbl_refunds
     $templateProcessor->setValue('to_refunded', number_format($toRefunded, 2));
     $templateProcessor->setValue('current_date', $currentDate);
     $templateProcessor->setValue('total_unpaid', number_format($totalUnpaid, 2));
@@ -217,7 +217,7 @@ public function downloadReport($report_id)
             ->where('type', 'nonequip')
             ->get();
 
-        $loans = DB::table('tbl_loans')
+        $refunds = DB::table('tbl_refunds')
             ->where('project_id', $project->project_id)
             ->get();
 
@@ -230,7 +230,7 @@ public function downloadReport($report_id)
             'objects' => $objectives,
             'equipments' => $equipments,
             'nonequipments' => $nonequipments,
-            'loans' => $loans,
+            'refunds' => $refunds,
             'markets' => $markets,
         ]);
     }

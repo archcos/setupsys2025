@@ -20,7 +20,7 @@ import {
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 
-export default function Create({ project, objects, equipments, nonequipments, loans, markets }) {
+export default function Create({ project, objects, equipments, nonequipments, refunds, markets }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Calculate totals for display
@@ -29,7 +29,7 @@ export default function Create({ project, objects, equipments, nonequipments, lo
     .filter(item => item.report === "approved")
     .reduce((sum, item) => sum + Number(item.item_cost || 0), 0);
 
-  const totalRefunds = loans.reduce((sum, loan) => sum + Number(loan.refund_amount || 0), 0);
+  const totalRefunds = refunds.reduce((sum, refund) => sum + Number(refund.refund_amount || 0), 0);
   const totalAmountToBeRefunded = Number(project.project_cost || 0) - totalRefunds;
 
   // Calculate refund status
@@ -45,8 +45,8 @@ export default function Create({ project, objects, equipments, nonequipments, lo
   
   for (let d = new Date(refundStart); d <= refundEnd && d <= currentDate; d.setMonth(d.getMonth() + 1)) {
     const monthKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
-    const isPaid = loans.some(loan => 
-      loan.month_paid === monthKey || loan.status === 'paid'
+    const isPaid = refunds.some(refund => 
+      refund.month_paid === monthKey || refund.status === 'paid'
     );
     
     if (!isPaid && monthKey <= currentMonth) {
