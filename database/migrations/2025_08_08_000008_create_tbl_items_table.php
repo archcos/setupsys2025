@@ -16,7 +16,7 @@ Schema::create('tbl_items', function (Blueprint $table) {
     $table->string('type', 10)->nullable();
     $table->text('specifications')->nullable();
     $table->integer('quantity')->nullable();
-    $table->integer('item_cost')->nullable();
+    $table->decimal('item_cost', 10, 2)->nullable();
     $table->unsignedBigInteger(column: 'added_by')->nullable();
     $table->string('report', 10)->nullable();
     $table->string('acknowledge', 3)->nullable();

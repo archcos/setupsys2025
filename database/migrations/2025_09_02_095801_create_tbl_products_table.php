@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('product_name', 45)->nullable();
             $table->integer('volume')->nullable();
             $table->smallInteger('quarter')->nullable();
-            $table->integer('gross_sales')->nullable();
+            $table->decimal('gross_sales', 10, 2)->nullable();
 
             // Foreign key to tbl_reports
             $table->foreign('report_id')

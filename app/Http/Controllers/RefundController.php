@@ -17,50 +17,61 @@ public function index()
     $selectedMonth = request('month', now()->month);
     $selectedYear  = request('year', now()->year);
     $search        = request('search');
-    $status        = request('status'); // 👈 new
+    $status        = request('status');
 
     $selectedDate = Carbon::create($selectedYear, $selectedMonth, 1);
 
-$projects = ProjectModel::with([
-    'company',
-    'refunds' => function ($q) use ($selectedDate, $status) {
-        $q->whereMonth('month_paid', $selectedDate->month)
-          ->whereYear('month_paid', $selectedDate->year)
-          ->latest();
+    $projects = ProjectModel::with([
+        'company',
+        'refunds' => function ($q) use ($selectedDate, $status) {
+            $q->whereMonth('month_paid', $selectedDate->month)
+              ->whereYear('month_paid', $selectedDate->year)
+              ->latest();
 
-        if ($status) {
-            $q->where('status', $status);
+            if ($status) {
+                $q->where('status', $status);
+            }
         }
-    }
-])
-->whereDate('refund_initial', '<=', $selectedDate)
-->whereDate('refund_end', '>=', $selectedDate)
-->when($search, function ($query, $search) {
-    $query->where(function ($q) use ($search) {
-        $q->where('project_title', 'like', "%{$search}%")
-          ->orWhereHas('company', function ($q) use ($search) {
-              $q->where('company_name', 'like', "%{$search}%");
-          });
-    });
-})
-// 🔹 Add this so projects without a matching loan don’t appear
-->when($status, function ($query, $status) use ($selectedDate) {
-    $query->whereHas('refunds', function ($q) use ($selectedDate, $status) {
-        $q->whereMonth('month_paid', $selectedDate->month)
-          ->whereYear('month_paid', $selectedDate->year)
-          ->where('status', $status);
-    });
-})
-->paginate(10)
-->withQueryString();
+    ])
+    ->whereDate('refund_initial', '<=', $selectedDate)
+    ->whereDate('refund_end', '>=', $selectedDate)
+    ->when($search, function ($query, $search) {
+        $query->where(function ($q) use ($search) {
+            $q->where('project_title', 'like', "%{$search}%")
+              ->orWhereHas('company', function ($q) use ($search) {
+                  $q->where('company_name', 'like', "%{$search}%");
+              });
+        });
+    })
+    ->when($status, function ($query, $status) use ($selectedDate) {
+        $query->whereHas('refunds', function ($q) use ($selectedDate, $status) {
+            $q->whereMonth('month_paid', $selectedDate->month)
+              ->whereYear('month_paid', $selectedDate->year)
+              ->where('status', $status);
+        });
+    })
+    ->paginate(10)
+    ->through(function ($project) use ($selectedDate) {
+        // ✅ Check if current selected month & year match refund_end
+        if (
+            $project->refund_end &&
+            Carbon::parse($project->refund_end)->isSameMonth($selectedDate) &&
+            Carbon::parse($project->refund_end)->isSameYear($selectedDate)
+        ) {
+            // Replace the refund_amount with last_refund value
+            $project->refund_amount = $project->last_refund;
+        }
 
+        return $project;
+    })
+    ->withQueryString();
 
     return Inertia::render('Refunds/Refund', [
         'projects'       => $projects,
         'selectedMonth'  => $selectedMonth,
         'selectedYear'   => $selectedYear,
         'search'         => $search,
-        'selectedStatus' => $status, // 👈 pass back to frontend
+        'selectedStatus' => $status,
     ]);
 }
 
@@ -76,11 +87,11 @@ public function save()
     $data = request()->validate([
         'project_id'     => 'required|exists:tbl_projects,project_id',
         'refund_amount'  => 'required|numeric|min:0',
-        'amount_due'    => 'nullable|numeric|min:0',
-        'check_num'     => 'nullable|numeric|min:0',
-        'receipt_num'   => 'nullable|numeric|min:0',
+        'amount_due'     => 'nullable|numeric|min:0',
+        'check_num'      => 'nullable|numeric|min:0',
+        'receipt_num'    => 'nullable|numeric|min:0',
         'status'         => 'required|in:paid,unpaid',
-        'save_date'      => 'required|date_format:Y-m-d', // new
+        'save_date'      => 'required|date_format:Y-m-d',
     ]);
 
     Log::info('RefundController@save validated data', $data);
@@ -89,17 +100,8 @@ public function save()
         // Parse and normalize save date
         $savedMonthDate = Carbon::parse($data['save_date'])->startOfMonth()->format('Y-m-d');
 
-        // Update refund_amount in projects
-        $project = ProjectModel::findOrFail($data['project_id']);
-        $project->refund_amount = $data['refund_amount'];
-        $project->save();
 
-        Log::info('Project updated', [
-            'project_id' => $project->project_id,
-            'refund_amount' => $project->refund_amount
-        ]);
-
-        // Save or update loan
+        // Save or update refund record
         $refund = RefundModel::updateOrCreate(
             [
                 'project_id' => $data['project_id'],

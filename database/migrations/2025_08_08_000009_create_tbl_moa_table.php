@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('pd_name', 255);
             $table->string('pd_title', 255);
             $table->string('witness', 255);
-            $table->decimal('project_cost', 15, 2);
+            $table->decimal('project_cost', 10, 2);
             $table->string('amount_words', 255);
 
             $table->timestamp('created_at')->useCurrent();
