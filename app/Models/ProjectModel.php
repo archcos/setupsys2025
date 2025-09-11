@@ -19,6 +19,7 @@ class ProjectModel extends Model
         'refund_end',
         'project_cost',
         'refund_amount',
+        'last_refund',
         'added_by',
         'progress',
         'year_obligated',

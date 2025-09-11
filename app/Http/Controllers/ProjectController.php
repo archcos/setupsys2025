@@ -113,6 +113,8 @@ $validated = $request->validate([
     'project_title'     => 'required|string|max:255',
     'company_id'        => 'required|exists:tbl_companies,company_id',
     'project_cost'      => 'required|numeric',
+    'refund_amount'     => 'nullable|numeric',
+    'last_refund'       => 'nullable|numeric',
 
     'progress'          => 'required|string',
     'year_obligated'    => 'nullable|string',
@@ -154,6 +156,8 @@ $project = ProjectModel::create([
     'project_title'     => $validated['project_title'],
     'company_id'        => $validated['company_id'],
     'project_cost'      => $validated['project_cost'] ?? null,
+    'refund_amount'     => $validated['refund_amount'] ?? null,
+    'last_refund'       => $validated['last_refund'] ?? null,
     'progress'          => $validated['progress'] ?? null,
     'year_obligated'    => $validated['year_obligated'] ?? null,
     'revenue'           => $validated['revenue'] ?? null,
@@ -245,6 +249,8 @@ public function update(Request $request, $id)
         'release_end'       => 'required|regex:/^\d{4}-\d{2}$/',
         'refund_initial'    => 'required|regex:/^\d{4}-\d{2}$/',
         'refund_end'        => 'required|regex:/^\d{4}-\d{2}$/',
+        'refund_amount'    => 'nullable|numeric|min:0',  // <-- NEW
+        'last_refund'       => 'nullable|numeric|min:0', // <-- NEW
         'place_name'        => 'required|string',
         'items'             => 'nullable|array',
         'items.*.item_name' => 'required_with:items|string|max:255',
@@ -271,6 +277,8 @@ public function update(Request $request, $id)
         'liability'         => $validated['liability'] ?? null,
         'release_initial'   => $validated['release_initial'],
         'release_end'       => $validated['release_end'],
+        'refund_amount'    => $validated['refund_amount'] ?? null, // <-- NEW
+        'last_refund'       => $validated['last_refund'] ?? null,   // <-- NEW
         'refund_initial'    => $validated['refund_initial'],
         'refund_end'        => $validated['refund_end'],
     ]);
