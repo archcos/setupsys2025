@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id('refund_id');
             
             $table->unsignedBigInteger('project_id')->nullable();
-            $table->integer('amount_due')->nullable();
-            $table->integer('refund_amount')->nullable();
+            $table->decimal('amount_due', 10, 2)->nullable();
+            $table->decimal('refund_amount', 10, 2)->nullable();
             $table->integer('check_num')->nullable();
             $table->integer('receipt_num')->nullable();
             $table->string('status', 45)->nullable();
