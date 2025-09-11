@@ -35,6 +35,7 @@ Schema::create('tbl_projects', function (Blueprint $table) {
             $table->date('refund_initial')->nullable();
             $table->date('refund_end')->nullable();
             $table->integer('refund_amount')->nullable();
+            $table->integer('last_refund')->nullable();
     $table->foreign('company_id')->references('company_id')->on('tbl_companies')->onDelete('cascade')->onUpdate('cascade');
     $table->foreign('added_by')->references('user_id')->on('tbl_users')->onDelete('set null');
 });

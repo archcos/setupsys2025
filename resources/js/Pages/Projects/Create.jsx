@@ -28,6 +28,8 @@ export default function Create({ companies }) {
     refund_initial: '',
     refund_end: '',
     project_cost: '',
+    refund_amount: '',
+    last_refund: '',
     progress: 'Project Created',
     year_obligated: new Date().getFullYear().toString(),
     revenue: '',
@@ -36,7 +38,7 @@ export default function Create({ companies }) {
     noncurrent_asset: '',
     equity: '',
     liability: '',
-    items: [{ item_name: '', specifications: '', item_cost: '', quantity: 1, type: '' }],
+    items: [{ item_name: '', specifications: '', item_cost: '', quantity: 1, type: 'equipment' }],
     objectives: [{ details: '' }],
     place_name: '',
   });
@@ -183,22 +185,60 @@ export default function Create({ companies }) {
                     )}
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Project Cost</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500 sm:text-sm">₱</span>
-                      </div>
-                      <input
-                        type="number"
-                        className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
-                        placeholder="0.00"
-                        value={data.project_cost}
-                        onChange={(e) => setData('project_cost', e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
+<div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+  {/* Project Cost */}
+  <div>
+    <label className="block text-sm font-semibold text-gray-700 mb-2">Project Cost</label>
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <span className="text-gray-500 sm:text-sm">₱</span>
+      </div>
+      <input
+        type="number"
+        className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+        placeholder="0.00"
+        value={data.project_cost}
+        onChange={(e) => setData('project_cost', e.target.value)}
+        required
+      />
+    </div>
+  </div>
+
+  {/* Monthly Refund Amount */}
+  <div>
+    <label className="block text-sm font-semibold text-gray-700 mb-2">Monthly Refund Amount</label>
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <span className="text-gray-500 sm:text-sm">₱</span>
+      </div>
+      <input
+        type="number"
+        className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+        placeholder="0.00"
+        value={data.refund_amount}
+        onChange={(e) => setData('refund_amount', e.target.value)}
+      />
+    </div>
+  </div>
+
+  {/* Last Refund Amount */}
+  <div>
+    <label className="block text-sm font-semibold text-gray-700 mb-2">Last Refund Amount</label>
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <span className="text-gray-500 sm:text-sm">₱</span>
+      </div>
+      <input
+        type="number"
+        className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+        placeholder="0.00"
+        value={data.last_refund}
+        onChange={(e) => setData('last_refund', e.target.value)}
+      />
+    </div>
+  </div>
+</div>
+
                     <div className="md:col-span-2">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Current Business Location</label>
                     <div className="relative">

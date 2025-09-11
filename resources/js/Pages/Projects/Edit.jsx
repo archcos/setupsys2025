@@ -30,6 +30,8 @@ export default function Edit({ project, companies }) {
     release_end: formatDateToMonth(project.release_end),
     refund_initial: formatDateToMonth(project.refund_initial),
     refund_end: formatDateToMonth(project.refund_end),
+    refund_amount: project.refund_amount || '',   // <-- NEW
+    last_refund: project.last_refund || '',     
     project_cost: project.project_cost || '',
     year_obligated: project.year_obligated || '',
     revenue: project.revenue || '',
@@ -167,28 +169,77 @@ export default function Edit({ project, companies }) {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Project Cost</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500 sm:text-sm">₱</span>
-                      </div>
-                      <input
-                        type="number"
-                        step="any"
-                        className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
-                        placeholder="0.00"
-                        value={data.project_cost}
-                        onChange={(e) => setData('project_cost', e.target.value)}
-                        required
-                      />
-                    </div>
-                    {errors.project_cost && (
-                      <div className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                        <AlertCircle className="w-4 h-4" />
-                        {errors.project_cost}
-                      </div>
-                    )}
+                    <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+  {/* Project Cost */}
+  <div>
+    <label className="block text-sm font-semibold text-gray-700 mb-2">Project Cost</label>
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <span className="text-gray-500 sm:text-sm">₱</span>
+      </div>
+      <input
+        type="number"
+        step="any"
+        className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+        placeholder="0.00"
+        value={data.project_cost}
+        onChange={(e) => setData('project_cost', e.target.value)}
+        required
+      />
+    </div>
+    {errors.project_cost && (
+      <div className="text-red-500 text-sm mt-1 flex items-center gap-1">
+        <AlertCircle className="w-4 h-4" />
+        {errors.project_cost}
+      </div>
+    )}
+  </div>
+
+  {/* Monthly Refund */}
+  <div>
+    <label className="block text-sm font-semibold text-gray-700 mb-2">Monthly Refund</label>
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <span className="text-gray-500 sm:text-sm">₱</span>
+      </div>
+      <input
+        type="number"
+        step="any"
+        className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+        placeholder="0.00"
+        value={data.refund_amount}
+        onChange={(e) => setData('refund_amount', e.target.value)}
+      />
+    </div>
+    {errors.refund_amount && (
+      <div className="text-red-500 text-sm mt-1">{errors.refund_amount}</div>
+    )}
+  </div>
+
+ {/* Last Refund */}
+  <div>
+    <label className="block text-sm font-semibold text-gray-700 mb-2">Last Refund</label>
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <span className="text-gray-500 sm:text-sm">₱</span>
+      </div>
+      <input
+        type="number"
+        step="any"
+        className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+        placeholder="0.00"
+        value={data.last_refund}
+        onChange={(e) => setData('last_refund', e.target.value)}
+      />
+    </div>
+    {errors.last_refund && (
+      <div className="text-red-500 text-sm mt-1">{errors.last_refund}</div>
+    )}
+  </div>
+</div>
+
                   </div>
+                  
                 </div>
               </div>
 
