@@ -30,6 +30,8 @@ export default function Index({ companies, filters, allUsers = [] }) {
   const [selectedCompany, setSelectedCompany] = useState(null);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
+  const [openDropdownCompanyId, setOpenDropdownCompanyId] = useState(null);
+  const [dropdownSearchTerm, setDropdownSearchTerm] = useState("");
   const { auth } = usePage().props;
   const role = auth?.user?.role;
 
@@ -262,29 +264,67 @@ export default function Index({ companies, filters, allUsers = [] }) {
                         </td>
 <td className="px-6 py-4">
   <div className="flex flex-col items-center gap-2">
-    {/* Added By (only visible to Admins) */}
     {role === "admin" && (
-      <select
-        defaultValue={company.added_by}
-        onChange={(e) =>
-          router.put(`/companies/${company.company_id}/update-added-by`, {
-            added_by: e.target.value,
-          })
-        }
-        className="border rounded-lg px-2 py-1 text-sm w-full"
-      >
-        {allUsers?.map((user) => (
-          <option key={user.user_id} value={user.user_id}>
-            {user.first_name} {user.last_name}
-          </option>
-        ))}
-      </select>
+      <div className="relative w-full">
+        {/* Toggle Dropdown Button */}
+        <button
+          onClick={() =>
+            setOpenDropdownCompanyId(
+              openDropdownCompanyId === company.company_id ? null : company.company_id
+            )
+          }
+          className="border rounded-lg px-2 py-1 text-sm w-full text-left bg-white hover:bg-gray-50"
+        >
+          {company.added_by
+            ? allUsers.find((u) => u.user_id === company.added_by)?.first_name +
+              " " +
+              allUsers.find((u) => u.user_id === company.added_by)?.last_name
+            : "Select user..."}
+        </button>
+
+        {/* Dropdown Panel */}
+        {openDropdownCompanyId === company.company_id && (
+          <div className="absolute mt-1 w-full bg-white border rounded-lg shadow-lg z-10">
+            {/* Row-specific search */}
+            <input
+              type="text"
+              placeholder="Search user..."
+              value={dropdownSearchTerm}
+              onChange={(e) => setDropdownSearchTerm(e.target.value.toLowerCase())}
+              className="w-full border-b px-2 py-1 text-sm focus:outline-none"
+            />
+            <div className="max-h-40 overflow-y-auto">
+              {allUsers
+                .filter(
+                  (user) =>
+                    user.first_name.toLowerCase().includes(dropdownSearchTerm) ||
+                    user.last_name.toLowerCase().includes(dropdownSearchTerm)
+                )
+                .map((user) => (
+                  <div
+                    key={user.user_id}
+                    onClick={() => {
+                      router.put(`/companies/${company.company_id}/update-added-by`, {
+                        added_by: user.user_id,
+                      });
+                      setOpenDropdownCompanyId(null); // close dropdown
+                      setDropdownSearchTerm(""); // reset search
+                    }}
+                    className="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer"
+                  >
+                    {user.first_name} {user.last_name}
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
     )}
 
     {/* Action Buttons */}
     <div className="flex items-center justify-center gap-2">
       <button
-        onClick={() => setSelectedCompany(company)}
+        onClick={() => setSelectedCompany(company)} // now only for modal
         className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200 group"
         title="View Details"
       >
@@ -309,6 +349,8 @@ export default function Index({ companies, filters, allUsers = [] }) {
     </div>
   </div>
 </td>
+
+
 
                       </tr>
                     ))}

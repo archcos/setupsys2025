@@ -314,26 +314,32 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
                                                                                             <span className="text-sm font-medium text-gray-700">{m.month}</span>
                                                                                             <div className="text-right">
                                                                                                 <span className="font-bold text-red-700">
-                                                                                                    {formatPeso(p.next_payment)}
-                                                                                                </span>
-                                                                                                {i === arr.length - 1 && (
-                                                                                                    <div className="text-xs text-red-600 italic">
-                                                                                                        Subject to Adjustment
-                                                                                                    </div>
-                                                                                                )}
+                                                                                            {formatPeso(m.refund_amount)}
+                                                                                            </span>
+
+                                                                                            {/* mark the overall final month (refund_end) — compare to last entry in p.months */}
+                                                                                            {m.month === p.months[p.months.length - 1].month && (
+                                                                                            <div className="text-xs text-red-600 italic">
+                                                                                                Subject to Adjustment
+                                                                                            </div>
+                                                                                            )}
                                                                                             </div>
                                                                                         </div>
                                                                                     ))}
                                                                                 </div>
                                                                             </div>
                                                                             
-                                                                            {!unpaidExpanded && unpaidMonths.length > 3 && (
-                                                                                <div className="text-center mt-2">
-                                                                                    <span className="text-xs text-red-600 bg-white px-2 py-1 rounded-full border border-red-200">
-                                                                                        {unpaidMonths.length - 3} more months...
-                                                                                    </span>
-                                                                                </div>
-                                                                            )}
+                                                                        {!unpaidExpanded && unpaidMonths.length > 3 && (
+                                                                        <div className="text-center mt-2">
+                                                                            <button
+                                                                            onClick={() => toggleSection(p.project_id, "unpaid")}
+                                                                            className="text-xs text-red-600 bg-white px-2 py-1 rounded-full border border-red-200 hover:bg-red-50 hover:border-red-300 transition-colors"
+                                                                            >
+                                                                            {unpaidMonths.length - 3} more months...
+                                                                            </button>
+                                                                        </div>
+                                                                        )}
+
                                                                         </div>
                                                                     )}
                                                                 </div>

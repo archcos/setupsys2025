@@ -13,13 +13,21 @@ class RegisterController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
+public function index()
+{
+    // 🔄 Clear any existing session data
+    session()->invalidate();
 
-        $offices = OfficeModel::all();
+    // 🆕 Generate a fresh session and CSRF token
+    session()->regenerateToken();
 
-        return inertia('Register',['offices' => $offices]);
-    }
+    $offices = OfficeModel::all();
+
+    return inertia('Register', [
+        'offices' => $offices
+    ]);
+}
+
 
 public function register(Request $request)
 {

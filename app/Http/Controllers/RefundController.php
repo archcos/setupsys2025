@@ -134,7 +134,6 @@ public function userRefunds()
     $search = request('search');
     $year   = request('year');
 
-    // Get all projects for this user
     $projects = ProjectModel::with(['company', 'refunds'])
         ->whereHas('company', function ($q) use ($userId) {
             $q->where('added_by', $userId);
@@ -151,58 +150,65 @@ public function userRefunds()
             $query->where('year_obligated', $year);
         })
         ->get()
-       ->map(function ($project) {
-    $totalRefund = $project->refunds
-        ->where('status', 'paid')
-        ->sum('refund_amount');
-    $outstanding = $project->project_cost - $totalRefund;
+        ->map(function ($project) {
+            $totalRefund = $project->refunds
+                ->where('status', 'paid')
+                ->sum('refund_amount');
 
-    $months = [];
-    $nextPaymentAmount = null;
-    $today = Carbon::now()->startOfMonth();
+            $outstanding = $project->project_cost - $totalRefund;
 
-    if ($project->refund_initial && $project->refund_end) {
-        $start = Carbon::parse($project->refund_initial)->startOfMonth();
-        $end   = Carbon::parse($project->refund_end)->startOfMonth();
+            $months = [];
+            $nextPaymentAmount = null;
+            $today = Carbon::now()->startOfMonth();
 
-while ($start <= $end) {
-    $monthRefund = $project->refunds
-        ->where('month_paid', $start->format('Y-m-d'))
-        ->first();
+            if ($project->refund_initial && $project->refund_end) {
+                // ✅ No need to adjust, they are already YYYY-MM-01
+                $start = Carbon::parse($project->refund_initial);
+                $end   = Carbon::parse($project->refund_end);
 
-    $refundAmount = $monthRefund->refund_amount ?? 0;
-    $status = $monthRefund->status ?? 'unpaid'; // default if no record
+                while ($start <= $end) {
+                    $monthRefund = $project->refunds
+                        ->where('month_paid', $start->format('Y-m-d'))
+                        ->first();
 
-    $months[] = [
-        'month'         => $start->format('F Y'),
-        'refund_amount' => $refundAmount,
-        'status'        => strtolower($status) // normalize for frontend
-    ];
+                    if ($monthRefund) {
+                        // If there's a record, use it as-is
+                        $refundAmount = $monthRefund->refund_amount;
+                        $status       = $monthRefund->status;
+                    } else {
+                        // Otherwise, default behavior:
+                        $refundAmount = $start->equalTo($end)
+                            ? ($project->last_refund ?? 0)   // ✅ final month → last_refund
+                            : ($project->refund_amount ?? 0); // ✅ all other months → regular refund_amount
+                        $status = 'unpaid';
+                    }
 
-    // First unpaid month from current month onwards
-    if ($nextPaymentAmount === null && $status !== 'paid' && $start >= $today) {
-        $nextPaymentAmount = $project->refund_amount; // from tbl_projects
-    }
+                    $months[] = [
+                        'month'         => $start->format('F Y'),
+                        'refund_amount' => $refundAmount,
+                        'status'        => strtolower($status),
+                    ];
 
-    $start->addMonth();
-}
+                    if ($nextPaymentAmount === null && $status !== 'paid' && $start >= $today) {
+                        $nextPaymentAmount = $refundAmount;
+                    }
 
-    }
+                    $start->addMonth();
+                }
+            }
 
-    return [
-        'project_id'          => $project->project_id,
-        'project_title'       => $project->project_title,
-        'company'             => $project->company->company_name ?? '-',
-        'project_cost'        => $project->project_cost,
-        'total_refund'        => $totalRefund,
-        'outstanding_balance' => $outstanding,
-        'months'              => $months,
-        'next_payment'        => $nextPaymentAmount ?? 0
-    ];
-});
+            return [
+                'project_id'          => $project->project_id,
+                'project_title'       => $project->project_title,
+                'company'             => $project->company->company_name ?? '-',
+                'project_cost'        => $project->project_cost,
+                'total_refund'        => $totalRefund,
+                'outstanding_balance' => $outstanding,
+                'months'              => $months,
+                'next_payment'        => $nextPaymentAmount ?? 0
+            ];
+        });
 
-
-    // Get distinct years for filter dropdown
     $years = ProjectModel::whereHas('company', function ($q) use ($userId) {
             $q->where('added_by', $userId);
         })
@@ -217,4 +223,5 @@ while ($start <= $end) {
         'selectedYear'  => $year
     ]);
 }
+
 }
