@@ -18,7 +18,11 @@ public function index(Request $request)
 
     $query = CompanyModel::with(['office', 'addedByUser']);
 
-    $allUsers = UserModel::select('user_id', 'first_name', 'last_name')->get();
+    // Get all users sorted alphabetically (by first name then last name)
+    $allUsers = UserModel::select('user_id', 'first_name', 'last_name')
+        ->orderBy('first_name')
+        ->orderBy('last_name')
+        ->get();
 
 
     // Role-based filtering

@@ -84,6 +84,11 @@ export default function LoginPage() {
           Don’t have an account?{' '}
           <Link
             href="/register"
+            method="get"
+            as="button"
+            preserveScroll={false}
+            preserveState={false}
+            onClick={() => window.location.href = '/register'} // 🔄 force full reload
             className="text-blue-600 hover:underline font-medium"
           >
             Sign up

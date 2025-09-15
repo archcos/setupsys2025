@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage, Link } from '@inertiajs/react';
 import { 
   CheckCircle, 
   Circle, 
@@ -390,309 +390,205 @@ export default function Dashboard() {
         </main>
       </div>
 
-      {/* Project Details Modal */}
- {/* Project Details Modal */}
+{/* Project Details Modal */}
 {isModalOpen && selectedProject && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-2xl shadow-xl max-w-6xl w-full h-[90vh] flex flex-col overflow-hidden">
-      
-      {/* Modal Header */}
-      <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-white bg-opacity-20 rounded-xl">
-            <FileText className="w-6 h-6" />
-          </div>
+  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2">
+    <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full h-[85vh] flex flex-col overflow-hidden">
+
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <FileText className="w-5 h-5 opacity-80" />
           <div>
-            <h2 className="text-2xl font-bold">{selectedProject.project_title}</h2>
-            <p className="text-blue-100 mt-1">Project Details & Progress</p>
+            <h2 className="text-lg font-bold">{selectedProject.project_title}</h2>
+            <p className="text-blue-100 text-xs">Project Details & Progress</p>
           </div>
         </div>
-        <button
-          onClick={closeModal}
-          className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-        >
-          <X className="w-6 h-6" />
+        <button onClick={closeModal} className="p-1 hover:bg-white/20 rounded">
+          <X className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto p-6 will-change-transform">
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {(() => {
           const currentStageIndex = stages.indexOf(selectedProject.progress);
           const hasReached = (stage) => currentStageIndex >= stages.indexOf(stage);
           const implementation = selectedProject.implementation || {};
           const tags = implementation.tags || [];
           const projectCost = parseFloat(selectedProject?.project_cost || 0);
-          const totalTagged = tags.reduce(
-            (sum, tag) => sum + parseFloat(tag.tag_amount || 0),
-            0
-          );
-          const percentage =
-            projectCost > 0 ? (totalTagged / projectCost) * 100 : 0;
+          const totalTagged = tags.reduce((sum, t) => sum + parseFloat(t.tag_amount || 0), 0);
+          const percentage = projectCost > 0 ? (totalTagged / projectCost) * 100 : 0;
 
           return (
-            <div className="space-y-6">
-              {/* Project Overview */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                  <div className="text-sm text-blue-600 font-medium">
-                    Project Cost
-                  </div>
-                  <div className="text-2xl font-bold text-blue-700">
-                    ₱{projectCost.toLocaleString()}
-                  </div>
-                </div>
-                <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-                  <div className="text-sm text-green-600 font-medium">
-                    Current Stage
-                  </div>
-                  <div className="text-2xl font-bold text-green-700">
-                    {selectedProject.progress}
-                  </div>
-                </div>
-                <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
-                  <div className="text-sm text-purple-600 font-medium">
-                    Progress
-                  </div>
-                  <div className="text-2xl font-bold text-purple-700">
-                    {Math.round(
-                      (currentStageIndex / (stages.length - 1)) * 100
-                    )}
-                    %
-                  </div>
-                </div>
-              </div>
-
-              {/* Stage Details */}
-              <div className="space-y-6">
+            <>
+              {/* Overview */}
+              <div className="grid grid-cols-3 gap-3">
                 {[
-                  {
-                    title: "Complete Details",
-                    icon: FileText,
-                    color: "blue",
-                    items: [
-                      {
-                        label: "Company Profile",
-                        date: selectedProject.company?.created_at
-                          ? new Date(
-                              selectedProject.company.created_at
-                            ).toLocaleDateString()
-                          : null,
-                        status: Boolean(selectedProject.company?.created_at),
-                      },
-                      {
-                        label: "Project Details",
-                        date: selectedProject.last_activity_date,
-                        status: hasReached("Complete Details"),
-                      },
-                    ],
-                  },
-                  {
-                    title: "Draft MOA",
-                    icon: FileText,
-                    color: "green",
-                    items: [
-                      {
-                        label: "Generated MOA",
-                        date: selectedProject.moa?.updated_at,
-                        status: hasReached("Draft MOA"),
-                      },
-                      {
-                        label: "Verified MOA",
-                        date: selectedProject.moa?.acknowledge_date,
-                        status: hasReached("Implementation"),
-                      },
-                    ],
-                  },
-                  {
-                    title: "Implementation",
-                    icon: Target,
-                    color: "orange",
-                    items: [
-                      {
-                        label: "Tarpaulin",
-                        date: implementation.tarp_upload,
-                        status: Boolean(implementation.tarp_upload),
-                      },
-                      {
-                        label: "Post-Dated Check",
-                        date: implementation.pdc_upload,
-                        status: Boolean(implementation.pdc_upload),
-                      },
-                      {
-                        label: "First Untagging (50%)",
-                        date: null,
-                        status: percentage >= 50,
-                      },
-                      {
-                        label: "Final Untagging (100%)",
-                        date: null,
-                        status: percentage >= 100,
-                      },
-                    ],
-                  },
-                  {
-                    title: "Liquidation",
-                    icon: BarChart3,
-                    color: "purple",
-                    items: [
-                      {
-                        label: "Liquidation Report",
-                        date: implementation.liquidation_upload,
-                        status: Boolean(implementation.liquidation_upload),
-                      },
-                    ],
-                  },
-                  {
-                    title: "Refund",
-                    icon: TrendingUp,
-                    color: "pink",
-                    items: [
-                      {
-                        label: "Refund Date",
-                        date: null,
-                        status: hasReached("Refund"),
-                      },
-                    ],
-                  },
-                  {
-                    title: "Completed",
-                    icon: Award,
-                    color: "emerald",
-                    items: [
-                      {
-                        label:
-                          selectedProject.progress === "Completed"
-                            ? "Completed"
-                            : "Not Yet Completed",
-                        date: null,
-                        status:
-                          selectedProject.progress === "Completed",
-                      },
-                    ],
-                  },
-                ].map((stage, i) => {
-                  const IconComponent = stage.icon;
-                  const colorClasses = {
-                    blue: "bg-blue-100 text-blue-600 border-blue-200",
-                    green: "bg-green-100 text-green-600 border-green-200",
-                    orange: "bg-orange-100 text-orange-600 border-orange-200",
-                    purple: "bg-purple-100 text-purple-600 border-purple-200",
-                    pink: "bg-pink-100 text-pink-600 border-pink-200",
-                    emerald:
-                      "bg-emerald-100 text-emerald-600 border-emerald-200",
-                  };
+                  { label: "Project Cost", value: `₱${projectCost.toLocaleString()}`, color: "blue" },
+                  { label: "Current Stage", value: selectedProject.progress, color: "green" },
+                  { label: "Progress", value: `${Math.round((currentStageIndex / (stages.length - 1)) * 100)}%`, color: "purple" }
+                ].map((card, i) => (
+                  <div key={i} className={`rounded-lg border p-3 bg-${card.color}-50 border-${card.color}-200`}>
+                    <p className={`text-xs font-medium text-${card.color}-600`}>{card.label}</p>
+                    <p className={`text-lg font-bold text-${card.color}-700`}>{card.value}</p>
+                  </div>
+                ))}
+              </div>
 
-                  return (
-                    <div
-                      key={i}
-                      className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden"
-                    >
-                      <div
-                        className={`p-4 border-l-4 ${colorClasses[stage.color]}`}
-                      >
-                        <div className="flex items-center gap-3 mb-3">
-                          <div
-                            className={`p-2 rounded-lg ${colorClasses[stage.color]}`}
-                          >
-                            <IconComponent className="w-4 h-4" />
+              {/* Stage Sections */}
+              {[
+                {
+                  title: "Complete Details", icon: FileText, color: "blue",
+                  items: [
+                    { label: "Company Profile", date: selectedProject.company?.created_at ? new Date(selectedProject.company.created_at).toLocaleDateString() : null, status: Boolean(selectedProject.company?.created_at) },
+                    { label: "Project Details", date: selectedProject.last_activity_date, status: hasReached("Complete Details") }
+                  ]
+                },
+                {
+                  title: "Draft MOA", icon: FileText, color: "green",
+                  items: [
+                    { label: "Generated MOA", date: selectedProject.moa?.updated_at, status: hasReached("Draft MOA") },
+                    { label: "Verified MOA", date: selectedProject.moa?.acknowledge_date, status: hasReached("Implementation") }
+                  ]
+                },
+                {
+                  title: "Implementation", icon: Target, color: "orange",
+                  items: [
+                    { label: "Signboard", date: implementation.tarp_upload, status: Boolean(implementation.tarp_upload) },
+                    { label: "Post-Dated Check", date: implementation.pdc_upload, status: Boolean(implementation.pdc_upload) },
+                    { label: "First Untagging (50%)", date: null, status: percentage >= 50 },
+                    { label: "Final Untagging (100%)", date: null, status: percentage >= 100 }
+                  ]
+                },
+                {
+                  title: "Liquidation", icon: BarChart3, color: "purple",
+                  items: [{ label: "Liquidation Report", date: implementation.liquidation_upload, status: Boolean(implementation.liquidation_upload) }]
+                },
+                {
+  title: "Refund", icon: TrendingUp, color: "pink",
+  customContent: (
+    <div className="space-y-2">
+      {/* Refund Period */}
+      {selectedProject.refund?.initial && selectedProject.refund?.end ? (
+        <p className="text-xs text-gray-600">
+          Refund Period: <span className="font-medium">{selectedProject.refund.initial_formatted  }</span> 
+          &nbsp;to&nbsp;
+          <span className="font-medium">{selectedProject.refund.end_formatted}</span>
+        </p>
+      ) : (
+        <p className="text-xs italic text-gray-500">No refund schedule set</p>
+      )}
+
+      {/* Refund Status */}
+{selectedProject.refund?.completed ? (
+  <p className="text-green-600 text-xs font-medium">✅ All refunds are paid</p>
+) : selectedProject.refund?.currentMonthOngoing ? (
+  <div className="flex justify-between items-center">
+    <span className="text-yellow-600 text-xs font-medium">
+      🔄 Refund for this month is ongoing
+    </span>
+    <Link
+      href={`/my-refunds?project=${selectedProject.project_id}`}
+      className="text-blue-600 text-xs underline hover:text-blue-800"
+    >
+      View All Refunds
+    </Link>
+  </div>
+) : (
+  <div className="flex justify-between items-center">
+    <span className="text-gray-600 text-xs">Refunds not yet completed</span>
+    <Link
+      href={`/my-refunds?project=${selectedProject.project_id}`}
+      className="text-blue-600 text-xs underline hover:text-blue-800"
+    >
+      View Refunds
+    </Link>
+  </div>
+)}
+
+      {/* Refund History Scrollable */}
+      {selectedProject.refund?.refunds?.length > 0 && (
+        <div className="mt-2 max-h-28 overflow-y-auto bg-white border rounded-lg p-2">
+          {selectedProject.refund.refunds.map((r, idx) => (
+            <div key={idx} className="flex justify-between text-xs border-b last:border-0 py-1">
+              <span>{r.month_paid}</span>
+              <span className={r.status === 'paid' ? 'text-green-600' : 'text-red-600'}>
+                {r.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+},
+                {
+                  title: "Completed", icon: Award, color: "emerald",
+                  items: [{ label: selectedProject.progress === "Completed" ? "Completed" : "Not Yet Completed", date: null, status: selectedProject.progress === "Completed" }]
+                }
+              ].map((stage, i) => {
+                const IconComp = stage.icon;
+                return (
+                  <div key={i} className="bg-gray-50 rounded-lg border p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`p-1 rounded bg-${stage.color}-100 text-${stage.color}-600`}><IconComp className="w-4 h-4" /></div>
+                      <h3 className="font-semibold text-gray-800 text-sm">{stage.title}</h3>
+                    </div>
+                    <div className="ml-6 space-y-1">
+                      {stage.customContent ? (
+                        stage.customContent
+                      ) : (
+                        stage.items.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-sm">
+                            {renderStatus(item.status)}
+                            <span>{item.label}{item.date && <> – {fmtDate(item.date)}</>}</span>
                           </div>
-                          <h3 className="font-semibold text-gray-900">
-                            {stage.title}
-                          </h3>
-                        </div>
-                        <div className="ml-9 space-y-2">
-                          {stage.items.map((item, idx) => (
-                            <div key={idx} className="flex items-center gap-3">
-                              {renderStatus(item.status)}
-                              <span className="text-sm">
-                                {item.label}
-                                {item.date !== null && (
-                                  <>
-                                    {" - "}
-                                    {fmtDate(item.date)}
-                                  </>
-                                )}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                        ))
+                      )}
 
-                {/* Equipment Untagging Summary */}
-                {tags.length > 0 && (
-                  <div className="bg-gradient-to-r from-blue-50 to-blue-50/30 rounded-xl border border-blue-200 p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <Sparkles className="w-4 h-4 text-blue-600" />
-                      </div>
-                      <h4 className="font-semibold text-gray-900">
-                        Equipment Untagging Progress
-                      </h4>
-                    </div>
-
-                    <div className="space-y-3">
-                      {tags.map((tag, i) => (
-                        <div
-                          key={i}
-                          className="flex justify-between items-center bg-white rounded-lg px-4 py-3 border border-blue-100"
-                        >
-                          <span className="font-medium text-gray-700">
-                            {tag.tag_name}
-                          </span>
-                          <span className="font-bold text-blue-600">
-                            ₱{parseFloat(tag.tag_amount).toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-blue-200">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">
-                          Total:{" "}
-                          <strong className="text-blue-600">
-                            ₱{totalTagged.toLocaleString()}
-                          </strong>
-                        </span>
-                        <span className="text-sm text-gray-600">
-                          {percentage.toFixed(1)}% of ₱
-                          {selectedProject.project_cost.toLocaleString()}
-                        </span>
-                      </div>
-
-                      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-full transition-all duration-500"
-                          style={{ width: `${Math.min(percentage, 100)}%` }}
-                        />
-                      </div>
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
+                );
+              })}
+
+              {/* Equipment Untagging */}
+              {tags.length > 0 && (
+                <div className="bg-blue-50 rounded-lg border p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-4 h-4 text-blue-600" />
+                    <h4 className="font-semibold text-gray-800 text-sm">Equipment Untagging</h4>
+                  </div>
+                  {tags.map((tag, i) => (
+                    <div key={i} className="flex justify-between text-sm py-1">
+                      <span>{tag.tag_name}</span>
+                      <span className="font-semibold text-blue-600">₱{parseFloat(tag.tag_amount).toLocaleString()}</span>
+                    </div>
+                  ))}
+                  <div className="mt-2 text-xs text-gray-700 flex justify-between">
+                    <span>Total: <b className="text-blue-600">₱{totalTagged.toLocaleString()}</b></span>
+                    <span>{percentage.toFixed(1)}% of ₱{selectedProject.project_cost.toLocaleString()}</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                    <div className="bg-blue-500 h-full" style={{ width: `${Math.min(percentage, 100)}%` }} />
+                  </div>
+                </div>
+              )}
+            </>
           );
         })()}
       </div>
 
-      {/* Modal Footer */}
-      <div className="bg-gray-50 p-6 border-t border-gray-200">
-        <div className="flex justify-end">
-          <button
-            onClick={closeModal}
-            className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            Close
-          </button>
-        </div>
+      {/* Footer */}
+      <div className="bg-gray-50 p-3 border-t flex justify-end">
+        <button onClick={closeModal} className="px-4 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700">
+          Close
+        </button>
       </div>
     </div>
   </div>
 )}
+
 
     </div>
   );
