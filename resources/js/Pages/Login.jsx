@@ -7,15 +7,22 @@ export default function LoginPage() {
     password: '',
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    post('/signin', {
-      onError: (errors) => {
-        console.error(errors.message);
-      }
-    });
+    try {
+      await fetch('/sanctum/csrf-cookie', { credentials: 'same-origin' });
+
+      post('/signin', {
+        onError: (errors) => {
+          console.error(errors.message);
+        }
+      });
+    } catch (error) {
+      console.error("CSRF refresh failed:", error);
+    }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
