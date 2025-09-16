@@ -261,6 +261,65 @@ public function generateFromMoa($moa_id)
         // Insert into template
         $templateProcessor->setComplexBlock('ACTIVITY_TABLE', $activitiesTable);
 
+
+        $start = Carbon::parse($project->refund_initial); // e.g., 2025-09-01
+        $end   = Carbon::parse($project->refund_end);
+
+        $periodMonths = [];
+        $current = $start->copy();
+
+        while ($current->lessThanOrEqualTo($end)) {
+            $periodMonths[] = [
+                'month' => $current->format('F'), // January, February...
+                'year'  => $current->year,
+                'date'  => $current->copy(),
+            ];
+            $current->addMonth();
+        }
+
+        $refundData = []; // [year][month] => amount
+
+        foreach ($periodMonths as $p) {
+            $month = $p['month'];
+            $year  = $p['year'];
+            
+            // Example: use last_refund only for the last month
+            if ($p['date']->equalTo($end)) {
+                $refundData[$year][$month] = $project->last_refund; 
+            } else {
+                $refundData[$year][$month] = $project->refund_amount ?? 0;
+            }
+        }
+        
+        $phpWord = new PhpWord();
+        $refundTable = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => '999999',
+            'cellMargin' => 80,
+        ]);
+
+        // Header row: Month + Years
+        $refundTable->addRow();
+        $refundTable->addCell(3000)->addText('Month', ['bold' => true, 'name' => 'Arial']);
+        $years = array_unique(array_column($periodMonths, 'year'));
+        foreach ($years as $year) {
+            $refundTable->addCell(2000)->addText($year, ['bold' => true, 'name' => 'Arial'], ['alignment' => Jc::CENTER]);
+        }
+
+        // Rows for each month
+        $months = array_unique(array_map(fn($p) => $p['month'], $periodMonths));
+        foreach ($months as $month) {
+            $refundTable->addRow();
+            $refundTable->addCell(3000)->addText($month, ['name' => 'Arial']);
+
+            foreach ($years as $year) {
+                $amount = $refundData[$year][$month] ?? '';
+                $refundTable->addCell(2000)->addText($amount ? number_format($amount, 2) : '', ['name' => 'Arial'], ['alignment' => Jc::CENTER]);
+            }
+        }
+
+        // Inject into template
+        $templateProcessor->setComplexBlock('REFUND_TABLE', $refundTable);
         // Ensure output folder exists
         $outputFolder = storage_path('app/generated');
         if (!file_exists($outputFolder)) {
@@ -275,190 +334,4 @@ public function generateFromMoa($moa_id)
         return response()->download($outputPath)->deleteFileAfterSend(true);
     }
 
-public function viewPdf($moa_id)
-{
-    // Generate the DOCX first
-    $moa = MOAModel::with(['project.company.office', 'project.items', 'project.activities'])->findOrFail($moa_id);
-    $project = $moa->project;
-    $company = $project->company;
-    $office = $company->office;
-
-    $templatePath = storage_path('app/templates/template.docx');
-    $templateProcessor = new TemplateProcessor($templatePath);
-
-    // $templateProcessor->setImageValue('image', [
-    //     'path' => storage_path('app/templates/signature.png'),
-    //     'width' => 130,
-    //     'height' => 80,
-    //     'ratio' => true,
-    // ]);
-
-    $templateProcessor->setValue('OWNER_NAME', $moa->owner_name);
-    $templateProcessor->setValue('position', $moa->owner_position);
-    $templateProcessor->setValue('witness', $moa->witness);
-    $templateProcessor->setValue('COMPANY_NAME', $company->company_name);
-    $templateProcessor->setValue('COMPANY_LOCATION', $company->company_location);
-    $templateProcessor->setValue('office_name', $office->office_name ?? 'N/A');
-    $templateProcessor->setValue('PROJECT_TITLE', $project->project_title);
-    $templateProcessor->setValue('phase_one', $project->phase_one);
-    $templateProcessor->setValue('phase_two', $project->phase_two);
-    $templateProcessor->setValue('project_cost', number_format($project->project_cost, 2));
-    $templateProcessor->setValue('amount', $moa->amount_words);
-    $templateProcessor->setValue('pd_name', $moa->pd_name ?? 'N/A');
-    $templateProcessor->setValue('pd_title', $moa->pd_title ?? 'N/A');
-    $templateProcessor->setValue('ACTIVITIES', $project->activities->pluck('activity_name')->implode(', '));
-
-    // Build item table
-        $phpWord = new PhpWord();
-        $arialFont = ['name' => 'Arial'];
-        $boldArial = ['name' => 'Arial', 'bold' => true];
-        $section = $phpWord->addSection();
-
-        $table = $section->addTable([
-            'borderSize' => 6,
-            'borderColor' => '999999',
-            'cellMargin' => 80,
-        ]);
-
-        $table->addRow();
-
-        // Merge vertically down: vMerge = 'restart'
-        $table->addCell(5500, ['vMerge' => 'restart'])->addText('Item of Expenditure', $boldArial);
-        $table->addCell(1200, ['vMerge' => 'restart'])->addText('Qty.', $boldArial);
-        $table->addCell(3000, ['vMerge' => 'restart'])->addText('Unit Cost (Php)' , $boldArial);
-
-        // Merge horizontally across 3 cells
-        $cell = $table->addCell(7500, ['gridSpan' => 3]);
-        $cell->addText('Amount (PhP)', $boldArial, ['alignment' => Jc::CENTER]);
-
-        // Second row
-        $table->addRow();
-
-        // vMerge = 'continue' fills vertically merged cells
-        $table->addCell(5500, ['vMerge' => 'continue']);
-        $table->addCell(1200, ['vMerge' => 'continue']);
-        $table->addCell(3000, ['vMerge' => 'continue']);
-
-        // Subheaders
-        $table->addCell(3000)->addText('SETUP' , $boldArial);
-        $table->addCell(1500)->addText('Prop.', $boldArial);
-        $table->addCell(3000)->addText('Total', $boldArial);
-
-
-        foreach ($project->items as $item) {
-            $table->addRow();
-
-            $cell = $table->addCell(5500);
-            $textRun = $cell->addTextRun();
-
-            $textRun->addText($item->item_name, $boldArial); // Item name
-            $textRun->addTextBreak(); // New line
-            $textRun->addText("Specifications:", ['italic' => true, $arialFont]); // Subtitle
-            $textRun->addTextBreak(); // New line
-            $textRun->addText($item->specifications ?? 'N/A', ); // Actual specs
-
-            $table->addCell(1200)->addText($item->quantity, $arialFont);
-            $table->addCell(3000)->addText(number_format($item->item_cost, 2), $arialFont);
-
-            $totalCost = $item->item_cost * $item->quantity;
-            $table->addCell(3000)->addText(number_format($totalCost, 2), $arialFont);
-            $table->addCell(1500)->addText('');
-            $table->addCell(3000)->addText(number_format($totalCost, 2), $arialFont);
-        }
-
-        $grandTotal = 0;
-        foreach ($project->items as $item) {
-            $grandTotal += $item->item_cost * $item->quantity;
-        }
-
-        // Add Total row
-        $table->addRow();
-
-        // Merge first 3 columns for the "Total" label
-        $mergedCell = $table->addCell(9700, ['gridSpan' => 3]);
-
-        // Add "TOTAL" aligned to the right of the merged cell
-        $mergedTextRun = $mergedCell->addTextRun(['alignment' => Jc::END]);
-        $mergedTextRun->addText('TOTAL', $boldArial);
-
-        // SETUP column total (same as grand total for now)
-        $table->addCell(3000)->addText(number_format($grandTotal, 2), $boldArial);
-        $table->addCell(1500)->addText(''); // Prop. column left blank
-        $table->addCell(3000)->addText(number_format($grandTotal, 2), $boldArial);
-
-
-        // Now inject it to template
-        $templateProcessor->setComplexBlock('LIB_TABLE', $table);
-
-
-$phpWord = new PhpWord();
-$arialFont = ['name' => 'Arial', 'size' => 9];
-$boldArial = ['name' => 'Arial', 'bold' => true, 'size' => 9];
-
-$section = $phpWord->addSection();
-$activitiesTable = $section->addTable([
-    'borderSize' => 6,
-    'borderColor' => '999999',
-    'cellMargin' => 80,
-    'alignment' => Jc::CENTER,
-]);
-
-// Header row
-$activitiesTable->addRow();
-$activitiesTable->addCell(5000)->addText("Activity", $boldArial);
-$activitiesTable->addCell(2500)->addText("Start Date", $boldArial, ['alignment' => Jc::CENTER]);
-$activitiesTable->addCell(2500)->addText("End Date", $boldArial, ['alignment' => Jc::CENTER]);
-
-// Rows for each activity
-foreach ($project->activities as $activity) {
-    $activitiesTable->addRow();
-    $activitiesTable->addCell(5000)->addText($activity->activity_name, $arialFont);
-
-    $start = Carbon::parse($activity->start_date)->format("F Y"); // May 2025
-    $end   = Carbon::parse($activity->end_date)->format("F Y");
-
-    $activitiesTable->addCell(2500)->addText($start, $arialFont, ['alignment' => Jc::CENTER]);
-    $activitiesTable->addCell(2500)->addText($end, $arialFont, ['alignment' => Jc::CENTER]);
-}
-
-// Inject into template (make sure ${ACTIVITY_TABLE} is in your .docx)
-$templateProcessor->setComplexBlock('ACTIVITY_TABLE', $activitiesTable);
-
-    // File paths
-    $timestamp = now()->timestamp;
-    $outputFolder = storage_path('app/generated');
-    if (!file_exists($outputFolder)) mkdir($outputFolder, 0777, true);
-
-    $tempDir = storage_path('app/temp');
-    if (!file_exists($tempDir)) {
-        mkdir($tempDir, 0777, true);
-    }
-
-    $docxPath = $tempDir . "/moa_" . time() . ".docx";
-    $pdfPath = str_replace('.docx', '.pdf', $docxPath);
-
-    // Save the filled DOCX
-    $templateProcessor->saveAs($docxPath);
-
-    // Convert DOCX to PDF using LibreOffice CLI
-    $process = new Process([
-        'C:\Program Files\LibreOffice\program\soffice.exe', // or 'libreoffice' depending on your install
-        '--headless',
-        '--convert-to', 'pdf',
-        '--outdir', dirname($docxPath),
-        $docxPath
-    ]);
-
-    $process->run();
-
-    if (!$process->isSuccessful() || !file_exists($pdfPath)) {
-        return response()->json(['error' => 'Failed to convert DOCX to PDF'], 500);
-    }
-
-    // Stream the PDF to browser
-    return response()->file($pdfPath, [
-        'Content-Type' => 'application/pdf',
-        'Content-Disposition' => 'inline; filename="moa.pdf"',
-    ])->deleteFileAfterSend(true); // optional cleanup
-}
 }
