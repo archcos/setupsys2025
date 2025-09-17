@@ -12,6 +12,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImplementationController;
 use App\Http\Controllers\MOAController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PageController;
 use App\Http\Controllers\PDFController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\ReportController;
@@ -44,6 +45,10 @@ Route::middleware(['auth'])->group(function () {
 
 });
 
+
+Route::get('/contact', [PageController::class, 'contact'])->name('contact');
+Route::get('/about', [PageController::class, 'about'])->name('about');
+Route::get('/help', [PageController::class, 'help'])->name('help');
 
 // SIDEBAR
 Route::middleware(['auth'])->group(function () {
