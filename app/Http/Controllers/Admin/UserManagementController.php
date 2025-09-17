@@ -22,6 +22,7 @@ public function index(Request $request)
 
     $query = UserModel::with('office');
 
+    // ✅ Search
     if ($request->filled('search')) {
         $query->where(function ($q) use ($request) {
             $q->where('first_name', 'like', "%{$request->search}%")
@@ -30,24 +31,48 @@ public function index(Request $request)
         });
     }
 
-    $users = $query->paginate(10);
+    // ✅ Role Filter
+    if ($request->filled('role')) {
+        $query->where('role', $request->role);
+    }
 
-    // ✅ Get user IDs of currently online users from session table
+    // ✅ Office Filter
+    if ($request->filled('office_id')) {
+        $query->where('office_id', $request->office_id);
+    }
+
+    // ✅ Status Filter
+    if ($request->filled('status')) {
+        $query->where('status', $request->status);
+    }
+
+    $users = $query->paginate(10)->appends($request->all());
+
     $onlineUserIds = DB::table('sessions')
-        ->pluck('user_id') // adjust if different column
-        ->filter()         // remove nulls
+        ->pluck('user_id')
+        ->filter()
         ->unique()
         ->toArray();
 
-    // ✅ Add `is_online` to each user object
-    foreach ($users as $user) {
+    $users->getCollection()->transform(function ($user) use ($onlineUserIds) {
         $user->is_online = in_array($user->user_id, $onlineUserIds);
-    }
+        return $user;
+    });
 
-    return Inertia::render('Admin/UserManagement', [
+    // ✅ Calculate global counts (not paginated)
+    $totalUsers = UserModel::count();
+    $activeUsers = UserModel::where('status', 'active')->count();
+    $onlineUsers = UserModel::whereIn('user_id', $onlineUserIds)->count();
+
+    return inertia('Admin/UserManagement', [
         'users' => $users,
         'offices' => OfficeModel::all(),
-        'filters' => $request->only('search'),
+        'filters' => $request->only(['search', 'role', 'office_id', 'status']),
+        'stats' => [
+            'total' => $totalUsers,
+            'active' => $activeUsers,
+            'online' => $onlineUsers,
+        ],
     ]);
 }
 

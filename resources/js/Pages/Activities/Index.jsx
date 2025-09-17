@@ -309,6 +309,6 @@ export default function Index({ activities, filters }) {
               )}
             </div>
           </div>
-        </main>
+        </main> 
   );
 }
