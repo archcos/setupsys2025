@@ -9,12 +9,12 @@ import {
   Trash2,
   Building2,
   Calendar,
-  DollarSign,
   Package,
   X,
   Filter,
   ArrowUpDown,
-  Users
+  Users,
+  PhilippinePeso
 } from 'lucide-react';
 
 // Helper to format date string to "MMM YYYY"
@@ -184,8 +184,8 @@ export default function Index({ projects, filters }) {
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         <div className="flex items-center gap-2">
-                          <DollarSign className="w-4 h-4" />
-                          Cost
+                          <PhilippinePeso className="w-4 h-4" />
+                          Project Cost
                         </div>
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -410,7 +410,7 @@ function ProjectModal({ project, isOpen, onClose }) {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <DollarSign className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
+                    <PhilippinePeso className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div>
                       <p className="text-sm font-medium text-gray-600">Project Cost</p>
                       <p className="text-gray-900 font-semibold">

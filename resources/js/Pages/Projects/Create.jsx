@@ -247,6 +247,7 @@ export default function Create({ companies }) {
                         placeholder="e.g., Carmen, Cagayan de Oro City"
                         value={data.place_name}
                         onChange={(e) => setData('place_name', e.target.value)}
+                        maxLength={100} 
                         required
                       />
                     </div>
@@ -265,7 +266,7 @@ export default function Create({ companies }) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Release Initial</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Initial Project Fund Release</label>
                     <input
                       type="month"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
@@ -277,7 +278,7 @@ export default function Create({ companies }) {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Release End</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">End of Fund Release</label>
                     <input
                       type="month"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
@@ -286,7 +287,7 @@ export default function Create({ companies }) {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Refund Initial</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Initial Refund Release</label>
                     <input
                       type="month"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
@@ -295,7 +296,7 @@ export default function Create({ companies }) {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Refund End</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">End of Refund</label>
                     <input
                       type="month"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"

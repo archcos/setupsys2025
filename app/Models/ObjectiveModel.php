@@ -16,6 +16,8 @@ class ObjectiveModel extends Model
     protected $fillable = [
         'project_id',
         'details',
+        'report',
+        'remarks'
     ];
 
     public function project()

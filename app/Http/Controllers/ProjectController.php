@@ -196,6 +196,7 @@ if (!empty($validated['objectives'])) {
         ObjectiveModel::create([
             'project_id' => $validated['project_id'],
             'details'    => $objective['details'],
+            'report'       => 'approved',
         ]);
     }
 }
@@ -215,9 +216,17 @@ return redirect('/projects')->with('success', 'Project, items, and objectives cr
 
 public function edit($id)
 {
-    $project = ProjectModel::with(['items', 'objectives', 'markets' => function ($query) {
-        $query->where('type', 'existing');
-    }])->findOrFail($id);
+    $project = ProjectModel::with([
+        'items' => function ($query) {
+            $query->where('report', 'approved'); 
+        },
+        'objectives' => function ($query) {
+            $query->where('report', 'approved'); 
+        },
+        'markets' => function ($query) {
+            $query->where('type', 'existing');
+        }
+    ])->findOrFail($id);
     
     $companies = CompanyModel::all();
 
@@ -257,6 +266,7 @@ public function update(Request $request, $id)
         'items.*.specifications' => 'nullable|string',
         'items.*.item_cost' => 'required_with:items|numeric|min:0',
         'items.*.quantity' => 'required_with:items|integer|min:1',
+        'items.*.type' => 'required|in:equipment,nonequip', 
         'objectives'        => 'nullable|array',
         'objectives.*.details' => 'required_with:objectives|string',
     ]);
@@ -286,7 +296,7 @@ public function update(Request $request, $id)
     Log::info("Project updated successfully.");
 
     // Replace items
-    $project->items()->delete();
+    $project->items()->where('report', 'approved')->delete();
     Log::info("Deleted old items.");
 
     if (!empty($validated['items'])) {
@@ -296,19 +306,22 @@ public function update(Request $request, $id)
                 'specifications' => $item['specifications'] ?? null,
                 'item_cost'      => $item['item_cost'],
                 'quantity'       => $item['quantity'],
+                'type'           => $item['type'],
+                'report'       => 'approved',
             ]);
         }
         Log::info("Items recreated.", $validated['items']);
     }
 
     // Replace objectives
-    $project->objectives()->delete();
+    $project->objectives()->where('report', 'approved')->delete();
     Log::info("Deleted old objectives.");
 
     if (!empty($validated['objectives'])) {
         foreach ($validated['objectives'] as $objective) {
             $project->objectives()->create([
                 'details' => $objective['details'],
+                'report'  => 'approved',
             ]);
         }
         Log::info("Objectives recreated.", $validated['objectives']);

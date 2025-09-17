@@ -52,12 +52,6 @@ export default function ProjectList({ projects }) {
                     <h2 className="text-xl font-semibold text-gray-900">Project List</h2>
                     <p className="text-sm text-gray-600">Click on any row to view project items</p>
                   </div>
-                  <div className="ml-auto">
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <Sparkles className="w-4 h-4" />
-                      <span>{projects.length} project{projects.length !== 1 ? 's' : ''} total</span>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -73,19 +67,16 @@ export default function ProjectList({ projects }) {
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
                         <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4" />
                           Company
                         </div>
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
                         <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
                           Phase One
                         </div>
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
                         <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
                           Phase Two
                         </div>
                       </th>
