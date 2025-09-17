@@ -1,5 +1,6 @@
 import { useForm, Link , Head} from '@inertiajs/react'; // ✅ import Link here
 import logo from '../../assets/logo.png';
+import setupLogo from '../../assets/SETUP_logo.png'; // ✅ Add SETUP logo
 
 export default function LoginPage() {
   const { data, setData, post, processing, errors } = useForm({
@@ -27,16 +28,22 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
-        <div className="flex items-center justify-center gap-3 mb-6">
-          <img src={logo} alt="Logo" className="w-10 h-10" />
-          <div className="flex flex-col">
-            <Head title="Login"/>
-            <h2 className="text-2xl font-bold text-gray-800">SETUP</h2>
-            <h3 className="text-sm text-gray-500 font-medium">
-              Small Enterprise Technology Upgrading Program
-            </h3>
+          <div className="flex flex-col items-center justify-center gap-3 mb-6">
+            {/* Logos */}
+            <div className="flex items-center justify-center gap-3">
+              <img src={logo} alt="Logo" className="w-10 h-10" />
+              <img src={setupLogo} alt="SetupLogo" className="h-10" />
+            </div>
+
+            {/* Text below */}
+            <div className="flex flex-col items-center text-center">
+              <h2 className="text-sm font-bold text-gray-800">DOST - Northern Mindanao</h2>
+              <h3 className="text-sm text-gray-500 font-medium">
+                Small Enterprise Technology Upgrading Program
+              </h3>
+            </div>
           </div>
-        </div>
+
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {errors.message && (
@@ -105,3 +112,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+LoginPage.layout = null;

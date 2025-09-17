@@ -49,7 +49,7 @@ export default function Sidebar({ isOpen }) {
   if (!isOpen) return null;
 
   return (
-    <aside className="w-64 bg-white text-gray-800 p-6 transition-all duration-300 h-full shadow-md">
+    <aside className="w-64 bg-white text-gray-800 p-6 transition-all duration-300 min-h-screen shadow-md">
       <Link
         href={role === 'user' ? '/dashboard' : '/home'}
         className="flex items-center justify-center gap-3 mb-8 hover:opacity-90"

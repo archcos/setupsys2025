@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('tbl_markets', function (Blueprint $table) {
             $table->id('market_id');
             $table->unsignedBigInteger('project_id')->nullable();
-            $table->string('place_name', 45)->nullable();
+            $table->string('place_name', 100)->nullable();
             $table->string('effective_date', 45)->nullable();
             $table->enum('type', ['new', 'existing'])->default('new');
 

@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useForm, Link, Head } from '@inertiajs/react';
-import Sidebar from '../../components/Sidebar';
-import Header from '../../components/Header';
 import {
   Building2,
   MapPin,
@@ -96,13 +94,8 @@ export default function Edit({ company }) {
   };
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <Head title="Edit Company" />
-
         <main className="flex-1 p-6 overflow-y-auto">
+                  <Head title="Edit Company" />
           <div className="max-w-5xl mx-auto">
             {/* Header Section */}
             <div className="mb-8">
@@ -511,7 +504,5 @@ export default function Edit({ company }) {
             </form>
           </div>
         </main>
-      </div>
-    </div>
   );
 }
