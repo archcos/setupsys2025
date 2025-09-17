@@ -36,6 +36,8 @@ Route::middleware(['auth'])->group(function () {
    // Protected Home Page
     Route::get('/home', [HomeController::class, 'index'])->middleware('role:admin,staff')->name('home');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('user.dashboard')->middleware('role:user');
+    Route::get('/users/{id}/edit', [AuthController::class, 'edit'])->name('users.edit');
+    Route::put('/users/{id}', [AuthController::class, 'update'])->name('users.update');
 
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');

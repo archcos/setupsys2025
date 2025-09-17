@@ -1,8 +1,12 @@
-import { useForm, Link , Head} from '@inertiajs/react'; // ✅ import Link here
+import { useState } from 'react';
+import { useForm, Link, Head } from '@inertiajs/react';
+import { Eye, EyeOff, User, Lock, AlertCircle } from 'lucide-react';
 import logo from '../../assets/logo.png';
-import setupLogo from '../../assets/SETUP_logo.png'; // ✅ Add SETUP logo
+import setupLogo from '../../assets/SETUP_logo.png';
 
 export default function LoginPage() {
+  const [showPassword, setShowPassword] = useState(false);
+  
   const { data, setData, post, processing, errors } = useForm({
     username: '',
     password: '',
@@ -24,92 +28,166 @@ export default function LoginPage() {
     }
   };
 
-
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
-          <div className="flex flex-col items-center justify-center gap-3 mb-6">
-            {/* Logos */}
-            <div className="flex items-center justify-center gap-3">
-              <img src={logo} alt="Logo" className="w-10 h-10" />
-              <img src={setupLogo} alt="SetupLogo" className="h-10" />
+    <>
+      <Head title="Login - DOST SETUP" />
+      <div className="min-h-screen bg-gradient-to-br from-blue-200 via-white to-indigo-300 flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          {/* Main Login Card */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-6">
+            {/* Header Section */}
+            <div className="flex flex-col items-center justify-center gap-4 mb-8">
+              {/* Logos */}
+              <div className="flex items-center justify-center gap-4">
+                  <img src={logo} alt="DOST Logo" className="w-12 h-12 object-contain" />
+                  <img src={setupLogo} alt="SETUP Logo" className="h-12 object-contain" />
+              </div>
+
+              {/* Organization Info */}
+              <div className="flex flex-col items-center text-center">
+                <h2 className="text-lg font-bold text-gray-900 tracking-tight">DOST - Northern Mindanao</h2>
+                <h3 className="text-sm text-gray-600 font-medium leading-relaxed">
+                  Small Enterprise Technology Upgrading Program
+                </h3>
+              </div>
             </div>
 
-            {/* Text below */}
-            <div className="flex flex-col items-center text-center">
-              <h2 className="text-sm font-bold text-gray-800">DOST - Northern Mindanao</h2>
-              <h3 className="text-sm text-gray-500 font-medium">
-                Small Enterprise Technology Upgrading Program
-              </h3>
+            {/* Welcome Text */}
+            <div className="text-center mb-2">
+              <p className="text-gray-600">
+                Sign in to your SETUP account
+              </p>
+            </div>
+
+            {/* Error Message */}
+            {errors.message && (
+              <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
+                <AlertCircle size={20} className="text-red-600 flex-shrink-0" />
+                <span>{errors.message}</span>
+              </div>
+            )}
+
+            {/* Login Form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Username Field */}
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                  Username
+                </label>
+                <div className="relative">
+                  <User size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                  <input
+                    id="username"
+                    type="text"
+                    value={data.username}
+                    onChange={(e) => setData('username', e.target.value)}
+                    placeholder="Enter your username"
+                    className={`w-full border pl-10 pr-4 py-3.5 rounded-xl transition-colors ${
+                      errors.username 
+                        ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                        : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                    }`}
+                    required
+                  />
+                </div>
+                {errors.username && (
+                  <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+                    <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                    {errors.username}
+                  </p>
+                )}
+              </div>
+
+              {/* Password Field */}
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={data.password}
+                    onChange={(e) => setData('password', e.target.value)}
+                    placeholder="Enter your password"
+                    className={`w-full border pl-10 pr-12 py-3.5 rounded-xl transition-colors ${
+                      errors.password 
+                        ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                        : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                    }`}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+                    <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                    {errors.password}
+                  </p>
+                )}
+              </div>
+
+              {/* Forgot Password Link */}
+              <div className="flex justify-end">
+                <Link
+                  href="/forgot-password"
+                  className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={processing}
+                className={`w-full ${
+                  processing 
+                    ? 'bg-blue-400 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]'
+                } text-white py-3.5 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl`}
+              >
+                {processing ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                    </svg>
+                    Signing In...
+                  </span>
+                ) : (
+                  'Sign In'
+                )}
+              </button>
+            </form>
+
+            {/* Sign Up Link */}
+            <div className="mt-4  text-center">
+              <p className="text-gray-600">
+                Don't have an account?{' '}
+                <Link
+                  href="/register"
+                  className="text-blue-600 hover:text-blue-700 font-semibold hover:underline transition-colors"
+                >
+                  Create Account
+                </Link>
+              </p>
             </div>
           </div>
 
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {errors.message && (
-            <p className="text-red-500 text-sm">{errors.message}</p>
-          )}
-
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-              Username
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={data.username}
-              onChange={(e) => setData('username', e.target.value)}
-              className="mt-1 w-full px-4 py-2 border rounded-lg"
-              required
-            />
-            {errors.username && (
-              <p className="text-red-500 text-sm">{errors.username}</p>
-            )}
+          {/* Footer */}
+          <div className="text-center text-sm text-gray-500">
+            <p>© 2025 DOST Northern Mindanao. All rights reserved.</p>
           </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={data.password}
-              onChange={(e) => setData('password', e.target.value)}
-              className="mt-1 w-full px-4 py-2 border rounded-lg"
-              required
-            />
-            {errors.password && (
-              <p className="text-red-500 text-sm">{errors.password}</p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={processing}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
-          >
-            {processing ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-
-        {/* ✅ Sign Up Link */}
-        <p className="text-sm text-center text-gray-600 mt-4">
-          Don’t have an account?{' '}
-          <Link
-            href="/register"
-            method="get"
-            as="button"
-            preserveScroll={false}
-            preserveState={false}
-            onClick={() => window.location.href = '/register'} // 🔄 force full reload
-            className="text-blue-600 hover:underline font-medium"
-          >
-            Sign up
-          </Link>
-        </p>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

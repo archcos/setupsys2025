@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import logo from '../../assets/logo.png';
+import setupLogo from '../../assets/SETUP_logo.png';
 import { Link, usePage } from '@inertiajs/react';
 import {
   ChevronDown,
@@ -55,7 +56,7 @@ export default function Sidebar({ isOpen }) {
         className="flex items-center justify-center gap-3 mb-8 hover:opacity-90"
       >
         <img src={logo} alt="Logo" className="w-10 h-10" />
-        <h2 className="text-2xl font-bold text-gray-800">SETUP</h2>
+        <img src={setupLogo} alt="SETUP Logo" className="h-10 object-contain" />
       </Link>
 
       <nav className="space-y-4">

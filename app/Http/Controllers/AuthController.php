@@ -82,51 +82,52 @@ public function logout(Request $request)
 
 
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+public function edit(string $id)
+{
+    $user = UserModel::with('office')->findOrFail($id);
+
+    // If you have offices table, fetch them for dropdown
+    $offices = \App\Models\OfficeModel::all();
+
+    return inertia('Settings', [
+        'user' => $user,
+        'offices' => $offices
+    ]);
+}
+
+public function update(Request $request, string $id)
+{
+    $user = UserModel::findOrFail($id);
+
+    $validated = $request->validate([
+        'first_name'  => 'required|string|max:255',
+        'middle_name' => 'nullable|string|max:255',
+        'last_name'   => 'required|string|max:255',
+        'username'    => 'required|string|max:255|unique:tbl_users,username,'.$id.',user_id',
+        'email'       => 'required|email|max:255|unique:tbl_users,email,'.$id.',user_id',
+        'password'    => 'nullable|string|min:6|confirmed',
+        'office_id'   => 'required|exists:tbl_offices,office_id',
+    ]);
+
+    // ✅ Update fields
+    $user->first_name  = $validated['first_name'];
+    $user->middle_name = $validated['middle_name'];
+    $user->last_name   = $validated['last_name'];
+    $user->username    = $validated['username'];
+    $user->email       = $validated['email'];
+    $user->office_id   = $validated['office_id'];
+
+    // ✅ Update password only if provided
+    if (!empty($validated['password'])) {
+        $user->password = Hash::make($validated['password']);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
+    $user->save();
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
+    if ($user->role === 'user') {
+            return redirect()->route('user.dashboard')->with('success', 'User updated successfully.');
+        } else {
+            return redirect()->route('home')->with('success', 'User updated successfully.');
+    }}
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
-    }
 }

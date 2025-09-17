@@ -141,8 +141,8 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
           {dropdownOpen && (
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-20">
               <a
-                href="#"
-                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                onClick={() => router.visit(route('users.edit', auth.user.user_id))}
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
               >
                 Settings
               </a>
