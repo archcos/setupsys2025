@@ -51,7 +51,7 @@ export default function Edit({ project, companies }) {
     updated[index][field] = value;
     setData('items', updated);
   };
-  const addItem = () => setData('items', [...data.items, { item_name: '', specifications: '', item_cost: '', quantity: 1 }]);
+  const addItem = () => setData('items', [...data.items, { item_name: '', specifications: '', item_cost: '', quantity: 1, type: 'equipment', }]);
   const removeItem = (index) => setData('items', data.items.filter((_, i) => i !== index));
 
   // Objectives
@@ -251,7 +251,7 @@ export default function Edit({ project, companies }) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Release Initial</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Initial Project Fund Release</label>
                     <input
                       type="month"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
@@ -263,7 +263,7 @@ export default function Edit({ project, companies }) {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Release End</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">End of Fund Release</label>
                     <input
                       type="month"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
@@ -275,7 +275,7 @@ export default function Edit({ project, companies }) {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Refund Initial</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Initial Refund Release</label>
                     <input
                       type="month"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
@@ -287,7 +287,7 @@ export default function Edit({ project, companies }) {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Refund End</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">End of Refund</label>
                     <input
                       type="month"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
@@ -461,78 +461,115 @@ export default function Edit({ project, companies }) {
 
                 <div className="space-y-6">
                   {data.items.map((item, index) => (
-                    <div key={index} className="p-6 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl border border-gray-200">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-medium text-gray-900">Item #{index + 1}</h3>
-                        {data.items.length > 1 && (
-                          <button
-                            type="button"
-                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors duration-200"
-                            onClick={() => removeItem(index)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
+                    <div key={index} className="space-y-3 mb-6">
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Item Name</label>
+                      {/* Grid with Item Name, Cost, Qty, and Type */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        
+                        {/* Item Name */}
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Item Name
+                          </label>
                           <input
                             type="text"
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                             placeholder="Enter item name"
                             value={item.item_name}
-                            onChange={(e) => handleItemChange(index, 'item_name', e.target.value)}
+                            onChange={(e) => {
+                              const newItems = [...data.items];
+                              newItems[index].item_name = e.target.value;
+                              setData('items', newItems);
+                            }}
                             required
                           />
                         </div>
 
+                        {/* Cost */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Cost</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Cost
+                          </label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                               <span className="text-gray-500 text-sm">₱</span>
                             </div>
                             <input
                               type="number"
-                              step="any"
                               className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                               placeholder="0.00"
                               value={item.item_cost}
-                              onChange={(e) => handleItemChange(index, 'item_cost', e.target.value)}
+                              onChange={(e) => {
+                                const newItems = [...data.items];
+                                newItems[index].item_cost = e.target.value;
+                                setData('items', newItems);
+                              }}
                               required
                             />
                           </div>
                         </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                        {/* Quantity */}
+                        <div className="w-24">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Qty
+                          </label>
                           <input
                             type="number"
-                            min="1"
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            className="w-full px-2 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-center"
                             placeholder="1"
                             value={item.quantity}
-                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                            onChange={(e) => {
+                              const newItems = [...data.items];
+                              newItems[index].quantity = e.target.value;
+                              setData('items', newItems);
+                            }}
                             required
                           />
                         </div>
+
+                        {/* Equipment Type Dropdown */}
+                        <div className="w-40">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Type
+                          </label>
+                          <select
+                            className="w-full px-2 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            value={item.type}
+                            onChange={(e) => {
+                              const newItems = [...data.items];
+                              newItems[index].type = e.target.value;
+                              setData('items', newItems);
+                            }}
+                            required
+                          >
+                            <option value="equipment">Equipment</option>
+                            <option value="nonequip">Non-Equipment</option>
+                          </select>
+                        </div>
                       </div>
 
+                      {/* Specifications */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Specifications</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Specifications
+                        </label>
                         <textarea
                           rows="3"
                           className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
                           placeholder="Enter detailed specifications..."
-                          value={item.specifications || ''}
-                          onChange={(e) => handleItemChange(index, 'specifications', e.target.value)}
+                          value={item.specifications}
+                          onChange={(e) => {
+                            const newItems = [...data.items];
+                            newItems[index].specifications = e.target.value;
+                            setData('items', newItems);
+                          }}
                           required
                         />
                       </div>
                     </div>
                   ))}
+
                 </div>
               </div>
 

@@ -1,9 +1,7 @@
 import { Head, router } from "@inertiajs/react";
 import { useState, useRef, useEffect } from "react";
 import { 
-    Search, 
     Calendar, 
-    DollarSign, 
     TrendingUp, 
     AlertCircle,
     CheckCircle,
@@ -15,7 +13,9 @@ import {
     Activity,
     Wallet,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    BanknoteArrowUp,
+    Banknote
 } from "lucide-react";
 
 export default function UserLoan({ projects, search, years, selectedYear }) {
@@ -80,15 +80,15 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
     </div>
   </div>
 
-  {/* Total Financing */}
+  {/* Innovation Fund */}
   <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
     <div className="flex items-center justify-between">
       <div>
-        <p className="text-sm font-medium text-gray-600">Total Financing</p>
+        <p className="text-sm font-medium text-gray-600">Innovation Fund</p>
         <p className="text-xl font-bold text-gray-900">{formatPeso(totalProjectCost)}</p>
       </div>
       <div className="p-3 bg-green-100 rounded-lg">
-        <DollarSign className="w-6 h-6 text-green-600" />
+        <BanknoteArrowUp className="w-6 h-6 text-green-600" />
       </div>
     </div>
   </div>
@@ -184,7 +184,7 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
                                                                 <div className="grid grid-cols-2 gap-3">
                                                                     <div className="bg-green-50 p-4 rounded-xl border border-green-200">
                                                                         <div className="flex items-center gap-2 mb-1">
-                                                                            <DollarSign className="w-4 h-4 text-green-600" />
+                                                                            <Banknote className="w-4 h-4 text-green-600" />
                                                                             <span className="text-xs font-semibold text-green-800">PROJECT COST</span>
                                                                         </div>
                                                                         <span className="text-lg font-bold text-green-700">{formatPeso(p.project_cost)}</span>

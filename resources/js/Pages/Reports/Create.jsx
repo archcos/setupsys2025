@@ -13,9 +13,8 @@ import {
   ChevronLeft,
   Save,
   Plus,
-  Calendar,
-  DollarSign,
   FlaskConical,
+  PhilippinePeso,
 } from "lucide-react";
 
 export default function Create({ project, objects, equipments, nonequipments, refunds, markets }) {
@@ -57,8 +56,8 @@ export default function Create({ project, objects, equipments, nonequipments, re
 
   const { data, setData, post, processing, errors } = useForm({
     project_id: project.project_id,
-    actual_accom: "",
-    actual_remarks: "",
+    actual_accom: objects.map(() => ""),   
+    actual_remarks: objects.map(() => ""), 
     util_remarks: "",
     new_male: 0,
     new_female: 0,
@@ -190,279 +189,294 @@ export default function Create({ project, objects, equipments, nonequipments, re
                 </div>
                 
                 <div className="space-y-4">
-                  {objects.map((obj) => (
-                    <div key={obj.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl border border-gray-200">
-                      <div className="text-gray-700 font-medium">
-                        <label className="text-sm text-gray-500 block mb-1">Expected Output</label>
-                        {obj.details}
-                      </div>
-                      <div>
-                        <label className="text-sm text-gray-500 block mb-1">Actual Accomplishment</label>
-                        <input
-                          type="text"
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white"
-                          placeholder="Enter actual accomplishment"
-                          value={data.actual_accom}
-                          onChange={(e) => setData("actual_accom", e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-gray-500 block mb-1">Remarks</label>
-                        <input
-                          type="text"
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white"
-                          placeholder="Enter remarks"
-                          value={data.actual_remarks}
-                          onChange={(e) => setData("actual_remarks", e.target.value)}
-                        />
-                      </div>
+                {objects.map((obj, index) => (
+                    <div 
+                        key={obj.objective_id ?? index} // ✅ unique key
+                        className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl border-gray-500"
+                      >                    <div className="text-gray-700 font-medium">
+                      <label className="text-sm text-gray-500 block mb-1">Expected Output</label>
+                      {obj.details}
                     </div>
-                  ))}
+                    <div>
+                      <label className="text-sm text-gray-500 block mb-1">Actual Accomplishment</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white"
+                        placeholder="Enter actual accomplishment"
+                        value={data.actual_accom[index] || ""}
+                        onChange={(e) => {
+                          const updated = [...data.actual_accom];
+                          updated[index] = e.target.value;
+                          setData("actual_accom", updated);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-500 block mb-1">Remarks</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white"
+                        placeholder="Enter remarks"
+                        value={data.actual_remarks[index] || ""}
+                        onChange={(e) => {
+                          const updated = [...data.actual_remarks];
+                          updated[index] = e.target.value;
+                          setData("actual_remarks", updated);
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+
                 </div>
               </div>
 {/* 2. Equipment */}
-<div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-  <div className="flex items-center gap-3 mb-6">
-    <div className="p-2 bg-green-100 rounded-lg">
-      <Package className="w-5 h-5 text-green-600" />
-    </div>
-    <h2 className="text-xl font-semibold text-gray-900">List of Equipment</h2>
-  </div>
-
-  <div className="space-y-4">
-    {equipments.filter(item => item.report === "approved").length === 0 ? (
-      <p className="text-gray-500 italic">No existing equipment found</p>
-    ) : (
-      equipments
-        .filter(item => item.report === "approved")
-        .map((item, index) => (
-          <div
-            key={item.item_id}
-            className="p-6 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl border border-gray-200"
-          >
-            <h3 className="font-semibold text-gray-700 mb-2">Approved Equipment:</h3>
-            <div className="grid grid-cols-3 gap-4 text-sm font-medium text-gray-700 mb-4">
-              <span>
-                <span className="block text-xs text-gray-500">Item Name</span>
-                {item.item_name} <br /> Specifications: {item.specifications}
-              </span>
-              <span>
-                <span className="block text-xs text-gray-500">Quantity</span>
-                {item.quantity}
-              </span>
-              <span>
-                <span className="block text-xs text-gray-500">Cost</span>
-                ₱{Number(item.item_cost || 0).toLocaleString()}
-              </span>
-            </div>
-
-            <h4 className="font-medium text-gray-600 mb-3">Actual Equipment:</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Item Name</label>
-                <input
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                  placeholder="Item name"
-                  value={data.equipments_actual[index]?.item_name || item.item_name}
-                  onChange={(e) =>
-                    handleEquipChange(index, "item_name", e.target.value, "equipments_actual")
-                  }
-                />
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-green-200 rounded-lg">
+                  <Package className="w-5 h-5 text-green-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900">List of Equipment</h2>
               </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Quantity</label>
-                <input
-                  type="number"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                  placeholder="Quantity"
-                  value={data.equipments_actual[index]?.quantity || item.quantity}
-                  onChange={(e) =>
-                    handleEquipChange(index, "quantity", Number(e.target.value), "equipments_actual")
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Item Cost</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                  placeholder="Cost"
-                  value={data.equipments_actual[index]?.item_cost || item.item_cost}
-                  onChange={(e) =>
-                    handleEquipChange(index, "item_cost", Number(e.target.value), "equipments_actual")
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Acknowledge</label>
-                <select
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                  value={data.equipments_actual[index]?.acknowledge || ""}
-                  onChange={(e) =>
-                    handleEquipChange(index, "acknowledge", e.target.value, "equipments_actual")
-                  }
-                >
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-            </div>
 
-            {/* Big Specifications */}
-            <div className="mt-3">
-              <label className="text-xs text-gray-500 block mb-1">Specifications</label>
-              <textarea
-                rows="3"
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                placeholder="Specifications"
-                value={data.equipments_actual[index]?.specifications || item.specifications}
-                onChange={(e) =>
-                  handleEquipChange(index, "specifications", e.target.value, "equipments_actual")
-                }
-              />
-            </div>
+              <div className="space-y-4">
+                {equipments.filter(item => item.report === "approved").length === 0 ? (
+                  <p className="text-gray-500 italic">No existing equipment found</p>
+                ) : (
+                  equipments
+                    .filter(item => item.report === "approved")
+                    .map((item, index) => (
+                      <div
+                        key={item.item_id}
+                        className="p-6 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl border border-gray-200"
+                      >
+                        <h3 className="font-semibold text-gray-700 mb-2">Approved Equipment:</h3>
+                        <div className="grid grid-cols-3 gap-4 text-sm font-medium text-gray-700 mb-4">
+                          <span>
+                            <span className="block text-xs text-gray-500">Item Name</span>
+                            {item.item_name} <br /> Specifications: {item.specifications}
+                          </span>
+                          <span>
+                            <span className="block text-xs text-gray-500">Quantity</span>
+                            {item.quantity}
+                          </span>
+                          <span>
+                            <span className="block text-xs text-gray-500">Cost</span>
+                            ₱{Number(item.item_cost || 0).toLocaleString()}
+                          </span>
+                        </div>
 
-            {/* Big Remarks */}
-            <div className="mt-3">
-              <label className="text-xs text-gray-500 block mb-1">Remarks</label>
-              <textarea
-                rows="3"
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                placeholder="Additional remarks"
-                value={data.equipments_actual[index]?.remarks || ""}
-                onChange={(e) =>
-                  handleEquipChange(index, "remarks", e.target.value, "equipments_actual")
-                }
-              />
+                        <div className="my-6 h-[2px] bg-black rounded-full"></div>
+
+                        <h4 className="font-medium text-gray-600 mb-3">Actual Equipment:</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-1">Item Name</label>
+                            <input
+                              className="w-full px-4 py-2 border border-gray-500 rounded-lg focus:ring-2 focus:ring-green-500"
+                              placeholder="Item name"
+                              value={data.equipments_actual[index]?.item_name || item.item_name}
+                              onChange={(e) =>
+                                handleEquipChange(index, "item_name", e.target.value, "equipments_actual")
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-1">Quantity</label>
+                            <input
+                              type="number"
+                              className="w-full px-4 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-green-500"
+                              placeholder="Quantity"
+                              value={data.equipments_actual[index]?.quantity || item.quantity}
+                              onChange={(e) =>
+                                handleEquipChange(index, "quantity", Number(e.target.value), "equipments_actual")
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-1">Item Cost</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-full px-4 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-green-500"
+                              placeholder="Cost"
+                              value={data.equipments_actual[index]?.item_cost || item.item_cost}
+                              onChange={(e) =>
+                                handleEquipChange(index, "item_cost", Number(e.target.value), "equipments_actual")
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-1">Acknowledge</label>
+                            <select
+                              className="w-full px-4 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-green-500"
+                              value={data.equipments_actual[index]?.acknowledge || ""}
+                              onChange={(e) =>
+                                handleEquipChange(index, "acknowledge", e.target.value, "equipments_actual")
+                              }
+                            >
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Big Specifications */}
+                        <div className="mt-3">
+                          <label className="text-xs text-gray-500 block mb-1">Specifications</label>
+                          <textarea
+                            rows="3"
+                            className="w-full px-4 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-green-500"
+                            placeholder="Specifications"
+                            value={data.equipments_actual[index]?.specifications || item.specifications}
+                            onChange={(e) =>
+                              handleEquipChange(index, "specifications", e.target.value, "equipments_actual")
+                            }
+                          />
+                        </div>
+
+                        {/* Big Remarks */}
+                        <div className="mt-3">
+                          <label className="text-xs text-gray-500 block mb-1">Remarks</label>
+                          <textarea
+                            rows="3"
+                            className="w-full px-4 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-green-500"
+                            placeholder="Additional remarks"
+                            value={data.equipments_actual[index]?.remarks || ""}
+                            onChange={(e) =>
+                              handleEquipChange(index, "remarks", e.target.value, "equipments_actual")
+                            }
+                          />
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
             </div>
-          </div>
-        ))
-    )}
-  </div>
-</div>
 
 {/* 3. Non-Equipment */}
-<div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-  <div className="flex items-center gap-3 mb-6">
-    <div className="p-2 bg-blue-100 rounded-lg">
-      <FlaskConical className="w-5 h-5 text-blue-600" />
-    </div>
-    <h2 className="text-xl font-semibold text-gray-900">List of Non-Equipment</h2>
-  </div>
-
-  <div className="space-y-4">
-    {nonequipments.filter(item => item.report === "approved").length === 0 ? (
-      <p className="text-gray-500 italic">No existing non-equipment found</p>
-    ) : (
-      nonequipments
-        .filter(item => item.report === "approved")
-        .map((item, index) => (
-          <div
-            key={item.item_id}
-            className="p-6 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl border border-gray-200"
-          >
-            <h3 className="font-semibold text-gray-700 mb-2">Approved Non-Equipment:</h3>
-            <div className="grid grid-cols-3 gap-4 text-sm font-medium text-gray-700 mb-4">
-              <span>
-                <span className="block text-xs text-gray-500">Item Name</span>
-                {item.item_name} <br /> Specifications: {item.specifications}
-              </span>
-              <span>
-                <span className="block text-xs text-gray-500">Quantity</span>
-                {item.quantity}
-              </span>
-              <span>
-                <span className="block text-xs text-gray-500">Cost</span>
-                ₱{Number(item.item_cost || 0).toLocaleString()}
-              </span>
-            </div>
-
-            <h4 className="font-medium text-gray-600 mb-3">Actual Non-Equipment:</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Item Name</label>
-                <input
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Item name"
-                  value={data.nonequipments_actual[index]?.item_name || item.item_name}
-                  onChange={(e) =>
-                    handleEquipChange(index, "item_name", e.target.value, "nonequipments_actual")
-                  }
-                />
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FlaskConical className="w-5 h-5 text-blue-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900">List of Non-Equipment</h2>
               </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Quantity</label>
-                <input
-                  type="number"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Quantity"
-                  value={data.nonequipments_actual[index]?.quantity || item.quantity}
-                  onChange={(e) =>
-                    handleEquipChange(index, "quantity", Number(e.target.value), "nonequipments_actual")
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Item Cost</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Cost"
-                  value={data.nonequipments_actual[index]?.item_cost || item.item_cost}
-                  onChange={(e) =>
-                    handleEquipChange(index, "item_cost", Number(e.target.value), "nonequipments_actual")
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Acknowledge</label>
-                <select
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  value={data.nonequipments_actual[index]?.acknowledge || ""}
-                  onChange={(e) =>
-                    handleEquipChange(index, "acknowledge", e.target.value, "nonequipments_actual")
-                  }
-                >
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-            </div>
 
-            {/* Big Specifications */}
-            <div className="mt-3">
-              <label className="text-xs text-gray-500 block mb-1">Specifications</label>
-              <textarea
-                rows="3"
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Specifications"
-                value={data.nonequipments_actual[index]?.specifications || item.specifications}
-                onChange={(e) =>
-                  handleEquipChange(index, "specifications", e.target.value, "nonequipments_actual")
-                }
-              />
-            </div>
+              <div className="space-y-4">
+                {nonequipments.filter(item => item.report === "approved").length === 0 ? (
+                  <p className="text-gray-500 italic">No existing non-equipment found</p>
+                ) : (
+                  nonequipments
+                    .filter(item => item.report === "approved")
+                    .map((item, index) => (
+                      <div
+                        key={item.item_id}
+                        className="p-6 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl border-gray-500"
+                      >
+                        <h3 className="font-semibold text-gray-700 mb-2">Approved Non-Equipment:</h3>
+                        <div className="grid grid-cols-3 gap-4 text-sm font-medium text-gray-700 mb-4">
+                          <span>
+                            <span className="block text-xs text-gray-500">Item Name</span>
+                            {item.item_name} <br /> Specifications: {item.specifications}
+                          </span>
+                          <span>
+                            <span className="block text-xs text-gray-500">Quantity</span>
+                            {item.quantity}
+                          </span>
+                          <span>
+                            <span className="block text-xs text-gray-500">Cost</span>
+                            ₱{Number(item.item_cost || 0).toLocaleString()}
+                          </span>
+                        </div>
 
-            {/* Big Remarks */}
-            <div className="mt-3">
-              <label className="text-xs text-gray-500 block mb-1">Remarks</label>
-              <textarea
-                rows="3"
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Additional remarks"
-                value={data.nonequipments_actual[index]?.remarks || ""}
-                onChange={(e) =>
-                  handleEquipChange(index, "remarks", e.target.value, "nonequipments_actual")
-                }
-              />
+                        <div className="my-6 h-[2px] bg-black rounded-full"></div>
+
+                        <h4 className="font-medium text-gray-600 mb-3">Actual Non-Equipment:</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-1">Item Name</label>
+                            <input
+                              className="w-full px-4 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500"
+                              placeholder="Item name"
+                              value={data.nonequipments_actual[index]?.item_name || item.item_name}
+                              onChange={(e) =>
+                                handleEquipChange(index, "item_name", e.target.value, "nonequipments_actual")
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-1">Quantity</label>
+                            <input
+                              type="number"
+                              className="w-full px-4 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500"
+                              placeholder="Quantity"
+                              value={data.nonequipments_actual[index]?.quantity || item.quantity}
+                              onChange={(e) =>
+                                handleEquipChange(index, "quantity", Number(e.target.value), "nonequipments_actual")
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-1">Item Cost</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-full px-4 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500"
+                              placeholder="Cost"
+                              value={data.nonequipments_actual[index]?.item_cost || item.item_cost}
+                              onChange={(e) =>
+                                handleEquipChange(index, "item_cost", Number(e.target.value), "nonequipments_actual")
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-1">Acknowledge</label>
+                            <select
+                              className="w-full px-4 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500"
+                              value={data.nonequipments_actual[index]?.acknowledge || ""}
+                              onChange={(e) =>
+                                handleEquipChange(index, "acknowledge", e.target.value, "nonequipments_actual")
+                              }
+                            >
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Big Specifications */}
+                        <div className="mt-3">
+                          <label className="text-xs text-gray-500 block mb-1">Specifications</label>
+                          <textarea
+                            rows="3"
+                            className="w-full px-4 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            placeholder="Specifications"
+                            value={data.nonequipments_actual[index]?.specifications || item.specifications}
+                            onChange={(e) =>
+                              handleEquipChange(index, "specifications", e.target.value, "nonequipments_actual")
+                            }
+                          />
+                        </div>
+
+                        {/* Big Remarks */}
+                        <div className="mt-3">
+                          <label className="text-xs text-gray-500 block mb-1">Remarks</label>
+                          <textarea
+                            rows="3"
+                            className="w-full px-4 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            placeholder="Additional remarks"
+                            value={data.nonequipments_actual[index]?.remarks || ""}
+                            onChange={(e) =>
+                              handleEquipChange(index, "remarks", e.target.value, "nonequipments_actual")
+                            }
+                          />
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
             </div>
-          </div>
-        ))
-    )}
-  </div>
-</div>
 
 
               {/* 4. Fund Utilization */}
@@ -490,7 +504,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Utilization Remarks</label>
                   <textarea
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 bg-gray-50"
+                    className="w-full px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-purple-500 bg-gray-50"
                     rows="3"
                     placeholder="Enter fund utilization remarks"
                     value={data.util_remarks}
@@ -503,7 +517,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
               <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="p-2 bg-yellow-100 rounded-lg">
-                    <DollarSign className="w-5 h-5 text-yellow-600" />
+                    <PhilippinePeso className="w-5 h-5 text-yellow-600" />
                   </div>
                   <h2 className="text-xl font-semibold text-gray-900">Status of Refund</h2>
                 </div>
@@ -573,7 +587,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
         <div className="flex flex-col">
           <label className="text-xs font-medium text-gray-600 mb-1">Product Name</label>
           <input
-            className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500"
+            className="px-3 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-orange-500"
             value={product.product_name || ""}
             onChange={(e) => updateProduct(index, "product_name", e.target.value)}
             required={index === 0}
@@ -585,7 +599,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
           <label className="text-xs font-medium text-gray-600 mb-1">Volume</label>
           <input
             type="number"
-            className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500"
+            className="px-3 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-orange-500"
             value={product.volume || ""}
             onChange={(e) => updateProduct(index, "volume", Number(e.target.value))}
             required={index === 0}
@@ -596,7 +610,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
         <div className="flex flex-col">
           <label className="text-xs font-medium text-gray-600 mb-1">Quarter</label>
           <select
-            className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500"
+            className="px-3 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-orange-500"
             value={product.quarter || 1}
             onChange={(e) => updateProduct(index, "quarter", Number(e.target.value))}
             required={index === 0}
@@ -613,7 +627,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
           <label className="text-xs font-medium text-gray-600 mb-1">Gross Sales (₱)</label>
           <input
             type="number"
-            className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500"
+            className="px-3 py-2 border-gray-500 rounded-lg focus:ring-2 focus:ring-orange-500"
             value={product.gross_sales || ""}
             onChange={(e) => updateProduct(index, "gross_sales", Number(e.target.value))}
             required={index === 0}
@@ -654,14 +668,14 @@ export default function Create({ project, objects, equipments, nonequipments, re
                       <input
                         type="number"
                         placeholder="New Male"
-                        className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
+                        className="px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
                         value={data.new_male}
                         onChange={(e) => setData("new_male", Number(e.target.value))}
                       />
                       <input
                         type="number"
                         placeholder="New Female"
-                        className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
+                        className="px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
                         value={data.new_female}
                         onChange={(e) => setData("new_female", Number(e.target.value))}
                       />
@@ -678,14 +692,14 @@ export default function Create({ project, objects, equipments, nonequipments, re
                       <input
                         type="number"
                         placeholder="New IF Male"
-                        className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
+                        className="px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
                         value={data.new_ifmale}
                         onChange={(e) => setData("new_ifmale", Number(e.target.value))}
                       />
                       <input
                         type="number"
                         placeholder="New IF Female"
-                        className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
+                        className="px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
                         value={data.new_iffemale}
                         onChange={(e) => setData("new_iffemale", Number(e.target.value))}
                       />
@@ -702,14 +716,14 @@ export default function Create({ project, objects, equipments, nonequipments, re
                       <input
                         type="number"
                         placeholder="New IB Male"
-                        className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
+                        className="px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
                         value={data.new_ibmale}
                         onChange={(e) => setData("new_ibmale", Number(e.target.value))}
                       />
                       <input
                         type="number"
                         placeholder="New IB Female"
-                        className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
+                        className="px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
                         value={data.new_ibfemale}
                         onChange={(e) => setData("new_ibfemale", Number(e.target.value))}
                       />
@@ -778,14 +792,14 @@ export default function Create({ project, objects, equipments, nonequipments, re
                         <input
                           type="text"
                           placeholder="Market Place Name"
-                          className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+                          className="px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
                           value={market.place_name || ""}
                           onChange={(e) => updateNewMarket(index, "place_name", e.target.value)}
                         />
                         <input
                           type="date"
                           placeholder="Effective Date"
-                          className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+                          className="px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
                           value={market.effective_date || ""}
                           onChange={(e) => updateNewMarket(index, "effective_date", e.target.value)}
                         />
@@ -817,7 +831,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
                     <label className="block text-sm font-medium text-gray-700 mb-2">Problems Encountered</label>
                     <textarea
                       rows="4"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 bg-gray-50"
+                      className="w-full px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-red-500 bg-gray-50"
                       placeholder="Problems met & actions taken during project implementation"
                       value={data.problems}
                       onChange={(e) => setData("problems", e.target.value)}
@@ -828,7 +842,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
                     <label className="block text-sm font-medium text-gray-700 mb-2">Actions Taken</label>
                     <textarea
                       rows="4"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 bg-gray-50"
+                      className="w-full px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-red-500 bg-gray-50"
                       placeholder="Action/plan for the improvement of project’s operation"
                       value={data.actions}
                       onChange={(e) => setData("actions", e.target.value)}
@@ -839,7 +853,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
                     <label className="block text-sm font-medium text-gray-700 mb-2">Promotional/Linkages Plan</label>
                     <textarea
                       rows="4"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 bg-gray-50"
+                      className="w-full px-4 py-3 border-gray-500 rounded-xl focus:ring-2 focus:ring-red-500 bg-gray-50"
                       placeholder="Describe promotional or linkages plan"
                       value={data.promotional}
                       onChange={(e) => setData("promotional", e.target.value)}

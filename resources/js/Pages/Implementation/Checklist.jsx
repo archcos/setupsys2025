@@ -15,14 +15,14 @@ import {
   Package,
   ClipboardList,
   Building2,
-  DollarSign,
   Target,
   Activity,
   Upload,
   Trash2,
   Calendar,
   BarChart3,
-  Sparkles
+  Sparkles,
+  PhilippinePeso
 } from 'lucide-react';
 
 const fieldLabels = {
@@ -309,7 +309,7 @@ export default function Checklist({ implementation }) {
             </div>
             <div className="flex items-center justify-center">
               <div className="text-center p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
-                <DollarSign className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                <PhilippinePeso className="w-8 h-8 text-green-600 mx-auto mb-2" />
                 <label className="text-sm font-medium text-gray-500 block">Project Cost</label>
                 <p className="text-2xl font-bold text-green-600">
                   ₱{projectCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}

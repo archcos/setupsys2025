@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CompanyModel;
 use App\Models\ItemModel;
+use App\Models\ObjectiveModel;
 use App\Models\ReportModel;
 use App\Models\ProjectModel;
 use App\Models\UserModel;
@@ -97,6 +98,7 @@ public function destroy($id)
 {
     // Delete items linked by the "report" column
     ItemModel::where('report', $id)->delete();
+    ObjectiveModel::where('report', $id)->delete();
 
     // Delete the report
     $report = ReportModel::findOrFail($id);
@@ -205,6 +207,7 @@ public function downloadReport($report_id)
 
         $objectives = DB::table('tbl_objectives')
             ->where('project_id', $project->project_id)
+            ->where('report', 'approved')
             ->get();
 
         $equipments = DB::table('tbl_items')
@@ -239,8 +242,10 @@ public function downloadReport($report_id)
     {
         $validated = $request->validate([
             'project_id' => 'required|exists:tbl_projects,project_id',
-            'actual_accom' => 'nullable|string',
-            'actual_remarks' => 'nullable|string|max:45',
+            'actual_accom' => 'nullable|array',
+            'actual_accom.*' => 'nullable|string',
+            'actual_remarks' => 'nullable|array',
+            'actual_remarks.*' => 'nullable|string',
             'util_remarks' => 'nullable|string',
             'new_male' => 'nullable|integer|min:0',
             'new_female' => 'nullable|integer|min:0',
@@ -269,139 +274,178 @@ public function downloadReport($report_id)
             'nonequipments_actual.*.remarks' => 'nullable|string',
         ]);
 
-        Log::info('Creating new report', [
-            'validated_data' => $validated,
+       Log::info('Creating new report - validated data received', [
+        'validated' => $validated,
+    ]);
+
+    DB::beginTransaction();
+
+    try {
+        // Create the report
+        $report = ReportModel::create([
+            'project_id'   => $validated['project_id'],
+            'util_remarks' => $validated['util_remarks'] ?? null,
+            'new_male'     => $validated['new_male'] ?? 0,
+            'new_female'   => $validated['new_female'] ?? 0,
+            'new_ifmale'   => $validated['new_ifmale'] ?? 0,
+            'new_iffemale' => $validated['new_iffemale'] ?? 0,
+            'new_ibmale'   => $validated['new_ibmale'] ?? 0,
+            'new_ibfemale' => $validated['new_ibfemale'] ?? 0,
+            'problems'     => $validated['problems'] ?? null,
+            'actions'      => $validated['actions'] ?? null,
+            'promotional'  => $validated['promotional'] ?? null,
         ]);
 
-        DB::beginTransaction();
-        
-        try {
-            // Create the report
-            $report = ReportModel::create([
-                'project_id' => $validated['project_id'],
-                'actual_accom' => $validated['actual_accom'],
-                'actual_remarks' => $validated['actual_remarks'],
-                'util_remarks' => $validated['util_remarks'],
-                'new_male' => $validated['new_male'] ?? 0,
-                'new_female' => $validated['new_female'] ?? 0,
-                'new_ifmale' => $validated['new_ifmale'] ?? 0,
-                'new_iffemale' => $validated['new_iffemale'] ?? 0,
-                'new_ibmale' => $validated['new_ibmale'] ?? 0,
-                'new_ibfemale' => $validated['new_ibfemale'] ?? 0,
-                'problems' => $validated['problems'],
-                'actions' => $validated['actions'],
-                'promotional' => $validated['promotional'],
-            ]);
+        $reportId = $report->report_id;
 
-            $reportId = $report->report_id;
+        Log::debug('Report row inserted', [
+            'report_id' => $reportId,
+            'project_id' => $validated['project_id']
+        ]);
 
-            // Save products
-            if (!empty($validated['products'])) {
-                foreach ($validated['products'] as $product) {
-                    if (!empty($product['product_name'])) {
-                        DB::table('tbl_products')->insert([
-                            'report_id' => $reportId,
-                            'product_name' => $product['product_name'],
-                            'volume' => $product['volume'] ?? 0,
-                            'quarter' => $product['quarter'] ?? 1,
-                            'gross_sales' => $product['gross_sales'] ?? 0,
-                        ]);
-                    }
-                }
+        // ✅ Save objectives
+        if (!empty($validated['actual_accom'])) {
+            foreach ($validated['actual_accom'] as $index => $accom) {
+                $remarks = $validated['actual_remarks'][$index] ?? null;
+
+                Log::debug('Inserting objective report', [
+                    'index' => $index,
+                    'actual_accom' => $accom,
+                    'actual_remarks' => $remarks,
+                ]);
+
+                DB::table('tbl_objectives')->insert([
+                    'project_id'     => $validated['project_id'],
+                    'report'      => $reportId,
+                    'details'   => $accom,
+                    'remarks' => $remarks,
+                ]);
             }
-
-            // Save new markets
-            if (!empty($validated['markets_new'])) {
-                foreach ($validated['markets_new'] as $market) {
-                    if (!empty($market['place_name'])) {
-                        DB::table('tbl_markets')->insert([
-                            'project_id' => $validated['project_id'],
-                            'place_name' => $market['place_name'],
-                            'effective_date' => $market['effective_date'],
-                            'type' => 'new',
-                        ]);
-                    }
-                }
-            }
-
-            // Update equipment actual data
-            if (!empty($validated['equipments_actual'])) {
-                $equipments = DB::table('tbl_items')
-                    ->where('project_id', $validated['project_id'])
-                    ->where('type', 'equipment')
-                    ->where('report', 'approved')
-                    ->get();
-
-                foreach ($equipments as $index => $equipment) {
-                    if (isset($validated['equipments_actual'][$index])) {
-                        $actualData = $validated['equipments_actual'][$index];
-                        
-                        // Create new item entry for actual equipment
-                        if (!empty($actualData['actual']) || !empty($actualData['acknowledge']) || !empty($actualData['remarks'])) {
-                            DB::table('tbl_items')->insert([
-                                'project_id' => $validated['project_id'],
-                                'item_name' => $actualData['actual'] ?? $equipment->item_name,
-                                'specifications' => $equipment->specifications,
-                                'quantity' => $equipment->quantity,
-                                'item_cost' => $equipment->item_cost,
-                                'type' => 'equipment',
-                                'report' => $reportId,
-                                'acknowledge' => $actualData['acknowledge'],
-                                'remarks' => $actualData['remarks'],
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            // Update non-equipment actual data
-            if (!empty($validated['nonequipments_actual'])) {
-                $nonequipments = DB::table('tbl_items')
-                    ->where('project_id', $validated['project_id'])
-                    ->where('type', 'nonequip')
-                    ->where('report', 'approved')
-                    ->get();
-
-                foreach ($nonequipments as $index => $nonequipment) {
-                    if (isset($validated['nonequipments_actual'][$index])) {
-                        $actualData = $validated['nonequipments_actual'][$index];
-                        
-                        // Create new item entry for actual non-equipment
-                        if (!empty($actualData['actual']) || !empty($actualData['acknowledge']) || !empty($actualData['remarks'])) {
-                            DB::table('tbl_items')->insert([
-                                'project_id' => $validated['project_id'],
-                                'item_name' => $actualData['actual'] ?? $nonequipment->item_name,
-                                'specifications' => $nonequipment->specifications,
-                                'quantity' => $nonequipment->quantity,
-                                'item_cost' => $nonequipment->item_cost,
-                                'type' => 'nonequip',
-                                'report' => $reportId,
-                                'acknowledge' => $actualData['acknowledge'],
-                                'remarks' => $actualData['remarks'],
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            DB::commit();
-            
-            Log::notice('Report created successfully', [
-                'project_id' => $validated['project_id'],
-                'report_id' => $reportId,
-            ]);
-
-            return redirect()->route('reports.index')->with('success', 'Report created successfully.');
-
-        } catch (\Exception $e) {
-            DB::rollback();
-            
-            Log::error('Failed to create report', [
-                'error' => $e->getMessage(),
-                'project_id' => $validated['project_id'],
-            ]);
-
-            return back()->withErrors(['error' => 'Failed to create report. Please try again.']);
+        } else {
+            Log::info('No actual_accom provided, skipping objectives insert.');
         }
+
+        // ✅ Save products
+        if (!empty($validated['products'])) {
+            foreach ($validated['products'] as $i => $product) {
+                Log::debug('Processing product', ['index' => $i, 'data' => $product]);
+
+                if (!empty($product['product_name'])) {
+                    DB::table('tbl_products')->insert([
+                        'report_id'    => $reportId,
+                        'product_name' => $product['product_name'],
+                        'volume'       => $product['volume'] ?? 0,
+                        'quarter'      => $product['quarter'] ?? 1,
+                        'gross_sales'  => $product['gross_sales'] ?? 0,
+                    ]);
+                    Log::info('Product inserted', ['product_name' => $product['product_name']]);
+                } else {
+                    Log::warning('Skipping product with empty name', ['index' => $i]);
+                }
+            }
+        }
+
+        // ✅ Save new markets
+        if (!empty($validated['markets_new'])) {
+            foreach ($validated['markets_new'] as $i => $market) {
+                Log::debug('Processing market', ['index' => $i, 'data' => $market]);
+
+                if (!empty($market['place_name'])) {
+                    DB::table('tbl_markets')->insert([
+                        'project_id'     => $validated['project_id'],
+                        'place_name'     => $market['place_name'],
+                        'effective_date' => $market['effective_date'],
+                        'type'           => 'new',
+                    ]);
+                    Log::info('Market inserted', ['place_name' => $market['place_name']]);
+                } else {
+                    Log::warning('Skipping market with empty place_name', ['index' => $i]);
+                }
+            }
+        }
+
+        // ✅ Equipment and Non-Equipment inserts
+        Log::debug('Processing equipment and non-equipment actual data');
+
+        if (!empty($validated['equipments_actual'])) {
+            $equipments = DB::table('tbl_items')
+                ->where('project_id', $validated['project_id'])
+                ->where('type', 'equipment')
+                ->where('report', 'approved')
+                ->get();
+
+            foreach ($equipments as $index => $equipment) {
+                if (isset($validated['equipments_actual'][$index])) {
+                    $actualData = $validated['equipments_actual'][$index];
+                    Log::debug('Equipment actual data', ['index' => $index, 'data' => $actualData]);
+
+                    if (!empty($actualData['actual']) || !empty($actualData['acknowledge']) || !empty($actualData['remarks'])) {
+                        DB::table('tbl_items')->insert([
+                            'project_id'    => $validated['project_id'],
+                            'item_name'     => $actualData['actual'] ?? $equipment->item_name,
+                            'specifications'=> $equipment->specifications,
+                            'quantity'      => $equipment->quantity,
+                            'item_cost'     => $equipment->item_cost,
+                            'type'          => 'equipment',
+                            'report'        => $reportId,
+                            'acknowledge'   => $actualData['acknowledge'],
+                            'remarks'       => $actualData['remarks'],
+                        ]);
+                        Log::info('Equipment inserted', ['item_name' => $actualData['actual'] ?? $equipment->item_name]);
+                    }
+                }
+            }
+        }
+
+        if (!empty($validated['nonequipments_actual'])) {
+            $nonequipments = DB::table('tbl_items')
+                ->where('project_id', $validated['project_id'])
+                ->where('type', 'nonequip')
+                ->where('report', 'approved')
+                ->get();
+
+            foreach ($nonequipments as $index => $nonequipment) {
+                if (isset($validated['nonequipments_actual'][$index])) {
+                    $actualData = $validated['nonequipments_actual'][$index];
+                    Log::debug('Non-equipment actual data', ['index' => $index, 'data' => $actualData]);
+
+                    if (!empty($actualData['actual']) || !empty($actualData['acknowledge']) || !empty($actualData['remarks'])) {
+                        DB::table('tbl_items')->insert([
+                            'project_id'    => $validated['project_id'],
+                            'item_name'     => $actualData['actual'] ?? $nonequipment->item_name,
+                            'specifications'=> $nonequipment->specifications,
+                            'quantity'      => $nonequipment->quantity,
+                            'item_cost'     => $nonequipment->item_cost,
+                            'type'          => 'nonequip',
+                            'report'        => $reportId,
+                            'acknowledge'   => $actualData['acknowledge'],
+                            'remarks'       => $actualData['remarks'],
+                        ]);
+                        Log::info('Non-equipment inserted', ['item_name' => $actualData['actual'] ?? $nonequipment->item_name]);
+                    }
+                }
+            }
+        }
+
+        DB::commit();
+
+        Log::notice('Report created successfully', [
+            'project_id' => $validated['project_id'],
+            'report_id'  => $reportId,
+        ]);
+
+        return redirect()->route('reports.index')->with('success', 'Report created successfully.');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        Log::error('Failed to create report', [
+            'message' => $e->getMessage(),
+            'trace'   => $e->getTraceAsString(),
+            'data'    => $validated,
+        ]);
+
+        return back()->withErrors(['error' => 'Failed to create report. Please check logs.']);
     }
+}
 }

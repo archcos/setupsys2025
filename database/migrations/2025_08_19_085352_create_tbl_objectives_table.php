@@ -15,6 +15,8 @@ return new class extends Migration
             $table->id('objective_id');
             $table->unsignedBigInteger('project_id')->nullable();
             $table->text('details')->nullable();
+            $table->string('report', 9)->nullable();
+            $table->text('remarks')->nullable();
             $table->timestamps();
 
             // Foreign key reference
