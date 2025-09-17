@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
-import Sidebar from '../../components/Sidebar';
-import Header from '../../components/Header';
 import {
   Search,
   RefreshCw,
@@ -127,13 +125,9 @@ export default function Index({ refunds, months, selectedMonth, selectedStatus }
   const stats = getStatusStats();
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <Head title="Refund Monitoring" />
         
         <main className="flex-1 p-6 overflow-y-auto">
+                  <Head title="Refund Monitoring" />
           <div className="max-w-7xl mx-auto">
             {/* Header Section */}
             <div className="mb-8">
@@ -507,7 +501,5 @@ export default function Index({ refunds, months, selectedMonth, selectedStatus }
             </div>
           </div>
         </main>
-      </div>
-    </div>
   );
 }

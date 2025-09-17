@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+
 import { usePage, Head } from '@inertiajs/react';
 import {
   BarChart3,
@@ -72,13 +71,11 @@ export default function Home() {
   const incompleteProjects = projectDetails.filter(p => !p.progress).length;
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <Head title="Dashboard" />
+
         
         <main className="flex-1 p-4 overflow-y-auto">
+                  <Head title="Dashboard" />
+
           <div className="max-w-7xl mx-auto space-y-4">
             {/* Compact Header */}
             <div className="flex items-center gap-3 mb-4">
@@ -303,7 +300,5 @@ export default function Home() {
             </div>
           </div>
         </main>
-      </div>
-    </div>
   );
 }

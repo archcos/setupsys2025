@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { router, Head, usePage } from '@inertiajs/react';
-import Sidebar from '../../components/Sidebar';
-import Header from '../../components/Header';
 import {
   Users,
   Search,
@@ -121,13 +119,10 @@ export default function UserManagement({ users, offices, filters }) {
   };
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-        <Head title="User Management" />
         
         <main className="flex-1 p-6 overflow-y-auto">
+                  <Head title="User Management" />
+
           <div className="max-w-7xl mx-auto">
             {/* Flash Success Message */}
             {flashMessage && (
@@ -696,7 +691,5 @@ export default function UserManagement({ users, offices, filters }) {
             )}
           </div>
         </main>
-      </div>
-    </div>
   );
 }

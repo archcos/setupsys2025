@@ -1,7 +1,5 @@
 import { Head, router } from "@inertiajs/react";
 import { useState, useRef, useEffect } from "react";
-import Sidebar from "../../components/Sidebar";
-import Header from "../../components/Header";
 import { 
     Search, 
     Calendar, 
@@ -58,14 +56,10 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
     const projectsWithBalance = projects.filter(p => parseFloat(p.outstanding_balance) > 0).length;
 
     return (
-        <>
-            <Head title="My Refunds" />
-            <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
-                <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                    <Header title="My Refunds" toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-
+   
+        
                     <main className="flex-1 overflow-y-auto p-6 space-y-8">
+                         <Head title="My Refunds" />
                         <div className="max-w-7xl mx-auto">
                             {/* Header Section */}
                             
@@ -366,8 +360,5 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
                             </div>
                         </div>
                     </main>
-                </div>
-            </div>
-        </>
     );
 }

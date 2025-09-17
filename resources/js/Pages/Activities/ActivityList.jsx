@@ -1,7 +1,5 @@
 import { router, Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import Sidebar from '../../components/Sidebar';
-import Header from '../../components/Header';
 import {
   Activity,
   FolderOpen,
@@ -55,18 +53,9 @@ export default function ActivityList({ activities, filters }) {
   }, {});
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <Head title="Activities" />
-        
         <main className="flex-1 p-6 overflow-y-auto">
+                  <Head title="Activities" />
           <div className="max-w-7xl mx-auto">
-            {/* Header Section */}
-            
-
-
             {/* Activities by Project */}
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
               <div className="p-8 pb-0">
@@ -249,7 +238,5 @@ export default function ActivityList({ activities, filters }) {
             </div>
           </div>
         </main>
-      </div>
-    </div>
   );
 }

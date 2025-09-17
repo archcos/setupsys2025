@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
-import Sidebar from '../../components/Sidebar';
-import Header from '../../components/Header';
 import {
   Search,
   FileText,
@@ -75,13 +73,11 @@ export default function MOAIndex({ moas, filters }) {
   };
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <Head title="MOA List" />
+
         
         <main className="flex-1 p-6 overflow-y-auto">
+                  <Head title="MOA List" />
+
           <div className="max-w-7xl mx-auto">
             {/* Main Content Card */}
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
@@ -326,7 +322,5 @@ export default function MOAIndex({ moas, filters }) {
             </div>
           </div>
         </main>
-      </div>
-    </div>
   );
 }

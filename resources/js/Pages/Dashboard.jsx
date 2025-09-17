@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
 import { Head, usePage, Link } from '@inertiajs/react';
 import { 
   CheckCircle, 
@@ -13,24 +11,19 @@ import {
   Clock,
   Award,
   Sparkles,
-  Activity,
   ChevronRight,
   AlertCircle,
   Eye,
-  Filter,
   Search,
   X
 } from 'lucide-react';
 
 export default function Dashboard() {
   const { projectDetails = [], userCompanyName } = usePage().props;
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const stages = ['Complete Details', 'Draft MOA', 'Implementation', 'Liquidation', 'Refund', 'Completed'];
 
@@ -57,7 +50,6 @@ export default function Dashboard() {
       : <span className="italic text-gray-500">In Progress</span>;
   };
 
-  // Filter projects based on selected filter and search
   const filteredProjects = projectDetails.filter(project => {
     const matchesSearch = project.project_title.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -65,7 +57,6 @@ export default function Dashboard() {
     if (selectedFilter === 'completed') return matchesSearch && project.progress === 'Completed';
     if (selectedFilter === 'in-progress') return matchesSearch && project.progress !== 'Completed';
     if (selectedFilter === 'urgent') {
-      // Projects that need attention (implementation stage with missing requirements)
       const impl = project.implementation || {};
       return matchesSearch && project.progress === 'Implementation' && 
              (!impl.tarp_upload || !impl.pdc_upload || !impl.liquidation_upload);
@@ -108,7 +99,6 @@ export default function Dashboard() {
     return { status: 'in-progress', color: 'blue', message: 'In progress' };
   };
 
-  // Calculate stats
   const completedProjects = projectDetails.filter(p => p.progress === 'Completed').length;
   const totalProjects = projectDetails.length;
   const inProgressProjects = totalProjects - completedProjects;
@@ -125,110 +115,107 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <main className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-7xl mx-auto space-y-6">
-            <Head title="Dashboard" />
-            
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Welcome back!
-                </h1>
-                <p className="text-gray-600 mt-1">Here's what's happening with your projects</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-blue-800" />
-                <span className="text-sm ">{new Date().toLocaleDateString()}</span>
-              </div>
-            </div>
+    <main className="flex-1 flex flex-col overflow-hidden ">
+      <Head title="Dashboard" />
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Projects</p>
-                    <p className="text-2xl font-bold text-gray-900">{totalProjects}</p>
-                  </div>
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <BarChart3 className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">In Progress</p>
-                    <p className="text-2xl font-bold text-gray-900">{inProgressProjects}</p>
-                  </div>
-                  <div className="p-3 bg-orange-100 rounded-lg">
-                    <Clock className="w-6 h-6 text-orange-600" />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Completed</p>
-                    <p className="text-2xl font-bold text-gray-900">{completedProjects}</p>
-                  </div>
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <Award className="w-6 h-6 text-green-600" />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Needs Attention</p>
-                    <p className="text-2xl font-bold text-gray-900">{needsAttentionProjects}</p>
-                  </div>
-                  <div className="p-3 bg-red-100 rounded-lg">
-                    <AlertCircle className="w-6 h-6 text-red-600" />
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Welcome back!</h1>
+          <p className="text-gray-600 mt-1">Here's what's happening with your projects</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Calendar className="w-5 h-5 text-blue-800" />
+          <span className="text-sm">{new Date().toLocaleDateString()}</span>
+        </div>
+      </div>
 
-            {/* Filters and Search */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-                <div className="flex flex-wrap gap-2">
-                  {filters.map(filter => (
-                    <button
-                      key={filter.key}
-                      onClick={() => setSelectedFilter(filter.key)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                        selectedFilter === filter.key
-                          ? 'bg-blue-500 text-white shadow-md'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {filter.label} ({filter.count})
-                    </button>
-                  ))}
-                </div>
-                
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type="text"
-                    placeholder="Search projects..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {/* Total Projects */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Projects</p>
+              <p className="text-2xl font-bold text-gray-900">{totalProjects}</p>
             </div>
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <BarChart3 className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* In Progress */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">In Progress</p>
+              <p className="text-2xl font-bold text-gray-900">{inProgressProjects}</p>
+            </div>
+            <div className="p-3 bg-orange-100 rounded-lg">
+              <Clock className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Completed */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Completed</p>
+              <p className="text-2xl font-bold text-gray-900">{completedProjects}</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-lg">
+              <Award className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Needs Attention */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Needs Attention</p>
+              <p className="text-2xl font-bold text-gray-900">{needsAttentionProjects}</p>
+            </div>
+            <div className="p-3 bg-red-100 rounded-lg">
+              <AlertCircle className="w-6 h-6 text-red-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters & Search */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+          <div className="flex flex-wrap gap-2">
+            {filters.map(filter => (
+              <button
+                key={filter.key}
+                onClick={() => setSelectedFilter(filter.key)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  selectedFilter === filter.key
+                    ? 'bg-blue-500 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {filter.label} ({filter.count})
+              </button>
+            ))}
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>  
+        </div>
+      </div>
 
             {/* Projects Grid */}
             {filteredProjects.length > 0 ? (
@@ -386,9 +373,8 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
-          </div>
-        </main>
-      </div>
+
+
 
 {/* Project Details Modal */}
 {isModalOpen && selectedProject && (
@@ -588,8 +574,6 @@ export default function Dashboard() {
     </div>
   </div>
 )}
-
-
-    </div>
+          </main>
   );
 }

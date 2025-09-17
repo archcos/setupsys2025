@@ -1,7 +1,6 @@
 import { useForm, router, Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
-import Sidebar from '../../components/Sidebar';
-import Header from '../../components/Header';
+
 import {
   FileText,
   Building2,
@@ -75,13 +74,11 @@ export default function GenerateDocxForm({ companies }) {
   const isFormValid = data.company_id && data.project_id && data.witness.trim();
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <Head title="Draft MOA" />
+    
         
         <main className="flex-1 p-6 overflow-y-auto">
+                  <Head title="Draft MOA" />
+
           <div className="max-w-4xl mx-auto">
             {/* Main Content Card */}
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
@@ -316,7 +313,6 @@ export default function GenerateDocxForm({ companies }) {
             </div>
           </div>
         </main>
-      </div>
-    </div>
+
   );
 }

@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useForm, usePage, router, Head, Link } from '@inertiajs/react';
-import Sidebar from '../../components/Sidebar';
-import Header from '../../components/Header';
 import {
   CheckCircle,
   Circle,
@@ -48,8 +46,6 @@ export default function Checklist({ implementation }) {
     tag_amount: '',
   });
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   const { props: page } = usePage();
   const [loadingField, setLoadingField] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -267,303 +263,297 @@ export default function Checklist({ implementation }) {
   };
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <Head title="Implementation Checklist" />
-        
-        <main className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-5xl mx-auto">
-            {/* Header Section */}
-            <div className="mb-8">
-              <Link
-                href="/implementation"
-                className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-4 group"
-              >
-                <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-                Back to Implementation
-              </Link>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
-                  <ClipboardList className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900">Implementation Checklist</h1>
-                  <p className="text-gray-600 mt-1">Track project deliverables and requirements</p>
-                </div>
+    <>
+      <Head title="Implementation Checklist" />
+      
+      <div className="max-w-5xl mx-auto">
+        {/* Header Section */}
+        <div className="mb-8">
+          <Link
+            href="/implementation"
+            className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-4 group"
+          >
+            <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+            Back to Implementation
+          </Link>
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
+              <ClipboardList className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Implementation Checklist</h1>
+              <p className="text-gray-600 mt-1">Track project deliverables and requirements</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Project Information Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 mb-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <Building2 className="w-5 h-5 text-indigo-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900">Project Information</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-500">Company</label>
+                <p className="text-lg font-semibold text-gray-900">{implementation.company_name}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Project</label>
+                <p className="text-lg font-semibold text-gray-900">{implementation.project_title}</p>
               </div>
             </div>
-
-            {/* Project Information Card */}
-            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 mb-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-indigo-100 rounded-lg">
-                  <Building2 className="w-5 h-5 text-indigo-600" />
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900">Project Information</h2>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Company</label>
-                    <p className="text-lg font-semibold text-gray-900">{implementation.company_name}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Project</label>
-                    <p className="text-lg font-semibold text-gray-900">{implementation.project_title}</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-center">
-                  <div className="text-center p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
-                    <DollarSign className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                    <label className="text-sm font-medium text-gray-500 block">Project Cost</label>
-                    <p className="text-2xl font-bold text-green-600">
-                      ₱{projectCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* File Upload Sections */}
-            <div className="space-y-6 mb-8">
-              {['tarp', 'pdc'].map((field) => renderFileUploadSection(field))}
-            </div>
-
-            {/* Tagging Section */}
-            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 mb-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Package className="w-5 h-5 text-purple-600" />
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900">Equipment Tagging</h2>
-              </div>
-
-              {/* Add Tag Form */}
-              <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <input
-                    type="text"
-                    value={data.tag_name}
-                    onChange={(e) => setData('tag_name', e.target.value)}
-                    placeholder="Equipment Name"
-                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  />
-                  <input
-                    type="number"
-                    value={data.tag_amount}
-                    onChange={(e) => setData('tag_amount', e.target.value)}
-                    placeholder="Amount"
-                    className="w-32 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  />
-                  <button
-                    onClick={addTag}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-                  >
-                    <Plus className="w-4 h-4" /> Add Tag
-                  </button>
-                </div>
-              </div>
-
-              {/* Progress Section */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Project Completion</span>
-                  <span className="text-sm font-bold text-purple-600">{percentage.toFixed(1)}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                  <div
-                    className="bg-gradient-to-r from-purple-500 to-purple-600 h-full transition-all duration-500 ease-out"
-                    style={{ width: `${Math.min(percentage, 100)}%` }}
-                  ></div>
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <Target className="w-4 h-4 text-purple-500" />
-                  <span className="text-sm text-gray-600">
-                    Tag Total: <strong>₱{totalAmount?.toLocaleString()}</strong> of ₱{projectCost.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              {/* Tags List */}
-              <div className="space-y-3">
-                {implementation.tags?.map((tag) => (
-                  <div
-                    key={tag.tag_id}
-                    className="flex items-center gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-50/30 rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200"
-                  >
-                    {editingTag === tag.tag_id ? (
-                      <>
-                        <input
-                          value={editedTag.name}
-                          onChange={(e) =>
-                            setEditedTag((prev) => ({ ...prev, name: e.target.value }))
-                          }
-                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        />
-                        <input
-                          type="number"
-                          value={editedTag.amount}
-                          onChange={(e) =>
-                            setEditedTag((prev) => ({ ...prev, amount: e.target.value }))
-                          }
-                          className="w-32 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        />
-                        <button
-                          onClick={() => saveEditTag(tag.tag_id)}
-                          className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                        >
-                          <Save className="w-4 h-4" />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex-1">
-                          <span className="font-medium text-gray-900">{tag.tag_name}</span>
-                          <span className="text-purple-600 font-semibold ml-2">
-                            ₱{parseFloat(tag.tag_amount).toLocaleString()}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => startEditTag(tag)}
-                          className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => deleteTag(tag.tag_id)}
-                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Untagging Status */}
-            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 mb-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <Activity className="w-5 h-5 text-orange-600" />
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900">Untagging Status</h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-orange-50 to-orange-50/30 rounded-xl border border-orange-200">
-                  {renderStatus(implementation.first_untagged)}
-                  <div>
-                    <h3 className="font-medium text-gray-900">First Untagging</h3>
-                    <p className="text-sm text-gray-500">50% Progress Milestone</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-green-50 to-green-50/30 rounded-xl border border-green-200">
-                  {renderStatus(implementation.final_untagged)}
-                  <div>
-                    <h3 className="font-medium text-gray-900">Final Untagging</h3>
-                    <p className="text-sm text-gray-500">100% Completion</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Liquidation Section */}
-            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-emerald-100 rounded-lg">
-                  <BarChart3 className="w-5 h-5 text-emerald-600" />
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-xl font-semibold text-gray-900">Liquidation Report</h2>
-                  <p className="text-sm text-gray-600">Available when tagging reaches 100%</p>
-                </div>
-                {renderStatus(implementation.liquidation)}
-              </div>
-
-              {!canUploadLiquidation && (
-                <div className="mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-yellow-600" />
-                    <p className="text-sm text-yellow-700">
-                      <strong>Complete all tagging first!</strong> Liquidation upload becomes available when tagging reaches 100% of project cost.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {implementation.liquidation && implementation.liquidation_upload && (
-                <div className="mb-4">
-                  <p className="text-xs text-gray-500">
-                    <Calendar className="w-4 h-4 inline mr-1" />
-                    Uploaded on: {new Date(implementation.liquidation_upload).toLocaleString()}
-                  </p>
-                </div>
-              )}
-
-              {implementation.liquidation && (
-                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200 mb-4">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span className="text-green-700 font-medium">Liquidation report uploaded successfully</span>
-                  <div className="flex gap-2 ml-auto">
-                    <button
-                      onClick={() => previewFile(implementation.liquidation)}
-                      className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                    >
-                      <Eye className="w-4 h-4" /> View
-                    </button>
-                    <a
-                      href={`/implementation/download/liquidation?url=${encodeURIComponent(
-                        implementation.liquidation
-                      )}`}
-                      className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                    >
-                      <Download className="w-4 h-4" /> Download
-                    </a>
-                    <button
-                      onClick={() => deleteFile('liquidation')}
-                      className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
-                      disabled={loadingField === 'liquidation'}
-                    >
-                      {loadingField === 'liquidation' ? <Loader2 className="animate-spin w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center gap-3">
-                <input
-                  type="file"
-                  onChange={(e) => setData('liquidation', e.target.files[0])}
-                  className="flex-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                  disabled={implementation.liquidation || !canUploadLiquidation}
-                />
-                <button
-                  onClick={() => upload('liquidation')}
-                  disabled={!data.liquidation || implementation.liquidation || loadingField === 'liquidation' || !canUploadLiquidation}
-                  className="inline-flex items-center gap-2 px-6 py-2 bg-emerald-500 text-white font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loadingField === 'liquidation' ? (
-                    <>
-                      <Loader2 className="animate-spin w-4 h-4" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      Upload
-                    </>
-                  )}
-                </button>
+            <div className="flex items-center justify-center">
+              <div className="text-center p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
+                <DollarSign className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                <label className="text-sm font-medium text-gray-500 block">Project Cost</label>
+                <p className="text-2xl font-bold text-green-600">
+                  ₱{projectCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </p>
               </div>
             </div>
           </div>
-        </main>
+        </div>
+
+        {/* File Upload Sections */}
+        <div className="space-y-6 mb-8">
+          {['tarp', 'pdc'].map((field) => renderFileUploadSection(field))}
+        </div>
+
+        {/* Tagging Section */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 mb-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Package className="w-5 h-5 text-purple-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900">Equipment Tagging</h2>
+          </div>
+
+          {/* Add Tag Form */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="text"
+                value={data.tag_name}
+                onChange={(e) => setData('tag_name', e.target.value)}
+                placeholder="Equipment Name"
+                className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+              />
+              <input
+                type="number"
+                value={data.tag_amount}
+                onChange={(e) => setData('tag_amount', e.target.value)}
+                placeholder="Amount"
+                className="w-32 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+              />
+              <button
+                onClick={addTag}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                <Plus className="w-4 h-4" /> Add Tag
+              </button>
+            </div>
+          </div>
+
+          {/* Progress Section */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Project Completion</span>
+              <span className="text-sm font-bold text-purple-600">{percentage.toFixed(1)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-purple-500 to-purple-600 h-full transition-all duration-500 ease-out"
+                style={{ width: `${Math.min(percentage, 100)}%` }}
+              ></div>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <Target className="w-4 h-4 text-purple-500" />
+              <span className="text-sm text-gray-600">
+                Tag Total: <strong>₱{totalAmount?.toLocaleString()}</strong> of ₱{projectCost.toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          {/* Tags List */}
+          <div className="space-y-3">
+            {implementation.tags?.map((tag) => (
+              <div
+                key={tag.tag_id}
+                className="flex items-center gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-50/30 rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200"
+              >
+                {editingTag === tag.tag_id ? (
+                  <>
+                    <input
+                      value={editedTag.name}
+                      onChange={(e) =>
+                        setEditedTag((prev) => ({ ...prev, name: e.target.value }))
+                      }
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                    <input
+                      type="number"
+                      value={editedTag.amount}
+                      onChange={(e) =>
+                        setEditedTag((prev) => ({ ...prev, amount: e.target.value }))
+                      }
+                      className="w-32 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                    <button
+                      onClick={() => saveEditTag(tag.tag_id)}
+                      className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                    >
+                      <Save className="w-4 h-4" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900">{tag.tag_name}</span>
+                      <span className="text-purple-600 font-semibold ml-2">
+                        ₱{parseFloat(tag.tag_amount).toLocaleString()}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => startEditTag(tag)}
+                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => deleteTag(tag.tag_id)}
+                  className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Untagging Status */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 mb-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Activity className="w-5 h-5 text-orange-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900">Untagging Status</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-orange-50 to-orange-50/30 rounded-xl border border-orange-200">
+              {renderStatus(implementation.first_untagged)}
+              <div>
+                <h3 className="font-medium text-gray-900">First Untagging</h3>
+                <p className="text-sm text-gray-500">50% Progress Milestone</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-green-50 to-green-50/30 rounded-xl border border-green-200">
+              {renderStatus(implementation.final_untagged)}
+              <div>
+                <h3 className="font-medium text-gray-900">Final Untagging</h3>
+                <p className="text-sm text-gray-500">100% Completion</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Liquidation Section */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-emerald-100 rounded-lg">
+              <BarChart3 className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-semibold text-gray-900">Liquidation Report</h2>
+              <p className="text-sm text-gray-600">Available when tagging reaches 100%</p>
+            </div>
+            {renderStatus(implementation.liquidation)}
+          </div>
+
+          {!canUploadLiquidation && (
+            <div className="mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-yellow-600" />
+                <p className="text-sm text-yellow-700">
+                  <strong>Complete all tagging first!</strong> Liquidation upload becomes available when tagging reaches 100% of project cost.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {implementation.liquidation && implementation.liquidation_upload && (
+            <div className="mb-4">
+              <p className="text-xs text-gray-500">
+                <Calendar className="w-4 h-4 inline mr-1" />
+                Uploaded on: {new Date(implementation.liquidation_upload).toLocaleString()}
+              </p>
+            </div>
+          )}
+
+          {implementation.liquidation && (
+            <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200 mb-4">
+              <CheckCircle className="w-5 h-5 text-green-500" />
+              <span className="text-green-700 font-medium">Liquidation report uploaded successfully</span>
+              <div className="flex gap-2 ml-auto">
+                <button
+                  onClick={() => previewFile(implementation.liquidation)}
+                  className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  <Eye className="w-4 h-4" /> View
+                </button>
+                <a
+                  href={`/implementation/download/liquidation?url=${encodeURIComponent(
+                    implementation.liquidation
+                  )}`}
+                  className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                >
+                  <Download className="w-4 h-4" /> Download
+                </a>
+                <button
+                  onClick={() => deleteFile('liquidation')}
+                  className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                  disabled={loadingField === 'liquidation'}
+                >
+                  {loadingField === 'liquidation' ? <Loader2 className="animate-spin w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+                  Delete
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <input
+              type="file"
+              onChange={(e) => setData('liquidation', e.target.files[0])}
+              className="flex-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+              disabled={implementation.liquidation || !canUploadLiquidation}
+            />
+            <button
+              onClick={() => upload('liquidation')}
+              disabled={!data.liquidation || implementation.liquidation || loadingField === 'liquidation' || !canUploadLiquidation}
+              className="inline-flex items-center gap-2 px-6 py-2 bg-emerald-500 text-white font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingField === 'liquidation' ? (
+                <>
+                  <Loader2 className="animate-spin w-4 h-4" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Upload
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Preview Modal */}
@@ -605,6 +595,6 @@ export default function Checklist({ implementation }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

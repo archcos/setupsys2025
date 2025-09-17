@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useForm, Head, router, usePage } from '@inertiajs/react';
 import { Save, Search, Filter, Calendar, Building2, CheckCircle, AlertCircle, X } from 'lucide-react';
-import Sidebar from '../../components/Sidebar';
-import Header from '../../components/Header';
 
 export default function Loan({ projects, selectedMonth, selectedYear, search, selectedStatus }) {
   const { flash } = usePage().props;
@@ -83,13 +81,8 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
   };
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-        <Head title="Refund Management" />
-
         <main className="flex-1 p-6 overflow-y-auto">
+                  <Head title="Refund Management" />
           <div className="max-w-7xl mx-auto">
 
             {/* Main Content Card */}
@@ -418,7 +411,6 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
             </div>
           </div>
         </main>
-      </div>
-    </div>
+
   );
 }

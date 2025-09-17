@@ -116,13 +116,13 @@ export default function ImplementationIndex({ implementations, filters }) {
   const stats = getStats();
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <Head title="Implementation Checklists" />
-        
-        <main className="flex-1 p-6 overflow-y-auto">
+    // <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
+    //   {/* <Sidebar isOpen={sidebarOpen} />
+    //   <div className="flex-1 flex flex-col overflow-hidden">
+    //     <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+    //      */}
+        <main className="flex-1 overflow-y-auto">
+          <Head title="Implementation Checklists" />
           <div className="max-w-7xl mx-auto">
             {/* Main Content Card */}
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
@@ -383,7 +383,7 @@ return (
             </div>
           </div>
         </main>
-      </div>
-    </div>
+      // </div>
+    // </div>
   );
 }

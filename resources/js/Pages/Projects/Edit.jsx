@@ -14,8 +14,6 @@ import {
   AlertCircle,
   Edit3
 } from 'lucide-react';
-import Sidebar from '../../components/Sidebar';
-import Header from '../../components/Header';
 
 export default function Edit({ project, companies }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -71,12 +69,10 @@ export default function Edit({ project, companies }) {
   };
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-slate-100 to-blue-400 overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <Head title="Edit Project" />
+
         <main className="flex-1 p-6 overflow-y-auto">
+                  <Head title="Edit Project" />
+
           <div className="max-w-5xl mx-auto">
             {/* Header Section */}
             <div className="mb-8">
@@ -158,6 +154,7 @@ export default function Edit({ project, companies }) {
                       placeholder="e.g., Carmen, Cagayan de Oro City"
                       value={data.place_name}
                       onChange={(e) => setData('place_name', e.target.value)}
+                      maxLength={100} 
                       required
                     />
                     {errors.place_name && (
@@ -631,7 +628,6 @@ export default function Edit({ project, companies }) {
             </form>
           </div>
         </main>
-      </div>
-    </div>
+
   );
 }
