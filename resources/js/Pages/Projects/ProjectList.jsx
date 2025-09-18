@@ -72,12 +72,12 @@ export default function ProjectList({ projects }) {
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
                         <div className="flex items-center gap-2">
-                          Phase One
+                          Fund Release Schedule
                         </div>
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
                         <div className="flex items-center gap-2">
-                          Phase Two
+                          Refund Schedule
                         </div>
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">

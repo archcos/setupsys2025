@@ -422,7 +422,7 @@ function ProjectModal({ project, isOpen, onClose }) {
                   <div className="flex items-start gap-3">
                     <Calendar className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Phase One Timeline</p>
+                      <p className="text-sm font-medium text-gray-600">Phase One (Fund Release) Timeline</p>
                       <p className="text-gray-900">{phaseOneDisplay}</p>
                     </div>
                   </div>
@@ -430,7 +430,7 @@ function ProjectModal({ project, isOpen, onClose }) {
                   <div className="flex items-start gap-3">
                     <Calendar className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Phase Two Timeline</p>
+                      <p className="text-sm font-medium text-gray-600">Phase Two (Refund Schedule) Timeline</p>
                       <p className="text-gray-900">{phaseTwoDisplay}</p>
                     </div>
                   </div>

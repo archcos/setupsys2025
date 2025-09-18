@@ -558,19 +558,19 @@ function CompanyModal({ company, isOpen, onClose }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-3 bg-white rounded-lg border border-purple-100">
                     <p className="text-2xl font-bold text-purple-600">{company.male}</p>
-                    <p className="text-xs text-gray-600">Male Employees</p>
+                    <p className="text-xs text-gray-600">Indirect Male Employees</p>
                   </div>
                   <div className="text-center p-3 bg-white rounded-lg border border-purple-100">
                     <p className="text-2xl font-bold text-purple-600">{company.female}</p>
-                    <p className="text-xs text-gray-600">Female Employees</p>
+                    <p className="text-xs text-gray-600">Indirect Female Employees</p>
                   </div>
                   <div className="text-center p-3 bg-white rounded-lg border border-purple-100">
                     <p className="text-2xl font-bold text-purple-600">{company.direct_male}</p>
-                    <p className="text-xs text-gray-600">Direct Male</p>
+                    <p className="text-xs text-gray-600">Direct Male Employees</p>
                   </div>
                   <div className="text-center p-3 bg-white rounded-lg border border-purple-100">
                     <p className="text-2xl font-bold text-purple-600">{company.direct_female}</p>
-                    <p className="text-xs text-gray-600">Direct Female</p>
+                    <p className="text-xs text-gray-600">Direct Female Employees</p>
                   </div>
                 </div>
               </div>
