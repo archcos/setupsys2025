@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\CompanyModel;
+use App\Models\ImplementationModel;
 use App\Models\ItemModel;
+use App\Models\MarketModel;
 use App\Models\ObjectiveModel;
+use App\Models\ProductModel;
 use App\Models\ReportModel;
 use App\Models\ProjectModel;
+use App\Models\TagModel;
 use App\Models\UserModel;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -15,6 +19,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use PhpOffice\PhpWord\TemplateProcessor;
+use PhpOffice\PhpWord\Element\Table;
+use PhpOffice\PhpWord\SimpleType\Jc;
 
 class ReportController extends Controller
 {
@@ -113,17 +119,28 @@ public function downloadReport($report_id)
     $project = $report->project;
     $company = $project->company;
 
-    // Fetch ALL reports linked to this project_id
-    $reports = DB::table('tbl_reports')
-        ->where('project_id', $project->project_id)
-        ->get();
+    $implementIds = ImplementationModel::where('project_id', $project->project_id)->pluck('implement_id');
+    $sum_cost = TagModel::whereIn('implement_id', $implementIds)->sum('tag_amount');
 
-    // Extract problems, actions, promotional (concatenated if multiple reports exist)
-    $problems    = $reports->pluck('problems')->filter()->implode("; ");
-    $actions     = $reports->pluck('actions')->filter()->implode("; ");
-    $promotional = $reports->pluck('promotional')->filter()->implode("; ");
 
-    // Owner name from company
+    // === 1️⃣ PRODUCTS TABLE ===
+    $products = ProductModel::where('report_id', $report_id)->get();
+
+    // === 2️⃣ NEW MALE/FEMALE TABLE ===
+    $newMale   = $report->new_male ?? 0;
+    $newFemale = $report->new_female ?? 0;
+    $totalNew  = $newMale + $newFemale;
+
+    // === 3️⃣ FORWARD/BACKWARD TABLE ===
+    $ifMale   = $report->new_ifmale ?? 0;
+    $ifFemale = $report->new_iffemale ?? 0;
+    $ibMale   = $report->new_ibmale ?? 0;
+    $ibFemale = $report->new_ibfemale ?? 0;
+
+    $forwardTotal  = $ifMale + $ifFemale;
+    $backwardTotal = $ibMale + $ibFemale;
+    $overallTotal  = $forwardTotal + $backwardTotal;
+
     $ownerName = $company->owner_name ?? 'N/A';
 
     // Phase One (Release Dates)
@@ -163,24 +180,23 @@ public function downloadReport($report_id)
         ? Carbon::parse($oldestUnpaid->month_paid)->format('F Y')
         : 'N/A';
 
-    // Load template
+    // --- Load Template ONCE ---
     $templatePath = storage_path('app/templates/form.docx');
     $templateProcessor = new TemplateProcessor($templatePath);
 
-    // Fill placeholders
+    // --- Fill placeholders ---
     $templateProcessor->setValue('project_title', $project->project_title);
     $templateProcessor->setValue('owner_name', $ownerName);
     $templateProcessor->setValue('phase_one', $phaseOne);
     $templateProcessor->setValue('release_initial', $releaseInitial);
-    $templateProcessor->setValue('phase_two', $phaseTwo);
-    $templateProcessor->setValue('project_cost', number_format($project->project_cost, 2));
+    $templateProcessor->setValue('phase_two', $phaseTwo);    $templateProcessor->setValue('project_cost', number_format($project->project_cost, 2));
 
-    // From tbl_reports (aggregated by project_id)
-    $templateProcessor->setValue('problems', $problems ?: 'N/A');
-    $templateProcessor->setValue('actions', $actions ?: 'N/A');
-    $templateProcessor->setValue('promotional', $promotional ?: 'N/A');
+    $templateProcessor->setValue('util_remarks', $report->util_remarks);
+    $templateProcessor->setValue('problems', $report->problems);
+    $templateProcessor->setValue('actions', $report->actions);
+    $templateProcessor->setValue('promotional', $report->promotional);
 
-    // From tbl_refunds
+    $templateProcessor->setValue('sum_cost', number_format($sum_cost, 2));
     $templateProcessor->setValue('to_refunded', number_format($toRefunded, 2));
     $templateProcessor->setValue('current_date', $currentDate);
     $templateProcessor->setValue('total_unpaid', number_format($totalUnpaid, 2));
@@ -188,12 +204,327 @@ public function downloadReport($report_id)
     $templateProcessor->setValue('unset_refund', number_format($unsetRefund, 2));
     $templateProcessor->setValue('old_unpaid', $oldUnpaid);
 
-    // Generate temporary file (auto-deleted after download)
+    // === Insert Tables ===
+    
+
+    $fontStyle = ['color' => '000000', 'size' => 11];
+    $paraCenter = ['alignment' => Jc::CENTER];
+
+        // Assuming you already have $projectId and $reportId
+    $approvedItems = ItemModel::where('project_id', $project->project_id)
+        ->where('type', 'equipment')
+        ->where('report', 'approved')
+        ->get();
+
+    $actualItems = ItemModel::where('project_id', $project->project_id)
+        ->where('report', $report->report_id)
+        ->get();
+
+    // Create table
+    $equipTable = new Table(['borderSize' => 6, 'borderColor' => '000000']);
+
+    // 🔹 Row 1: Header row
+    $equipTable->addRow();
+    $equipTable->addCell(3500, ['gridSpan' => 3])->addText('Approved Equipment', $fontStyle, $paraCenter);
+    $equipTable->addCell(3500, ['gridSpan' => 3])->addText('Actual Acquired', $fontStyle, $paraCenter);
+    $equipTable->addCell(2500, ['vMerge' => 'restart'])->addText('Acknowledge', $fontStyle, $paraCenter);
+    $equipTable->addCell(2000, ['vMerge' => 'restart'])->addText('Remarks', $fontStyle, $paraCenter);
+    
+
+    // 🔹 Row 2: Sub-header row
+    $equipTable->addRow();
+    $equipTable->addCell(1000)->addText('Qty', $fontStyle, $paraCenter);
+    $equipTable->addCell(3000)->addText('Particulars', $fontStyle, $paraCenter);
+    $equipTable->addCell(2000)->addText('Cost', $fontStyle, $paraCenter);
+    $equipTable->addCell(1000)->addText('Qty', $fontStyle, $paraCenter);
+    $equipTable->addCell(3000)->addText('Particulars', $fontStyle, $paraCenter);
+    $equipTable->addCell(2000)->addText('Cost', $fontStyle, $paraCenter);
+    $equipTable->addCell(null, ['vMerge' => 'continue']); // continue merge for Existing Market
+    $equipTable->addCell(null, ['vMerge' => 'continue']); // continue merge for Existing Market
+
+  
+    // 🔹 Rows: Data
+    $maxRows = max($approvedItems->count(), $actualItems->count());
+    for ($i = 0; $i < $maxRows; $i++) {
+        $equipTable->addRow();
+
+        // Approved equipment (left side)
+        $approved = $approvedItems->get($i);
+        $equipTable->addCell(1000)->addText($approved->quantity ?? '', ['color' => '000000']);
+        $equipTable->addCell(3000)->addText(
+            isset($approved) ? $approved->item_name . ' - ' . $approved->specifications : '',
+            ['color' => '000000']
+        );
+        $equipTable->addCell(2500)->addText($approved->item_cost ?? '', ['color' => '000000']);
+
+        // Actual equipment (right side)
+        $actual = $actualItems->get($i);
+        $equipTable->addCell(1000)->addText($actual->quantity ?? '', ['color' => '000000']);
+        $equipTable->addCell(3000)->addText(
+            isset($actual) ? $actual->item_name . ' - ' . $actual->specifications : '',
+            ['color' => '000000']
+        );
+        $equipTable->addCell(2500)->addText($actual->item_cost ?? '', ['color' => '000000']);
+        $equipTable->addCell(2500)->addText($actual->acknowledge ?? '', ['color' => '000000']);
+        $equipTable->addCell(2000)->addText($actual->remarks ?? '', ['color' => '000000']);
+    }
+
+    // Add table to your template
+    $templateProcessor->setComplexBlock('equipment_table', $equipTable);
+
+
+
+    // Assuming you already have $projectId and $reportId
+    $approvedNonequip = ItemModel::where('project_id', $project->project_id)
+        ->where('type', 'nonequip')
+        ->where('report', 'approved')
+        ->get();
+
+    $actualNonequip = ItemModel::where('project_id', $project->project_id)
+        ->where('type', 'nonequip')
+        ->where('report', $report->report_id)
+        ->get();
+
+    $nonequipTable = new Table(['borderSize' => 6, 'borderColor' => '000000']);
+
+    // 🔹 Row 1: Header row
+    $nonequipTable->addRow();
+    $nonequipTable->addCell(3500, ['gridSpan' => 3])
+        ->addText('Approved Non-Equipment', $fontStyle, $paraCenter);
+    $nonequipTable->addCell(3500, ['gridSpan' => 3])
+        ->addText('Actual Acquired', $fontStyle, $paraCenter);
+    $nonequipTable->addCell(2500, ['vMerge' => 'restart'])->addText('Acknowledge', $fontStyle, $paraCenter);
+    $nonequipTable->addCell(2000, ['vMerge' => 'restart'])->addText('Remarks', $fontStyle, $paraCenter);
+    
+
+    // 🔹 Row 2: Sub-header row
+    $nonequipTable->addRow();
+    $nonequipTable->addCell(1000)->addText('Qty', $fontStyle, $paraCenter);
+    $nonequipTable->addCell(3000)->addText('Particulars', $fontStyle, $paraCenter);
+    $nonequipTable->addCell(2500)->addText('Cost', $fontStyle, $paraCenter);
+    $nonequipTable->addCell(1000)->addText('Qty', $fontStyle, $paraCenter);
+    $nonequipTable->addCell(3000)->addText('Particulars', $fontStyle, $paraCenter);
+    $nonequipTable->addCell(2500)->addText('Cost', $fontStyle, $paraCenter);
+    $nonequipTable->addCell(null, ['vMerge' => 'continue']); // continue merge for Existing Market
+    $nonequipTable->addCell(null, ['vMerge' => 'continue']); // continue merge for Existing Market
+
+    // 🔹 Data rows
+    $maxRowsNonequip = max($approvedNonequip->count(), $actualNonequip->count());
+    for ($i = 0; $i < $maxRowsNonequip; $i++) {
+        $nonequipTable->addRow();
+
+        // Approved non-equip (left side)
+        $approved = $approvedNonequip->get($i);
+        $nonequipTable->addCell(1000)->addText($approved->quantity ?? '', ['color' => '000000']);
+        $nonequipTable->addCell(3000)->addText(
+            isset($approved) ? $approved->item_name . ' - ' . $approved->specifications : '',
+            ['color' => '000000']
+        );
+        $nonequipTable->addCell(2000)->addText($approved->item_cost ?? '', ['color' => '000000']);
+
+        // Actual non-equip (right side)
+        $actual = $actualNonequip->get($i);
+        $nonequipTable->addCell(1000)->addText($actual->quantity ?? '', ['color' => '000000']);
+        $nonequipTable->addCell(3000)->addText(
+            isset($actual) ? $actual->item_name . ' - ' . $actual->specifications : '',
+            ['color' => '000000']
+        );
+        $nonequipTable->addCell(2000)->addText($actual->item_cost ?? '', ['color' => '000000']);
+        $nonequipTable->addCell(2500)->addText($actual->acknowledge ?? '', ['color' => '000000']);
+        $nonequipTable->addCell(2000)->addText($actual->remarks ?? '', ['color' => '000000']);
+    }
+
+    // Add to your template (use a different placeholder than equipment table)
+    $templateProcessor->setComplexBlock('nonequip_table', $nonequipTable);
+
+    $objectiveTable = new Table([
+        'borderSize' => 6,
+        'borderColor' => '000000',
+        'alignment' => Jc::CENTER,
+    ]);
+
+    // Get objectives for this project
+    $objectives = ObjectiveModel::where('project_id', $project->project_id)->get();
+
+    // Separate approved objectives (expected output)
+    $approvedObjectives = $objectives->where('report', 'approved');
+
+    // Get objectives linked to this specific report (actual accomplishments)
+    $actualObjectives = $objectives->where('report', $report->report_id);
+
+
+    // --- Header Row ---
+    $objectiveTable->addRow();
+    $objectiveTable->addCell(4000)->addText('Expected Output', $fontStyle, $paraCenter);
+    $objectiveTable->addCell(4000)->addText('Actual Accomplishment', $fontStyle, $paraCenter);
+    $objectiveTable->addCell(4000)->addText('Remarks / Justification', $fontStyle, $paraCenter);
+
+    // --- Data Rows ---
+    $maxRows = max($approvedObjectives->count(), $actualObjectives->count());
+
+    if ($maxRows === 0) {
+        // No objectives at all
+        $objectiveTable->addRow();
+        $objectiveTable->addCell(4000)->addText('N/A', $fontStyle, $paraCenter);
+        $objectiveTable->addCell(4000)->addText('N/A', $fontStyle, $paraCenter);
+        $objectiveTable->addCell(4000)->addText('N/A', $fontStyle, $paraCenter);
+    } else {
+        for ($i = 0; $i < $maxRows; $i++) {
+            $objectiveTable->addRow();
+
+            // Expected Output (approved objective details)
+            $objectiveTable->addCell(4000)->addText(
+                $approvedObjectives->values()->get($i)->details ?? '',
+                $fontStyle,
+                $paraCenter
+            );
+
+            // Actual Accomplishment (from current report)
+            $objectiveTable->addCell(4000)->addText(
+                $actualObjectives->values()->get($i)->details ?? '',
+                $fontStyle,
+                $paraCenter
+            );
+
+            // Remarks/Justification
+            $objectiveTable->addCell(4000)->addText(
+                $actualObjectives->values()->get($i)->remarks ?? '',
+                $fontStyle,
+                $paraCenter
+            );
+        }
+    }
+
+    // Add to template placeholder
+    $templateProcessor->setComplexBlock('objective_table', $objectiveTable);
+
+    $markets = MarketModel::where('project_id', $project->project_id)->get();
+
+    $existingMarkets = $markets->where('type', 'existing');
+    $newMarkets = $markets->where('type', 'new');
+
+    $marketTable = new Table([
+    'borderSize' => 6,
+    'borderColor' => '000000',
+    'alignment' => Jc::CENTER,
+]);
+
+// --- Header Row 1 ---
+// First row: Existing Market + merged cell for New Market
+$marketTable->addRow();
+$marketTable->addCell(2000, ['vMerge' => 'restart'])->addText('Existing Market', $fontStyle, $paraCenter);
+$marketTable->addCell(5000, ['gridSpan' => 2])->addText('New Market', $fontStyle, $paraCenter);
+
+// --- Header Row 2 ---
+// Second row: Specify Place + Effective Date under New Market
+$marketTable->addRow();
+$marketTable->addCell(null, ['vMerge' => 'continue']); // continue merge for Existing Market
+$marketTable->addCell(2000)->addText('Specify Place', $fontStyle, $paraCenter);
+$marketTable->addCell(3000)->addText('Effective Date', $fontStyle, $paraCenter);
+
+// --- Data Rows ---
+$maxRows = max($existingMarkets->count(), $newMarkets->count());
+
+if ($maxRows === 0) {
+    // No data at all
+    $marketTable->addRow();
+    $marketTable->addCell(2000)->addText('N/A', $fontStyle, $paraCenter);
+    $marketTable->addCell(2000)->addText('N/A', $fontStyle, $paraCenter);
+    $marketTable->addCell(3000)->addText('N/A', $fontStyle, $paraCenter);
+} else {
+    for ($i = 0; $i < $maxRows; $i++) {
+        $marketTable->addRow();
+        // Existing Market
+        $marketTable->addCell(2000)->addText(
+            $existingMarkets->values()->get($i)->place_name ?? '',
+            $fontStyle, $paraCenter
+        );
+
+        // New Market - Place + Date
+        $new = $newMarkets->values()->get($i);
+        $marketTable->addCell(2000)->addText($new->place_name ?? '', $fontStyle, $paraCenter);
+        $marketTable->addCell(3000)->addText(
+            isset($new->effective_date) ? Carbon::parse($new->effective_date)->format('F d, Y') : '',
+            $fontStyle,
+            $paraCenter
+        );
+    }
+}
+    // Add to template placeholder
+    $templateProcessor->setComplexBlock('market_table', $marketTable);
+
+
+    // Products Table
+    $productTable = new Table(['borderSize' => 6, 'borderColor' => '000000', 'alignment'   => Jc::CENTER]);
+    $productTable->addRow();
+    $productTable->addCell(3000)->addText('Product', $fontStyle, $paraCenter);
+    $productTable->addCell(1500)->addText('Volume', $fontStyle, $paraCenter);
+    $productTable->addCell(1500)->addText('Quarter', $fontStyle, $paraCenter);
+    $productTable->addCell(2000)->addText('Gross Sales', $fontStyle, $paraCenter);
+    foreach ($products as $prod) {
+        $productTable->addRow();
+        $productTable->addCell(3000)->addText($prod->product_name, $fontStyle, $paraCenter);
+        $productTable->addCell(1500)->addText($prod->volume, $fontStyle, $paraCenter);
+        $productTable->addCell(1500)->addText("₱$prod->quarter", $fontStyle, $paraCenter);
+        $productTable->addCell(2000)->addText(number_format($prod->gross_sales, 2), $fontStyle, $paraCenter);
+    }
+    $templateProcessor->setComplexBlock('products_table', $productTable);
+
+    // Male/Female Table
+    $genderTable = new Table(['borderSize' => 6, 'borderColor' => '000000', 'alignment'   => Jc::CENTER]);
+    $genderTable->addRow();
+    $genderTable->addCell(2000)->addText('No. of Employees', $fontStyle, $paraCenter);
+    $genderTable->addCell(2000)->addText('No. of Males', $fontStyle, $paraCenter);
+    $genderTable->addCell(2000)->addText('No. of Females', $fontStyle, $paraCenter);
+    $genderTable->addCell(2000)->addText('No. of Person With Disability', $fontStyle, $paraCenter);
+
+    $genderTable->addRow();
+    $genderTable->addCell(2000)->addText($totalNew, $fontStyle, $paraCenter);
+    $genderTable->addCell(2000)->addText($newMale, $fontStyle, $paraCenter);
+    $genderTable->addCell(2000)->addText($newFemale, $fontStyle, $paraCenter);
+    $genderTable->addCell(2000)->addText('', $fontStyle, $paraCenter);
+    $templateProcessor->setComplexBlock('newdirect_table', $genderTable);
+
+    // Forward/Backward Table
+    $fbTable = new Table(['borderSize' => 6, 'borderColor' => '000000', 'alignment'   => Jc::CENTER]);
+
+    // 🔹 Row 1: Header with Overall Total + Forward/Backward headings
+    $fbTable->addRow();
+    $fbTable->addCell(2000, ['vMerge' => 'restart']) // Start vertical merge
+    ->addText('Overall Total', $fontStyle, $paraCenter); // Left-most cell
+    $fbTable->addCell(3000, ['gridSpan' => 3])->addText('Forward', $fontStyle, $paraCenter);
+    $fbTable->addCell(3000, ['gridSpan' => 3])->addText('Backward', $fontStyle, $paraCenter);
+
+    // 🔹 Row 2: Sub-header with Male | Female | Total for each direction
+    $fbTable->addRow();
+    $fbTable->addCell(2000, ['vMerge' => 'continue']); // Continue merged cell
+    $fbTable->addCell(1000)->addText('Male', $fontStyle, $paraCenter);
+    $fbTable->addCell(1000)->addText('Female', $fontStyle, $paraCenter);
+    $fbTable->addCell(1000)->addText('Total', $fontStyle, $paraCenter);
+    $fbTable->addCell(1000)->addText('Male', $fontStyle, $paraCenter);
+    $fbTable->addCell(1000)->addText('Female', $fontStyle, $paraCenter);
+    $fbTable->addCell(1000)->addText('Total', $fontStyle, $paraCenter);
+
+    // 🔹 Row 3: Data row
+    $fbTable->addRow();
+    $fbTable->addCell(2000)->addText($overallTotal, $fontStyle, $paraCenter);
+    $fbTable->addCell(1000)->addText($ifMale, $fontStyle, $paraCenter);
+    $fbTable->addCell(1000)->addText($ifFemale, $fontStyle, $paraCenter);
+    $fbTable->addCell(1000)->addText($forwardTotal, $fontStyle, $paraCenter);
+    $fbTable->addCell(1000)->addText($ibMale, $fontStyle, $paraCenter);
+    $fbTable->addCell(1000)->addText($ibFemale, $fontStyle, $paraCenter);
+    $fbTable->addCell(1000)->addText($backwardTotal, $fontStyle, $paraCenter);
+
+    $templateProcessor->setComplexBlock('newindirect_table', $fbTable);
+
+
+    // Generate file
     $tempFile = tempnam(sys_get_temp_dir(), 'word');
     $templateProcessor->saveAs($tempFile);
 
     return response()->download($tempFile, "Report_{$project->project_id}.docx")->deleteFileAfterSend(true);
 }
+
 
 
     public function create(ProjectModel $project)

@@ -262,64 +262,117 @@ public function generateFromMoa($moa_id)
         $templateProcessor->setComplexBlock('ACTIVITY_TABLE', $activitiesTable);
 
 
-        $start = Carbon::parse($project->refund_initial); // e.g., 2025-09-01
-        $end   = Carbon::parse($project->refund_end);
+$start = Carbon::parse($project->refund_initial)->startOfYear(); // ✅ force to January of that year
+$end   = Carbon::parse($project->refund_end);
 
-        $periodMonths = [];
-        $current = $start->copy();
+$periodMonths = [];
+$current = $start->copy();
 
-        while ($current->lessThanOrEqualTo($end)) {
-            $periodMonths[] = [
-                'month' => $current->format('F'), // January, February...
-                'year'  => $current->year,
-                'date'  => $current->copy(),
-            ];
-            $current->addMonth();
+while ($current->lessThanOrEqualTo($end)) {
+    $periodMonths[] = [
+        'month' => $current->format('F'),
+        'year'  => $current->year,
+        'date'  => $current->copy(),
+    ];
+    $current->addMonth();
+}
+
+// Prepare refund data
+$refundData = [];
+foreach ($periodMonths as $p) {
+    $month = $p['month'];
+    $year  = $p['year'];
+
+    if ($p['date']->lessThan(Carbon::parse($project->refund_initial))) {
+        $refundData[$year][$month] = ''; // blank before start
+    } elseif ($p['date']->equalTo($end)) {
+        $refundData[$year][$month] = $project->last_refund;
+    } else {
+        $refundData[$year][$month] = $project->refund_amount ?? 0;
+    }
+}
+
+$phpWord = new PhpWord();
+$refundTable = $section->addTable([
+    'borderSize' => 6,
+    'borderColor' => '999999',
+    'cellMargin' => 80,
+]);
+
+// Header row
+$refundTable->addRow();
+$refundTable->addCell(3000)->addText('Month', ['bold' => true, 'name' => 'Arial']);
+$years = array_unique(array_column($periodMonths, 'year'));
+foreach ($years as $year) {
+    $refundTable->addCell(2000)->addText($year, ['bold' => true, 'name' => 'Arial'], ['alignment' => Jc::CENTER]);
+}
+
+// Prepare monthly + yearly totals
+$months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+$yearTotals = array_fill_keys($years, 0);
+$overallTotal = 0;
+
+foreach ($months as $month) {
+    $rowHasData = false;
+    foreach ($years as $year) {
+        if (isset($refundData[$year][$month])) {
+            $rowHasData = true;
+            break;
+        }
+    }
+
+    if (!$rowHasData) continue;
+
+    $refundTable->addRow();
+    $refundTable->addCell(3000)->addText($month, ['name' => 'Arial']);
+
+    foreach ($years as $year) {
+        $amount = $refundData[$year][$month] ?? '';
+        if ($amount !== '' && $amount !== null) {
+            $yearTotals[$year] += $amount;
+            $overallTotal += $amount;
         }
 
-        $refundData = []; // [year][month] => amount
+        $refundTable->addCell(2000)->addText(
+            $amount !== '' ? number_format($amount, 2) : '',
+            ['name' => 'Arial'],
+            ['alignment' => Jc::CENTER]
+        );
+    }
+}
 
-        foreach ($periodMonths as $p) {
-            $month = $p['month'];
-            $year  = $p['year'];
-            
-            // Example: use last_refund only for the last month
-            if ($p['date']->equalTo($end)) {
-                $refundData[$year][$month] = $project->last_refund; 
-            } else {
-                $refundData[$year][$month] = $project->refund_amount ?? 0;
-            }
-        }
-        
-        $phpWord = new PhpWord();
-        $refundTable = $section->addTable([
-            'borderSize' => 6,
-            'borderColor' => '999999',
-            'cellMargin' => 80,
-        ]);
+// Add Yearly Totals Row
+$refundTable->addRow();
+$refundTable->addCell(3000)->addText('Year Total', ['bold' => true, 'name' => 'Arial']);
+foreach ($years as $year) {
+    $refundTable->addCell(2000)->addText(
+        number_format($yearTotals[$year], 2),
+        ['bold' => true, 'name' => 'Arial'],
+        ['alignment' => Jc::CENTER]
+    );
+}
 
-        // Header row: Month + Years
-        $refundTable->addRow();
-        $refundTable->addCell(3000)->addText('Month', ['bold' => true, 'name' => 'Arial']);
-        $years = array_unique(array_column($periodMonths, 'year'));
-        foreach ($years as $year) {
-            $refundTable->addCell(2000)->addText($year, ['bold' => true, 'name' => 'Arial'], ['alignment' => Jc::CENTER]);
-        }
+// Add Overall Total Row
+$colSpan = count($years);
 
-        // Rows for each month
-        $months = array_unique(array_map(fn($p) => $p['month'], $periodMonths));
-        foreach ($months as $month) {
-            $refundTable->addRow();
-            $refundTable->addCell(3000)->addText($month, ['name' => 'Arial']);
+$refundTable->addRow();
 
-            foreach ($years as $year) {
-                $amount = $refundData[$year][$month] ?? '';
-                $refundTable->addCell(2000)->addText($amount ? number_format($amount, 2) : '', ['name' => 'Arial'], ['alignment' => Jc::CENTER]);
-            }
-        }
+// First cell (Overall Total label)
+$refundTable->addCell(3000)->addText('Overall Total', ['bold' => true, 'name' => 'Arial']);
 
-        // Inject into template
-        $templateProcessor->setComplexBlock('REFUND_TABLE', $refundTable);
+// Second cell (merged across all year columns)
+$refundTable->addCell(
+    2000 * $colSpan, // Optional: multiply width by number of columns
+    ['gridSpan' => $colSpan] // Merge columns
+)->addText(
+    number_format($overallTotal, 2),
+    ['bold' => true, 'name' => 'Arial'],
+    ['alignment' => Jc::CENTER]
+);
+
+// Inject into template
+$templateProcessor->setComplexBlock('REFUND_TABLE', $refundTable);
+
         // Ensure output folder exists
         $outputFolder = storage_path('app/generated');
         if (!file_exists($outputFolder)) {
