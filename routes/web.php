@@ -7,6 +7,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImplementationController;
@@ -22,7 +23,7 @@ Route::middleware(['redirectIfAuthenticated'])->group(function () {
     // Register
 
     // Login
-    Route::inertia('/', 'Login')->name('login');
+    Route::get('/', [AuthController::class, 'index'])->name('login');
     Route::post('/signin', [AuthController::class, 'signin'])->name('signin');
 
 });
@@ -49,6 +50,8 @@ Route::middleware(['auth'])->group(function () {
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');
 Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/help', [PageController::class, 'help'])->name('help');
+Route::get('/announcements/view', [PageController::class, 'announcements'])->name('announcements.public');
+
 
 // SIDEBAR
 Route::middleware(['auth'])->group(function () {
@@ -134,6 +137,17 @@ Route::middleware(['auth'])->group(function () {
         ->name('reports.download');
     Route::delete('/reports/{id}', [ReportController::class, 'destroy'])->name('reports.destroy');
 });
+
+
+Route::middleware(['auth', 'role:admin,staff'])->group(function () {
+    Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
+    Route::get('/announcements/create', [AnnouncementController::class, 'create'])->name('announcements.create');
+    Route::post('/announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
+    Route::get('/announcements/{id}/edit', [AnnouncementController::class, 'edit'])->name('announcements.edit');
+    Route::put('/announcements/{id}', [AnnouncementController::class, 'update'])->name('announcements.update');
+    Route::delete('/announcements/{id}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+});
+
 
 
 

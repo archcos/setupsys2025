@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import profile from '../../assets/profile.png';
+import DOMPurify from 'dompurify';
 
 export default function Header({ sidebarOpen, toggleSidebar }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [displayText, setDisplayText] = useState('');
+  const [showCursor, setShowCursor] = useState(true);
+
+  const fullText = "  Small Enterprise Technology Upgrading Program Digital System";
 
   const { auth, notifications = [] } = usePage().props;
 
@@ -18,6 +23,26 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
   };
 
   const hasUnread = notifications.some((notif) => !notif.is_read);
+
+
+   useEffect(() => {
+    let i = 0;
+    const typingInterval = setInterval(() => {
+      setDisplayText((prev) => prev + fullText.charAt(i));
+      i++;
+      if (i === fullText.length) clearInterval(typingInterval);
+    }, 30); // speed: lower = faster typing
+
+    return () => clearInterval(typingInterval);
+  }, []);
+
+  // Blinking cursor effect
+  useEffect(() => {
+    const blinkInterval = setInterval(() => {
+      setShowCursor((prev) => !prev);
+    }, 500); // blink every 0.5s
+    return () => clearInterval(blinkInterval);
+  }, []);
 
   // 🔁 Refresh notifications every 5 seconds
   useEffect(() => {
@@ -36,9 +61,9 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
       >
         ☰
       </button>
-
-      <h1 className="text-xl font-semibold text-gray-800">
-        Small Enterprise Technology Upgrading Program Digital System
+      <h1 className="text-xl font-semibold text-gray-800 font-mono whitespace-nowrap">
+        {displayText}
+        {showCursor && <span className="animate-pulse">|</span>}
       </h1>
 
       <div className="flex items-center space-x-4 relative">
@@ -85,14 +110,18 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
                       className={`px-4 py-2 hover:bg-gray-100 cursor-pointer ${
                         !notif.is_read ? 'bg-blue-50' : 'bg-white'
                       }`}
-                      onClick={() => {
-                        router.post(`/notifications/read/${notif.notification_id}`);
-                        if (notif.title === 'MOA Generated') {
-                          router.visit('/moa');
-                        } else if (notif.title === 'Company Project Updated') {
-                          router.visit(`/draft-moa?company_id=${notif.company_id}`);
-                        }
+                     onClick={() => {
+                        router.post(`/notifications/read/${notif.notification_id}`, {}, {
+                          onSuccess: () => {
+                            if (notif.title === 'MOA Generated') {
+                              router.visit('/moa');
+                            } else if (notif.title === 'Company Project Updated') {
+                              router.visit(`/draft-moa?company_id=${notif.company_id}`);
+                            }
+                          }
+                        });
                       }}
+
                     >
                       <div className="flex justify-between items-start">
                         <div>
@@ -106,7 +135,7 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
                           </div>
                           <div
                             className="text-xs text-gray-500"
-                            dangerouslySetInnerHTML={{ __html: notif.message }}
+                              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(notif.message) }}
                           />
                           <div className="text-xs text-gray-400 mt-1">
                             {new Date(notif.created_at).toLocaleString()}

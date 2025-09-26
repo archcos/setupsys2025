@@ -52,14 +52,15 @@ public function store(Request $request)
         'company_id' => 'required|exists:tbl_companies,company_id',
     ]);
 
-    // Create the notification in DB
+    // Purify user input
+    $validated['title'] = e($validated['title']);
+    $validated['message'] = e($validated['message']);
+
     $notification = NotificationModel::create($validated);
 
-    // Get full user records instead of just emails
+    // Send to recipients (unchanged)
     $recipients = UserModel::where('office_id', $validated['office_id'])->get();
-
     foreach ($recipients as $user) {
-        // Skip if the role is 'user'
         if ($user->role === 'user') {
             Log::info("Skipped sending email to {$user->email} (role: user)");
             continue;
@@ -75,6 +76,7 @@ public function store(Request $request)
 
     return back()->with('success', 'Notification sent (check logs for email delivery).');
 }
+
 
 
 // In NotificationController or a NotificationService class
@@ -103,14 +105,15 @@ public static function createNotificationAndEmail($data)
 
 
     public function markAsRead($id)
-        {
-            $notif = NotificationModel::find($id);
-            if ($notif) {
-                $notif->is_read = true;
-                $notif->save();
-            }
-
-            return response()->json(['status' => 'success']);
+    {
+        $notif = NotificationModel::find($id);
+        if ($notif) {
+            $notif->is_read = true;
+            $notif->save();
         }
+
+        return back()->with('success', 'Notification marked as read.');
+    }
+
 }
 
