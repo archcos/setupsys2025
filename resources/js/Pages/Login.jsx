@@ -43,7 +43,6 @@ export default function LoginPage() {
           <marquee
             behavior="scroll"
             direction="left"
-            scrollAmount="5"
             className="flex-1 cursor-pointer"
             onClick={() => router.visit('/announcements/view')}
           >

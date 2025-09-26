@@ -113,7 +113,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 });
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/refunds', [RefundController::class, 'index']);
+    Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index');
     Route::post('/refunds/save', [RefundController::class, 'save']);
     Route::get('/my-refunds', [RefundController::class, 'userRefunds'])
         ->name('refunds.user');

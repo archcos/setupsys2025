@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\NotificationCreatedMail;
 use App\Models\ProjectModel;
 use App\Models\RefundModel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
 class RefundController extends Controller
@@ -28,7 +30,8 @@ public function index()
               ->whereYear('month_paid', $selectedDate->year)
               ->latest();
 
-            if ($status) {
+            // Only apply status filter to the eager loading if we're not looking for unpaid
+            if ($status && $status !== 'unpaid') {
                 $q->where('status', $status);
             }
         }
@@ -44,11 +47,27 @@ public function index()
         });
     })
     ->when($status, function ($query, $status) use ($selectedDate) {
-        $query->whereHas('refunds', function ($q) use ($selectedDate, $status) {
-            $q->whereMonth('month_paid', $selectedDate->month)
-              ->whereYear('month_paid', $selectedDate->year)
-              ->where('status', $status);
-        });
+        if ($status === 'unpaid') {
+            // For unpaid: projects that either have no refunds OR have unpaid refunds
+            $query->where(function ($q) use ($selectedDate) {
+                $q->whereDoesntHave('refunds', function ($subQ) use ($selectedDate) {
+                    $subQ->whereMonth('month_paid', $selectedDate->month)
+                         ->whereYear('month_paid', $selectedDate->year);
+                })
+                ->orWhereHas('refunds', function ($subQ) use ($selectedDate) {
+                    $subQ->whereMonth('month_paid', $selectedDate->month)
+                         ->whereYear('month_paid', $selectedDate->year)
+                         ->where('status', 'unpaid');
+                });
+            });
+        } else {
+            // For other statuses: projects that have refunds with that specific status
+            $query->whereHas('refunds', function ($q) use ($selectedDate, $status) {
+                $q->whereMonth('month_paid', $selectedDate->month)
+                  ->whereYear('month_paid', $selectedDate->year)
+                  ->where('status', $status);
+            });
+        }
     })
     ->paginate(10)
     ->through(function ($project) use ($selectedDate) {
@@ -80,10 +99,6 @@ public function index()
 
 public function save()
 {
-    Log::info('RefundController@save called', [
-        'incoming_data' => request()->all()
-    ]);
-
     $data = request()->validate([
         'project_id'     => 'required|exists:tbl_projects,project_id',
         'refund_amount'  => 'required|numeric|min:0',
@@ -94,12 +109,10 @@ public function save()
         'save_date'      => 'required|date_format:Y-m-d',
     ]);
 
-    Log::info('RefundController@save validated data', $data);
-
     try {
         // Parse and normalize save date
         $savedMonthDate = Carbon::parse($data['save_date'])->startOfMonth()->format('Y-m-d');
-
+        $readableMonth  = Carbon::parse($data['save_date'])->format('F Y'); // e.g. September 2025
 
         // Save or update refund record
         $refund = RefundModel::updateOrCreate(
@@ -116,17 +129,45 @@ public function save()
             ]
         );
 
-        Log::info('Refund saved/updated', $refund->toArray());
+        // Prepare values
+        $formattedAmount = $refund->amount_due !== null
+            ? '₱' . number_format($refund->amount_due, 2)
+            : 'N/A';
+
+        $project   = $refund->project ?? null;
+        $company   = $project?->company ?? null;
+        $ownerName = $company?->owner_name ?? 'Valued Client';
+
+        // Format status
+        $statusText  = strtoupper($refund->status); // ALL CAPS
+        $statusColor = $refund->status === 'unpaid' ? 'red' : '#0056b3'; // red if unpaid, blue if paid
+        $statusHtml  = "<span style='color: {$statusColor}; font-weight: bold;'>{$statusText}</span>";
+
+        // Notification
+        $notification = [
+            'title' => 'Refund Update',
+            'message' => "
+                Dear {$ownerName},<br><br>
+                Your refund record has been updated for the month of {$readableMonth}.<br><br>
+                <strong>Status:</strong> {$statusHtml}<br>
+                <strong>Amount:</strong> {$formattedAmount}<br><br>
+                Thank you for your continued cooperation.<br>
+                <em>- SETUPSYS Team</em>
+            ",
+        ];
+
+        // Send email if company has email
+        if ($company && $company->email) {
+            Mail::to($company->email)->send(new NotificationCreatedMail($notification));
+        }
 
         return back()->with('success', 'Refund saved successfully.');
     } catch (\Exception $e) {
-        Log::error('Error saving refund', [
-            'message' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
         return back()->with('error', 'An error occurred while saving.');
     }
 }
+
+
 
 public function userRefunds()
 {
