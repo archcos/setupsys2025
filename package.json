@@ -23,6 +23,7 @@
         "vite": "^6.2.4"
     },
     "dependencies": {
+        "dompurify": "^3.2.7",
         "laravel-echo": "^2.1.7",
         "lucide-react": "^0.525.0",
         "pusher-js": "^8.4.0"

@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { useForm, Link, Head } from '@inertiajs/react';
-import { Eye, EyeOff, User, Lock, AlertCircle } from 'lucide-react';
+import { useForm, Link, Head, usePage, router } from '@inertiajs/react';
+import { Eye, EyeOff, User, Lock, AlertCircle,Megaphone } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import setupLogo from '../../assets/SETUP_logo.png';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  
+  const { props } = usePage();
+  const announcements = props.announcements || [];
+
   const { data, setData, post, processing, errors } = useForm({
     username: '',
     password: '',
@@ -31,35 +33,66 @@ export default function LoginPage() {
   return (
     <>
       <Head title="Login - DOST SETUP" />
+      {announcements.length > 0 && (
+        <div className="bg-yellow-100 border-b border-yellow-300 text-yellow-900 py-2 flex items-center">
+          {/* 📢 Fixed Icon on Left */}
+          <div className="flex items-center pl-4 pr-3 text-yellow-700">
+            <Megaphone size={20} className="flex-shrink-0" />
+          </div>
+
+          <marquee
+            behavior="scroll"
+            direction="left"
+            scrollAmount="5"
+            className="flex-1 cursor-pointer"
+            onClick={() => router.visit('/announcements/view')}
+          >
+            {announcements.map((a) => (
+              <span key={a.announce_id} className="mr-12">
+                <strong className="font-semibold">{a.title}</strong>
+                {a.office?.office_name && (
+                  <span className="ml-2 text-gray-700">
+                    — {a.office.office_name}
+                  </span>
+                )}
+                {a.details && (
+                  <span className="ml-2 text-gray-600 italic">
+                    {a.details}
+                  </span>
+                )}
+              </span>
+            ))}
+          </marquee>
+        </div>
+      )}
+
       <div className="min-h-screen bg-gradient-to-br from-blue-200 via-white to-indigo-300 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-md">
           {/* Main Login Card */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-6">
             {/* Header Section */}
             <div className="flex flex-col items-center justify-center gap-4 mb-8">
-              {/* Logos */}
               <div className="flex items-center justify-center gap-4">
-                  <img src={logo} alt="DOST Logo" className="w-12 h-12 object-contain" />
-                  <img src={setupLogo} alt="SETUP Logo" className="h-12 object-contain" />
+                <img src={logo} alt="DOST Logo" className="w-12 h-12 object-contain" />
+                <img src={setupLogo} alt="SETUP Logo" className="h-12 object-contain" />
               </div>
 
-              {/* Organization Info */}
               <div className="flex flex-col items-center text-center">
-                <h2 className="text-lg font-bold text-gray-900 tracking-tight">DOST - Northern Mindanao</h2>
+                <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+                  DOST - Northern Mindanao
+                </h2>
                 <h3 className="text-sm text-gray-600 font-medium leading-relaxed">
                   Small Enterprise Technology Upgrading Program
                 </h3>
               </div>
             </div>
 
-            {/* Welcome Text */}
             <div className="text-center mb-2">
               <p className="text-gray-600">
                 Sign in to your SETUP account
               </p>
             </div>
 
-            {/* Error Message */}
             {errors.message && (
               <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
                 <AlertCircle size={20} className="text-red-600 flex-shrink-0" />
@@ -67,9 +100,8 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Username Field */}
+              {/* Username */}
               <div>
                 <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
                   Username
@@ -98,7 +130,7 @@ export default function LoginPage() {
                 )}
               </div>
 
-              {/* Password Field */}
+              {/* Password */}
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                   Password
@@ -134,7 +166,7 @@ export default function LoginPage() {
                 )}
               </div>
 
-              {/* Forgot Password Link */}
+              {/* Forgot Password */}
               <div className="flex justify-end">
                 <Link
                   href="/contact"
@@ -144,7 +176,6 @@ export default function LoginPage() {
                 </Link>
               </div>
 
-              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={processing}
@@ -167,8 +198,7 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Sign Up Link */}
-            <div className="mt-4  text-center">
+            <div className="mt-4 text-center">
               <p className="text-gray-600">
                 Don't have an account?{' '}
                 <Link
@@ -181,7 +211,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Footer */}
           <div className="text-center text-sm text-gray-500">
             <p>© 2025 DOST Northern Mindanao. All rights reserved.</p>
           </div>

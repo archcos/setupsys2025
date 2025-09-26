@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AnnouncementModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\UserModel;
@@ -14,11 +15,18 @@ class AuthController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
-        return inertia('Login');
-    }
+public function index()
+{
+    $announcements = AnnouncementModel::with('office')
+        ->whereDate('start_date', '<=', now()) 
+        ->whereDate('end_date', '>=', now()) 
+        ->orderBy('start_date', 'desc')
+        ->get(['announce_id', 'title', 'office_id']);
 
+    return inertia('Login', [
+        'announcements' => $announcements
+    ]);
+}
 
 public function signin(Request $request)
 {

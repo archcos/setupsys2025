@@ -24,7 +24,9 @@ import {
   ArrowBigLeft,
   ArrowLeftRight,
   Banknote,
-  FileDiff
+  FileDiff,
+  Megaphone,
+  FilePlus2
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen }) {
@@ -34,6 +36,7 @@ export default function Sidebar({ isOpen }) {
     reports: true,
     user: true,
     transaction: true,
+    announce: false,
     adminpanel: false
   });
 
@@ -105,9 +108,9 @@ export default function Sidebar({ isOpen }) {
             isOpen={dropdowns.development}
             onToggle={() => toggleDropdown('development')}
             links={[
-              { label: '1.0 Companies', href: '/companies', icon: <Users size={16} /> },
-              { label: '1.1 Projects', href: '/projects', icon: <ClipboardList size={16} /> },
-              { label: '1.2 Activities', href: '/activities', icon: <List size={16} /> },
+              { label: 'Companies', href: '/companies', icon: <Users size={16} /> },
+              { label: 'Projects', href: '/projects', icon: <ClipboardList size={16} /> },
+              { label: 'Activities', href: '/activities', icon: <List size={16} /> },
               { label: 'MOA List', href: '/moa', icon: <FileText size={16} /> },
             ]}
           />
@@ -120,10 +123,28 @@ export default function Sidebar({ isOpen }) {
             isOpen={dropdowns.reports}
             onToggle={() => toggleDropdown('reports')}
             links={[
-              { label: '2.0 Quarterly Reports', href: '/reports', icon: <ClipboardList size={16} /> },
+              { label: 'Quarterly Reports', href: '/reports', icon: <ClipboardList size={16} /> },
             ]}
           />
         )}
+
+      <Dropdown
+          title="Announcements"
+          icon={<Megaphone size={18} />}
+          isOpen={dropdowns.announce}
+          onToggle={() => toggleDropdown('announce')}
+          links={[
+            ...((role === 'admin' || role === 'staff')
+              ? [{ label: 'Manage Announcement', href: '/announcements', icon: <FilePlus2 size={16} /> }]
+              : []),
+            {
+              label: 'Check Announcements',
+              href: '/announcements/view',
+              icon: <FilePlus2 size={16} />,
+              target: '_blank', // 👈 This makes it open in a new tab
+            },
+          ]}
+        />
 
         {role === 'admin' && (
           <Dropdown
@@ -133,7 +154,6 @@ export default function Sidebar({ isOpen }) {
             onToggle={() => toggleDropdown('adminpanel')}
             links={[
               { label: 'User Management', href: `/admin/users`, icon: <User size={16} /> },
-              // { label: '2.1 Refund Monitoring', href: '/refunds', icon: <FileSearch size={16} /> },
                 // { label: '2.2 Implementation', href: '/activities', icon: <List size={16} /> },
             ]}
           />
@@ -172,7 +192,6 @@ export default function Sidebar({ isOpen }) {
   );
 }
 
-// 🔽 Reusable Dropdown Component
 function Dropdown({ title, icon, isOpen, onToggle, links }) {
   return (
     <div>
@@ -189,18 +208,32 @@ function Dropdown({ title, icon, isOpen, onToggle, links }) {
 
       {isOpen && (
         <div className="ml-6 mt-2 space-y-1">
-          {links.map((link, idx) => (
-            <Link
-              key={idx}
-              href={link.href}
-              className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:shadow hover:bg-gray-100 transition"
-            >
-              {link.icon}
-              {link.label}
-            </Link>
-          ))}
+          {links.map((link, idx) =>
+            link.target === "_blank" ? (
+              <a
+                key={idx}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:shadow hover:bg-gray-100 transition"
+              >
+                {link.icon}
+                {link.label}
+              </a>
+            ) : (
+              <Link
+                key={idx}
+                href={link.href}
+                className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:shadow hover:bg-gray-100 transition"
+              >
+                {link.icon}
+                {link.label}
+              </Link>
+            )
+          )}
         </div>
       )}
     </div>
   );
 }
+
