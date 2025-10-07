@@ -36,7 +36,7 @@ Route::middleware(['web'])->group(function () {
 
 Route::middleware(['auth'])->group(function () {
    // Protected Home Page
-    Route::get('/home', [HomeController::class, 'index'])->middleware('role:admin,staff')->name('home');
+    Route::get('/home', [HomeController::class, 'index'])->middleware('role:head,staff,rpmo')->name('home');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('user.dashboard')->middleware('role:user');
     Route::get('/users/{id}/edit', [AuthController::class, 'edit'])->name('users.edit');
     Route::put('/users/{id}', [AuthController::class, 'update'])->name('users.update');
@@ -56,12 +56,12 @@ Route::get('/announcements/view', [PageController::class, 'announcements'])->nam
 // SIDEBAR
 Route::middleware(['auth'])->group(function () {
     Route::resource('companies', CompanyController::class);
-    Route::resource('projects', ProjectController::class)->middleware('role:admin,staff')
+    Route::resource('projects', ProjectController::class)->middleware('role:head,staff,rpmo')
         ->except(['destroy', 'show']); // exclude destroy from staff
     Route::delete('/projects/{id}', [ProjectController::class, 'destroy'])
-        ->middleware('role:admin')
+        ->middleware('role:head,rpmo')
         ->name('projects.destroy');    
-    Route::resource('activities', ActivityController::class)->middleware('role:admin,staff');
+    Route::resource('activities', ActivityController::class)->middleware('role:head,staff,rpmo');
 
     Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly');
     Route::post('/companies/sync', [CompanyController::class, 'syncFromCSV'])->name('companies.sync');
@@ -70,7 +70,7 @@ Route::middleware(['auth'])->group(function () {
 
 
 //MOA
-Route::middleware(['auth', 'role:admin,staff'])->group(function () {
+Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
     Route::get('/moa/generate-pdf', [PDFController::class, 'index']);
     Route::post('/moa/generate-pdf', [PDFController::class, 'generate']);
 
@@ -87,12 +87,12 @@ Route::middleware(['auth', 'role:admin,staff'])->group(function () {
 });
 
 //NOTIFICATION
-Route::middleware(['auth', 'role:admin,staff'])->group(function () {
+Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
 Route::post('/notifications/read/{id}', [NotificationController::class, 'markAsRead']);
 });
 
 
-Route::middleware(['auth', 'role:admin,staff'])->group(function () {
+Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
     Route::get('/implementation', [ImplementationController::class, 'index'])->name('implementation.index');
     Route::get('/implementation/checklist/{implementId}', [ImplementationController::class, 'checklist']);
     Route::post('/implementation/upload/{field}', [ImplementationController::class, 'uploadToSupabase']);
@@ -105,11 +105,13 @@ Route::middleware(['auth', 'role:admin,staff'])->group(function () {
 });
 
 
-Route::middleware(['auth', 'role:admin'])->group(function () {
+Route::middleware(['auth', 'role:head'])->group(function () {
     Route::get('/admin/users', [UserManagementController::class, 'index'])->name('admin.users');
     Route::put('/admin/users/{id}', [UserManagementController::class, 'update'])->name('admin.users.update');
     Route::post('/admin/users/{id}/logout', [UserManagementController::class, 'forceLogout']);
     Route::post('/admin/users/{id}/delete', [UserManagementController::class, 'deleteUser']);
+    Route::put('/admin/users/{id}/restore', [UserManagementController::class, 'restoreUser'])->name('users.restore');
+
 });
 
 Route::middleware(['auth'])->group(function () {
@@ -124,7 +126,7 @@ Route::put('/companies/{id}/update-added-by', [CompanyController::class, 'update
 
 
 Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
-    ->middleware('role:admin')
+    ->middleware('role:head')
     ->name('projects.sync');
 
 
@@ -139,7 +141,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 
-Route::middleware(['auth', 'role:admin,staff'])->group(function () {
+Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
     Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
     Route::get('/announcements/create', [AnnouncementController::class, 'create'])->name('announcements.create');
     Route::post('/announcements', [AnnouncementController::class, 'store'])->name('announcements.store');

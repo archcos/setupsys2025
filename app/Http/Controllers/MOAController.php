@@ -21,6 +21,8 @@ public function index(Request $request)
 {
     $search = $request->input('search');
     $perPage = $request->input('perPage', 10);
+    $sortBy = $request->input('sortBy', 'created_at');
+    $sortOrder = $request->input('sortOrder', 'desc');
     $userId = session('user_id');
     $user = UserModel::find($userId);
 
@@ -40,51 +42,32 @@ public function index(Request $request)
         $query->whereHas('project.company', function ($q) use ($user) {
             $q->where('office_id', $user->office_id);
         });
-    } elseif ($user && $user->role !== 'admin') {
+    } elseif ($user && $user->role !== 'rpmo') {
         $query->whereRaw('0 = 1');
     }
 
-    $moas = $query->latest()->paginate($perPage)->appends($request->only('search', 'perPage'));
+    // Apply sorting
+    if ($sortBy === 'project_cost') {
+        // Join with tbl_projects to sort by project_cost
+        $query->join('tbl_projects', 'tbl_moa.project_id', '=', 'tbl_projects.project_id')
+              ->orderBy('tbl_projects.project_cost', $sortOrder)
+              ->select('tbl_moa.*'); // Select only MOA columns to avoid conflicts
+    } else {
+        // Sort by MOA table columns (like created_at)
+        $query->orderBy('tbl_moa.' . $sortBy, $sortOrder);
+    }
+
+    $moas = $query->paginate($perPage)->appends($request->only('search', 'perPage', 'sortBy', 'sortOrder'));
 
     return inertia('MOA/Index', [
         'moas' => $moas,
-        'filters' => $request->only('search', 'perPage'),
+        'filters' => $request->only('search', 'perPage', 'sortBy', 'sortOrder'),
     ]);
 }
 
 
 
 
-
-//     public function showGeneratedMoa($project_id)
-// {
-//     $moa = MOAModel::where('project_id', $project_id)->firstOrFail();
-//     $project = ProjectModel::with('company')->findOrFail($project_id);
-//     $company = $project->company;
-
-//     // Load the Word template
-//     $templateProcessor = new TemplateProcessor(storage_path('app/templates/template.docx'));
-
-//     // Set the values from saved DB
-//     $templateProcessor->setValue('company_name', $company->company_name);
-//     $templateProcessor->setValue('project_title', $project->project_title);
-//     $templateProcessor->setValue('owner_name', $moa->owner_name);
-//     $templateProcessor->setValue('owner_position', $moa->owner_position);
-//     $templateProcessor->setValue('witness', $moa->witness);
-//     $templateProcessor->setValue('pd_name', $moa->pd_name);
-//     $templateProcessor->setValue('pd_title', $moa->pd_title);
-//     $templateProcessor->setValue('project_cost', number_format($moa->project_cost, 2));
-//     $templateProcessor->setValue('amount_words', $moa->amount_words);
-
-//     // You can also insert table rows here if needed
-
-//     // Save to temp file and return download
-//     $fileName = 'MOA_' . $company->company_name . '.docx';
-//     $tempPath = storage_path("app/public/{$fileName}");
-//     $templateProcessor->saveAs($tempPath);
-
-//     return response()->download($tempPath)->deleteFileAfterSend(true);
-// }
 
 public function generateFromMoa($moa_id)
 {
@@ -262,118 +245,118 @@ public function generateFromMoa($moa_id)
         $templateProcessor->setComplexBlock('ACTIVITY_TABLE', $activitiesTable);
 
 
-$start = Carbon::parse($project->refund_initial)->startOfYear(); // ✅ force to January of that year
-$end   = Carbon::parse($project->refund_end);
+        $start = Carbon::parse($project->refund_initial)->startOfYear(); // ✅ force to January of that year
+        $end   = Carbon::parse($project->refund_end);
 
-$periodMonths = [];
-$current = $start->copy();
+        $periodMonths = [];
+        $current = $start->copy();
 
-while ($current->lessThanOrEqualTo($end)) {
-    $periodMonths[] = [
-        'month' => $current->format('F'),
-        'year'  => $current->year,
-        'date'  => $current->copy(),
-    ];
-    $current->addMonth();
-}
+        while ($current->lessThanOrEqualTo($end)) {
+            $periodMonths[] = [
+                'month' => $current->format('F'),
+                'year'  => $current->year,
+                'date'  => $current->copy(),
+            ];
+            $current->addMonth();
+        }
 
 // Prepare refund data
-$refundData = [];
-foreach ($periodMonths as $p) {
-    $month = $p['month'];
-    $year  = $p['year'];
+        $refundData = [];
+        foreach ($periodMonths as $p) {
+            $month = $p['month'];
+            $year  = $p['year'];
 
-    if ($p['date']->lessThan(Carbon::parse($project->refund_initial))) {
-        $refundData[$year][$month] = ''; // blank before start
-    } elseif ($p['date']->equalTo($end)) {
-        $refundData[$year][$month] = $project->last_refund;
-    } else {
-        $refundData[$year][$month] = $project->refund_amount ?? 0;
-    }
-}
+            if ($p['date']->lessThan(Carbon::parse($project->refund_initial))) {
+                $refundData[$year][$month] = ''; // blank before start
+            } elseif ($p['date']->equalTo($end)) {
+                $refundData[$year][$month] = $project->last_refund;
+            } else {
+                $refundData[$year][$month] = $project->refund_amount ?? 0;
+            }
+        }
 
-$phpWord = new PhpWord();
-$refundTable = $section->addTable([
-    'borderSize' => 6,
-    'borderColor' => '999999',
-    'cellMargin' => 80,
-]);
+        $phpWord = new PhpWord();
+        $refundTable = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => '999999',
+            'cellMargin' => 80,
+        ]);
 
 // Header row
-$refundTable->addRow();
-$refundTable->addCell(3000)->addText('Month', ['bold' => true, 'name' => 'Arial']);
-$years = array_unique(array_column($periodMonths, 'year'));
-foreach ($years as $year) {
-    $refundTable->addCell(2000)->addText($year, ['bold' => true, 'name' => 'Arial'], ['alignment' => Jc::CENTER]);
-}
+        $refundTable->addRow();
+        $refundTable->addCell(3000)->addText('Month', ['bold' => true, 'name' => 'Arial']);
+        $years = array_unique(array_column($periodMonths, 'year'));
+        foreach ($years as $year) {
+            $refundTable->addCell(2000)->addText($year, ['bold' => true, 'name' => 'Arial'], ['alignment' => Jc::CENTER]);
+        }
 
 // Prepare monthly + yearly totals
-$months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-$yearTotals = array_fill_keys($years, 0);
-$overallTotal = 0;
+        $months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        $yearTotals = array_fill_keys($years, 0);
+        $overallTotal = 0;
 
-foreach ($months as $month) {
-    $rowHasData = false;
-    foreach ($years as $year) {
-        if (isset($refundData[$year][$month])) {
-            $rowHasData = true;
-            break;
+        foreach ($months as $month) {
+            $rowHasData = false;
+            foreach ($years as $year) {
+                if (isset($refundData[$year][$month])) {
+                    $rowHasData = true;
+                    break;
+                }
+            }
+
+            if (!$rowHasData) continue;
+
+            $refundTable->addRow();
+            $refundTable->addCell(3000)->addText($month, ['name' => 'Arial']);
+
+            foreach ($years as $year) {
+                $amount = $refundData[$year][$month] ?? '';
+                if ($amount !== '' && $amount !== null) {
+                    $yearTotals[$year] += $amount;
+                    $overallTotal += $amount;
+                }
+
+                $refundTable->addCell(2000)->addText(
+                    $amount !== '' ? number_format($amount, 2) : '',
+                    ['name' => 'Arial'],
+                    ['alignment' => Jc::CENTER]
+                );
+            }
         }
-    }
 
-    if (!$rowHasData) continue;
-
-    $refundTable->addRow();
-    $refundTable->addCell(3000)->addText($month, ['name' => 'Arial']);
-
-    foreach ($years as $year) {
-        $amount = $refundData[$year][$month] ?? '';
-        if ($amount !== '' && $amount !== null) {
-            $yearTotals[$year] += $amount;
-            $overallTotal += $amount;
+        // Add Yearly Totals Row
+        $refundTable->addRow();
+        $refundTable->addCell(3000)->addText('Year Total', ['bold' => true, 'name' => 'Arial']);
+        foreach ($years as $year) {
+            $refundTable->addCell(2000)->addText(
+                number_format($yearTotals[$year], 2),
+                ['bold' => true, 'name' => 'Arial'],
+                ['alignment' => Jc::CENTER]
+            );
         }
 
-        $refundTable->addCell(2000)->addText(
-            $amount !== '' ? number_format($amount, 2) : '',
-            ['name' => 'Arial'],
+        // Add Overall Total Row
+        $colSpan = count($years);
+
+        $refundTable->addRow();
+
+        // First cell (Overall Total label)
+        $refundTable->addCell(3000)->addText('Overall Total', ['bold' => true, 'name' => 'Arial']);
+
+        // Second cell (merged across all year columns)
+        $refundTable->addCell(
+            2000 * $colSpan, // Optional: multiply width by number of columns
+            ['gridSpan' => $colSpan] // Merge columns
+        )->addText(
+            number_format($overallTotal, 2),
+            ['bold' => true, 'name' => 'Arial'],
             ['alignment' => Jc::CENTER]
         );
-    }
-}
 
-// Add Yearly Totals Row
-$refundTable->addRow();
-$refundTable->addCell(3000)->addText('Year Total', ['bold' => true, 'name' => 'Arial']);
-foreach ($years as $year) {
-    $refundTable->addCell(2000)->addText(
-        number_format($yearTotals[$year], 2),
-        ['bold' => true, 'name' => 'Arial'],
-        ['alignment' => Jc::CENTER]
-    );
-}
+        // Inject into template
+        $templateProcessor->setComplexBlock('REFUND_TABLE', $refundTable);
 
-// Add Overall Total Row
-$colSpan = count($years);
-
-$refundTable->addRow();
-
-// First cell (Overall Total label)
-$refundTable->addCell(3000)->addText('Overall Total', ['bold' => true, 'name' => 'Arial']);
-
-// Second cell (merged across all year columns)
-$refundTable->addCell(
-    2000 * $colSpan, // Optional: multiply width by number of columns
-    ['gridSpan' => $colSpan] // Merge columns
-)->addText(
-    number_format($overallTotal, 2),
-    ['bold' => true, 'name' => 'Arial'],
-    ['alignment' => Jc::CENTER]
-);
-
-// Inject into template
-$templateProcessor->setComplexBlock('REFUND_TABLE', $refundTable);
-
-        // Ensure output folder exists
+                // Ensure output folder exists
         $outputFolder = storage_path('app/generated');
         if (!file_exists($outputFolder)) {
             mkdir($outputFolder, 0777, true);

@@ -60,6 +60,16 @@
       }
     }, [flash]);
 
+    const restoreUser = (userId) => {
+      if (!confirm('Are you sure you want to restore this user?')) return;
+
+      router.put(`/admin/users/${userId}/restore`, {}, {
+        onSuccess: () => {
+          setFlashMessage('User restored successfully.');
+        },
+      });
+    };
+
     const confirmAdminPassword = (e) => {
       e.preventDefault();
       setIsConfirming(true);
@@ -229,7 +239,7 @@
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 bg-gray-50"
               >
                 <option value="">All Roles</option>
-                <option value="admin">Admin</option>
+                <option value="rpmo">RO Staff</option>
                 <option value="staff">Staff</option>
                 <option value="user">User</option>
               </select>
@@ -351,31 +361,44 @@
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => startEdit(user)}
-                                className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors duration-200"
-                                title="Edit User"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleForceLogout(user.user_id)}
-                                className="p-2 bg-yellow-100 text-yellow-600 rounded-lg hover:bg-yellow-200 transition-colors duration-200"
-                                title="Force Logout"
-                              >
-                                <LogOut className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => setDeleteUserId(user.user_id)}
-                                className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors duration-200"
-                                title="Delete User"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
+<td className="px-6 py-4">
+  <div className="flex items-center justify-center gap-2">
+    {!user.deleted_at ? (
+      <>
+        <button
+          onClick={() => startEdit(user)}
+          className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors duration-200"
+          title="Edit User"
+        >
+          <Edit className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => handleForceLogout(user.user_id)}
+          className="p-2 bg-yellow-100 text-yellow-600 rounded-lg hover:bg-yellow-200 transition-colors duration-200"
+          title="Force Logout"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setDeleteUserId(user.user_id)}
+          className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors duration-200"
+          title="Delete User"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </>
+    ) : (
+      <button
+        onClick={() => restoreUser(user.user_id)}
+        className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors duration-200"
+        title="Restore User"
+      >
+        <UserCheck className="w-4 h-4" />
+      </button>
+    )}
+  </div>
+</td>
+
                         </tr>
                       ))}
                     </tbody>
@@ -475,12 +498,11 @@
                           onChange={e => setForm({ ...form, role: e.target.value })}
                           className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
                         >
-                          <option value="admin">Admin</option>
-                          <option value="staff">Staff</option>
+                          <option value="rpmo">RPMO Staff</option>
+                          <option value="staff">PSTO Staff</option>
                           <option value="user">User</option>
                         </select>
                       </div>
-
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
                           <UserCheck className="w-4 h-4 inline mr-1" />

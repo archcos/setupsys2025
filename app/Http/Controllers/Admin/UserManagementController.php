@@ -9,18 +9,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Session;
-use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
 
 class UserManagementController extends Controller
 {
 
 public function index(Request $request)
 {
-    if (Session::get('role') !== 'admin') {
+    // ✅ Use Auth guard instead of Session
+    if (Auth::user()->role !== 'head' && Auth::user()->role !== 'admin') {
         abort(403, 'Unauthorized');
     }
 
-    $query = UserModel::with('office');
+    // ✅ Include soft deleted users
+    $query = UserModel::withTrashed()->with('office');
 
     // ✅ Search
     if ($request->filled('search')) {
@@ -48,6 +50,7 @@ public function index(Request $request)
 
     $users = $query->paginate(10)->appends($request->all());
 
+    // ✅ Identify online users
     $onlineUserIds = DB::table('sessions')
         ->pluck('user_id')
         ->filter()
@@ -59,10 +62,11 @@ public function index(Request $request)
         return $user;
     });
 
-    // ✅ Calculate global counts (not paginated)
-    $totalUsers = UserModel::count();
+    // ✅ Calculate counts (not paginated)
+    $totalUsers = UserModel::withTrashed()->count();
     $activeUsers = UserModel::where('status', 'active')->count();
     $onlineUsers = UserModel::whereIn('user_id', $onlineUserIds)->count();
+    $deletedUsers = UserModel::onlyTrashed()->count();
 
     return inertia('Admin/UserManagement', [
         'users' => $users,
@@ -72,51 +76,54 @@ public function index(Request $request)
             'total' => $totalUsers,
             'active' => $activeUsers,
             'online' => $onlineUsers,
+            'deleted' => $deletedUsers,
         ],
     ]);
 }
 
+
     /**
      * Update user data by admin (password, role, office, status).
      */
-    public function update(Request $request, $id)
-    {
-        if (Session::get('role') !== 'admin') {
-            abort(403, 'Unauthorized');
-        }
-
-        $request->validate([
-            'office_id' => 'required|exists:tbl_offices,office_id',
-            'role' => 'required|in:admin,user,staff',
-            'status' => 'required|in:active,inactive',
-            'password' => 'nullable|string|min:6',
-            'admin_password' => 'required|string',
-        ]);
-
-        // Get current logged in admin
-        $admin = UserModel::find(Session::get('user_id'));
-
-        if (!$admin || !Hash::check($request->admin_password, $admin->password)) {
-            return back()->withErrors(['admin_password' => 'Incorrect admin password.']);
-        }
-
-        $user = UserModel::findOrFail($id);
-        $user->office_id = $request->office_id;
-        $user->role = $request->role;
-        $user->status = $request->status;
-
-        if ($request->filled('password')) {
-            $user->password = Hash::make($request->password);
-        }
-
-        $user->save();
-
-        return back()->with('success', 'User updated successfully.');
+public function update(Request $request, $id)
+{
+    // ✅ Only admin can update
+    if (Auth::user()->role !== 'head') {
+        abort(403, 'Unauthorized');
     }
+
+    $request->validate([
+        'office_id' => 'required|exists:tbl_offices,office_id',
+        'role' => 'required|in:head,user,staff,rpmo',
+        'status' => 'required|in:active,inactive',
+        'password' => 'nullable|string|min:6',
+        'admin_password' => 'required|string',
+    ]);
+
+    // ✅ Verify admin password
+    $admin = Auth::user();
+    if (!Hash::check($request->admin_password, $admin->password)) {
+        return back()->withErrors(['admin_password' => 'Incorrect admin password.']);
+    }
+
+    // ✅ Update target user
+    $user = UserModel::findOrFail($id);
+    $user->office_id = $request->office_id;
+    $user->role = $request->role;
+    $user->status = $request->status;
+
+    if ($request->filled('password')) {
+        $user->password = Hash::make($request->password);
+    }
+
+    $user->save();
+
+    return back()->with('success', 'User updated successfully.');
+}
 
 public function forceLogout(Request $request, $id)
 {
-    if (Session::get('role') !== 'admin') {
+    if (Auth::user()->role !== 'head') {
         abort(403, 'Unauthorized');
     }
 
@@ -124,18 +131,17 @@ public function forceLogout(Request $request, $id)
         'admin_password' => 'required|string',
     ]);
 
-    $admin = UserModel::find(Session::get('user_id'));
-    if (!$admin || !Hash::check($request->admin_password, $admin->password)) {
+    $admin = Auth::user();
+    if (!Hash::check($request->admin_password, $admin->password)) {
         return back()->withErrors(['admin_password' => 'Incorrect admin password.']);
     }
 
-    // Check if user exists
     $user = UserModel::find($id);
-    if (! $user) {
+    if (!$user) {
         return back()->withErrors(['message' => 'User not found.']);
     }
 
-    // Force logout by deleting all sessions where user_id = $id
+    // ✅ Delete all active sessions for this user
     DB::table('sessions')->where('user_id', $user->user_id)->delete();
 
     return back()->with('success', 'User has been forcibly logged out.');
@@ -144,7 +150,7 @@ public function forceLogout(Request $request, $id)
 
 public function deleteUser(Request $request, $id)
 {
-    if (Session::get('role') !== 'admin') {
+    if (Auth::user()->role !== 'head') {
         abort(403, 'Unauthorized');
     }
 
@@ -152,15 +158,40 @@ public function deleteUser(Request $request, $id)
         'admin_password' => 'required|string',
     ]);
 
-    $admin = UserModel::find(Session::get('user_id'));
-    if (!$admin || !Hash::check($request->admin_password, $admin->password)) {
+    $admin = Auth::user();
+    if (!Hash::check($request->admin_password, $admin->password)) {
         return back()->withErrors(['admin_password' => 'Incorrect admin password.']);
     }
 
-    // Delete user and their session
-    DB::table('sessions')->where('user_id', $id)->delete();
-    UserModel::where('user_id', $id)->delete();
+    $user = UserModel::find($id);
+    if (!$user) {
+        return back()->withErrors(['message' => 'User not found.']);
+    }
 
-    return back()->with('success', 'User deleted successfully.');
+    // ✅ End all their sessions
+    DB::table('sessions')->where('user_id', $user->user_id)->delete();
+
+    // ✅ Soft delete the user (not permanent)
+    $user->delete();
+
+    return back()->with('success', 'User deleted successfully (soft deleted).');
 }
+
+public function restoreUser($id)
+{
+    if (Auth::user()->role !== 'head') {
+        abort(403, 'Unauthorized');
+    }
+
+    $user = UserModel::withTrashed()->find($id);
+
+    if (!$user) {
+        return back()->withErrors(['message' => 'User not found.']);
+    }
+
+    $user->restore();
+
+    return back()->with('success', 'User restored successfully.');
+}
+
 }
