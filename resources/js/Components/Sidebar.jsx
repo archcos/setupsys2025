@@ -28,7 +28,9 @@ import {
   FilePlus2,
   UserCheck2,
   FileUser,
-  ClipboardPlus
+  ClipboardPlus,
+  View,
+  Eye
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen }) {
@@ -172,7 +174,7 @@ export default function Sidebar({ isOpen }) {
             {
               label: 'Check Announcements',
               href: '/announcements/view',
-              icon: <FilePlus2 size={16} />,
+              icon: <Eye size={16} />,
               target: '_blank', // 👈 This makes it open in a new tab
             },
           ]}
