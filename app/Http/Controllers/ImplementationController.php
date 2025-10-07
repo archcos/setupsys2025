@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ImplementationModel;
+use App\Models\ItemModel;
 use App\Models\ProjectModel;
 use App\Models\TagModel;
 use Illuminate\Http\Request;
@@ -54,35 +55,40 @@ class ImplementationController extends Controller
         return response()->json(['message' => 'Implement created', 'data' => $implement]);
         }
             
-    public function checklist($implementId)
-    {
-        $implementation = ImplementationModel::with(['project.company', 'tags'])->findOrFail($implementId);
+public function checklist($implementId)
+{
+    $implementation = ImplementationModel::with(['project.company', 'tags'])->findOrFail($implementId);
 
-        $projectCost = floatval($implementation->project->project_cost);
-        $totalTagAmount = $implementation->tags->sum(function ($tag) {
-            return floatval($tag->tag_amount);
-        });
+    $projectCost = floatval($implementation->project->project_cost);
+    $totalTagAmount = $implementation->tags->sum(function ($tag) {
+        return floatval($tag->tag_amount);
+    });
 
-        $implementation->first_untagged = $totalTagAmount >= ($projectCost * 0.5);
-        $implementation->final_untagged = $totalTagAmount >= $projectCost;
+    $implementation->first_untagged = $totalTagAmount >= ($projectCost * 0.5);
+    $implementation->final_untagged = $totalTagAmount >= $projectCost;
 
-        // Clean data to ensure valid UTF-8
-        $cleaned = $implementation->toArray();
-        array_walk_recursive($cleaned, function (&$item) {
-            if (is_string($item)) {
-                $item = mb_convert_encoding($item, 'UTF-8', 'UTF-8');
-            }
-        });
+    // Fetch approved items for this project
+    $approvedItems = ItemModel::where('project_id', $implementation->project_id)
+        ->where('report', 'approved')
+        ->get(['item_id', 'item_name', 'item_cost', 'quantity', 'specifications']);
 
-        return inertia('Implementation/Checklist', [
-            'implementation' => [
-                ...$cleaned,
-                'project_title' => $implementation->project->project_title,
-                'company_name' => $implementation->project->company->company_name,
-            ],
-        ]);
+    // Clean data to ensure valid UTF-8
+    $cleaned = $implementation->toArray();
+    array_walk_recursive($cleaned, function (&$item) {
+        if (is_string($item)) {
+            $item = mb_convert_encoding($item, 'UTF-8', 'UTF-8');
+        }
+    });
 
-    }
+    return inertia('Implementation/Checklist', [
+        'implementation' => [
+            ...$cleaned,
+            'project_title' => $implementation->project->project_title,
+            'company_name' => $implementation->project->company->company_name,
+        ],
+        'approvedItems' => $approvedItems,
+    ]);
+}
 
 
 

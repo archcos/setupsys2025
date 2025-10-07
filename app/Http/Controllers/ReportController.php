@@ -154,31 +154,27 @@ public function downloadReport($report_id)
     $phaseTwo      = "$refundInitial - $refundEnd";
 
     // Refund Data
-    $refunds = DB::table('tbl_refunds')
-        ->where('project_id', $project->project_id)
-        ->get();
+    $refunds = $project->refunds;
 
     $totalRefund = $refunds->sum('refund_amount');
     $toRefunded  = $project->project_cost - $totalRefund;
     $unsetRefund = $project->project_cost - $totalRefund;
+    $currentDate = Carbon::parse($report->created_at)->format('F, Y');
 
-    $currentDate = Carbon::now()->format('F, Y');
-
-    $totalUnpaid = DB::table('tbl_refunds')
-        ->where('project_id', $project->project_id)
+    $totalUnpaid = $refunds
         ->where('status', 'unpaid')
         ->where('month_paid', Carbon::now()->format('Y-m-01'))
         ->sum('refund_amount');
 
-    $oldestUnpaid = DB::table('tbl_refunds')
-        ->where('project_id', $project->project_id)
+    $oldestUnpaid = $refunds
         ->where('status', 'unpaid')
-        ->orderBy('month_paid', 'asc')
+        ->sortBy('month_paid')
         ->first();
 
     $oldUnpaid = $oldestUnpaid
         ? Carbon::parse($oldestUnpaid->month_paid)->format('F Y')
         : 'N/A';
+
 
     // --- Load Template ONCE ---
     $templatePath = storage_path('app/templates/form.docx');

@@ -37,13 +37,14 @@ const fieldIcons = {
   liquidation: BarChart3,
 };
 
-export default function Checklist({ implementation }) {
+export default function Checklist({ implementation, approvedItems }) {
   const { data, setData, post, processing, reset } = useForm({
     tarp: null,
     pdc: null,
     liquidation: null,
     tag_name: '',
     tag_amount: '',
+    selected_item_id: '',
   });
 
   const { props: page } = usePage();
@@ -52,6 +53,30 @@ export default function Checklist({ implementation }) {
   const [previewType, setPreviewType] = useState(null);
   const [editingTag, setEditingTag] = useState(null);
   const [editedTag, setEditedTag] = useState({ name: '', amount: '' });
+
+  const handleItemSelect = (e) => {
+    const itemId = e.target.value;
+    setData('selected_item_id', itemId);
+    
+    if (itemId) {
+      const selectedItem = approvedItems.find(item => item.item_id == itemId);
+      if (selectedItem) {
+        setData({
+          ...data,
+          selected_item_id: itemId,
+          tag_name: selectedItem.item_name,
+          tag_amount: selectedItem.item_cost,
+        });
+      }
+    } else {
+      setData({
+        ...data,
+        selected_item_id: '',
+        tag_name: '',
+        tag_amount: '',
+      });
+    }
+  };
 
   const upload = (field) => {
     if (implementation[field]) return;
@@ -93,8 +118,12 @@ export default function Checklist({ implementation }) {
       {
         preserveScroll: true,
         onSuccess: () => {
-          setData('tag_name', '');
-          setData('tag_amount', '');
+          setData({
+            ...data,
+            tag_name: '',
+            tag_amount: '',
+            selected_item_id: '',
+          });
           router.reload({ preserveScroll: true });
         },
       }
@@ -335,27 +364,50 @@ export default function Checklist({ implementation }) {
 
           {/* Add Tag Form */}
           <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="text"
-                value={data.tag_name}
-                onChange={(e) => setData('tag_name', e.target.value)}
-                placeholder="Equipment Name"
-                className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-              />
-              <input
-                type="number"
-                value={data.tag_amount}
-                onChange={(e) => setData('tag_amount', e.target.value)}
-                placeholder="Amount"
-                className="w-32 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-              />
-              <button
-                onClick={addTag}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                <Plus className="w-4 h-4" /> Add Tag
-              </button>
+            <div className="flex flex-col gap-3">
+              {/* Item Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Approved Item
+                </label>
+                <select
+                  value={data.selected_item_id}
+                  onChange={handleItemSelect}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                >
+                  <option value="">-- Select an item or enter manually --</option>
+                  {approvedItems?.map((item) => (
+                    <option key={item.item_id} value={item.item_id}>
+                      {item.item_name} - ₱{parseFloat(item.item_cost).toLocaleString()}
+                      {item.specifications && ` (${item.specifications})`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Manual Input Fields */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={data.tag_name}
+                  onChange={(e) => setData('tag_name', e.target.value)}
+                  placeholder="Equipment Name"
+                  className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                />
+                <input
+                  type="number"
+                  value={data.tag_amount}
+                  onChange={(e) => setData('tag_amount', e.target.value)}
+                  placeholder="Amount"
+                  className="w-32 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                />
+                <button
+                  onClick={addTag}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  <Plus className="w-4 h-4" /> Add Tag
+                </button>
+              </div>
             </div>
           </div>
 
