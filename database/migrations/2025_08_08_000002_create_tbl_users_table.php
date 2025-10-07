@@ -22,8 +22,9 @@ return new class extends Migration
             $table->string('middle_name', 50)->nullable();
             $table->string('last_name', 50);
             $table->timestamp('updated_at')->nullable();
-            $table->enum('role', ['user','staff','admin']);
+            $table->enum('role', ['user','staff','head','rpmo']);
             $table->enum('status', ['inactive','active']);
+            $table->softDeletes(); // Adds deleted_at column
             $table->foreign('office_id')->references('office_id')->on('tbl_offices')->onDelete('cascade');
         });
 
@@ -36,7 +37,7 @@ return new class extends Migration
             'first_name' => 'Admin',
             'middle_name' => null,
             'last_name' => 'User',
-            'role' => 'admin',
+            'role' => 'head',
             'status' => 'active',
             'created_at' => now(),
         ]);

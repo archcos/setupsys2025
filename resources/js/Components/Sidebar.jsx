@@ -23,19 +23,22 @@ import {
   HandCoins,
   ArrowBigLeft,
   ArrowLeftRight,
-  Banknote,
   FileDiff,
   Megaphone,
-  FilePlus2
+  FilePlus2,
+  UserCheck2,
+  FileUser,
+  ClipboardPlus
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen }) {
   const [dropdowns, setDropdowns] = useState({
-    development: true,
-    implementation: true,
-    reports: true,
+    development: false,
+    implementation: false,
+    reports: false,
     user: true,
     transaction: true,
+    review: false,
     announce: false,
     adminpanel: false
   });
@@ -71,23 +74,52 @@ export default function Sidebar({ isOpen }) {
           {role === 'user' ? 'Dashboard' : 'Overview'}
         </Link>
 
-        {role === 'admin' && (
+        {role === 'head' && (
+          <Dropdown
+            title="Admin Panel"
+            icon={<ShieldUser size={18} />}
+            isOpen={dropdowns.adminpanel}
+            onToggle={() => toggleDropdown('adminpanel')}
+            links={[
+              { label: 'User Management', href: `/admin/users`, icon: <User size={16} /> },
+                // { label: '2.2 Implementation', href: '/activities', icon: <List size={16} /> },
+            ]}
+          />
+        )}
+
+
+        {(role === 'rpmo' || role === 'staff' )&& (
           <Dropdown
             title="Development"
             icon={<ChartNoAxesCombined size={18} />}
             isOpen={dropdowns.development}
             onToggle={() => toggleDropdown('development')}
             links={[
-              { label: '1.0 Companies', href: '/companies', icon: <Building2 size={16} /> },
-              { label: '1.1 Projects', href: '/projects', icon: <ClipboardList size={16} /> },
-              { label: '1.2 Activities', href: '/activities', icon: <SquareKanban size={16} /> },
-              { label: '1.3 Draft MOA', href: '/draft-moa', icon: <FileSignature size={16} /> },
-              { label: '1.4 MOA List', href: '/moa', icon: <FileText size={16} /> },
+              { label: 'Companies', href: '/companies', icon: <Building2 size={16} /> },
+              { label: 'Projects', href: '/projects', icon: <ClipboardList size={16} /> },
+              { label: 'Activities', href: '/activities', icon: <SquareKanban size={16} /> },
+              { label: 'Draft MOA', href: '/draft-moa', icon: <FileSignature size={16} /> },
+              { label: 'MOA List', href: '/moa', icon: <FileText size={16} /> },
             ]}
           />
         )}
 
-        {role === 'admin' && (
+        {role === 'rpmo' && (
+          <Dropdown
+            title="Review & Approval"
+            icon={<UserCheck2 size={18} />}
+            isOpen={dropdowns.review}
+            onToggle={() => toggleDropdown('review')}
+            links={[
+              { label: 'RTEC Report', href: `/implementation`, icon: <FileUser size={16} /> },
+              { label: 'Part Two', href: '/refunds', icon: <FileSearch size={16} /> },
+              // { label: 'Phase Two(CSV)', href: '/refunds', icon: <FileSearch size={16} /> },
+            ]}
+          />
+        )}
+
+
+        {role === 'rpmo' && (
           <Dropdown
             title="Implementation"
             icon={<PencilRuler size={18} />}
@@ -95,13 +127,13 @@ export default function Sidebar({ isOpen }) {
             onToggle={() => toggleDropdown('implementation')}
             links={[
               { label: 'Phase One', href: `/implementation`, icon: <ListTodo size={16} /> },
-              { label: 'Phase Two', href: '/refunds', icon: <FileSearch size={16} /> },
+              { label: 'Phase Two', href: '/refunds', icon: <HandCoins size={16} /> },
               // { label: 'Phase Two(CSV)', href: '/refunds', icon: <FileSearch size={16} /> },
             ]}
           />
         )}
 
-        {role === 'staff' && (
+        {/* {role === 'staff' && (
           <Dropdown
             title="Development"
             icon={<Building size={18} />}
@@ -114,12 +146,12 @@ export default function Sidebar({ isOpen }) {
               { label: 'MOA List', href: '/moa', icon: <FileText size={16} /> },
             ]}
           />
-        )}
+        )} */}
 
-        {(role === 'staff' || role === 'admin')  && (
+        {(role === 'staff' || role === 'rpmo')  && (
           <Dropdown
             title="Reports"
-            icon={<Building size={18} />}
+            icon={<ClipboardPlus size={18} />}
             isOpen={dropdowns.reports}
             onToggle={() => toggleDropdown('reports')}
             links={[
@@ -134,7 +166,7 @@ export default function Sidebar({ isOpen }) {
           isOpen={dropdowns.announce}
           onToggle={() => toggleDropdown('announce')}
           links={[
-            ...((role === 'admin' || role === 'staff')
+            ...((role === 'rpmo' ||role === 'head' || role === 'staff')
               ? [{ label: 'Manage Announcement', href: '/announcements', icon: <FilePlus2 size={16} /> }]
               : []),
             {
@@ -146,18 +178,6 @@ export default function Sidebar({ isOpen }) {
           ]}
         />
 
-        {role === 'admin' && (
-          <Dropdown
-            title="Admin Panel"
-            icon={<ShieldUser size={18} />}
-            isOpen={dropdowns.adminpanel}
-            onToggle={() => toggleDropdown('adminpanel')}
-            links={[
-              { label: 'User Management', href: `/admin/users`, icon: <User size={16} /> },
-                // { label: '2.2 Implementation', href: '/activities', icon: <List size={16} /> },
-            ]}
-          />
-        )}
 
 
         {role === 'user' && (

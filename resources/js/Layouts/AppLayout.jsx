@@ -5,7 +5,7 @@ import { Head, Link } from "@inertiajs/react";
 import { Mail, Phone, MapPin } from "lucide-react";
 
 export default function AppLayout({ children, title = "Dashboard" }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-100 to-blue-400">

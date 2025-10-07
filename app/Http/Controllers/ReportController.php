@@ -65,7 +65,7 @@ public function index(Request $request)
             $q->where('office_id', $user->office_id);
         });
 
-    } elseif ($user->role === 'admin') {
+    } elseif ($user->role === 'head') {
         Log::debug('ADMIN role detected - no restrictions applied');
         // admin sees all projects
 

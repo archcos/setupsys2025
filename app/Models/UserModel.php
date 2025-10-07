@@ -5,13 +5,17 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UserModel extends Authenticatable
 {
     use HasApiTokens, Notifiable;
 
+    use SoftDeletes;
     protected $table = 'tbl_users';
     protected $primaryKey = 'user_id';
+    protected $dates = ['deleted_at'];
+
 
     protected $fillable = [
         'first_name',

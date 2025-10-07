@@ -53,7 +53,7 @@ public function index(Request $request)
     return Inertia::render('Companies/Index', [
         'companies' => $companies,
         'filters' => $request->only('search', 'perPage'),
-        'allUsers' => $user->role === 'admin' ? $allUsers : null,
+        'allUsers' => $user->role === 'head' ? $allUsers : null,
 
     ]);
 }

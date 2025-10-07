@@ -35,7 +35,6 @@ export default function LoginPage() {
       <Head title="Login - DOST SETUP" />
       {announcements.length > 0 && (
         <div className="bg-yellow-100 border-b border-yellow-300 text-yellow-900 py-2 flex items-center">
-          {/* 📢 Fixed Icon on Left */}
           <div className="flex items-center pl-4 pr-3 text-yellow-700">
             <Megaphone size={20} className="flex-shrink-0" />
           </div>

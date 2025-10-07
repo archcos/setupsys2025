@@ -25,7 +25,12 @@ public function index(Request $request)
     $search = $request->input('search');
     $perPage = $request->input('perPage', 10); // Default 10
 
-    $query = ProjectModel::with(['company', 'items']);
+    $query = ProjectModel::with([
+            'company',
+            'items' => function ($q) {
+                $q->where('report', 'approved'); // ✅ Only approved items
+            }
+        ]);
 
     if ($user->role === 'user') {
         $query->where('added_by', $user->user_id);
@@ -54,6 +59,10 @@ public function index(Request $request)
               });
         });
     }
+
+    $query->whereHas('items', function ($q) {
+        $q->where('report', 'approved');
+    });
 
     $projects = $query->orderBy('project_title')->paginate($perPage)->withQueryString();
 
