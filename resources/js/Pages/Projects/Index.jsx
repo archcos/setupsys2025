@@ -44,10 +44,16 @@ export default function Index({ projects, filters }) {
   }, [search]);
 
   const handleDelete = (id) => {
+    if (role !== 'rpmo') {
+      alert('You are not authorized to delete a project. Please contact the RPMO.');
+      return;
+    }
+
     if (confirm('Are you sure you want to delete this project?')) {
       router.delete(`/projects/${id}`);
     }
   };
+
 
   const handlePerPageChange = (e) => {
     const newPerPage = e.target.value;
@@ -264,13 +270,23 @@ export default function Index({ projects, filters }) {
                                 <Edit3 className="w-4 h-4" />
                               </Link>
 
-                              <button
-                                onClick={() => handleDelete(project.project_id)}
-                                className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
-                                title="Delete Project"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                             <button
+                                    onClick={() => handleDelete(project.project_id)}
+                                    disabled={role !== 'rpmo'}
+                                    className={`p-2 rounded-lg transition-all duration-200 ${
+                                      role === 'rpmo'
+                                        ? 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                                        : 'text-gray-400 cursor-not-allowed'
+                                    }`}
+                                    title={
+                                      role === 'rpmo'
+                                        ? 'Delete Project'
+                                        : 'Contact RPMO to delete this project'
+                                    }
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+
                             </div>
                           </td>
                         </tr>
