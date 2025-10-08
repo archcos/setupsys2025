@@ -12,6 +12,7 @@ use App\Models\MOAModel;
 use App\Models\UserModel;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -20,18 +21,22 @@ class ProjectController extends Controller
 {
 public function index(Request $request)
 {
-    $userId = session('user_id');
-    $user = UserModel::where('user_id', $userId)->first();
+    $user = Auth::user();
+    if (!$user) {
+        return redirect()->route('login');
+    }
+
     $search = $request->input('search');
     $perPage = $request->input('perPage', 10); // Default 10
 
     $query = ProjectModel::with([
-            'company',
-            'items' => function ($q) {
-                $q->where('report', 'approved'); // ✅ Only approved items
-            }
-        ]);
+        'company',
+        'items' => function ($q) {
+            $q->where('report', 'approved'); // ✅ Only approved items
+        }
+    ]);
 
+    // Filter by user role
     if ($user->role === 'user') {
         $query->where('added_by', $user->user_id);
     } elseif ($user->role === 'staff') {
@@ -40,12 +45,11 @@ public function index(Request $request)
         });
     }
 
+    // Apply search
     if ($search) {
         $query->where(function ($q) use ($search) {
             $q->where('project_title', 'like', "%{$search}%")
-              // Removed phase_one and phase_two
               ->orWhere('project_cost', 'like', "%{$search}%")
-              // Optional: add search on release/refund fields if desired:
               ->orWhere('release_initial', 'like', "%{$search}%")
               ->orWhere('release_end', 'like', "%{$search}%")
               ->orWhere('refund_initial', 'like', "%{$search}%")
@@ -60,6 +64,7 @@ public function index(Request $request)
         });
     }
 
+    // Only include projects that have approved items
     $query->whereHas('items', function ($q) {
         $q->where('report', 'approved');
     });
@@ -530,28 +535,32 @@ private function sanitizeNumeric($value)
 
 public function readonly()
 {
-    $userId = session('user_id');
-    $user = UserModel::find($userId);
-
+    $user = Auth::user();
     if (!$user) {
-        // Handle unauthenticated or missing user case
         return Inertia::render('Projects/ProjectList', [
             'projects' => collect(),
         ]);
     }
 
-    if ($user->role === 'user') {
-        // Get all companies added by this user
-        $companyIds = CompanyModel::where('added_by', $userId)->pluck('company_id');
+    $query = ProjectModel::with([
+        'company',
+        'items' => function ($q) {
+            $q->where('report', 'approved');
+        }
+    ])->whereHas('items', function ($q) {
+        $q->where('report', 'approved');
+    });
 
-        // Get projects whose company_id is in $companyIds
-        $projects = ProjectModel::with(['company', 'items'])
-            ->whereIn('company_id', $companyIds)
-            ->get();
-    } else {
-        // Admin or other roles: show all projects
-        $projects = ProjectModel::with(['company', 'items'])->get();
+    if ($user->role === 'user') {
+        $companyIds = CompanyModel::where('added_by', $user->user_id)->pluck('company_id');
+        $query->whereIn('company_id', $companyIds);
+    } elseif ($user->role === 'staff') {
+        $query->whereHas('company', function ($q) use ($user) {
+            $q->where('office_id', $user->office_id);
+        });
     }
+
+    $projects = $query->get();
 
     return Inertia::render('Projects/ProjectList', [
         'projects' => $projects,

@@ -17,28 +17,48 @@ use Inertia\Inertia;
 
 class ImplementationController extends Controller
 {
-    public function index(Request $request)
-    {
-        $search = $request->input('search');
-        $perPage = $request->input('perPage', 10);
+public function index(Request $request)
+{
+    $search = $request->input('search');
+    $perPage = $request->input('perPage', 10);
 
-        $implementations = ImplementationModel::with('project.company')
-            ->when($search, function ($query, $search) {
-                $query->whereHas('project', function ($q) use ($search) {
-                    $q->where('project_title', 'like', "%{$search}%")
-                    ->orWhereHas('company', function ($qc) use ($search) {
-                        $qc->where('company_name', 'like', "%{$search}%");
-                    });
+    $implementations = ImplementationModel::with(['project.company', 'tags'])
+        ->when($search, function ($query, $search) {
+            $query->whereHas('project', function ($q) use ($search) {
+                $q->where('project_title', 'like', "%{$search}%")
+                ->orWhereHas('company', function ($qc) use ($search) {
+                    $qc->where('company_name', 'like', "%{$search}%");
                 });
-            })
-            ->paginate($perPage)
-            ->appends($request->only('search', 'perPage'));
+            });
+        })
+        ->paginate($perPage)
+        ->appends($request->only('search', 'perPage'));
 
-        return Inertia::render('Implementation/Index', [
-            'implementations' => $implementations,
-            'filters' => $request->only('search', 'perPage'),
-        ]);
-    }
+    // Calculate untagging status through implementation->tags relationship
+    $implementations->getCollection()->transform(function ($implementation) {
+        $projectCost = floatval($implementation->project->project_cost ?? 0);
+        
+        // Sum tag amounts through the implementation's tags relationship
+        $totalTagged = $implementation->tags->sum(function ($tag) {
+            return floatval($tag->tag_amount);
+        });
+        
+        $firstUntaggingThreshold = $projectCost * 0.5;
+        $percentage = $projectCost > 0 ? ($totalTagged / $projectCost) * 100 : 0;
+        
+        $implementation->first_untagged = $totalTagged >= $firstUntaggingThreshold;
+        $implementation->final_untagged = $totalTagged >= $projectCost;
+        $implementation->untagging_percentage = min($percentage, 100);
+        $implementation->total_tagged = $totalTagged;
+        
+        return $implementation;
+    });
+
+    return Inertia::render('Implementation/Index', [
+        'implementations' => $implementations,
+        'filters' => $request->only('search', 'perPage'),
+    ]);
+}
 
 
     public function store(Request $request)
