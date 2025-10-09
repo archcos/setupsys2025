@@ -148,7 +148,7 @@ export default function Index({ activities, filters }) {
                         <div className="flex items-center gap-2">
                           <Building2 className="w-4 h-4" />
                           Project
-                          <ArrowUpDown className="w-3 h-3 text-gray-400" />
+                          {/* <ArrowUpDown className="w-3 h-3 text-gray-400" /> */}
                         </div>
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">

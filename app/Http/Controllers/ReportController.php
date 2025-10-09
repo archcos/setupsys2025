@@ -523,47 +523,35 @@ if ($maxRows === 0) {
 
 
 
-    public function create(ProjectModel $project)
-    {
-        Log::info('Opening report creation page', [
-            'project_id' => $project->project_id,
-        ]);
+public function create(ProjectModel $project)
+{
+    Log::info('Opening report creation page', [
+        'project_id' => $project->project_id,
+    ]);
 
-        // Load related data
-        $project->load(['company']);
+    $project->load([
+        'company',
+        'objectives' => function ($q) {
+            $q->where('report', 'approved');
+        },
+        'items',
+        'refunds',
+        'markets',
+    ]);
 
-        $objectives = DB::table('tbl_objectives')
-            ->where('project_id', $project->project_id)
-            ->where('report', 'approved')
-            ->get();
+    $equipments = $project->items->where('type', 'equipment')->values();
+    $nonequipments = $project->items->where('type', 'nonequip')->values();
 
-        $equipments = DB::table('tbl_items')
-            ->where('project_id', $project->project_id)
-            ->where('type', 'equipment')
-            ->get();
+    return Inertia::render('Reports/Create', [
+        'project' => $project,
+        'objects' => $project->objectives,
+        'equipments' => $equipments,
+        'nonequipments' => $nonequipments,
+        'refunds' => $project->refunds,
+        'markets' => $project->markets,
+    ]);
+}
 
-        $nonequipments = DB::table('tbl_items')
-            ->where('project_id', $project->project_id)
-            ->where('type', 'nonequip')
-            ->get();
-
-        $refunds = DB::table('tbl_refunds')
-            ->where('project_id', $project->project_id)
-            ->get();
-
-        $markets = DB::table('tbl_markets')
-            ->where('project_id', $project->project_id)
-            ->get();
-
-        return Inertia::render('Reports/Create', [
-            'project' => $project,
-            'objects' => $objectives,
-            'equipments' => $equipments,
-            'nonequipments' => $nonequipments,
-            'refunds' => $refunds,
-            'markets' => $markets,
-        ]);
-    }
 
     public function store(Request $request)
     {
