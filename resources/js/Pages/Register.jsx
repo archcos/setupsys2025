@@ -21,6 +21,7 @@ export default function RegisterPage({ offices }) {
     password: '',
     confirm_password: '',
     office_id: '',
+    website: '' 
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -61,17 +62,21 @@ export default function RegisterPage({ offices }) {
 
       if (response.ok) {
         setMessage('Registration successful! Redirecting to login...');
-        // Redirect to login page after 2 seconds
         setTimeout(() => {
-          router.visit('/'); // Use Inertia router for navigation
+          router.visit('/');
         }, 2000);
       } else if (response.status === 422) {
         setValidationErrors(data.errors || {});
+      } else if (response.status === 403) {
+        setError(data.message || 'Access denied');
+      } else if (response.status === 429) {
+        setError(data.message || 'Too many attempts');
       } else {
         setError(data.message || 'Registration failed');
       }
     } catch (err) {
-      setError('Something went wrong. Please try again.');
+      console.error('Registration error:', err);
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -122,6 +127,7 @@ export default function RegisterPage({ offices }) {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
+
             {/* Name Fields Row */}
             <div className="grid grid-cols-2 gap-3">
               {/* First Name */}
@@ -173,6 +179,18 @@ export default function RegisterPage({ offices }) {
                 />
               </div>
               <InputError error={validationErrors.middle_name} />
+            </div>
+
+            <div>
+              <input
+                type="text"
+                name="website"
+                value={form.website}
+                onChange={handleChange}
+                tabIndex="-1"
+                autoComplete="off"
+                placeholder="Website"
+              />
             </div>
 
             {/* Username */}
@@ -329,4 +347,4 @@ export default function RegisterPage({ offices }) {
   );
 }
 
-RegisterPage.layout = null;
+RegisterPage.layout = null
