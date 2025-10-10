@@ -7,7 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\UserModel;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Session;
 
 class AuthController extends Controller
@@ -71,6 +73,153 @@ public function signin(Request $request)
         : redirect()->route('home');
 }
 
+
+// //OTP DONT DELETE
+//     public function signin(Request $request)
+//     {
+//         $credentials = $request->validate([
+//             'username' => 'required|string',
+//             'password' => 'required|string',
+//         ]);
+
+//         $user = UserModel::where('username', $credentials['username'])->first();
+
+//         if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+//             return back()->withErrors(['message' => 'Invalid username or password.']);
+//         }
+
+//         if ($user->status === 'inactive') {
+//             return back()->withErrors(['message' => 'Your account is disabled.']);
+//         }
+
+//         $hasSession = DB::table('sessions')
+//             ->where('user_id', $user->user_id)
+//             ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->timestamp)
+//             ->exists();
+
+//         if ($hasSession) {
+//             return back()->withErrors(['message' => 'This account is already logged in on another device.']);
+//         }
+
+//         $this->sendOtp($user->email);
+
+//         Session::put('pending_user_id', $user->user_id);
+//         Session::put('otp_email', $user->email);
+
+//         return redirect()->route('otp.verify.form');
+//     }
+
+//     protected function sendOtp($email)
+//     {
+//         $otp = rand(100000, 999999);
+
+//         Cache::put('email_otp_' . $email, [
+//             'code' => $otp,
+//             'expires_at' => now()->addMinutes(5),
+//             'attempts' => 0,
+//         ], now()->addMinutes(5));
+
+//         Mail::raw("Your OTP code is: {$otp}\nThis code expires in 5 minutes.\n\nREMINDER: Please don't share this code to anyone.", function ($message) use ($email) {
+//             $message->to($email)
+//                 ->subject('SETUP Login OTP Code');
+//         });
+//     }
+
+// protected function maskEmail($email)
+// {
+//     if (empty($email)) return '';
+    
+//     $parts = explode('@', $email);
+//     if (count($parts) !== 2) return $email;
+    
+//     [$localPart, $domain] = $parts;
+    
+//     // Mask local part (before @)
+//     $localLength = strlen($localPart);
+//     $maskedLocal = $localLength > 2
+//         ? $localPart[0] . str_repeat('*', $localLength - 2) . $localPart[$localLength - 1]
+//         : $localPart[0] . '*';
+    
+//     // Mask domain
+//     $domainParts = explode('.', $domain);
+//     $domainName = $domainParts[0];
+//     $extension = isset($domainParts[1]) ? $domainParts[1] : '';
+    
+//     $domainLength = strlen($domainName);
+//     $maskedDomain = $domainLength > 2
+//         ? $domainName[0] . str_repeat('*', $domainLength - 2) . $domainName[$domainLength - 1]
+//         : $domainName[0] . '*';
+    
+//     return $maskedLocal . '@' . $maskedDomain . ($extension ? '.' . $extension : '');
+// }
+
+// public function showOtpForm()
+// {
+//     $email = Session::get('otp_email');
+//     if (! $email) return redirect()->route('login');
+    
+//     // Send masked email to frontend
+//     return inertia('Auth/VerifyOtp', [
+//         'email' => $email, // Keep real email for verification
+//         'maskedEmail' => $this->maskEmail($email) // Add masked version
+//     ]);
+// }
+//     public function verifyOtp(Request $request)
+//     {
+//         $request->validate([
+//             'email' => 'required|email',
+//             'otp' => 'required',
+//         ]);
+
+//         $otpData = Cache::get('email_otp_' . $request->email);
+//         $pendingUserId = Session::get('pending_user_id');
+
+//         if (! $otpData || ! $pendingUserId) {
+//             return back()->withErrors(['message' => 'OTP expired or invalid.']);
+//         }
+
+//         if ($otpData['attempts'] >= 3) {
+//             Cache::forget('email_otp_' . $request->email);
+//             Session::forget(['pending_user_id', 'otp_email']);
+//             return back()->withErrors(['message' => 'Too many failed attempts. Please log in again.']);
+//         }
+
+//         // Increment attempt count
+//         $otpData['attempts']++;
+//         Cache::put('email_otp_' . $request->email, $otpData, $otpData['expires_at']);
+
+//         if ($otpData['code'] == $request->otp) {
+//             Cache::forget('email_otp_' . $request->email);
+//             Session::forget(['pending_user_id', 'otp_email']);
+
+//             $user = UserModel::find($pendingUserId);
+//             Auth::login($user);
+//             Session::put('user_id', $user->user_id);
+//             Session::put('role', $user->role);
+
+//             return $user->role === 'user'
+//                 ? redirect()->route('user.dashboard')
+//                 : redirect()->route('home');
+//         }
+
+//         return back()->withErrors(['message' => 'Invalid OTP.']);
+//     }
+
+// public function resendOtp(Request $request)
+// {
+//     $email = $request->validate(['email' => 'required|email'])['email'];
+
+//     // Prevent spam — 30s cooldown
+//     if (Cache::has('resend_cooldown_' . $email)) {
+//         return response()->json(['error' => 'Please wait before requesting another OTP.'], 429);
+//     }
+
+//     $this->sendOtp($email);
+//     Cache::put('resend_cooldown_' . $email, true, now()->addSeconds(30));
+
+//     return response()->json(['message' => 'OTP resent successfully.'], 200);
+// }
+    
 
 public function logout(Request $request)
 {

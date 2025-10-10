@@ -25,7 +25,11 @@ Route::middleware(['redirectIfAuthenticated'])->group(function () {
     // Login
     Route::get('/', [AuthController::class, 'index'])->name('login');
     Route::post('/signin', [AuthController::class, 'signin'])->name('signin');
-
+    
+    //OTP
+    Route::get('/verify-otp', [AuthController::class, 'showOtpForm'])->name('otp.verify.form');
+    Route::post('/verify-otp', [AuthController::class, 'verifyOtp'])->name('otp.verify');
+    Route::post('/resend-otp', [AuthController::class, 'resendOtp'])->name('otp.resend');
 });
 
 Route::middleware(['web'])->group(function () {
@@ -48,6 +52,9 @@ Route::middleware(['auth'])->group(function () {
 
 
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');
+Route::post('/contact', [PageController::class, 'sendContact'])
+    ->middleware('throttle:2,1') 
+    ->name('contact.send');
 Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/help', [PageController::class, 'help'])->name('help');
 Route::get('/announcements/view', [PageController::class, 'announcements'])->name('announcements.public');

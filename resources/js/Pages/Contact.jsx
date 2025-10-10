@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useForm, Head, Link } from '@inertiajs/react';
+import { useState, useEffect } from 'react';
+import { useForm, Head, Link, usePage } from '@inertiajs/react';
 import { 
   Send, 
   MapPin, 
@@ -18,6 +18,15 @@ import setupLogo from '../../assets/SETUP_logo.png';
 export default function ContactUs() {
   const [successMessage, setSuccessMessage] = useState('');
   
+  const { flash } = usePage().props;
+
+  useEffect(() => {
+    if (flash?.success) {
+      setSuccessMessage(flash.success);
+      setTimeout(() => setSuccessMessage(''), 5000);
+    }
+  }, [flash]);
+
   const { data, setData, post, processing, errors, reset } = useForm({
     name: '',
     email: '',
@@ -240,6 +249,20 @@ export default function ContactUs() {
                   </div>
                 </div>
 
+                <div >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Username <span className="text-red-500">*</span>
+                    <input
+                      type="text"
+                      name="website"
+                      value={data.website || ''}
+                      onChange={(e) => setData('website', e.target.value)}
+                      autoComplete="off"
+                      tabIndex="-1"
+                    />
+                  </label>
+                </div>
+
                 {/* Message */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -261,6 +284,7 @@ export default function ContactUs() {
                     Please provide as much detail as possible to help us assist you better.
                   </p>
                 </div>
+
 
                 {/* Submit Button */}
                 <div className="flex justify-end">
