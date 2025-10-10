@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BlockedIp;
 use Illuminate\Http\Request;
 use App\Models\OfficeModel;
 use App\Models\UserModel;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 
 class RegisterController extends Controller
@@ -31,22 +34,76 @@ public function index()
 
 public function register(Request $request)
 {
+    $ip = $request->ip();
+    $key = 'register:' . $ip;
+
+    // Check if IP is blocked
+    $blocked = BlockedIp::where('ip', $ip)
+        ->where('blocked_until', '>', Carbon::now())
+        ->first();
+
+    if ($blocked) {
+        return response()->json([
+            'message' => 'Your IP is temporarily blocked due to suspicious activity.',
+        ], 403);
+    }
+
+    // Rate limit per IP — max 5 attempts per minute
+    if (RateLimiter::tooManyAttempts($key, 5)) {
+        $seconds = RateLimiter::availableIn($key);
+
+        BlockedIp::updateOrCreate(
+            ['ip' => $ip],
+            [
+                'reason' => 'Rate limit exceeded in registration',
+                'blocked_until' => Carbon::now()->addHours(value: 1),
+            ]
+        );
+
+        return response()->json([
+            'message' => "Too many registration attempts. You are temporarily blocked for 1 hours.",
+        ], 429);
+    }
+
+    RateLimiter::hit($key, 60); // 1 minute decay
+
+    // ✅ Validate fields (including honeypot)
     $validator = Validator::make($request->all(), [
         'first_name'   => 'required|string|max:50',
         'middle_name'  => 'nullable|string|max:50',
         'last_name'    => 'required|string|max:50',
         'username'     => 'required|string|max:50|unique:tbl_users,username',
         'email'        => 'required|email|unique:tbl_users,email',
-        'password'     => 'required|string|min:6',
+        'password'     => [
+            'required', 'string', 'min:8',
+            'regex:/[a-z]/', 'regex:/[A-Z]/', 'regex:/[0-9]/',
+        ],
         'office_id'    => 'required|exists:tbl_offices,office_id',
+        'website'      => 'nullable|string|max:255', //  Honeypot field
+    ], [
+        'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, and one number.',
     ]);
 
     if ($validator->fails()) {
-        return response()->json([
-            'errors' => $validator->errors(),
-        ], 422);
+        return response()->json(['errors' => $validator->errors()], 422);
     }
 
+    // Honeypot Detection — if filled, block IP immediately
+    if ($request->filled('website')) {
+        BlockedIp::updateOrCreate(
+            ['ip' => $ip],
+            [
+                'reason' => 'Honeypot triggered during registration',
+                'blocked_until' => Carbon::now()->addHours(1),
+            ]
+        );
+
+        return response()->json([
+            'message' => 'Error detected. Please refresh page.',
+        ], 403);
+    }
+
+    // Create user
     $user = UserModel::create([
         'first_name'   => $request->first_name,
         'middle_name'  => $request->middle_name,
@@ -56,14 +113,15 @@ public function register(Request $request)
         'password'     => Hash::make($request->password),
         'office_id'    => $request->office_id,
         'role'         => 'user',
-        'status'       => 'active'
+        'status'       => 'active',
     ]);
+
+    RateLimiter::clear($key);
 
     return response()->json([
         'message' => 'Registration successful',
     ], 201);
 }
-
 
     /**
      * Show the form for creating a new resource.
