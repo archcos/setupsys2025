@@ -12,7 +12,7 @@ return new class extends Migration
             $table->increments('announce_id'); // INT AUTO_INCREMENT PRIMARY KEY
             $table->unsignedSmallInteger('office_id'); // must match tbl_offices type
             $table->string('title', 45)->nullable();
-            $table->string('details', 150)->nullable();
+            $table->text('details')->nullable();
             $table->date('start_date')->nullable();
             $table->date('end_date')->nullable();
             $table->timestamps();
