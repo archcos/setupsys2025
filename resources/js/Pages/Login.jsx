@@ -3,6 +3,7 @@ import { useForm, Link, Head, usePage, router } from '@inertiajs/react';
 import { Eye, EyeOff, User, Lock, AlertCircle, Megaphone, Mail, Shield } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import setupLogo from '../../assets/SETUP_logo.png';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -15,6 +16,14 @@ export default function LoginPage() {
     password: '',
   });
 
+  function getDeviceId() {
+    let id = localStorage.getItem('device_id');
+    if (!id) {
+      id = uuidv4(); // generate once per browser/device
+      localStorage.setItem('device_id', id);
+    }
+    return id;
+  }
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsAuthenticating(true);
@@ -29,7 +38,10 @@ export default function LoginPage() {
         },
         onFinish: () => {
           // Keep animation running during redirect
-        }
+        },
+        headers: {                          // ✅ add header here
+          'X-Device-MAC': getDeviceId(),
+        },
       });
     } catch (error) {
       console.error("CSRF refresh failed:", error);
