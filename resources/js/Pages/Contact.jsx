@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useForm, Head, Link, usePage } from '@inertiajs/react';
+import { useForm, Head, Link, usePage, router } from '@inertiajs/react';
 import { 
   Send, 
   MapPin, 
@@ -8,24 +8,47 @@ import {
   Clock, 
   MessageCircle,
   User,
-  Building2,
   CheckCircle,
-  AlertCircle
+  BookMarked
 } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import setupLogo from '../../assets/SETUP_logo.png';
 
 export default function ContactUs() {
   const [successMessage, setSuccessMessage] = useState('');
-  
-  const { flash } = usePage().props;
+  const [rateLimitMessage, setRateLimitMessage] = useState('');
+  const [rateLimitTimer, setRateLimitTimer] = useState(0);
+
+  const { flash, errors: pageErrors } = usePage().props;
 
   useEffect(() => {
     if (flash?.success) {
       setSuccessMessage(flash.success);
       setTimeout(() => setSuccessMessage(''), 5000);
     }
+
+    if (flash?.rate_limit) {
+      setRateLimitMessage(flash.rate_limit);
+      setRateLimitTimer(flash?.rate_seconds || 60);
+    }
   }, [flash]);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (rateLimitTimer <= 0) return;
+
+    const interval = setInterval(() => {
+      setRateLimitTimer(prev => {
+        if (prev <= 1) {
+          setRateLimitMessage('');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [rateLimitTimer]);
 
   const { data, setData, post, processing, errors, reset } = useForm({
     name: '',
@@ -35,18 +58,26 @@ export default function ContactUs() {
     phone: ''
   });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    post('/contact', {
-      onSuccess: () => {
-        setSuccessMessage('Thank you for contacting us! We\'ll get back to you within 24 hours.');
-        reset();
-        // Clear success message after 5 seconds
-        setTimeout(() => setSuccessMessage(''), 5000);
-      }
-    });
-  };
+const handleSubmit = (e) => {
+  e.preventDefault();
+
+  router.post('/contact', data, {
+    preserveScroll: true,
+    onSuccess: () => {
+      reset();
+    },
+    onError: (errors, response) => {
+      // ✅ Catch rate-limit (429)
+    if (response?.status === 429) {
+      const msg = response?.props?.flash?.rate_limit || 'Too many requests.';
+      const secs = response?.props?.flash?.rate_seconds || 60;
+
+      setRateLimitMessage(msg);
+      setRateLimitTimer(secs);
+    }
+    },
+  });
+};
 
   const InputError = ({ error }) =>
     error ? (
@@ -163,11 +194,44 @@ export default function ContactUs() {
                 <h2 className="text-2xl font-semibold text-gray-900">Send Us a Message</h2>
               </div>
 
+              {/* Rate Limit Message with Timer */}
+              {rateLimitTimer > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-3">
+                  <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="font-medium">Warning: Limit Reached!</p>
+                    <p className="text-sm mt-1">{rateLimitMessage}</p>
+                  </div>
+                  <div className="bg-yellow-100 px-3 py-1 rounded-lg text-center min-w-fit">
+                    <p className="font-bold text-yellow-900">{rateLimitTimer}s</p>
+                  </div>
+                </div>
+              )}
+
               {/* Success Message */}
               {successMessage && (
                 <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
-                  <CheckCircle size={20} className="text-green-600" />
+                  <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
                   {successMessage}
+                </div>
+              )}
+
+              {/* Error Message */}
+              {(pageErrors?.message || Object.keys(errors).length > 0) && (
+                <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6 flex items-start gap-2">
+                  <div className="mt-0.5 flex-shrink-0">
+                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">Unable to send message</p>
+                    {pageErrors?.message && (
+                      <p className="text-sm mt-1">{pageErrors.message}</p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -184,7 +248,8 @@ export default function ContactUs() {
                         type="text"
                         value={data.name}
                         onChange={e => setData('name', e.target.value)}
-                        className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        disabled={rateLimitTimer > 0}
+                        className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
                         placeholder="Enter your full name"
                         required
                       />
@@ -202,7 +267,8 @@ export default function ContactUs() {
                         type="email"
                         value={data.email}
                         onChange={e => setData('email', e.target.value)}
-                        className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        disabled={rateLimitTimer > 0}
+                        className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
                         placeholder="Enter your email address"
                         required
                       />
@@ -223,7 +289,8 @@ export default function ContactUs() {
                         type="tel"
                         value={data.phone}
                         onChange={e => setData('phone', e.target.value)}
-                        className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        disabled={rateLimitTimer > 0}
+                        className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
                         placeholder="Enter your phone number"
                       />
                     </div>
@@ -235,12 +302,13 @@ export default function ContactUs() {
                       Subject <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <Building2 size={18} className="absolute left-3 top-3 text-gray-400" />
+                      <BookMarked size={18} className="absolute left-3 top-3 text-gray-400" />
                       <input
                         type="text"
                         value={data.subject}
                         onChange={e => setData('subject', e.target.value)}
-                        className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        disabled={rateLimitTimer > 0}
+                        className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
                         placeholder="What's this about?"
                         required
                       />
@@ -249,7 +317,7 @@ export default function ContactUs() {
                   </div>
                 </div>
 
-                <div >
+                <div style={{ display: 'none' }}>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Username <span className="text-red-500">*</span>
                     <input
@@ -273,8 +341,9 @@ export default function ContactUs() {
                     <textarea
                       value={data.message}
                       onChange={e => setData('message', e.target.value)}
+                      disabled={rateLimitTimer > 0}
                       rows={6}
-                      className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                      className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                       placeholder="Please describe your inquiry or provide details about how we can help you..."
                       required
                     />
@@ -285,15 +354,14 @@ export default function ContactUs() {
                   </p>
                 </div>
 
-
                 {/* Submit Button */}
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    disabled={processing}
+                    disabled={processing || rateLimitTimer > 0}
                     className={`inline-flex items-center gap-2 px-8 py-3 ${
-                      processing 
-                        ? 'bg-blue-400 cursor-not-allowed' 
+                      processing || rateLimitTimer > 0
+                        ? 'bg-gray-400 cursor-not-allowed' 
                         : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]'
                     } text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl`}
                   >
@@ -304,6 +372,11 @@ export default function ContactUs() {
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                         Sending Message...
+                      </>
+                    ) : rateLimitTimer > 0 ? (
+                      <>
+                        <Clock className="w-4 h-4" />
+                        Wait {rateLimitTimer}s
                       </>
                     ) : (
                       <>
@@ -332,8 +405,6 @@ export default function ContactUs() {
             </p>
           </div>
         </div>
-
-        {/* Footer */}
       </div>
     </div>
   );
