@@ -12,6 +12,7 @@ class SavedDeviceModel extends Model
         'user_id',
         'device_mac',
         'device_name',
+        'device_fingerprint',
         'ip_address',
     ];
 

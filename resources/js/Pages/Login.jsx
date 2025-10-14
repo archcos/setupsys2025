@@ -39,8 +39,8 @@ export default function LoginPage() {
         onFinish: () => {
           // Keep animation running during redirect
         },
-        headers: {                          // ✅ add header here
-          'X-Device-MAC': getDeviceId(),
+        headers: {                          //  add header here
+          'X-Device-ID': getDeviceId(),
         },
       });
     } catch (error) {
