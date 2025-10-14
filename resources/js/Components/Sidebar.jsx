@@ -30,7 +30,8 @@ import {
   FileUser,
   ClipboardPlus,
   View,
-  Eye
+  Eye,
+  ShieldAlert
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen }) {
@@ -84,7 +85,7 @@ export default function Sidebar({ isOpen }) {
             onToggle={() => toggleDropdown('adminpanel')}
             links={[
               { label: 'User Management', href: `/admin/users`, icon: <User size={16} /> },
-                // { label: '2.2 Implementation', href: '/activities', icon: <List size={16} /> },
+              { label: 'Blocked Management', href: `/blocked-ips`, icon: <ShieldAlert size={16} /> },
             ]}
           />
         )}

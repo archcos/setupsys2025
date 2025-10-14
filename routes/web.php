@@ -8,6 +8,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\Admin\BlockedIpController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImplementationController;
@@ -117,8 +118,16 @@ Route::middleware(['auth', 'role:head'])->group(function () {
     Route::post('/admin/users/{id}/logout', [UserManagementController::class, 'forceLogout']);
     Route::post('/admin/users/{id}/delete', [UserManagementController::class, 'deleteUser']);
     Route::put('/admin/users/{id}/restore', [UserManagementController::class, 'restoreUser'])->name('users.restore');
-
 });
+
+Route::middleware(['auth', 'role:head'])->group(function () {
+    Route::get('/blocked-ips', [BlockedIpController::class, 'index'])->name('blocked.ips.index');
+    Route::post('/blocked-ips', [BlockedIpController::class, 'store'])->name('blocked.ips.store');
+    Route::post('blocked-ips/{id}/block-again', [BlockedIpController::class, 'blockAgain'])->name('blocked.blockAgain');
+    Route::post('blocked-ips/{id}/unblock', [BlockedIpController::class, 'unblock'])->name('blocked.unblock');
+    Route::get('blocked-ips/download', [BlockedIpController::class, 'download'])->name('blocked.download');
+});
+
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index');

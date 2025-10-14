@@ -16,7 +16,7 @@ export default function Blocked({ message, blockTime }) {
           </div>
 
           {/* Status Code */}
-          <h1 className="text-5xl font-bold text-red-600 text-center mb-2">403</h1>
+          <h1 className="text-5xl font-bold text-red-600 text-center mb-2">WARNING!</h1>
           
           {/* Title */}
           <h2 className="text-2xl font-semibold text-gray-900 text-center mb-4">
@@ -26,7 +26,7 @@ export default function Blocked({ message, blockTime }) {
           {/* Message Box */}
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <p className="text-sm text-red-800">
-              <strong>Why:</strong> {message || 'Your IP address has been temporarily blocked due to suspicious activity.'}
+              <strong>Why:</strong> {message || "You've been temporarily blocked due to suspicious activity."}
             </p>
             {blockTime && (
               <p className="text-xs text-red-700 mt-2">
@@ -42,15 +42,10 @@ export default function Blocked({ message, blockTime }) {
 
           {/* Action Buttons */}
           <div className="space-y-3">
-            <Link href="/">
-              <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2">
-                <Home className="w-4 h-4" />
-                Return Home
-              </button>
-            </Link>
+       
             
             <Link href="/contact">
-              <button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2">
+              <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2">
                 <Mail className="w-4 h-4" />
                 Contact Support
               </button>
@@ -59,7 +54,7 @@ export default function Blocked({ message, blockTime }) {
 
           {/* Footer Info */}
           <p className="text-xs text-gray-500 text-center mt-6">
-            Error Code: 403 | Access Forbidden
+            ! Access Forbidden !
           </p>
         </div>
       </div>
