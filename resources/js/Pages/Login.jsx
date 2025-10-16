@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useForm, Link, Head, usePage, router } from '@inertiajs/react';
-import { Eye, EyeOff, User, Lock, AlertCircle, Megaphone, Mail, Shield } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, AlertCircle, Megaphone, Mail, Shield, CheckCircle } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import setupLogo from '../../assets/SETUP_logo.png';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const { props } = usePage();
   const announcements = props.announcements || [];
+  const flash = props.flash || {};
 
   const { data, setData, post, processing, errors } = useForm({
     username: '',
@@ -24,6 +25,7 @@ export default function LoginPage() {
     }
     return id;
   }
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsAuthenticating(true);
@@ -39,7 +41,7 @@ export default function LoginPage() {
         onFinish: () => {
           // Keep animation running during redirect
         },
-        headers: {                          //  add header here
+        headers: {
           'X-Device-ID': getDeviceId(),
         },
       });
@@ -165,6 +167,14 @@ export default function LoginPage() {
                 Sign in to your SETUP account
               </p>
             </div>
+
+            {/* Success Message from Registration */}
+            {flash.success && (
+              <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
+                <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
+                <span>{flash.success}</span>
+              </div>
+            )}
 
             {errors.message && (
               <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">

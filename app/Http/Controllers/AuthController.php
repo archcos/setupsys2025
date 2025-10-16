@@ -31,6 +31,61 @@ public function index()
     ]);
 }
 
+public function signin(Request $request)
+{
+    $credentials = $request->validate([
+        'username' => [
+            'required',
+            'string',
+            'max:12',
+            'regex:/^[A-Za-z0-9_]+$/'
+        ],
+        'password' => [
+            'required',
+            'string',
+            'min:8',
+            'max:255'
+        ],
+    ], [
+        'username.regex' => 'Username can only contain letters, numbers, and underscores.',
+        'username.max' => 'Username must not exceed 12 characters.',
+        'password.min' => 'Password must be at least 8 characters.',
+    ]);
+
+    $user = UserModel::where('username', $credentials['username'])->first();
+
+    if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+        return back()->withErrors(['message' => 'Invalid username or password.']);
+    }
+
+    if ($user->status === 'inactive') {
+        return back()->withErrors(['message' => 'Your account is disabled.']);
+    }
+
+    $hasSession = DB::table('sessions')
+        ->where('user_id', $user->user_id)
+        ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->timestamp)
+        ->exists();
+
+    if ($hasSession) {
+        return back()->withErrors(['message' => 'This account is already logged in on another device.']);
+    }
+
+    $request->session()->invalidate();
+    $request->session()->regenerate();
+
+    Auth::login($user); // automatically stores user_id in session row
+
+    Session::put('user_id', $user->user_id);
+    Session::put('role', $user->role);
+
+    return $user->role === 'user'
+        ? redirect()->route('user.dashboard')
+        : redirect()->route('home');
+}
+
+
+// //OTP DONT DELETE
 // public function signin(Request $request)
 // {
 //     $credentials = $request->validate([
@@ -48,7 +103,7 @@ public function index()
 //         return back()->withErrors(['message' => 'Your account is disabled.']);
 //     }
 
-//     // ✅ Check if there's already an active session for this user
+//     // Check active session
 //     $hasSession = DB::table('sessions')
 //         ->where('user_id', $user->user_id)
 //         ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->timestamp)
@@ -58,16 +113,154 @@ public function index()
 //         return back()->withErrors(['message' => 'This account is already logged in on another device.']);
 //     }
 
-//     // ✅ Invalidate and regenerate session
-//     $request->session()->invalidate();
-//     $request->session()->regenerate();
+//     // Get device info
+//     $deviceMac = $request->header('X-Device-ID') ?? $request->ip();
+//     $deviceName = $request->header('User-Agent');
+//     $deviceFingerprint = hash('sha256',
+//         $request->header('User-Agent') .
+//         ($request->header('X-Device-ID') ?? $request->ip())
+//     );
 
-//     // ✅ Log in the user
-//     Auth::login($user); // automatically stores user_id in session row
+//     /**
+//      *  Allow multiple users on the same device fingerprint,
+//      * but require OTP the first time per user.
+//      */
+//     $trusted = SavedDeviceModel::where('user_id', $user->user_id)
+//         ->where('device_fingerprint', $deviceFingerprint)
+//         ->exists();
 
-//     // ✅ Store extras in session if needed
+//     if ($trusted) {
+//         // This specific user already trusted this device fingerprint
+//         Auth::login($user);
+//         Session::put('user_id', $user->user_id);
+//         Session::put('role', $user->role);
+
+//         return $user->role === 'user'
+//             ? redirect()->route('user.dashboard')
+//             : redirect()->route('home');
+//     }
+
+//     // ✅ If not trusted yet for this user, send OTP
+//     $this->sendOtp($user->email);
+
+//     Session::put('pending_user_id', $user->user_id);
+//     Session::put('otp_email', $user->email);
+//     Session::put('device_mac', $deviceMac);
+//     Session::put('device_name', $deviceName);
+//     Session::put('device_fingerprint', $deviceFingerprint);
+
+//     return redirect()->route('otp.verify.form');
+// }
+
+
+// protected function sendOtp($email)
+// {
+//     $otp = rand(100000, 999999);
+
+//     Cache::put('email_otp_' . $email, [
+//         'code' => $otp,
+//         'expires_at' => now()->addMinutes(5),
+//         'attempts' => 0,
+//     ], now()->addMinutes(5));
+
+//     Mail::raw("Your OTP code is: {$otp}\nThis code expires in 5 minutes.\n\nREMINDER: Please don't share this code to anyone.", function ($message) use ($email) {
+//         $message->to($email)
+//             ->subject('SETUP Login OTP Code');
+//     });
+// }
+
+// protected function maskEmail($email)
+// {
+//     if (empty($email)) return '';
+    
+//     $parts = explode('@', $email);
+//     if (count($parts) !== 2) return $email;
+    
+//     [$localPart, $domain] = $parts;
+    
+//     // Mask local part (before @)
+//     $localLength = strlen($localPart);
+//     $maskedLocal = $localLength > 2
+//         ? $localPart[0] . str_repeat('*', $localLength - 2) . $localPart[$localLength - 1]
+//         : $localPart[0] . '*';
+    
+//     // Mask domain
+//     $domainParts = explode('.', $domain);
+//     $domainName = $domainParts[0];
+//     $extension = isset($domainParts[1]) ? $domainParts[1] : '';
+    
+//     $domainLength = strlen($domainName);
+//     $maskedDomain = $domainLength > 2
+//         ? $domainName[0] . str_repeat('*', $domainLength - 2) . $domainName[$domainLength - 1]
+//         : $domainName[0] . '*';
+    
+//     return $maskedLocal . '@' . $maskedDomain . ($extension ? '.' . $extension : '');
+// }
+
+// public function showOtpForm()
+// {
+//     $email = Session::get('otp_email');
+//     if (! $email) return redirect()->route('login');
+    
+//     return inertia('Auth/VerifyOtp', [
+//         'email' => $email,
+//         'maskedEmail' => $this->maskEmail($email)
+//     ]);
+// }
+
+// public function verifyOtp(Request $request)
+// {
+//     $request->validate([
+//         'email' => 'required|email',
+//         'otp' => 'required',
+//     ]);
+
+//     $otpData = Cache::get('email_otp_' . $request->email);
+//     $pendingUserId = Session::get('pending_user_id');
+
+//     if (! $otpData || ! $pendingUserId) {
+//         return back()->withErrors(['message' => 'OTP expired or invalid.']);
+//     }
+
+//     if ($otpData['attempts'] >= 3) {
+//         Cache::forget('email_otp_' . $request->email);
+//         Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
+//         return back()->withErrors(['message' => 'Too many failed attempts. Please log in again.']);
+//     }
+
+//     $otpData['attempts']++;
+//     Cache::put('email_otp_' . $request->email, $otpData, $otpData['expires_at']);
+
+//     if ($otpData['code'] == $request->otp) {
+//     Cache::forget('email_otp_' . $request->email);
+
+//     $user = UserModel::find($pendingUserId);
+//     Auth::login($user);
 //     Session::put('user_id', $user->user_id);
 //     Session::put('role', $user->role);
+
+//     // ✅ Always create new record (unique per user_id + fingerprint)
+//     $deviceMac = Session::pull('device_mac');
+//     $deviceName = Session::pull('device_name');
+//     $deviceFingerprint = Session::pull('device_fingerprint');
+//     $ip = $request->ip();
+
+//     // prevent duplicates for same user-fingerprint (safety)
+//     $exists = SavedDeviceModel::where('user_id', $user->user_id)
+//         ->where('device_fingerprint', $deviceFingerprint)
+//         ->exists();
+
+//     if (! $exists) {
+//         SavedDeviceModel::create([
+//             'user_id' => $user->user_id,
+//             'device_fingerprint' => $deviceFingerprint,
+//             'device_mac' => $deviceMac,
+//             'device_name' => $deviceName,
+//             'ip_address' => $ip,
+//         ]);
+//     }
+
+//     Session::forget(['pending_user_id', 'otp_email']);
 
 //     return $user->role === 'user'
 //         ? redirect()->route('user.dashboard')
@@ -75,206 +268,23 @@ public function index()
 // }
 
 
-// //OTP DONT DELETE
-public function signin(Request $request)
-{
-    $credentials = $request->validate([
-        'username' => 'required|string',
-        'password' => 'required|string',
-    ]);
+//     return back()->withErrors(['message' => 'Invalid OTP.']);
+// }
 
-    $user = UserModel::where('username', $credentials['username'])->first();
+// public function resendOtp(Request $request)
+// {
+//     $email = $request->validate(['email' => 'required|email'])['email'];
 
-    if (! $user || ! Hash::check($credentials['password'], $user->password)) {
-        return back()->withErrors(['message' => 'Invalid username or password.']);
-    }
+//     // Prevent spam — 30s cooldown
+//     if (Cache::has('resend_cooldown_' . $email)) {
+//         return response()->json(['error' => 'Please wait before requesting another OTP.'], 429);
+//     }
 
-    if ($user->status === 'inactive') {
-        return back()->withErrors(['message' => 'Your account is disabled.']);
-    }
+//     $this->sendOtp($email);
+//     Cache::put('resend_cooldown_' . $email, true, now()->addSeconds(30));
 
-    // Check active session
-    $hasSession = DB::table('sessions')
-        ->where('user_id', $user->user_id)
-        ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->timestamp)
-        ->exists();
-
-    if ($hasSession) {
-        return back()->withErrors(['message' => 'This account is already logged in on another device.']);
-    }
-
-    // Get device info
-    $deviceMac = $request->header('X-Device-ID') ?? $request->ip();
-    $deviceName = $request->header('User-Agent');
-    $deviceFingerprint = hash('sha256',
-        $request->header('User-Agent') .
-        ($request->header('X-Device-ID') ?? $request->ip())
-    );
-
-    /**
-     *  Allow multiple users on the same device fingerprint,
-     * but require OTP the first time per user.
-     */
-    $trusted = SavedDeviceModel::where('user_id', $user->user_id)
-        ->where('device_fingerprint', $deviceFingerprint)
-        ->exists();
-
-    if ($trusted) {
-        // This specific user already trusted this device fingerprint
-        Auth::login($user);
-        Session::put('user_id', $user->user_id);
-        Session::put('role', $user->role);
-
-        return $user->role === 'user'
-            ? redirect()->route('user.dashboard')
-            : redirect()->route('home');
-    }
-
-    // ✅ If not trusted yet for this user, send OTP
-    $this->sendOtp($user->email);
-
-    Session::put('pending_user_id', $user->user_id);
-    Session::put('otp_email', $user->email);
-    Session::put('device_mac', $deviceMac);
-    Session::put('device_name', $deviceName);
-    Session::put('device_fingerprint', $deviceFingerprint);
-
-    return redirect()->route('otp.verify.form');
-}
-
-
-protected function sendOtp($email)
-{
-    $otp = rand(100000, 999999);
-
-    Cache::put('email_otp_' . $email, [
-        'code' => $otp,
-        'expires_at' => now()->addMinutes(5),
-        'attempts' => 0,
-    ], now()->addMinutes(5));
-
-    Mail::raw("Your OTP code is: {$otp}\nThis code expires in 5 minutes.\n\nREMINDER: Please don't share this code to anyone.", function ($message) use ($email) {
-        $message->to($email)
-            ->subject('SETUP Login OTP Code');
-    });
-}
-
-protected function maskEmail($email)
-{
-    if (empty($email)) return '';
-    
-    $parts = explode('@', $email);
-    if (count($parts) !== 2) return $email;
-    
-    [$localPart, $domain] = $parts;
-    
-    // Mask local part (before @)
-    $localLength = strlen($localPart);
-    $maskedLocal = $localLength > 2
-        ? $localPart[0] . str_repeat('*', $localLength - 2) . $localPart[$localLength - 1]
-        : $localPart[0] . '*';
-    
-    // Mask domain
-    $domainParts = explode('.', $domain);
-    $domainName = $domainParts[0];
-    $extension = isset($domainParts[1]) ? $domainParts[1] : '';
-    
-    $domainLength = strlen($domainName);
-    $maskedDomain = $domainLength > 2
-        ? $domainName[0] . str_repeat('*', $domainLength - 2) . $domainName[$domainLength - 1]
-        : $domainName[0] . '*';
-    
-    return $maskedLocal . '@' . $maskedDomain . ($extension ? '.' . $extension : '');
-}
-
-public function showOtpForm()
-{
-    $email = Session::get('otp_email');
-    if (! $email) return redirect()->route('login');
-    
-    return inertia('Auth/VerifyOtp', [
-        'email' => $email,
-        'maskedEmail' => $this->maskEmail($email)
-    ]);
-}
-
-public function verifyOtp(Request $request)
-{
-    $request->validate([
-        'email' => 'required|email',
-        'otp' => 'required',
-    ]);
-
-    $otpData = Cache::get('email_otp_' . $request->email);
-    $pendingUserId = Session::get('pending_user_id');
-
-    if (! $otpData || ! $pendingUserId) {
-        return back()->withErrors(['message' => 'OTP expired or invalid.']);
-    }
-
-    if ($otpData['attempts'] >= 3) {
-        Cache::forget('email_otp_' . $request->email);
-        Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
-        return back()->withErrors(['message' => 'Too many failed attempts. Please log in again.']);
-    }
-
-    $otpData['attempts']++;
-    Cache::put('email_otp_' . $request->email, $otpData, $otpData['expires_at']);
-
-    if ($otpData['code'] == $request->otp) {
-    Cache::forget('email_otp_' . $request->email);
-
-    $user = UserModel::find($pendingUserId);
-    Auth::login($user);
-    Session::put('user_id', $user->user_id);
-    Session::put('role', $user->role);
-
-    // ✅ Always create new record (unique per user_id + fingerprint)
-    $deviceMac = Session::pull('device_mac');
-    $deviceName = Session::pull('device_name');
-    $deviceFingerprint = Session::pull('device_fingerprint');
-    $ip = $request->ip();
-
-    // prevent duplicates for same user-fingerprint (safety)
-    $exists = SavedDeviceModel::where('user_id', $user->user_id)
-        ->where('device_fingerprint', $deviceFingerprint)
-        ->exists();
-
-    if (! $exists) {
-        SavedDeviceModel::create([
-            'user_id' => $user->user_id,
-            'device_fingerprint' => $deviceFingerprint,
-            'device_mac' => $deviceMac,
-            'device_name' => $deviceName,
-            'ip_address' => $ip,
-        ]);
-    }
-
-    Session::forget(['pending_user_id', 'otp_email']);
-
-    return $user->role === 'user'
-        ? redirect()->route('user.dashboard')
-        : redirect()->route('home');
-}
-
-
-    return back()->withErrors(['message' => 'Invalid OTP.']);
-}
-
-public function resendOtp(Request $request)
-{
-    $email = $request->validate(['email' => 'required|email'])['email'];
-
-    // Prevent spam — 30s cooldown
-    if (Cache::has('resend_cooldown_' . $email)) {
-        return response()->json(['error' => 'Please wait before requesting another OTP.'], 429);
-    }
-
-    $this->sendOtp($email);
-    Cache::put('resend_cooldown_' . $email, true, now()->addSeconds(30));
-
-    return response()->json(['message' => 'OTP resent successfully.'], 200);
-}
+//     return response()->json(['message' => 'OTP resent successfully.'], 200);
+// }
 
 public function logout(Request $request)
 {
