@@ -1,18 +1,17 @@
 import { useState } from 'react';
-import { Link, router, Head } from '@inertiajs/react'; 
+import { Link, router, Head, useForm } from '@inertiajs/react'; 
 import { Eye, EyeOff, User, Mail, Lock, Building2, CheckCircle } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import setupLogo from '../../assets/SETUP_logo.png';
-import { fetchWithCsrf } from '../Utils/fetchWithCsrf';
 
 const InputError = ({ error }) =>
   error ? <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
     <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-    {error[0]}
+    {error}
   </p> : null;
 
 export default function RegisterPage({ offices }) {
-  const [form, setForm] = useState({
+  const { data, setData, post, processing, errors } = useForm({
     first_name: '',
     middle_name: '',
     last_name: '',
@@ -26,60 +25,19 @@ export default function RegisterPage({ offices }) {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  const [validationErrors, setValidationErrors] = useState({});
-  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-    // Clear specific field error when user starts typing
-    if (validationErrors[e.target.name]) {
-      setValidationErrors({ ...validationErrors, [e.target.name]: null });
-    }
+    setData(e.target.name, e.target.value);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setError('');
-    setMessage('');
-    setValidationErrors({});
-    setLoading(true);
 
-    if (form.password !== form.confirm_password) {
-      setValidationErrors({ confirm_password: ['Passwords do not match'] });
-      setLoading(false);
+    if (data.password !== data.confirm_password) {
       return;
     }
 
-    try {
-      const response = await fetchWithCsrf('/registration', {
-        method: 'POST',
-        body: JSON.stringify(form),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage('Registration successful! Redirecting to login...');
-        setTimeout(() => {
-          router.visit('/');
-        }, 2000);
-      } else if (response.status === 422) {
-        setValidationErrors(data.errors || {});
-      } else if (response.status === 403) {
-        setError(data.message || 'Access denied');
-      } else if (response.status === 429) {
-        setError(data.message || 'Too many attempts');
-      } else {
-        setError(data.message || 'Registration failed');
-      }
-    } catch (err) {
-      console.error('Registration error:', err);
-      setError('Network error. Please check your connection and try again.');
-    } finally {
-      setLoading(false);
-    }
+    post('/registration');
   };
 
   return (
@@ -113,16 +71,10 @@ export default function RegisterPage({ offices }) {
             </p>
           </div>
 
-          {/* Success/Error Messages */}
-          {message && (
-            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
-              <CheckCircle size={20} className="text-green-600" />
-              {message}
-            </div>
-          )}
-          {error && (
+          {/* Error Messages */}
+          {errors.message && (
             <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
-              {error}
+              {errors.message}
             </div>
           )}
 
@@ -137,14 +89,16 @@ export default function RegisterPage({ offices }) {
                   <input
                     type="text"
                     name="first_name"
-                    value={form.first_name}
+                    value={data.first_name}
                     onChange={handleChange}
+                    maxLength={20}
                     placeholder="First Name"
-                    className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    disabled={processing}
+                    className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
                     required
                   />
                 </div>
-                <InputError error={validationErrors.first_name} />
+                <InputError error={errors.first_name} />
               </div>
 
               {/* Last Name */}
@@ -152,16 +106,17 @@ export default function RegisterPage({ offices }) {
                 <div className="relative">
                   <User size={18} className="absolute left-3 top-3 text-gray-400" />
                   <input
-                    type="text"
                     name="last_name"
-                    value={form.last_name}
+                    value={data.last_name}
                     onChange={handleChange}
-                    placeholder="Last Name"
-                    className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    maxLength={20}
+                    placeholder="Last Name & Ext."
+                    disabled={processing}
+                    className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
                     required
                   />
                 </div>
-                <InputError error={validationErrors.last_name} />
+                <InputError error={errors.last_name} />
               </div>
             </div>
 
@@ -172,20 +127,22 @@ export default function RegisterPage({ offices }) {
                 <input
                   type="text"
                   name="middle_name"
-                  value={form.middle_name}
+                  value={data.middle_name}
                   onChange={handleChange}
+                  maxLength={20}
                   placeholder="Middle Name (optional)"
-                  className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  disabled={processing}
+                  className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
                 />
               </div>
-              <InputError error={validationErrors.middle_name} />
+              <InputError error={errors.middle_name} />
             </div>
 
-            <div>
+            <div style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px' }} aria-hidden="true">
               <input
                 type="text"
                 name="website"
-                value={form.website}
+                value={data.website}
                 onChange={handleChange}
                 tabIndex="-1"
                 autoComplete="off"
@@ -200,14 +157,16 @@ export default function RegisterPage({ offices }) {
                 <input
                   type="text"
                   name="username"
-                  value={form.username}
+                  value={data.username}
                   onChange={handleChange}
                   placeholder="Username"
-                  className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  disabled={processing}
+                  className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
+                  maxLength={12}
                   required
                 />
               </div>
-              <InputError error={validationErrors.username} />
+              <InputError error={errors.username} />
             </div>
 
             {/* Email */}
@@ -217,14 +176,15 @@ export default function RegisterPage({ offices }) {
                 <input
                   type="email"
                   name="email"
-                  value={form.email}
+                  value={data.email}
                   onChange={handleChange}
                   placeholder="Email Address"
-                  className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  disabled={processing}
+                  className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
                   required
                 />
               </div>
-              <InputError error={validationErrors.email} />
+              <InputError error={errors.email} />
             </div>
 
             {/* Office */}
@@ -233,9 +193,10 @@ export default function RegisterPage({ offices }) {
                 <Building2 size={18} className="absolute left-3 top-3 text-gray-400 z-10" />
                 <select
                   name="office_id"
-                  value={form.office_id}
+                  value={data.office_id}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none bg-white"
+                  disabled={processing}
+                  className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none bg-white disabled:bg-gray-50 disabled:cursor-not-allowed"
                   required
                 >
                   <option value="">Select Your Office</option>
@@ -251,7 +212,7 @@ export default function RegisterPage({ offices }) {
                   </svg>
                 </div>
               </div>
-              <InputError error={validationErrors.office_id} />
+              <InputError error={errors.office_id} />
             </div>
 
             {/* Password */}
@@ -261,21 +222,23 @@ export default function RegisterPage({ offices }) {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
-                  value={form.password}
+                  value={data.password}
                   onChange={handleChange}
                   placeholder="Password"
-                  className="w-full border border-gray-300 pl-10 pr-12 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  disabled={processing}
+                  className="w-full border border-gray-300 pl-10 pr-12 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors"
+                  disabled={processing}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors disabled:cursor-not-allowed"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
-              <InputError error={validationErrors.password} />
+              <InputError error={errors.password} />
             </div>
 
             {/* Confirm Password */}
@@ -285,33 +248,35 @@ export default function RegisterPage({ offices }) {
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   name="confirm_password"
-                  value={form.confirm_password}
+                  value={data.confirm_password}
                   onChange={handleChange}
                   placeholder="Confirm Password"
-                  className="w-full border border-gray-300 pl-10 pr-12 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  disabled={processing}
+                  className="w-full border border-gray-300 pl-10 pr-12 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors"
+                  disabled={processing}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors disabled:cursor-not-allowed"
                 >
                   {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
-              <InputError error={validationErrors.confirm_password} />
+              <InputError error={errors.confirm_password} />
             </div>
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={processing}
               className={`w-full ${
-                loading 
+                processing 
                   ? 'bg-blue-400 cursor-not-allowed' 
                   : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]'
               } text-white py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl`}
             >
-              {loading ? (
+              {processing ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>

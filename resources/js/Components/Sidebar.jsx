@@ -101,22 +101,21 @@ export default function Sidebar({ isOpen }) {
               { label: 'Companies', href: '/companies', icon: <Building2 size={16} /> },
               { label: 'Projects', href: '/projects', icon: <ClipboardList size={16} /> },
               { label: 'Activities', href: '/activities', icon: <SquareKanban size={16} /> },
-              { label: 'Draft MOA', href: '/draft-moa', icon: <FileSignature size={16} /> },
-              { label: 'MOA List', href: '/moa', icon: <FileText size={16} /> },
+           
             ]}
           />
         )}
 
-        {role === 'rpmo' && (
+        {(role === 'rpmo' || role === 'staff' )&& (
           <Dropdown
             title="Review & Approval"
             icon={<UserCheck2 size={18} />}
             isOpen={dropdowns.review}
             onToggle={() => toggleDropdown('review')}
             links={[
-              { label: 'RTEC Report', href: `/implementation`, icon: <FileUser size={16} /> },
-              { label: 'Part Two', href: '/refunds', icon: <FileSearch size={16} /> },
-              // { label: 'Phase Two(CSV)', href: '/refunds', icon: <FileSearch size={16} /> },
+              { label: 'Project Status', href: `/implementation`, icon: <FileUser size={16} /> },
+              { label: 'Draft MOA', href: '/draft-moa', icon: <FileSignature size={16} /> },
+              { label: 'MOA List', href: '/moa', icon: <FileText size={16} /> },              // { label: 'Phase Two(CSV)', href: '/refunds', icon: <FileSearch size={16} /> },
             ]}
           />
         )}
@@ -131,25 +130,9 @@ export default function Sidebar({ isOpen }) {
             links={[
               { label: 'Phase One', href: `/implementation`, icon: <ListTodo size={16} /> },
               { label: 'Phase Two', href: '/refunds', icon: <HandCoins size={16} /> },
-              // { label: 'Phase Two(CSV)', href: '/refunds', icon: <FileSearch size={16} /> },
             ]}
           />
         )}
-
-        {/* {role === 'staff' && (
-          <Dropdown
-            title="Development"
-            icon={<Building size={18} />}
-            isOpen={dropdowns.development}
-            onToggle={() => toggleDropdown('development')}
-            links={[
-              { label: 'Companies', href: '/companies', icon: <Users size={16} /> },
-              { label: 'Projects', href: '/projects', icon: <ClipboardList size={16} /> },
-              { label: 'Activities', href: '/activities', icon: <List size={16} /> },
-              { label: 'MOA List', href: '/moa', icon: <FileText size={16} /> },
-            ]}
-          />
-        )} */}
 
         {(role === 'staff' || role === 'rpmo')  && (
           <Dropdown

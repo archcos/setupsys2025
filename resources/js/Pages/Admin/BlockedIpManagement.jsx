@@ -144,10 +144,10 @@ export default function BlockedIpManagement({ blockedIps, filters }) {
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="border border-gray-200 rounded-xl px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-red-500"
+              className="border border-gray-200 rounded-xl px-3 pr-7 py-2 bg-gray-50 focus:ring-2 focus:ring-red-500"
             >
-              <option value="active">Currently Blocked</option>
-              <option value="expired">Expired / Unblocked</option>
+              <option value="active">Blocked</option>
+              <option value="expired">Expired</option>
               <option value="all">All</option>
             </select>
           </div>
