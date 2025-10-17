@@ -152,8 +152,8 @@ class ActivityController extends Controller
         $activity->update($validated);
 
         $project = ProjectModel::with('company.office')->findOrFail($validated['project_id']);
-        $project->progress = 'Complete Details';
-        $project->save();
+        // $project->progress = 'Complete Details';
+        // $project->save();
 
         $office = $project->company->office;
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm, Link, Head } from '@inertiajs/react';
+import { useForm, Link, Head, usePage } from '@inertiajs/react';
 import { 
   Save, 
   ArrowLeft, 
@@ -11,15 +11,15 @@ import {
   EyeOff, 
   CheckCircle,
   AlertCircle,
-  Settings as SettingsIcon
+  Settings
 } from 'lucide-react';
 
-export default function Settings({ user, offices }) {
+export default function SettingsPage({ user, offices }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+  const { flash } = usePage().props;
 
-  const { data, setData, put, processing, errors } = useForm({
+  const { data, setData, put, processing, errors, reset } = useForm({
     first_name: user.first_name || '',
     middle_name: user.middle_name || '',
     last_name: user.last_name || '',
@@ -33,16 +33,10 @@ export default function Settings({ user, offices }) {
   function handleSubmit(e) {
     e.preventDefault();
     put(route('users.update', user.user_id), {
+      preserveScroll: true,
       onSuccess: () => {
-        setSuccessMessage('Settings updated successfully!');
         // Clear password fields after successful update
-        setData({
-          ...data,
-          password: '',
-          password_confirmation: ''
-        });
-        // Clear success message after 5 seconds
-        setTimeout(() => setSuccessMessage(''), 5000);
+        reset('password', 'password_confirmation');
       }
     });
   }
@@ -50,7 +44,7 @@ export default function Settings({ user, offices }) {
   const InputError = ({ error }) =>
     error ? (
       <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-        <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+        <AlertCircle size={14} className="flex-shrink-0" />
         {error}
       </p>
     ) : null;
@@ -65,7 +59,7 @@ export default function Settings({ user, offices }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-blue-100 p-3 rounded-xl">
-                <SettingsIcon className="w-6 h-6 text-blue-600" />
+                <Settings className="w-6 h-6 text-blue-600" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
@@ -83,10 +77,27 @@ export default function Settings({ user, offices }) {
         </div>
 
         {/* Success Message */}
-        {successMessage && (
+        {flash?.success && (
           <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
-            <CheckCircle size={20} className="text-green-600" />
-            {successMessage}
+            <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
+            {flash.success}
+          </div>
+        )}
+
+        {/* Error Summary (if multiple errors) */}
+        {Object.keys(errors).length > 0 && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6">
+            <div className="flex items-start gap-2">
+              <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Please fix the following errors:</p>
+                <ul className="mt-2 text-sm space-y-1 list-disc list-inside">
+                  {Object.values(errors).map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
         )}
 
@@ -112,7 +123,7 @@ export default function Settings({ user, offices }) {
                       type="text"
                       value={data.first_name}
                       onChange={e => setData('first_name', e.target.value)}
-                      className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className={`w-full border ${errors.first_name ? 'border-red-500' : 'border-gray-300'} pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors`}
                       placeholder="Enter first name"
                     />
                   </div>
@@ -130,10 +141,11 @@ export default function Settings({ user, offices }) {
                       type="text"
                       value={data.middle_name}
                       onChange={e => setData('middle_name', e.target.value)}
-                      className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className={`w-full border ${errors.middle_name ? 'border-red-500' : 'border-gray-300'} pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors`}
                       placeholder="Enter middle name"
                     />
                   </div>
+                  <InputError error={errors.middle_name} />
                 </div>
 
                 {/* Last Name */}
@@ -147,7 +159,7 @@ export default function Settings({ user, offices }) {
                       type="text"
                       value={data.last_name}
                       onChange={e => setData('last_name', e.target.value)}
-                      className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className={`w-full border ${errors.last_name ? 'border-red-500' : 'border-gray-300'} pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors`}
                       placeholder="Enter last name"
                     />
                   </div>
@@ -175,7 +187,7 @@ export default function Settings({ user, offices }) {
                       type="text"
                       value={data.username}
                       onChange={e => setData('username', e.target.value)}
-                      className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className={`w-full border ${errors.username ? 'border-red-500' : 'border-gray-300'} pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors`}
                       placeholder="Enter username"
                     />
                   </div>
@@ -193,7 +205,7 @@ export default function Settings({ user, offices }) {
                       type="email"
                       value={data.email}
                       onChange={e => setData('email', e.target.value)}
-                      className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className={`w-full border ${errors.email ? 'border-red-500' : 'border-gray-300'} pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors`}
                       placeholder="Enter email address"
                     />
                   </div>
@@ -218,7 +230,7 @@ export default function Settings({ user, offices }) {
                   <select
                     value={data.office_id}
                     onChange={e => setData('office_id', e.target.value)}
-                    className="w-full border border-gray-300 pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none bg-white"
+                    className={`w-full border ${errors.office_id ? 'border-red-500' : 'border-gray-300'} pl-10 pr-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none bg-white`}
                   >
                     <option value="">Select your office</option>
                     {offices.map(office => (
@@ -257,7 +269,7 @@ export default function Settings({ user, offices }) {
                       type={showPassword ? 'text' : 'password'}
                       value={data.password}
                       onChange={e => setData('password', e.target.value)}
-                      className="w-full border border-gray-300 pl-10 pr-12 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className={`w-full border ${errors.password ? 'border-red-500' : 'border-gray-300'} pl-10 pr-12 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors`}
                       placeholder="Enter new password"
                     />
                     <button
@@ -282,7 +294,7 @@ export default function Settings({ user, offices }) {
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={data.password_confirmation}
                       onChange={e => setData('password_confirmation', e.target.value)}
-                      className="w-full border border-gray-300 pl-10 pr-12 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className={`w-full border ${errors.password_confirmation ? 'border-red-500' : 'border-gray-300'} pl-10 pr-12 py-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors`}
                       placeholder="Confirm new password"
                     />
                     <button
@@ -293,6 +305,7 @@ export default function Settings({ user, offices }) {
                       {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
+                  <InputError error={errors.password_confirmation} />
                 </div>
               </div>
             </div>

@@ -9,13 +9,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UserModel extends Authenticatable
 {
-    use HasApiTokens, Notifiable;
+    use HasApiTokens, Notifiable, SoftDeletes;
 
-    use SoftDeletes;
     protected $table = 'tbl_users';
     protected $primaryKey = 'user_id';
     protected $dates = ['deleted_at'];
-
 
     protected $fillable = [
         'first_name',
@@ -32,16 +30,23 @@ class UserModel extends Authenticatable
     protected $hidden = [
         'password',
     ];
+
+    // ✅ Add this accessor for full name
+    protected $appends = ['name'];
+
+    public function getNameAttribute()
+    {
+        $middleInitial = $this->middle_name ? strtoupper(substr($this->middle_name, 0, 1)) . '.' : '';
+        return trim("{$this->first_name} {$middleInitial} {$this->last_name}");
+    }
+
     public function office()
-{
-    return $this->belongsTo(OfficeModel::class, 'office_id', 'office_id');
+    {
+        return $this->belongsTo(OfficeModel::class, 'office_id', 'office_id');
+    }
+
+    public function companies()
+    {
+        return $this->hasMany(CompanyModel::class, 'added_by', 'user_id');
+    }
 }
-
-public function companies()
-{
-    return $this->hasMany(CompanyModel::class, 'added_by', 'user_id');
-}
-
-}
-
-
