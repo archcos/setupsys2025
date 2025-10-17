@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Head, Link } from "@inertiajs/react";
 import { Megaphone, Building2, Filter, Calendar, AlertCircle, ArrowLeft, Clock } from "lucide-react";
-import logo from '../../assets/logo.png';
-import setupLogo from '../../assets/SETUP_logo.png';
+import logo from '../../assets/logo.webp';
+import setupLogo from '../../assets/SETUP_logo.webp';
 
 export default function Announcements({ announcements = [], old_announcements = [], offices = [] }) {
   const [selectedOffice, setSelectedOffice] = useState("");

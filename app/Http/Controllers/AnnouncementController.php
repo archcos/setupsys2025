@@ -33,7 +33,7 @@ class AnnouncementController extends Controller
         $user = Auth::user();
 
         return Inertia::render('Announcement/Create', [
-            'office_id' => $user->office_id ?? null, // ✅ Get office_id safely
+            'office_id' => $user->office_id ?? null, //  Get office_id safely
         ]);
     }
 

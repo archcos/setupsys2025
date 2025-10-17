@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import profile from '../../assets/profile.png';
+import profile from '../../assets/profile.webp';
 import DOMPurify from 'dompurify';
 
 export default function Header({ sidebarOpen, toggleSidebar }) {

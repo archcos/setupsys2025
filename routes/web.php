@@ -88,8 +88,12 @@ Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
     Route::get('/moa', [MOAController::class, 'index'])->name('moa.index');
     Route::get('/moa/{moa_id}/docx', [MOAController::class, 'generateFromMoa'])->name('moa.generate.docx');
     Route::get('/moa/{moa_id}/pdf', [MOAController::class, 'viewPdf']);
-
+    Route::get('/review-approval', [ProjectController::class, 'reviewApproval'])
+        ->name('projects.review-approval');
+    Route::post('/projects/{id}/update-progress', [ProjectController::class, 'updateProgressReview'])
+        ->name('projects.update-progress');
     Route::put('/projects/{id}/progress', [ProjectController::class, 'updateProgress'])->middleware('role:staff');
+    Route::post('/messages/{id}/toggle-status', [ProjectController::class, 'toggleMessageStatus'])->name('messages.toggle');
 
 });
 

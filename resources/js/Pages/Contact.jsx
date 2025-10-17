@@ -11,8 +11,8 @@ import {
   CheckCircle,
   BookMarked
 } from 'lucide-react';
-import logo from '../../assets/logo.png';
-import setupLogo from '../../assets/SETUP_logo.png';
+import logo from '../../assets/logo.webp';
+import setupLogo from '../../assets/SETUP_logo.webp';
 
 export default function ContactUs() {
   const [successMessage, setSuccessMessage] = useState('');

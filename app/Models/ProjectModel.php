@@ -97,5 +97,8 @@ class ProjectModel extends Model
     {
         return $this->hasMany(ReportModel::class, 'project_id', 'project_id');
     }
-
+    public function messages()
+    {
+        return $this->hasMany(MessageModel::class, 'project_id', 'project_id')->latest();
+    }
 }

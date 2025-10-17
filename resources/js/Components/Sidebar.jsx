@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import logo from '../../assets/logo.png';
-import setupLogo from '../../assets/SETUP_logo.png';
+import logo from '../../assets/logo.webp';
+import setupLogo from '../../assets/SETUP_logo.webp';
 import { Link, usePage } from '@inertiajs/react';
 import {
   ChevronDown,
@@ -31,7 +31,12 @@ import {
   ClipboardPlus,
   View,
   Eye,
-  ShieldAlert
+  ShieldAlert,
+  FileSymlink,
+  FileInput,
+  Check,
+  CheckCheck,
+  Stamp
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen }) {
@@ -89,8 +94,6 @@ export default function Sidebar({ isOpen }) {
             ]}
           />
         )}
-
-
         {(role === 'rpmo' || role === 'staff' )&& (
           <Dropdown
             title="Development"
@@ -105,22 +108,51 @@ export default function Sidebar({ isOpen }) {
             ]}
           />
         )}
-
-        {(role === 'rpmo' || role === 'staff' )&& (
-          <Dropdown
-            title="Review & Approval"
-            icon={<UserCheck2 size={18} />}
-            isOpen={dropdowns.review}
-            onToggle={() => toggleDropdown('review')}
-            links={[
-              { label: 'Project Status', href: `/implementation`, icon: <FileUser size={16} /> },
-              { label: 'Draft MOA', href: '/draft-moa', icon: <FileSignature size={16} /> },
-              { label: 'MOA List', href: '/moa', icon: <FileText size={16} /> },              // { label: 'Phase Two(CSV)', href: '/refunds', icon: <FileSearch size={16} /> },
-            ]}
-          />
-        )}
-
-
+       {(role === 'rpmo' || role === 'staff') && (
+        <Dropdown
+          title="Review & Approval"
+          icon={<UserCheck2 size={18} />}
+          isOpen={dropdowns.review}
+          onToggle={() => toggleDropdown('review')}
+          links={[
+            { 
+              label: 'Internal RTEC Review', 
+              href: `/review-approval?stage=internal_rtec`, 
+              icon: <FileSymlink size={16} /> 
+            },
+            { 
+              label: 'Internal Compliance', 
+              href: `/review-approval?stage=internal_compliance`, 
+              icon: <Check size={16} /> 
+            },
+            { 
+              label: 'External RTEC Review', 
+              href: `/review-approval?stage=external_rtec`, 
+              icon: <FileInput size={16} /> 
+            },
+            { 
+              label: 'External Compliance', 
+              href: `/review-approval?stage=external_compliance`, 
+              icon: <CheckCheck size={16} /> 
+            },
+            { 
+              label: 'Approval', 
+              href: `/review-approval?stage=approval`, 
+              icon: <Stamp size={16} /> 
+            },
+            { 
+              label: 'Draft MOA', 
+              href: '/draft-moa', 
+              icon: <FileSignature size={16} /> 
+            },
+            { 
+              label: 'MOA List', 
+              href: '/moa', 
+              icon: <FileText size={16} /> 
+            },      
+          ]}
+        />
+)}
         {role === 'rpmo' && (
           <Dropdown
             title="Implementation"
@@ -163,9 +195,6 @@ export default function Sidebar({ isOpen }) {
             },
           ]}
         />
-
-
-
         {role === 'user' && (
           <Dropdown
             title="Manage Company"
@@ -179,7 +208,6 @@ export default function Sidebar({ isOpen }) {
             ]}
           />
         )}
-
         {role === 'user' && (
           <Dropdown
             title="My Transactions"

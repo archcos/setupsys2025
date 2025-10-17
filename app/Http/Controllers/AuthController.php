@@ -311,32 +311,49 @@ public function update(Request $request, string $id)
     $user = UserModel::findOrFail($id);
 
     $validated = $request->validate([
-        'first_name'  => 'required|string|max:255',
-        'middle_name' => 'nullable|string|max:255',
-        'last_name'   => 'required|string|max:255',
-        'username'    => 'required|string|max:255|unique:tbl_users,username,'.$id.',user_id',
-        'email'       => 'required|email|max:255|unique:tbl_users,email,'.$id.',user_id',
-        'password'    => 'nullable|string|min:6|confirmed',
-        'office_id'   => 'required|exists:tbl_offices,office_id',
+        'first_name'   => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
+        'middle_name'  => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
+        'last_name'    => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
+        'username'     => ['required', 'string', 'max:12', 'regex:/^[A-Za-z0-9_]+$/', 'unique:tbl_users,username,' . $id . ',user_id'],
+        'email'        => ['required', 'email', 'max:255', 'unique:tbl_users,email,' . $id . ',user_id'],
+        'password'     => [
+            'nullable', 'string', 'min:8',
+            'regex:/[a-z]/',   // at least one lowercase
+            'regex:/[A-Z]/',   // at least one uppercase
+            'regex:/[0-9]/',   // at least one number
+            'confirmed',
+        ],
+        'office_id'    => ['required', 'exists:tbl_offices,office_id'],
+        'website'      => ['nullable', 'string', 'max:255'], // Honeypot / spam trap
+    ], [
+        'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, and one number.',
+        'password.confirmed' => 'Password confirmation does not match.',
+        'first_name.regex' => 'First Name must contain letters, spaces, or hyphens only.',
+        'middle_name.regex' => 'Middle Name must contain letters, spaces, or hyphens only.',
+        'last_name.regex' => 'Last Name must contain letters, spaces, or hyphens only.',
+        'username.regex' => 'Username must contain only letters, numbers, and underscores.',
+        'username.unique' => 'This username is already taken.',
+        'email.unique' => 'This email is already registered.',
     ]);
 
-    $user->first_name  = $validated['first_name'];
-    $user->middle_name = $validated['middle_name'];
-    $user->last_name   = $validated['last_name'];
-    $user->username    = $validated['username'];
-    $user->email       = $validated['email'];
-    $user->office_id   = $validated['office_id'];
+    // Update the fields
+    $user->fill([
+        'first_name'  => $validated['first_name'],
+        'middle_name' => $validated['middle_name'] ?? null,
+        'last_name'   => $validated['last_name'],
+        'username'    => $validated['username'],
+        'email'       => $validated['email'],
+        'office_id'   => $validated['office_id'],
+    ]);
 
+    // Only update password if user entered one
     if (!empty($validated['password'])) {
         $user->password = Hash::make($validated['password']);
     }
 
     $user->save();
 
-    if ($user->role === 'user') {
-        return redirect()->route('user.dashboard')->with('success', 'User updated successfully.');
-    } else {
-        return redirect()->route('home')->with('success', 'User updated successfully.');
-    }
+    // Return back to settings page with success message
+    return back()->with('success', 'Settings updated successfully!');
 }
 }

@@ -8,6 +8,7 @@ use App\Models\CompanyModel;
 use App\Models\ImplementationModel;
 use App\Models\ItemModel;
 use App\Models\MarketModel;
+use App\Models\MessageModel;
 use App\Models\MOAModel;
 use App\Models\UserModel;
 use Carbon\Carbon;
@@ -33,7 +34,10 @@ public function index(Request $request)
         'company',
         'items' => function ($q) {
             $q->where('report', 'approved'); // ✅ Only approved items
-        }
+        },
+       'messages' => function ($q) {
+        $q->orderBy('created_at', 'desc');
+    }
     ]);
 
     // Filter by user role
@@ -567,7 +571,216 @@ public function readonly()
     ]);
 }
 
+public function reviewApproval(Request $request)
+{
+    $user = Auth::user();
+    if (!$user) {
+        Log::warning('Unauthorized access attempt to reviewApproval.');
+        return redirect()->route('login');
+    }
 
+    $search = $request->input('search');
+    $perPage = $request->input('perPage', 10);
+    $stage = $request->input('stage', 'internal_rtec');
+
+    $progressMap = [
+        'internal_rtec' => 'Complete Details',
+        'internal_compliance' => 'internal_compliance',
+        'external_rtec' => 'external_rtec',
+        'external_compliance' => 'external_compliance',
+        'approval' => 'approval',
+    ];
+
+    $query = ProjectModel::with([
+        'company',
+        'items' => function ($q) {
+            $q->where('report', 'approved');
+        }
+    ]);
+
+    if (isset($progressMap[$stage])) {
+        $query->where('progress', $progressMap[$stage]);
+    }
+
+    if ($user->role === 'user') {
+        $query->where('added_by', $user->user_id);
+    } elseif ($user->role === 'staff') {
+        $query->whereHas('company', function ($q) use ($user) {
+            $q->where('office_id', $user->office_id);
+        });
+    }
+
+    if ($search) {
+        $query->where(function ($q) use ($search) {
+            $q->where('project_title', 'like', "%{$search}%")
+              ->orWhere('project_cost', 'like', "%{$search}%")
+              ->orWhereHas('company', function ($q) use ($search) {
+                  $q->where('company_name', 'like', "%{$search}%");
+              });
+        });
+    }
+
+    $query->whereHas('items', function ($q) {
+        $q->where('report', 'approved');
+    });
+
+    $projects = $query->orderBy('project_title')->paginate($perPage)->withQueryString();
+
+    $projects->getCollection()->transform(function ($project) {
+        $allMessages = MessageModel::with('user')
+            ->where('project_id', $project->project_id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $filteredMessages = $allMessages->filter(function ($message) use ($project) {
+            return trim($message->subject) === trim($project->progress);
+        })->values();
+
+        $project->setRelation('messages', $filteredMessages);
+        
+        Log::info('Project messages filtered', [
+            'project_id' => $project->project_id,
+            'progress' => $project->progress,
+            'total_messages' => $allMessages->count(),
+            'filtered_messages' => $filteredMessages->count(),
+        ]);
+
+        return $project;
+    });
+
+    // ✅ Fetch users with roles other than 'staff' or 'user'
+    $availableUsers = UserModel::whereNotIn('role', ['staff', 'user'])
+        ->select('user_id', 'first_name', 'middle_name', 'last_name', 'role')
+        ->orderBy('first_name')
+        ->get();
+
+    Log::info("{$user->username} accessed reviewApproval page", [
+        'role' => $user->role,
+        'stage' => $stage,
+        'progress_filter' => $progressMap[$stage] ?? 'none',
+    ]);
+
+    return Inertia::render('ReviewApproval/ReviewApproval', [
+        'projects' => $projects,
+        'filters' => $request->only('search', 'perPage', 'stage'),
+        'currentStage' => $stage,
+        'availableUsers' => $availableUsers, // ✅ Pass available users to frontend
+    ]);
+}
+
+public function toggleMessageStatus($id)
+{
+    $user = Auth::user();
+    
+    $message = MessageModel::findOrFail($id);
+
+    if (!in_array($message->status, ['todo', 'done'])) {
+        return back()->with('error', 'Invalid status');
+    }
+
+    $message->status = $message->status === 'done' ? 'todo' : 'done';
+    $message->save();
+
+    Log::info('Message status toggled', [
+        'message_id' => $id,
+        'new_status' => $message->status,
+        'toggled_by' => $user->user_id
+    ]);
+
+    return back()->with('success', 'Status updated successfully');
+}
+
+public function updateProgressReview(Request $request, $id)
+{
+    $user = Auth::user();
+    if (!$user || !in_array($user->role, ['rpmo', 'staff'])) {
+        Log::warning('Unauthorized review update attempt by user ID ' . ($user->user_id ?? 'unknown'));
+        return back()->with('error', 'Unauthorized action.');
+    }
+
+    try {
+        $request->validate([
+            'action' => 'required|in:approve,disapprove',
+            'remarks' => 'required|array|min:1',
+            'remarks.*.message' => 'required|string|max:1000',
+            'remarks.*.created_by' => 'required|exists:tbl_users,user_id',
+            'stage' => 'required|string',
+        ]);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        Log::error('Validation failed for updateProgressReview', [
+            'errors' => $e->errors(),
+            'request_data' => $request->all()
+        ]);
+        return back()->withErrors($e->errors())->with('error', 'Validation failed. Please check all fields.');
+    }
+
+    $project = ProjectModel::findOrFail($id);
+    $oldProgress = $project->progress;
+    $newProgress = $oldProgress;
+
+    if ($request->action === 'approve') {
+        if ($request->stage === 'internal_rtec') {
+            $newProgress = 'internal_compliance';
+        } elseif ($request->stage === 'internal_compliance') {
+            $newProgress = 'external_rtec';
+        } elseif ($request->stage === 'external_rtec') {
+            $newProgress = 'external_compliance';
+        } elseif ($request->stage === 'external_compliance') {
+            $newProgress = 'approval';
+        } elseif ($request->stage === 'approval') {
+            $newProgress = 'Approved';
+        }
+
+        $project->progress = $newProgress;
+        $project->save();
+
+        // ✅ Create multiple messages
+        foreach ($request->remarks as $remark) {
+            MessageModel::create([
+                'project_id' => $project->project_id,
+                'created_by' => $remark['created_by'],
+                'subject' => $newProgress,
+                'message' => $remark['message'],
+                'status' => 'todo'
+            ]);
+        }
+
+        Log::info('Project approved with multiple remarks', [
+            'project_id' => $project->project_id,
+            'old_progress' => $oldProgress,
+            'new_progress' => $newProgress,
+            'remarks_count' => count($request->remarks),
+            'approved_by' => $user->user_id,
+            'stage' => $request->stage,
+        ]);
+
+        return back()->with('success', 'Project approved and moved to next stage.');
+    } else {
+        $project->progress = 'Disapproved';
+        $project->save();
+
+        // ✅ Create multiple disapproval messages
+        foreach ($request->remarks as $remark) {
+            MessageModel::create([
+                'project_id' => $project->project_id,
+                'created_by' => $remark['created_by'],
+                'subject' => 'Disapproved',
+                'message' => $remark['message'],
+                'status' => 'end'
+            ]);
+        }
+
+        Log::info('Project disapproved with multiple remarks', [
+            'project_id' => $project->project_id,
+            'old_progress' => $oldProgress,
+            'remarks_count' => count($request->remarks),
+            'disapproved_by' => $user->user_id,
+            'stage' => $request->stage,
+        ]);
+
+        return back()->with('success', 'Project disapproved. Remarks saved.');
+    }
+}
 
 
 public function updateProgress(Request $request, $id)

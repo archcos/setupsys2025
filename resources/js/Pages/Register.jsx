@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, router, Head, useForm } from '@inertiajs/react'; 
 import { Eye, EyeOff, User, Mail, Lock, Building2, CheckCircle } from 'lucide-react';
-import logo from '../../assets/logo.png';
-import setupLogo from '../../assets/SETUP_logo.png';
+import logo from '../../assets/logo.webp';
+import setupLogo from '../../assets/SETUP_logo.webp';
 
 const InputError = ({ error }) =>
   error ? <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
@@ -305,7 +305,7 @@ export default function RegisterPage({ offices }) {
 
         {/* Footer */}
         <div className="text-center text-sm text-gray-500">
-          <p>© 2025 DOST Northern Mindanao. All rights reserved.</p>
+            <p><span>© {new Date().getFullYear()} </span> DOST Northern Mindanao. All rights reserved.</p>
         </div>
       </div>
     </div>

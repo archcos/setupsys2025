@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useForm, Link, Head, usePage, router } from '@inertiajs/react';
 import { Eye, EyeOff, User, Lock, AlertCircle, Megaphone, Mail, Shield, CheckCircle } from 'lucide-react';
-import logo from '../../assets/logo.png';
-import setupLogo from '../../assets/SETUP_logo.png';
+import logo from '../../assets/logo.webp';
+import setupLogo from '../../assets/SETUP_logo.webp';
 import { v4 as uuidv4 } from 'uuid';
 
 export default function LoginPage() {
@@ -299,7 +299,7 @@ export default function LoginPage() {
           </div>
 
           <div className="text-center text-sm text-gray-500">
-            <p>© 2025 DOST Northern Mindanao. All rights reserved.</p>
+            <p><span>© {new Date().getFullYear()} </span> DOST Northern Mindanao. All rights reserved.</p>
           </div>
         </div>
       </div>
