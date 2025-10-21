@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\Admin\BlockedIpController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FrequencyController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImplementationController;
 use App\Http\Controllers\MOAController;
@@ -130,6 +131,10 @@ Route::middleware(['auth', 'role:head'])->group(function () {
     Route::post('blocked-ips/{id}/block-again', [BlockedIpController::class, 'blockAgain'])->name('blocked.blockAgain');
     Route::post('blocked-ips/{id}/unblock', [BlockedIpController::class, 'unblock'])->name('blocked.unblock');
     Route::get('blocked-ips/download', [BlockedIpController::class, 'download'])->name('blocked.download');
+
+    Route::get('/login-frequency', [FrequencyController::class, 'index'])->name('login-frequency.index');
+    Route::get('/login-frequency/download', [FrequencyController::class, 'download'])->name('login-frequency.download');
+
 });
 
 

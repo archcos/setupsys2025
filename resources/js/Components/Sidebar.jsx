@@ -91,6 +91,7 @@ export default function Sidebar({ isOpen }) {
             links={[
               { label: 'User Management', href: `/admin/users`, icon: <User size={16} /> },
               { label: 'Blocked Management', href: `/blocked-ips`, icon: <ShieldAlert size={16} /> },
+              { label: 'Frequency Management', href: `/login-frequency`, icon: <ShieldAlert size={16} /> },
             ]}
           />
         )}

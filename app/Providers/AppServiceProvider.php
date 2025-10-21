@@ -32,6 +32,10 @@ class AppServiceProvider extends ServiceProvider
         //     URL::forceScheme('https');
         // }
 
+        // ngrok http 8000
+
+        // cloudflared tunnel --url http://127.0.0.1:8000
+
     // Inertia::share([
     //     'auth' => function () {
     //         $userId = Session::get('user_id');

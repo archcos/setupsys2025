@@ -33,4 +33,17 @@
 
     Header add Content-Security-Policy "upgrade-insecure-requests"
 
-</IfModule>
+# </IfModule>
+
+# <IfModule mod_deflate.c>
+#   AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
+# </IfModule>
+
+# <IfModule mod_expires.c>
+#   ExpiresActive On
+#   ExpiresByType image/webp "access plus 1 year"
+#   ExpiresByType image/avif "access plus 1 year"
+#   ExpiresByType text/css "access plus 1 month"
+#   ExpiresByType application/javascript "access plus 1 month"
+#   ExpiresDefault "access plus 7 days"
+# </IfModule>

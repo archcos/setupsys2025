@@ -27,6 +27,7 @@
         "laravel-echo": "^2.1.7",
         "lucide-react": "^0.525.0",
         "pusher-js": "^8.4.0",
+        "recharts": "^3.3.0",
         "uuid": "^13.0.0"
     }
 }

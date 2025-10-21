@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\AnnouncementModel;
+use App\Models\FrequencyModel;
 use App\Models\SavedDeviceModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\UserModel;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -79,6 +81,25 @@ public function signin(Request $request)
     Session::put('user_id', $user->user_id);
     Session::put('role', $user->role);
 
+    if ($user->role === 'user') {
+        $today = Carbon::today()->toDateString();
+
+        $record = FrequencyModel::where('user_id', $user->user_id)
+            ->whereDate('login_date', $today)
+            ->first();
+
+        if ($record) {
+            $record->increment('login_count');
+        } else {
+            FrequencyModel::create([
+                'user_id' => $user->user_id,
+                'office_id' => $user->office_id,
+                'login_date' => $today,
+                'login_count' => 1,
+            ]);
+        }
+    }
+    
     return $user->role === 'user'
         ? redirect()->route('user.dashboard')
         : redirect()->route('home');
