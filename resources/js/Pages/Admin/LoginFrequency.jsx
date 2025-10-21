@@ -19,10 +19,11 @@ import { Calendar, Download, CheckCircle, Building2 } from 'lucide-react';
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#84cc16'];
 
 export default function LoginFrequencyIndex() {
-  const { records, chartData, officeChartData, offices, flash, filter: initialFilter, selectedOffice: initialOffice } = usePage().props;
+  const { records, chartData, officeChartData, offices, flash, filter: initialFilter, selectedOffice: initialOffice, selectedYear: initialYear, availableYears } = usePage().props;
   const [flashMessage, setFlashMessage] = useState(flash?.success || null);
   const [filter, setFilter] = useState(initialFilter || 'daily');
   const [selectedOffice, setSelectedOffice] = useState(initialOffice || 'all');
+  const [selectedYear, setSelectedYear] = useState(initialYear || new Date().getFullYear());
 
   useEffect(() => {
     if (flash?.success) {
@@ -32,20 +33,25 @@ export default function LoginFrequencyIndex() {
     }
   }, [flash]);
 
-  // ✅ Trigger reload when filter/office changes
+  // ✅ Trigger reload when filter/office/year changes
   useEffect(() => {
     const delay = setTimeout(() => {
       router.get(
         '/login-frequency',
-        { filter, office: selectedOffice },
+        { filter, office: selectedOffice, year: selectedYear },
         { preserveState: true, replace: true }
       );
     }, 400);
     return () => clearTimeout(delay);
-  }, [filter, selectedOffice]);
+  }, [filter, selectedOffice, selectedYear]);
 
   const handleDownload = () => {
-    window.location.href = '/login-frequency/download';
+    const params = new URLSearchParams({
+      filter,
+      office: selectedOffice,
+      year: selectedYear
+    });
+    window.location.href = `/login-frequency/download?${params.toString()}`;
   };
 
   const formattedData = Array.isArray(chartData) 
@@ -95,8 +101,21 @@ export default function LoginFrequencyIndex() {
               className="border border-gray-200 rounded-xl px-3 pr-7 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500"
             >
               <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
+            </select>
+
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 pr-7 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500"
+            >
+              {availableYears && availableYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
             </select>
 
             <div className="relative">

@@ -8,6 +8,7 @@ use App\Models\OfficeModel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Carbon\Carbon;
 
@@ -17,9 +18,14 @@ class FrequencyController extends Controller
     {
         $filter = $request->input('filter', 'daily');
         $selectedOffice = $request->input('office', 'all');
+        $selectedYear = $request->input('year', Carbon::now()->year);
 
-        // ✅ Query with office filter only
+        // ✅ Determine date range based on filter
+        $dateRange = $this->getDateRange($filter, $selectedYear);
+
+        // ✅ Query with date range and office filter
         $query = FrequencyModel::with(['user', 'office'])
+            ->whereBetween('login_date', [$dateRange['start'], $dateRange['end']])
             ->when($selectedOffice !== 'all', function($q) use ($selectedOffice) {
                 $q->where('office_id', $selectedOffice);
             })
@@ -32,11 +38,41 @@ class FrequencyController extends Controller
             ->orderBy('office_name')
             ->get();
 
+        // Get available years from data
+        $availableYears = FrequencyModel::selectRaw('DISTINCT YEAR(login_date) as year')
+            ->orderBy('year', 'desc')
+            ->pluck('year')
+            ->toArray();
+
+        // If no data, at least show current year
+        if (empty($availableYears)) {
+            $availableYears = [Carbon::now()->year];
+        }
+
         // ✅ Create time-based chart data (Bar Chart)
         $chartData = [];
         if ($records->count() > 0) {
             switch ($filter) {
+                    case 'weekly':
+                        // Group by day of week (Y-m-d ensures correct chronological order)
+                        $grouped = $records->groupBy(function ($item) {
+                            return Carbon::parse($item->login_date)->format('Y-m-d');
+                        });
+
+                        // Sort keys by ascending date (oldest first)
+                        $sorted = $grouped->sortKeys();
+
+                        foreach ($sorted as $date => $group) {
+                            $chartData[] = [
+                                'date' => Carbon::parse($date)->format('D, M d'),
+                                'count' => (int) $group->sum('login_count'),
+                            ];
+                        }
+                        break;
+
+
                 case 'monthly':
+                    // Group by month for the selected year
                     $grouped = $records->groupBy(function ($item) {
                         return Carbon::parse($item->login_date)->format('Y-m');
                     });
@@ -50,11 +86,15 @@ class FrequencyController extends Controller
                     break;
 
                 case 'yearly':
+                    // Group by year - show all years
                     $grouped = $records->groupBy(function ($item) {
                         return Carbon::parse($item->login_date)->format('Y');
                     });
-                    
-                    foreach ($grouped as $year => $group) {
+
+                    // Sort by year ascending (oldest first)
+                    $sorted = $grouped->sortKeys();
+
+                    foreach ($sorted as $year => $group) {
                         $chartData[] = [
                             'date' => $year,
                             'count' => (int) $group->sum('login_count'),
@@ -62,30 +102,21 @@ class FrequencyController extends Controller
                     }
                     break;
 
+
                 default: // daily
-                    $grouped = $records->groupBy('login_date');
-                    
-                    foreach ($grouped as $date => $group) {
-                        $chartData[] = [
-                            'date' => Carbon::parse($date)->format('M d, Y'),
-                            'count' => (int) $group->sum('login_count'),
-                        ];
-                    }
+                    // Show today's data
+                    $chartData[] = [
+                        'date' => Carbon::parse($dateRange['start'])->format('M d, Y'),
+                        'count' => (int) $records->sum('login_count'),
+                    ];
                     break;
             }
         }
 
-        // ✅ Create office distribution data (Pie Chart)
+        // ✅ Create office distribution data (Pie Chart) - filtered by date range
         $officeChartData = [];
         
-        // Get all records (ignore time filter for office distribution)
-        $allRecords = FrequencyModel::with('office')
-            ->when($selectedOffice !== 'all', function($q) use ($selectedOffice) {
-                $q->where('office_id', $selectedOffice);
-            })
-            ->get();
-
-        $officeGrouped = $allRecords->groupBy('office_id');
+        $officeGrouped = $records->groupBy('office_id');
         
         foreach ($officeGrouped as $officeId => $group) {
             $officeName = $group->first()->office->office_name ?? 'Unknown Office';
@@ -105,6 +136,11 @@ class FrequencyController extends Controller
             'chart_data_count' => count($chartData),
             'office_chart_count' => count($officeChartData),
             'filter' => $filter,
+            'year' => $selectedYear,
+            'date_range' => [
+                'start' => $dateRange['start']->format('Y-m-d'),
+                'end' => $dateRange['end']->format('Y-m-d'),
+            ],
             'selected_office' => $selectedOffice,
         ]);
 
@@ -113,20 +149,80 @@ class FrequencyController extends Controller
             'chartData' => $chartData,
             'officeChartData' => $officeChartData,
             'offices' => $offices->toArray(),
+            'availableYears' => $availableYears,
             'filter' => $filter,
             'selectedOffice' => $selectedOffice,
+            'selectedYear' => (int) $selectedYear,
+            'dateRange' => [
+                'start' => $dateRange['start']->format('M d, Y'),
+                'end' => $dateRange['end']->format('M d, Y'),
+            ],
         ]);
     }
 
-    public function download()
+    /**
+     * Get date range based on filter type and year
+     */
+    private function getDateRange($filter, $year)
     {
-        $filename = 'login_frequency_' . now()->format('Y-m-d_H-i-s') . '.csv';
+        $now = Carbon::now();
+        $selectedYear = Carbon::createFromDate($year, 1, 1);
+        
+        switch ($filter) {
+            case 'daily':
+                return [
+                    'start' => $now->copy()->startOfDay(),
+                    'end' => $now->copy()->endOfDay(),
+                ];
+                
+            case 'weekly':
+                return [
+                    'start' => $now->copy()->startOfWeek(Carbon::MONDAY),
+                    'end' => $now->copy()->endOfWeek(Carbon::SUNDAY),
+                ];
+                
+            case 'monthly':
+                // Show all months in the selected year
+                return [
+                    'start' => $selectedYear->copy()->startOfYear(),
+                    'end' => $selectedYear->copy()->endOfYear(),
+                ];
+                
+            case 'yearly':
+                // Show all years from earliest to latest
+                return [
+                    'start' => Carbon::createFromDate(2000, 1, 1), // Or use earliest record
+                    'end' => Carbon::now()->endOfYear(),
+                ];
+                
+            default:
+                return [
+                    'start' => $now->copy()->startOfDay(),
+                    'end' => $now->copy()->endOfDay(),
+                ];
+        }
+    }
 
-        $response = new StreamedResponse(function () {
+    public function download(Request $request)
+    {
+        $filter = $request->input('filter', 'daily');
+        $selectedOffice = $request->input('office', 'all');
+        $selectedYear = $request->input('year', Carbon::now()->year);
+
+        $filename = 'login_frequency_' . $filter . '_' . now()->format('Y-m-d_H-i-s') . '.csv';
+
+        // ✅ Apply same filters as the view
+        $dateRange = $this->getDateRange($filter, $selectedYear);
+
+        $response = new StreamedResponse(function () use ($dateRange, $selectedOffice) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, ['User', 'Office', 'Date', 'Login Count']);
 
             $records = FrequencyModel::with(['user', 'office'])
+                ->whereBetween('login_date', [$dateRange['start'], $dateRange['end']])
+                ->when($selectedOffice !== 'all', function($q) use ($selectedOffice) {
+                    $q->where('office_id', $selectedOffice);
+                })
                 ->orderBy('login_date', 'desc')
                 ->get();
 
