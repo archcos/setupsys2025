@@ -17,102 +17,607 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use PhpOffice\PhpWord\TemplateProcessor;
 use PhpOffice\PhpWord\Element\Table;
 use PhpOffice\PhpWord\SimpleType\Jc;
+use PhpOffice\PhpWord\Settings;
+use PhpOffice\PhpWord\IOFactory;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class ReportController extends Controller
 {
-public function index(Request $request)
-{
-    $userId = Auth::id();
-    $user   = UserModel::where('user_id', $userId)->firstOrFail();
+     use AuthorizesRequests;
+    public function index(Request $request)
+    {
+        $userId = Auth::id();
+        $user   = UserModel::where('user_id', $userId)->firstOrFail();
 
-    $search  = $request->input('search');
-    $perPage = $request->input('perPage', 10);
+        $search  = $request->input('search');
+        $perPage = $request->input('perPage', 10);
 
-    Log::info('Reports Index Accessed', [
-        'user_id'   => $userId,
-        'role'      => $user->role ?? null,
-        'office_id' => $user->office_id ?? null,
-        'search'    => $search,
-        'perPage'   => $perPage,
-    ]);
+        Log::info('Reports Index Accessed', [
+            'user_id'   => $userId,
+            'role'      => $user->role ?? null,
+            'office_id' => $user->office_id ?? null,
+            'search'    => $search,
+            'perPage'   => $perPage,
+        ]);
 
-    $query = ProjectModel::with([
-        // eager load company
-        'company:company_id,company_name,office_id',
+        $query = ProjectModel::with([
+            'company:company_id,company_name,office_id,added_by',
+            'reports' => function ($q) {
+                $q->select('report_id', 'project_id', 'created_at', 'file_path')
+                  ->orderBy('created_at', 'desc');
+            }
+        ])->select('project_id', 'project_title', 'company_id');
 
-        // eager load latest reports
-        'reports' => function ($q) {
-            $q->select('report_id', 'project_id', 'created_at')
-              ->orderBy('created_at', 'desc');
+        // Role-based filtering
+        if ($user->role === 'user') {
+            Log::debug('Filtering projects for USER role', ['user_id' => $user->user_id]);
+            $companyIds = CompanyModel::where('added_by', $user->user_id)->pluck('company_id');
+            $query->whereIn('company_id', $companyIds);
+        } elseif ($user->role === 'staff') {
+            Log::debug('Filtering projects for STAFF role', ['office_id' => $user->office_id]);
+            $query->whereHas('company', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
+            });
+        } elseif ($user->role === 'head') {
+            Log::debug('HEAD role detected - no restrictions applied');
+        } else {
+            Log::warning('Unknown role - applying no filters', ['role' => $user->role]);
         }
-    ])->select('project_id', 'project_title', 'company_id');
 
-    // ✅ Role-based filtering
-    if ($user->role === 'user') {
-        Log::debug('Filtering projects for USER role', ['user_id' => $user->user_id]);
+        if (!empty($search)) {
+            Log::debug('Applying search filter', ['search' => $search]);
+            $query->where(function ($q) use ($search) {
+                $q->where('project_title', 'like', "%{$search}%")
+                  ->orWhereHas('company', function ($q) use ($search) {
+                      $q->where('company_name', 'like', "%{$search}%");
+                  });
+            });
+        }
 
-        $companyIds = CompanyModel::where('added_by', $user->user_id)->pluck('company_id');
-        $query->whereIn('company_id', $companyIds);
+        $projects = $query->orderBy('project_title')
+                          ->paginate($perPage)
+                          ->withQueryString();
 
-    } elseif ($user->role === 'staff') {
-        Log::debug('Filtering projects for STAFF role', ['office_id' => $user->office_id]);
+        Log::info('Projects retrieved', [
+            'count' => $projects->count(),
+            'total' => $projects->total(),
+        ]);
 
-        $query->whereHas('company', function ($q) use ($user) {
-            $q->where('office_id', $user->office_id);
-        });
-
-    } elseif ($user->role === 'head') {
-        Log::debug('ADMIN role detected - no restrictions applied');
-        // admin sees all projects
-
-    } else {
-        Log::warning('Unknown role - applying no filters', ['role' => $user->role]);
+        return Inertia::render('Reports/Index', [
+            'projects' => $projects,
+            'filters'  => $request->only('search', 'perPage'),
+        ]);
     }
 
-    if (!empty($search)) {
-        Log::debug('Applying search filter', ['search' => $search]);
+    public function destroy($id)
+    {
+        $report = ReportModel::findOrFail($id);
+        
+        // Delete the file if it exists
+        if ($report->file_path && Storage::disk('private')->exists($report->file_path)) {
+            Storage::disk('private')->delete($report->file_path);
+        }
 
-        $query->where(function ($q) use ($search) {
-            $q->where('project_title', 'like', "%{$search}%")
-              ->orWhereHas('company', function ($q) use ($search) {
-                  $q->where('company_name', 'like', "%{$search}%");
-              });
-        });
+        // Delete items linked by the "report" column
+        ItemModel::where('report', $id)->delete();
+        ObjectiveModel::where('report', $id)->delete();
+
+        // Delete the report
+        $report->delete();
+
+        return redirect()->back()->with('success', 'Report and its related items deleted successfully.');
     }
 
-    // ✅ Pagination
-    $projects = $query->orderBy('project_title')
-                      ->paginate($perPage)
-                      ->withQueryString();
+public function viewReport($report_id)
+    {
+        $userId = Auth::id();
+        $user = UserModel::where('user_id', $userId)->firstOrFail();
+        
+        $report = ReportModel::with(['project.company'])->findOrFail($report_id);
+        
+        // ✅ Now this will work
+        $this->authorize('view', $report);
 
-    Log::info('Projects retrieved', [
-        'count' => $projects->count(),
-        'total' => $projects->total(),
-    ]);
+        // Check if file exists
+        if (!$report->file_path || !Storage::disk('private')->exists($report->file_path)) {
+            return redirect()->back()->with('error', 'Report file not found.');
+        }
 
-    return Inertia::render('Reports/Index', [
-        'projects' => $projects,
-        'filters'  => $request->only('search', 'perPage'),
-    ]);
-}
+        // Return the PDF file
+        return response()->file(Storage::disk('private')->path($report->file_path));
+    }
 
-public function destroy($id)
-{
-    // Delete items linked by the "report" column
-    ItemModel::where('report', $id)->delete();
-    ObjectiveModel::where('report', $id)->delete();
+    public function downloadReport($report_id)
+    {
+        $userId = Auth::id();
+        $user = UserModel::where('user_id', $userId)->firstOrFail();
+        
+        $report = ReportModel::with(['project.company'])->findOrFail($report_id);
+        
+        // ✅ Now this will work
+        $this->authorize('view', $report);
 
-    // Delete the report
-    $report = ReportModel::findOrFail($id);
-    $report->delete();
+        // Check if file exists
+        if (!$report->file_path || !Storage::disk('private')->exists($report->file_path)) {
+            return redirect()->back()->with('error', 'Report file not found.');
+        }
 
-    return redirect()->back()->with('success', 'Report and its related items deleted successfully.');
-}
-public function downloadReport($report_id)
+        // Download the PDF file
+        $filePath = Storage::disk('private')->path($report->file_path);
+        
+        return response()->download(
+            $filePath,
+            "Report_{$report->project->project_id}_{$report->report_id}.pdf"
+        );
+    }
+//FOR LINUX
+// private function generateReportFile($report_id)
+// {
+//     // Fetch the report (with relations)
+//     $report = ReportModel::with(['project.company'])->findOrFail($report_id);
+//     $project = $report->project;
+//     $company = $project->company;
+
+//     $implementIds = ImplementationModel::where('project_id', $project->project_id)->pluck('implement_id');
+//     $sum_cost = TagModel::whereIn('implement_id', $implementIds)->sum('tag_amount');
+
+//     // Products
+//     $products = ProductModel::where('report_id', $report_id)->get();
+
+//     // Gender data
+//     $newMale   = $report->new_male ?? 0;
+//     $newFemale = $report->new_female ?? 0;
+//     $totalNew  = $newMale + $newFemale;
+
+//     // Forward/Backward data
+//     $ifMale   = $report->new_ifmale ?? 0;
+//     $ifFemale = $report->new_iffemale ?? 0;
+//     $ibMale   = $report->new_ibmale ?? 0;
+//     $ibFemale = $report->new_ibfemale ?? 0;
+
+//     $forwardTotal  = $ifMale + $ifFemale;
+//     $backwardTotal = $ibMale + $ibFemale;
+//     $overallTotal  = $forwardTotal + $backwardTotal;
+
+//     $ownerName = $company->owner_name ?? 'N/A';
+
+//     // Phase One (Release Dates)
+//     $releaseInitial = $project->release_initial ? Carbon::parse($project->release_initial)->format('F Y') : 'N/A';
+//     $releaseEnd     = $project->release_end ? Carbon::parse($project->release_end)->format('F Y') : 'N/A';
+//     $phaseOne       = "$releaseInitial - $releaseEnd";
+
+//     // Phase Two (Refund Dates)
+//     $refundInitial = $project->refund_initial ? Carbon::parse($project->refund_initial)->format('F Y') : 'N/A';
+//     $refundEnd     = $project->refund_end ? Carbon::parse($project->refund_end)->format('F Y') : 'N/A';
+//     $phaseTwo      = "$refundInitial - $refundEnd";
+
+//     // Refund Data
+//     $refunds = $project->refunds;
+//     $totalRefund = $refunds->sum('refund_amount');
+//     $toRefunded  = $project->project_cost - $totalRefund;
+//     $unsetRefund = $project->project_cost - $totalRefund;
+//     $currentDate = Carbon::parse($report->created_at)->format('F, Y');
+
+//     $totalUnpaid = $refunds
+//         ->where('status', 'unpaid')
+//         ->where('month_paid', Carbon::now()->format('Y-m-01'))
+//         ->sum('refund_amount');
+
+//     $oldestUnpaid = $refunds
+//         ->where('status', 'unpaid')
+//         ->sortBy('month_paid')
+//         ->first();
+
+//     $oldUnpaid = $oldestUnpaid
+//         ? Carbon::parse($oldestUnpaid->month_paid)->format('F Y')
+//         : 'N/A';
+
+//     // Load Template
+//     $templatePath = storage_path('../public/templates/form.docx');
+    
+//     if (!file_exists($templatePath)) {
+//         Log::error('Template file not found', ['path' => $templatePath]);
+//         throw new \Exception('Template file not found at: ' . $templatePath);
+//     }
+    
+//     $templateProcessor = new TemplateProcessor($templatePath);
+
+//     // Fill placeholders
+//     $templateProcessor->setValue('project_title', $project->project_title);
+//     $templateProcessor->setValue('owner_name', $ownerName);
+//     $templateProcessor->setValue('phase_one', $phaseOne);
+//     $templateProcessor->setValue('release_initial', $releaseInitial);
+//     $templateProcessor->setValue('phase_two', $phaseTwo);
+//     $templateProcessor->setValue('project_cost', number_format($project->project_cost, 2));
+//     $templateProcessor->setValue('util_remarks', $report->util_remarks);
+//     $templateProcessor->setValue('problems', $report->problems);
+//     $templateProcessor->setValue('actions', $report->actions);
+//     $templateProcessor->setValue('promotional', $report->promotional);
+//     $templateProcessor->setValue('sum_cost', number_format($sum_cost, 2));
+//     $templateProcessor->setValue('to_refunded', number_format($toRefunded, 2));
+//     $templateProcessor->setValue('current_date', $currentDate);
+//     $templateProcessor->setValue('total_unpaid', number_format($totalUnpaid, 2));
+//     $templateProcessor->setValue('total_refund', number_format($totalRefund, 2));
+//     $templateProcessor->setValue('unset_refund', number_format($unsetRefund, 2));
+//     $templateProcessor->setValue('old_unpaid', $oldUnpaid);
+
+//     $fontStyle = ['color' => '000000', 'size' => 11];
+//     $paraCenter = ['alignment' => Jc::CENTER];
+
+//     // Equipment Table
+//     $approvedItems = ItemModel::where('project_id', $project->project_id)
+//         ->where('type', 'equipment')
+//         ->where('report', 'approved')
+//         ->get();
+
+//     $actualItems = ItemModel::where('project_id', $project->project_id)
+//         ->where('type', 'equipment')
+//         ->where('report', $report->report_id)
+//         ->get();
+
+//     $equipTable = new Table(['borderSize' => 6, 'borderColor' => '000000']);
+//     $equipTable->addRow();
+//     $equipTable->addCell(3500, ['gridSpan' => 3])->addText('Approved Equipment', $fontStyle, $paraCenter);
+//     $equipTable->addCell(3500, ['gridSpan' => 3])->addText('Actual Acquired', $fontStyle, $paraCenter);
+//     $equipTable->addCell(2500, ['vMerge' => 'restart'])->addText('Acknowledge', $fontStyle, $paraCenter);
+//     $equipTable->addCell(2000, ['vMerge' => 'restart'])->addText('Remarks', $fontStyle, $paraCenter);
+
+//     $equipTable->addRow();
+//     $equipTable->addCell(1000)->addText('Qty', $fontStyle, $paraCenter);
+//     $equipTable->addCell(3000)->addText('Particulars', $fontStyle, $paraCenter);
+//     $equipTable->addCell(2000)->addText('Cost', $fontStyle, $paraCenter);
+//     $equipTable->addCell(1000)->addText('Qty', $fontStyle, $paraCenter);
+//     $equipTable->addCell(3000)->addText('Particulars', $fontStyle, $paraCenter);
+//     $equipTable->addCell(2000)->addText('Cost', $fontStyle, $paraCenter);
+//     $equipTable->addCell(null, ['vMerge' => 'continue']);
+//     $equipTable->addCell(null, ['vMerge' => 'continue']);
+
+//     $maxRows = max($approvedItems->count(), $actualItems->count());
+//     for ($i = 0; $i < $maxRows; $i++) {
+//         $equipTable->addRow();
+//         $approved = $approvedItems->get($i);
+//         $equipTable->addCell(1000)->addText($approved->quantity ?? '', ['color' => '000000']);
+//         $equipTable->addCell(3000)->addText(
+//             isset($approved) ? $approved->item_name . ' - ' . $approved->specifications : '',
+//             ['color' => '000000']
+//         );
+//         $equipTable->addCell(2500)->addText($approved->item_cost ?? '', ['color' => '000000']);
+
+//         $actual = $actualItems->get($i);
+//         $equipTable->addCell(1000)->addText($actual->quantity ?? '', ['color' => '000000']);
+//         $equipTable->addCell(3000)->addText(
+//             isset($actual) ? $actual->item_name . ' - ' . $actual->specifications : '',
+//             ['color' => '000000']
+//         );
+//         $equipTable->addCell(2500)->addText($actual->item_cost ?? '', ['color' => '000000']);
+//         $equipTable->addCell(2500)->addText($actual->acknowledge ?? '', ['color' => '000000']);
+//         $equipTable->addCell(2000)->addText($actual->remarks ?? '', ['color' => '000000']);
+//     }
+//     $templateProcessor->setComplexBlock('equipment_table', $equipTable);
+
+//     // Non-Equipment Table
+//     $approvedNonequip = ItemModel::where('project_id', $project->project_id)
+//         ->where('type', 'nonequip')
+//         ->where('report', 'approved')
+//         ->get();
+
+//     $actualNonequip = ItemModel::where('project_id', $project->project_id)
+//         ->where('type', 'nonequip')
+//         ->where('report', $report->report_id)
+//         ->get();
+
+//     $nonequipTable = new Table(['borderSize' => 6, 'borderColor' => '000000']);
+//     $nonequipTable->addRow();
+//     $nonequipTable->addCell(3500, ['gridSpan' => 3])
+//         ->addText('Approved Non-Equipment', $fontStyle, $paraCenter);
+//     $nonequipTable->addCell(3500, ['gridSpan' => 3])
+//         ->addText('Actual Acquired', $fontStyle, $paraCenter);
+//     $nonequipTable->addCell(2500, ['vMerge' => 'restart'])->addText('Acknowledge', $fontStyle, $paraCenter);
+//     $nonequipTable->addCell(2000, ['vMerge' => 'restart'])->addText('Remarks', $fontStyle, $paraCenter);
+
+//     $nonequipTable->addRow();
+//     $nonequipTable->addCell(1000)->addText('Qty', $fontStyle, $paraCenter);
+//     $nonequipTable->addCell(3000)->addText('Particulars', $fontStyle, $paraCenter);
+//     $nonequipTable->addCell(2500)->addText('Cost', $fontStyle, $paraCenter);
+//     $nonequipTable->addCell(1000)->addText('Qty', $fontStyle, $paraCenter);
+//     $nonequipTable->addCell(3000)->addText('Particulars', $fontStyle, $paraCenter);
+//     $nonequipTable->addCell(2500)->addText('Cost', $fontStyle, $paraCenter);
+//     $nonequipTable->addCell(null, ['vMerge' => 'continue']);
+//     $nonequipTable->addCell(null, ['vMerge' => 'continue']);
+
+//     $maxRowsNonequip = max($approvedNonequip->count(), $actualNonequip->count());
+//     for ($i = 0; $i < $maxRowsNonequip; $i++) {
+//         $nonequipTable->addRow();
+//         $approved = $approvedNonequip->get($i);
+//         $nonequipTable->addCell(1000)->addText($approved->quantity ?? '', ['color' => '000000']);
+//         $nonequipTable->addCell(3000)->addText(
+//             isset($approved) ? $approved->item_name . ' - ' . $approved->specifications : '',
+//             ['color' => '000000']
+//         );
+//         $nonequipTable->addCell(2000)->addText($approved->item_cost ?? '', ['color' => '000000']);
+
+//         $actual = $actualNonequip->get($i);
+//         $nonequipTable->addCell(1000)->addText($actual->quantity ?? '', ['color' => '000000']);
+//         $nonequipTable->addCell(3000)->addText(
+//             isset($actual) ? $actual->item_name . ' - ' . $actual->specifications : '',
+//             ['color' => '000000']
+//         );
+//         $nonequipTable->addCell(2000)->addText($actual->item_cost ?? '', ['color' => '000000']);
+//         $nonequipTable->addCell(2500)->addText($actual->acknowledge ?? '', ['color' => '000000']);
+//         $nonequipTable->addCell(2000)->addText($actual->remarks ?? '', ['color' => '000000']);
+//     }
+//     $templateProcessor->setComplexBlock('nonequip_table', $nonequipTable);
+
+//     // Objectives Table
+//     $objectiveTable = new Table([
+//         'borderSize' => 6,
+//         'borderColor' => '000000',
+//         'alignment' => Jc::CENTER,
+//     ]);
+
+//     $objectives = ObjectiveModel::where('project_id', $project->project_id)->get();
+//     $approvedObjectives = $objectives->where('report', 'approved');
+//     $actualObjectives = $objectives->where('report', $report->report_id);
+
+//     $objectiveTable->addRow();
+//     $objectiveTable->addCell(4000)->addText('Expected Output', $fontStyle, $paraCenter);
+//     $objectiveTable->addCell(4000)->addText('Actual Accomplishment', $fontStyle, $paraCenter);
+//     $objectiveTable->addCell(4000)->addText('Remarks / Justification', $fontStyle, $paraCenter);
+
+//     $maxRows = max($approvedObjectives->count(), $actualObjectives->count());
+//     if ($maxRows === 0) {
+//         $objectiveTable->addRow();
+//         $objectiveTable->addCell(4000)->addText('N/A', $fontStyle, $paraCenter);
+//         $objectiveTable->addCell(4000)->addText('N/A', $fontStyle, $paraCenter);
+//         $objectiveTable->addCell(4000)->addText('N/A', $fontStyle, $paraCenter);
+//     } else {
+//         for ($i = 0; $i < $maxRows; $i++) {
+//             $objectiveTable->addRow();
+//             $objectiveTable->addCell(4000)->addText(
+//                 $approvedObjectives->values()->get($i)->details ?? '',
+//                 $fontStyle,
+//                 $paraCenter
+//             );
+//             $objectiveTable->addCell(4000)->addText(
+//                 $actualObjectives->values()->get($i)->details ?? '',
+//                 $fontStyle,
+//                 $paraCenter
+//             );
+//             $objectiveTable->addCell(4000)->addText(
+//                 $actualObjectives->values()->get($i)->remarks ?? '',
+//                 $fontStyle,
+//                 $paraCenter
+//             );
+//         }
+//     }
+//     $templateProcessor->setComplexBlock('objective_table', $objectiveTable);
+
+//     // Markets Table
+//     $markets = MarketModel::where('project_id', $project->project_id)->get();
+//     $existingMarkets = $markets->where('type', 'existing');
+//     $newMarkets = $markets->where('type', 'new');
+
+//     $marketTable = new Table([
+//         'borderSize' => 6,
+//         'borderColor' => '000000',
+//         'alignment' => Jc::CENTER,
+//     ]);
+
+//     $marketTable->addRow();
+//     $marketTable->addCell(2000, ['vMerge' => 'restart'])->addText('Existing Market', $fontStyle, $paraCenter);
+//     $marketTable->addCell(5000, ['gridSpan' => 2])->addText('New Market', $fontStyle, $paraCenter);
+
+//     $marketTable->addRow();
+//     $marketTable->addCell(null, ['vMerge' => 'continue']);
+//     $marketTable->addCell(2000)->addText('Specify Place', $fontStyle, $paraCenter);
+//     $marketTable->addCell(3000)->addText('Effective Date', $fontStyle, $paraCenter);
+
+//     $maxRows = max($existingMarkets->count(), $newMarkets->count());
+//     if ($maxRows === 0) {
+//         $marketTable->addRow();
+//         $marketTable->addCell(2000)->addText('N/A', $fontStyle, $paraCenter);
+//         $marketTable->addCell(2000)->addText('N/A', $fontStyle, $paraCenter);
+//         $marketTable->addCell(3000)->addText('N/A', $fontStyle, $paraCenter);
+//     } else {
+//         for ($i = 0; $i < $maxRows; $i++) {
+//             $marketTable->addRow();
+//             $marketTable->addCell(2000)->addText(
+//                 $existingMarkets->values()->get($i)->place_name ?? '',
+//                 $fontStyle, $paraCenter
+//             );
+//             $new = $newMarkets->values()->get($i);
+//             $marketTable->addCell(2000)->addText($new->place_name ?? '', $fontStyle, $paraCenter);
+//             $marketTable->addCell(3000)->addText(
+//                 isset($new->effective_date) ? Carbon::parse($new->effective_date)->format('F d, Y') : '',
+//                 $fontStyle,
+//                 $paraCenter
+//             );
+//         }
+//     }
+//     $templateProcessor->setComplexBlock('market_table', $marketTable);
+
+//     // Products Table
+//     $productTable = new Table(['borderSize' => 6, 'borderColor' => '000000', 'alignment' => Jc::CENTER]);
+//     $productTable->addRow();
+//     $productTable->addCell(3000)->addText('Product', $fontStyle, $paraCenter);
+//     $productTable->addCell(1500)->addText('Volume', $fontStyle, $paraCenter);
+//     $productTable->addCell(1500)->addText('Quarter', $fontStyle, $paraCenter);
+//     $productTable->addCell(2000)->addText('Gross Sales', $fontStyle, $paraCenter);
+//     foreach ($products as $prod) {
+//         $productTable->addRow();
+//         $productTable->addCell(3000)->addText($prod->product_name, $fontStyle, $paraCenter);
+//         $productTable->addCell(1500)->addText($prod->volume, $fontStyle, $paraCenter);
+//         $productTable->addCell(1500)->addText("Q$prod->quarter", $fontStyle, $paraCenter);
+//         $productTable->addCell(2000)->addText(number_format($prod->gross_sales, 2), $fontStyle, $paraCenter);
+//     }
+//     $templateProcessor->setComplexBlock('products_table', $productTable);
+
+//     // Gender Table
+//     $genderTable = new Table(['borderSize' => 6, 'borderColor' => '000000', 'alignment' => Jc::CENTER]);
+//     $genderTable->addRow();
+//     $genderTable->addCell(2000)->addText('No. of Employees', $fontStyle, $paraCenter);
+//     $genderTable->addCell(2000)->addText('No. of Males', $fontStyle, $paraCenter);
+//     $genderTable->addCell(2000)->addText('No. of Females', $fontStyle, $paraCenter);
+//     $genderTable->addCell(2000)->addText('No. of Person With Disability', $fontStyle, $paraCenter);
+//     $genderTable->addRow();
+//     $genderTable->addCell(2000)->addText($totalNew, $fontStyle, $paraCenter);
+//     $genderTable->addCell(2000)->addText($newMale, $fontStyle, $paraCenter);
+//     $genderTable->addCell(2000)->addText($newFemale, $fontStyle, $paraCenter);
+//     $genderTable->addCell(2000)->addText('', $fontStyle, $paraCenter);
+//     $templateProcessor->setComplexBlock('newdirect_table', $genderTable);
+
+//     // Forward/Backward Table
+//     $fbTable = new Table(['borderSize' => 6, 'borderColor' => '000000', 'alignment' => Jc::CENTER]);
+//     $fbTable->addRow();
+//     $fbTable->addCell(2000, ['vMerge' => 'restart'])->addText('Overall Total', $fontStyle, $paraCenter);
+//     $fbTable->addCell(3000, ['gridSpan' => 3])->addText('Forward', $fontStyle, $paraCenter);
+//     $fbTable->addCell(3000, ['gridSpan' => 3])->addText('Backward', $fontStyle, $paraCenter);
+//     $fbTable->addRow();
+//     $fbTable->addCell(2000, ['vMerge' => 'continue']);
+//     $fbTable->addCell(1000)->addText('Male', $fontStyle, $paraCenter);
+//     $fbTable->addCell(1000)->addText('Female', $fontStyle, $paraCenter);
+//     $fbTable->addCell(1000)->addText('Total', $fontStyle, $paraCenter);
+//     $fbTable->addCell(1000)->addText('Male', $fontStyle, $paraCenter);
+//     $fbTable->addCell(1000)->addText('Female', $fontStyle, $paraCenter);
+//     $fbTable->addCell(1000)->addText('Total', $fontStyle, $paraCenter);
+//     $fbTable->addRow();
+//     $fbTable->addCell(2000)->addText($overallTotal, $fontStyle, $paraCenter);
+//     $fbTable->addCell(1000)->addText($ifMale, $fontStyle, $paraCenter);
+//     $fbTable->addCell(1000)->addText($ifFemale, $fontStyle, $paraCenter);
+//     $fbTable->addCell(1000)->addText($forwardTotal, $fontStyle, $paraCenter);
+//     $fbTable->addCell(1000)->addText($ibMale, $fontStyle, $paraCenter);
+//     $fbTable->addCell(1000)->addText($ibFemale, $fontStyle, $paraCenter);
+//     $fbTable->addCell(1000)->addText($backwardTotal, $fontStyle, $paraCenter);
+//     $templateProcessor->setComplexBlock('newindirect_table', $fbTable);
+
+//     // ✅ FIXED: Create unique temp directory
+//     $tempDir = sys_get_temp_dir() . '/reports_' . uniqid();
+//     if (!is_dir($tempDir)) {
+//         mkdir($tempDir, 0755, true);
+//     }
+    
+//     // ✅ FIXED: Save DOCX with unique name
+//     $docxFilename = 'report_' . $project->project_id . '_' . $report->report_id . '_' . time() . '.docx';
+//     $tempDocx = $tempDir . '/' . $docxFilename;
+    
+//     Log::info('Saving DOCX file', ['path' => $tempDocx]);
+//     $templateProcessor->saveAs($tempDocx);
+    
+//     if (!file_exists($tempDocx)) {
+//         Log::error('DOCX file was not created', ['path' => $tempDocx]);
+//         throw new \Exception('Failed to create DOCX file');
+//     }
+    
+//     Log::info('DOCX file created successfully', [
+//         'path' => $tempDocx,
+//         'size' => filesize($tempDocx)
+//     ]);
+
+//     // ✅ FIXED: Convert to PDF using LibreOffice
+//     Log::info('Converting DOCX to PDF using LibreOffice');
+    
+//     $command = sprintf(
+//         'libreoffice --headless --convert-to pdf --outdir %s %s 2>&1',
+//         escapeshellarg($tempDir),
+//         escapeshellarg($tempDocx)
+//     );
+    
+//     Log::info('Executing conversion command', ['command' => $command]);
+    
+//     exec($command, $output, $returnCode);
+    
+//     Log::info('LibreOffice conversion result', [
+//         'return_code' => $returnCode,
+//         'output' => $output
+//     ]);
+    
+//     if ($returnCode !== 0) {
+//         Log::error('Failed to convert DOCX to PDF', [
+//             'command' => $command,
+//             'output' => $output,
+//             'return_code' => $returnCode
+//         ]);
+//         // Clean up temp directory
+//         $this->cleanupTempDirectory($tempDir);
+//         throw new \Exception('PDF conversion failed: ' . implode("\n", $output));
+//     }
+
+//     // ✅ FIXED: Check for generated PDF
+//     $pdfFilename = str_replace('.docx', '.pdf', $docxFilename);
+//     $tempPdf = $tempDir . '/' . $pdfFilename;
+    
+//     if (!file_exists($tempPdf)) {
+//         Log::error('PDF file was not created', [
+//             'expected_path' => $tempPdf,
+//             'temp_dir_contents' => scandir($tempDir)
+//         ]);
+//         $this->cleanupTempDirectory($tempDir);
+//         throw new \Exception('PDF file was not created by LibreOffice');
+//     }
+    
+//     Log::info('PDF file created successfully', [
+//         'path' => $tempPdf,
+//         'size' => filesize($tempPdf)
+//     ]);
+
+//     // ✅ FIXED: Store in private storage
+//     $storagePath = "reports/report_{$project->project_id}_{$report->report_id}_" . time() . ".pdf";
+    
+//     // Ensure reports directory exists
+//     $reportsDir = storage_path('app/private/reports');
+//     if (!is_dir($reportsDir)) {
+//         mkdir($reportsDir, 0755, true);
+//         Log::info('Created reports directory', ['path' => $reportsDir]);
+//     }
+    
+//     $stored = Storage::disk('private')->put($storagePath, file_get_contents($tempPdf));
+    
+//     if (!$stored) {
+//         Log::error('Failed to store PDF in private storage', ['path' => $storagePath]);
+//         $this->cleanupTempDirectory($tempDir);
+//         throw new \Exception('Failed to store PDF in private storage');
+//     }
+    
+//     Log::info('PDF stored successfully', [
+//         'storage_path' => $storagePath,
+//         'full_path' => Storage::disk('private')->path($storagePath)
+//     ]);
+
+//     // ✅ Clean up temp files
+//     $this->cleanupTempDirectory($tempDir);
+
+//     return $storagePath;
+// }
+
+// /**
+//  * Clean up temporary directory and its contents
+//  */
+// private function cleanupTempDirectory($dir)
+// {
+//     if (!is_dir($dir)) {
+//         return;
+//     }
+    
+//     $files = array_diff(scandir($dir), ['.', '..']);
+//     foreach ($files as $file) {
+//         $path = $dir . '/' . $file;
+//         if (is_file($path)) {
+//             @unlink($path);
+//         }
+//     }
+//     @rmdir($dir);
+    
+//     Log::info('Cleaned up temp directory', ['dir' => $dir]);
+// }
+
+
+
+private function generateReportFile($report_id)
 {
     // Fetch the report (with relations)
     $report = ReportModel::with(['project.company'])->findOrFail($report_id);
@@ -122,16 +627,15 @@ public function downloadReport($report_id)
     $implementIds = ImplementationModel::where('project_id', $project->project_id)->pluck('implement_id');
     $sum_cost = TagModel::whereIn('implement_id', $implementIds)->sum('tag_amount');
 
-
-    // === 1️⃣ PRODUCTS TABLE ===
+    // Products
     $products = ProductModel::where('report_id', $report_id)->get();
 
-    // === 2️⃣ NEW MALE/FEMALE TABLE ===
+    // Gender data
     $newMale   = $report->new_male ?? 0;
     $newFemale = $report->new_female ?? 0;
     $totalNew  = $newMale + $newFemale;
 
-    // === 3️⃣ FORWARD/BACKWARD TABLE ===
+    // Forward/Backward data
     $ifMale   = $report->new_ifmale ?? 0;
     $ifFemale = $report->new_iffemale ?? 0;
     $ibMale   = $report->new_ibmale ?? 0;
@@ -155,7 +659,6 @@ public function downloadReport($report_id)
 
     // Refund Data
     $refunds = $project->refunds;
-
     $totalRefund = $refunds->sum('refund_amount');
     $toRefunded  = $project->project_cost - $totalRefund;
     $unsetRefund = $project->project_cost - $totalRefund;
@@ -175,23 +678,27 @@ public function downloadReport($report_id)
         ? Carbon::parse($oldestUnpaid->month_paid)->format('F Y')
         : 'N/A';
 
-
-    // --- Load Template ONCE ---
+    // Load Template
     $templatePath = storage_path('../public/templates/form.docx');
+    
+    if (!file_exists($templatePath)) {
+        Log::error('Template file not found', ['path' => $templatePath]);
+        throw new \Exception('Template file not found at: ' . $templatePath);
+    }
+    
     $templateProcessor = new TemplateProcessor($templatePath);
 
-    // --- Fill placeholders ---
+    // Fill placeholders
     $templateProcessor->setValue('project_title', $project->project_title);
     $templateProcessor->setValue('owner_name', $ownerName);
     $templateProcessor->setValue('phase_one', $phaseOne);
     $templateProcessor->setValue('release_initial', $releaseInitial);
-    $templateProcessor->setValue('phase_two', $phaseTwo);    $templateProcessor->setValue('project_cost', number_format($project->project_cost, 2));
-
+    $templateProcessor->setValue('phase_two', $phaseTwo);
+    $templateProcessor->setValue('project_cost', number_format($project->project_cost, 2));
     $templateProcessor->setValue('util_remarks', $report->util_remarks);
     $templateProcessor->setValue('problems', $report->problems);
     $templateProcessor->setValue('actions', $report->actions);
     $templateProcessor->setValue('promotional', $report->promotional);
-
     $templateProcessor->setValue('sum_cost', number_format($sum_cost, 2));
     $templateProcessor->setValue('to_refunded', number_format($toRefunded, 2));
     $templateProcessor->setValue('current_date', $currentDate);
@@ -200,258 +707,314 @@ public function downloadReport($report_id)
     $templateProcessor->setValue('unset_refund', number_format($unsetRefund, 2));
     $templateProcessor->setValue('old_unpaid', $oldUnpaid);
 
-    // === Insert Tables ===
-    
-
     $fontStyle = ['color' => '000000', 'size' => 11];
     $paraCenter = ['alignment' => Jc::CENTER];
 
-        // Assuming you already have $projectId and $reportId
+    // Equipment Table
     $approvedItems = ItemModel::where('project_id', $project->project_id)
-        ->where('type', 'equipment')
-        ->where('report', 'approved')
-        ->get();
+    ->where('type', 'equipment')
+    ->where('report', 'approved')
+    ->get();
 
-    $actualItems = ItemModel::where('project_id', $project->project_id)
-        ->where('report', $report->report_id)
-        ->get();
+$actualItems = ItemModel::where('project_id', $project->project_id)
+    ->where('type', 'equipment')
+    ->where('report', $report->report_id)
+    ->get();
 
-    // Create table
-    $equipTable = new Table(['borderSize' => 6, 'borderColor' => '000000']);
+$equipTable = new Table(['borderSize' => 6, 'borderColor' => '000000']);
 
-    // 🔹 Row 1: Header row
-    $equipTable->addRow();
-    $equipTable->addCell(3500, ['gridSpan' => 3])->addText('Approved Equipment', $fontStyle, $paraCenter);
-    $equipTable->addCell(3500, ['gridSpan' => 3])->addText('Actual Acquired', $fontStyle, $paraCenter);
-    $equipTable->addCell(2500, ['vMerge' => 'restart'])->addText('Acknowledge', $fontStyle, $paraCenter);
-    $equipTable->addCell(2000, ['vMerge' => 'restart'])->addText('Remarks', $fontStyle, $paraCenter);
+// ✅ Header Row 1 - This row spans properly now
+$equipTable->addRow(500);
+$equipTable->addCell(3700, ['gridSpan' => 3, 'valign' => 'center'])
+    ->addText('Approved Equipment', $fontStyle, $paraCenter);
+$equipTable->addCell(3700, ['gridSpan' => 3, 'valign' => 'center'])
+    ->addText('Actual Acquired', $fontStyle, $paraCenter);
+$equipTable->addCell(1500, ['vMerge' => 'restart', 'valign' => 'center'])
+    ->addText('Acknowledge', $fontStyle, $paraCenter);
+$equipTable->addCell(1500, ['vMerge' => 'restart', 'valign' => 'center'])
+    ->addText('Remarks', $fontStyle, $paraCenter);
+
+// ✅ Header Row 2 - Sub-headers with proper column continuation
+$equipTable->addRow(500);
+$equipTable->addCell(700, ['valign' => 'center'])->addText('Qty', $fontStyle, $paraCenter);
+$equipTable->addCell(1500, ['valign' => 'center'])->addText('Particulars', $fontStyle, $paraCenter);
+$equipTable->addCell(1500, ['valign' => 'center'])->addText('Cost', $fontStyle, $paraCenter);
+$equipTable->addCell(700, ['valign' => 'center'])->addText('Qty', $fontStyle, $paraCenter);
+$equipTable->addCell(1500, ['valign' => 'center'])->addText('Particulars', $fontStyle, $paraCenter);
+$equipTable->addCell(1500, ['valign' => 'center'])->addText('Cost', $fontStyle, $paraCenter);
+$equipTable->addCell(1500, ['vMerge' => 'continue']); // ✅ Continue Acknowledge merge
+$equipTable->addCell(1500, ['vMerge' => 'continue']); // ✅ Continue Remarks merge
+
+// ✅ Data Rows - Now Acknowledge and Remarks will show
+$maxRows = max($approvedItems->count(), $actualItems->count());
+for ($i = 0; $i < $maxRows; $i++) {
+    $equipTable->addRow(400);
     
-
-    // 🔹 Row 2: Sub-header row
-    $equipTable->addRow();
-    $equipTable->addCell(1000)->addText('Qty', $fontStyle, $paraCenter);
-    $equipTable->addCell(3000)->addText('Particulars', $fontStyle, $paraCenter);
-    $equipTable->addCell(2000)->addText('Cost', $fontStyle, $paraCenter);
-    $equipTable->addCell(1000)->addText('Qty', $fontStyle, $paraCenter);
-    $equipTable->addCell(3000)->addText('Particulars', $fontStyle, $paraCenter);
-    $equipTable->addCell(2000)->addText('Cost', $fontStyle, $paraCenter);
-    $equipTable->addCell(null, ['vMerge' => 'continue']); // continue merge for Existing Market
-    $equipTable->addCell(null, ['vMerge' => 'continue']); // continue merge for Existing Market
-
-  
-    // 🔹 Rows: Data
-    $maxRows = max($approvedItems->count(), $actualItems->count());
-    for ($i = 0; $i < $maxRows; $i++) {
-        $equipTable->addRow();
-
-        // Approved equipment (left side)
-        $approved = $approvedItems->get($i);
-        $equipTable->addCell(1000)->addText($approved->quantity ?? '', ['color' => '000000']);
-        $equipTable->addCell(3000)->addText(
+    // Approved Equipment columns
+    $approved = $approvedItems->get($i);
+    $equipTable->addCell(700, ['valign' => 'center'])
+        ->addText($approved->quantity ?? '', $fontStyle);
+    $equipTable->addCell(1500, ['valign' => 'center'])
+        ->addText(
             isset($approved) ? $approved->item_name . ' - ' . $approved->specifications : '',
-            ['color' => '000000']
+            $fontStyle
         );
-        $equipTable->addCell(2500)->addText($approved->item_cost ?? '', ['color' => '000000']);
+    $equipTable->addCell(1500, ['valign' => 'center'])
+        ->addText($approved->item_cost ?? '', $fontStyle);
 
-        // Actual equipment (right side)
-        $actual = $actualItems->get($i);
-        $equipTable->addCell(1000)->addText($actual->quantity ?? '', ['color' => '000000']);
-        $equipTable->addCell(3000)->addText(
+    // Actual Equipment columns
+    $actual = $actualItems->get($i);
+    $equipTable->addCell(700, ['valign' => 'center'])
+        ->addText($actual->quantity ?? '', $fontStyle);
+    $equipTable->addCell(1500, ['valign' => 'center'])
+        ->addText(
             isset($actual) ? $actual->item_name . ' - ' . $actual->specifications : '',
-            ['color' => '000000']
+            $fontStyle
         );
-        $equipTable->addCell(2500)->addText($actual->item_cost ?? '', ['color' => '000000']);
-        $equipTable->addCell(2500)->addText($actual->acknowledge ?? '', ['color' => '000000']);
-        $equipTable->addCell(2000)->addText($actual->remarks ?? '', ['color' => '000000']);
-    }
-
-    // Add table to your template
-    $templateProcessor->setComplexBlock('equipment_table', $equipTable);
-
-
-
-    // Assuming you already have $projectId and $reportId
-    $approvedNonequip = ItemModel::where('project_id', $project->project_id)
-        ->where('type', 'nonequip')
-        ->where('report', 'approved')
-        ->get();
-
-    $actualNonequip = ItemModel::where('project_id', $project->project_id)
-        ->where('type', 'nonequip')
-        ->where('report', $report->report_id)
-        ->get();
-
-    $nonequipTable = new Table(['borderSize' => 6, 'borderColor' => '000000']);
-
-    // 🔹 Row 1: Header row
-    $nonequipTable->addRow();
-    $nonequipTable->addCell(3500, ['gridSpan' => 3])
-        ->addText('Approved Non-Equipment', $fontStyle, $paraCenter);
-    $nonequipTable->addCell(3500, ['gridSpan' => 3])
-        ->addText('Actual Acquired', $fontStyle, $paraCenter);
-    $nonequipTable->addCell(2500, ['vMerge' => 'restart'])->addText('Acknowledge', $fontStyle, $paraCenter);
-    $nonequipTable->addCell(2000, ['vMerge' => 'restart'])->addText('Remarks', $fontStyle, $paraCenter);
+    $equipTable->addCell(1500, ['valign' => 'center'])
+        ->addText($actual->item_cost ?? '', $fontStyle);
     
+    // ✅ These are the columns that should now show
+    $equipTable->addCell(1500, ['valign' => 'center'])
+        ->addText($actual->acknowledge ?? '', $fontStyle);
+    $equipTable->addCell(1500, ['valign' => 'center'])
+        ->addText($actual->remarks ?? '', $fontStyle);
+}
 
-    // 🔹 Row 2: Sub-header row
-    $nonequipTable->addRow();
-    $nonequipTable->addCell(1000)->addText('Qty', $fontStyle, $paraCenter);
-    $nonequipTable->addCell(3000)->addText('Particulars', $fontStyle, $paraCenter);
-    $nonequipTable->addCell(2500)->addText('Cost', $fontStyle, $paraCenter);
-    $nonequipTable->addCell(1000)->addText('Qty', $fontStyle, $paraCenter);
-    $nonequipTable->addCell(3000)->addText('Particulars', $fontStyle, $paraCenter);
-    $nonequipTable->addCell(2500)->addText('Cost', $fontStyle, $paraCenter);
-    $nonequipTable->addCell(null, ['vMerge' => 'continue']); // continue merge for Existing Market
-    $nonequipTable->addCell(null, ['vMerge' => 'continue']); // continue merge for Existing Market
+$approvedItems = ItemModel::where('project_id', $project->project_id)
+    ->where('type', 'equipment')
+    ->where('report', 'approved')
+    ->get();
 
-    // 🔹 Data rows
-    $maxRowsNonequip = max($approvedNonequip->count(), $actualNonequip->count());
-    for ($i = 0; $i < $maxRowsNonequip; $i++) {
-        $nonequipTable->addRow();
+$actualItems = ItemModel::where('project_id', $project->project_id)
+    ->where('type', 'equipment')
+    ->where('report', $report->report_id)
+    ->get();
 
-        // Approved non-equip (left side)
-        $approved = $approvedNonequip->get($i);
-        $nonequipTable->addCell(1000)->addText($approved->quantity ?? '', ['color' => '000000']);
-        $nonequipTable->addCell(3000)->addText(
+$equipTable = new Table(['borderSize' => 6, 'borderColor' => '000000']);
+
+// ✅ Header Row 1 - This row spans properly now
+$equipTable->addRow(500);
+$equipTable->addCell(3700, ['gridSpan' => 3, 'valign' => 'center'])
+    ->addText('Approved Equipment', $fontStyle, $paraCenter);
+$equipTable->addCell(3700, ['gridSpan' => 3, 'valign' => 'center'])
+    ->addText('Actual Acquired', $fontStyle, $paraCenter);
+$equipTable->addCell(1700, ['vMerge' => 'restart', 'valign' => 'center'])
+    ->addText('Acknowledge', $fontStyle, $paraCenter);
+$equipTable->addCell(1500, ['vMerge' => 'restart', 'valign' => 'center'])
+    ->addText('Remarks', $fontStyle, $paraCenter);
+
+// ✅ Header Row 2 - Sub-headers with proper column continuation
+$equipTable->addRow(500);
+$equipTable->addCell(700, ['valign' => 'center'])->addText('Qty', $fontStyle, $paraCenter);
+$equipTable->addCell(1500, ['valign' => 'center'])->addText('Particulars', $fontStyle, $paraCenter);
+$equipTable->addCell(1500, ['valign' => 'center'])->addText('Cost', $fontStyle, $paraCenter);
+$equipTable->addCell(700, ['valign' => 'center'])->addText('Qty', $fontStyle, $paraCenter);
+$equipTable->addCell(1500, ['valign' => 'center'])->addText('Particulars', $fontStyle, $paraCenter);
+$equipTable->addCell(1500, ['valign' => 'center'])->addText('Cost', $fontStyle, $paraCenter);
+$equipTable->addCell(1700, ['vMerge' => 'continue']); // ✅ Continue Acknowledge merge
+$equipTable->addCell(1500, ['vMerge' => 'continue']); // ✅ Continue Remarks merge
+
+// ✅ Data Rows - Now Acknowledge and Remarks will show
+$maxRows = max($approvedItems->count(), $actualItems->count());
+for ($i = 0; $i < $maxRows; $i++) {
+    $equipTable->addRow(400);
+    
+    // Approved Equipment columns
+    $approved = $approvedItems->get($i);
+    $equipTable->addCell(700, ['valign' => 'center'])
+        ->addText($approved->quantity ?? '', $fontStyle);
+    $equipTable->addCell(1500, ['valign' => 'center'])
+        ->addText(
             isset($approved) ? $approved->item_name . ' - ' . $approved->specifications : '',
-            ['color' => '000000']
+            $fontStyle
         );
-        $nonequipTable->addCell(2000)->addText($approved->item_cost ?? '', ['color' => '000000']);
+    $equipTable->addCell(1500, ['valign' => 'center'])
+        ->addText($approved->item_cost ?? '', $fontStyle);
 
-        // Actual non-equip (right side)
-        $actual = $actualNonequip->get($i);
-        $nonequipTable->addCell(1000)->addText($actual->quantity ?? '', ['color' => '000000']);
-        $nonequipTable->addCell(3000)->addText(
+    // Actual Equipment columns
+    $actual = $actualItems->get($i);
+    $equipTable->addCell(700, ['valign' => 'center'])
+        ->addText($actual->quantity ?? '', $fontStyle);
+    $equipTable->addCell(1500, ['valign' => 'center'])
+        ->addText(
             isset($actual) ? $actual->item_name . ' - ' . $actual->specifications : '',
-            ['color' => '000000']
+            $fontStyle
         );
-        $nonequipTable->addCell(2000)->addText($actual->item_cost ?? '', ['color' => '000000']);
-        $nonequipTable->addCell(2500)->addText($actual->acknowledge ?? '', ['color' => '000000']);
-        $nonequipTable->addCell(2000)->addText($actual->remarks ?? '', ['color' => '000000']);
-    }
+    $equipTable->addCell(1500, ['valign' => 'center'])
+        ->addText($actual->item_cost ?? '', $fontStyle);
+    
+    // ✅ These are the columns that should now show
+    $equipTable->addCell(1700, ['valign' => 'center'])
+        ->addText($actual->acknowledge ?? '', $fontStyle);
+    $equipTable->addCell(1500, ['valign' => 'center'])
+        ->addText($actual->remarks ?? '', $fontStyle);
+}
 
-    // Add to your template (use a different placeholder than equipment table)
-    $templateProcessor->setComplexBlock('nonequip_table', $nonequipTable);
+$templateProcessor->setComplexBlock('equipment_table', $equipTable);
 
+$approvedNonequip = ItemModel::where('project_id', $project->project_id)
+    ->where('type', 'nonequip')
+    ->where('report', 'approved')
+    ->get();
+
+$actualNonequip = ItemModel::where('project_id', $project->project_id)
+    ->where('type', 'nonequip')
+    ->where('report', $report->report_id)
+    ->get();
+
+$nonequipTable = new Table(['borderSize' => 6, 'borderColor' => '000000']);
+
+// ✅ Header Row 1
+$nonequipTable->addRow(500);
+$nonequipTable->addCell(3700, ['gridSpan' => 3, 'valign' => 'center'])
+    ->addText('Approved Non-Equipment', $fontStyle, $paraCenter);
+$nonequipTable->addCell(3700, ['gridSpan' => 3, 'valign' => 'center'])
+    ->addText('Actual Acquired', $fontStyle, $paraCenter);
+$nonequipTable->addCell(1700, ['vMerge' => 'restart', 'valign' => 'center'])
+    ->addText('Acknowledge', $fontStyle, $paraCenter);
+$nonequipTable->addCell(1500, ['vMerge' => 'restart', 'valign' => 'center'])
+    ->addText('Remarks', $fontStyle, $paraCenter);
+
+// ✅ Header Row 2
+$nonequipTable->addRow(500);
+$nonequipTable->addCell(700, ['valign' => 'center'])->addText('Qty', $fontStyle, $paraCenter);
+$nonequipTable->addCell(1500, ['valign' => 'center'])->addText('Particulars', $fontStyle, $paraCenter);
+$nonequipTable->addCell(1500, ['valign' => 'center'])->addText('Cost', $fontStyle, $paraCenter);
+$nonequipTable->addCell(700, ['valign' => 'center'])->addText('Qty', $fontStyle, $paraCenter);
+$nonequipTable->addCell(1500, ['valign' => 'center'])->addText('Particulars', $fontStyle, $paraCenter);
+$nonequipTable->addCell(1500, ['valign' => 'center'])->addText('Cost', $fontStyle, $paraCenter);
+$nonequipTable->addCell(1700, ['vMerge' => 'continue']); // ✅ Continue merge
+$nonequipTable->addCell(1500, ['vMerge' => 'continue']); // ✅ Continue merge
+
+// ✅ Data Rows
+$maxRowsNonequip = max($approvedNonequip->count(), $actualNonequip->count());
+for ($i = 0; $i < $maxRowsNonequip; $i++) {
+    $nonequipTable->addRow(400);
+    
+    // Approved
+    $approved = $approvedNonequip->get($i);
+    $nonequipTable->addCell(700, ['valign' => 'center'])
+        ->addText($approved->quantity ?? '', $fontStyle);
+    $nonequipTable->addCell(1500, ['valign' => 'center'])
+        ->addText(
+            isset($approved) ? $approved->item_name . ' - ' . $approved->specifications : '',
+            $fontStyle
+        );
+    $nonequipTable->addCell(1500, ['valign' => 'center'])
+        ->addText($approved->item_cost ?? '', $fontStyle);
+
+    // Actual
+    $actual = $actualNonequip->get($i);
+    $nonequipTable->addCell(700, ['valign' => 'center'])
+        ->addText($actual->quantity ?? '', $fontStyle);
+    $nonequipTable->addCell(1500, ['valign' => 'center'])
+        ->addText(
+            isset($actual) ? $actual->item_name . ' - ' . $actual->specifications : '',
+            $fontStyle
+        );
+    $nonequipTable->addCell(1500, ['valign' => 'center'])
+        ->addText($actual->item_cost ?? '', $fontStyle);
+    
+    // ✅ These should now show
+    $nonequipTable->addCell(1700, ['valign' => 'center'])
+        ->addText($actual->acknowledge ?? '', $fontStyle);
+    $nonequipTable->addCell(1500, ['valign' => 'center'])
+        ->addText($actual->remarks ?? '', $fontStyle);
+}
+
+$templateProcessor->setComplexBlock('nonequip_table', $nonequipTable);
+
+    // Objectives Table
     $objectiveTable = new Table([
         'borderSize' => 6,
         'borderColor' => '000000',
         'alignment' => Jc::CENTER,
     ]);
 
-    // Get objectives for this project
     $objectives = ObjectiveModel::where('project_id', $project->project_id)->get();
-
-    // Separate approved objectives (expected output)
     $approvedObjectives = $objectives->where('report', 'approved');
-
-    // Get objectives linked to this specific report (actual accomplishments)
     $actualObjectives = $objectives->where('report', $report->report_id);
 
-
-    // --- Header Row ---
     $objectiveTable->addRow();
-    $objectiveTable->addCell(4000)->addText('Expected Output', $fontStyle, $paraCenter);
-    $objectiveTable->addCell(4000)->addText('Actual Accomplishment', $fontStyle, $paraCenter);
-    $objectiveTable->addCell(4000)->addText('Remarks / Justification', $fontStyle, $paraCenter);
+    $objectiveTable->addCell(3500)->addText('Expected Output', $fontStyle, $paraCenter);
+    $objectiveTable->addCell(3500)->addText('Actual Accomplishment', $fontStyle, $paraCenter);
+    $objectiveTable->addCell(3500)->addText('Remarks / Justification', $fontStyle, $paraCenter);
 
-    // --- Data Rows ---
     $maxRows = max($approvedObjectives->count(), $actualObjectives->count());
-
     if ($maxRows === 0) {
-        // No objectives at all
         $objectiveTable->addRow();
-        $objectiveTable->addCell(4000)->addText('N/A', $fontStyle, $paraCenter);
-        $objectiveTable->addCell(4000)->addText('N/A', $fontStyle, $paraCenter);
-        $objectiveTable->addCell(4000)->addText('N/A', $fontStyle, $paraCenter);
+        $objectiveTable->addCell(3500)->addText('N/A', $fontStyle, $paraCenter);
+        $objectiveTable->addCell(3500)->addText('N/A', $fontStyle, $paraCenter);
+        $objectiveTable->addCell(3500)->addText('N/A', $fontStyle, $paraCenter);
     } else {
         for ($i = 0; $i < $maxRows; $i++) {
             $objectiveTable->addRow();
-
-            // Expected Output (approved objective details)
-            $objectiveTable->addCell(4000)->addText(
+            $objectiveTable->addCell(3500)->addText(
                 $approvedObjectives->values()->get($i)->details ?? '',
                 $fontStyle,
                 $paraCenter
             );
-
-            // Actual Accomplishment (from current report)
-            $objectiveTable->addCell(4000)->addText(
+            $objectiveTable->addCell(3500)->addText(
                 $actualObjectives->values()->get($i)->details ?? '',
                 $fontStyle,
                 $paraCenter
             );
-
-            // Remarks/Justification
-            $objectiveTable->addCell(4000)->addText(
+            $objectiveTable->addCell(3500)->addText(
                 $actualObjectives->values()->get($i)->remarks ?? '',
                 $fontStyle,
                 $paraCenter
             );
         }
     }
-
-    // Add to template placeholder
     $templateProcessor->setComplexBlock('objective_table', $objectiveTable);
 
+    // Markets Table
     $markets = MarketModel::where('project_id', $project->project_id)->get();
-
     $existingMarkets = $markets->where('type', 'existing');
     $newMarkets = $markets->where('type', 'new');
 
     $marketTable = new Table([
-    'borderSize' => 6,
-    'borderColor' => '000000',
-    'alignment' => Jc::CENTER,
-]);
+        'borderSize' => 6,
+        'borderColor' => '000000',
+        'alignment' => Jc::CENTER,
+    ]);
 
-// --- Header Row 1 ---
-// First row: Existing Market + merged cell for New Market
-$marketTable->addRow();
-$marketTable->addCell(2000, ['vMerge' => 'restart'])->addText('Existing Market', $fontStyle, $paraCenter);
-$marketTable->addCell(5000, ['gridSpan' => 2])->addText('New Market', $fontStyle, $paraCenter);
-
-// --- Header Row 2 ---
-// Second row: Specify Place + Effective Date under New Market
-$marketTable->addRow();
-$marketTable->addCell(null, ['vMerge' => 'continue']); // continue merge for Existing Market
-$marketTable->addCell(2000)->addText('Specify Place', $fontStyle, $paraCenter);
-$marketTable->addCell(3000)->addText('Effective Date', $fontStyle, $paraCenter);
-
-// --- Data Rows ---
-$maxRows = max($existingMarkets->count(), $newMarkets->count());
-
-if ($maxRows === 0) {
-    // No data at all
     $marketTable->addRow();
-    $marketTable->addCell(2000)->addText('N/A', $fontStyle, $paraCenter);
-    $marketTable->addCell(2000)->addText('N/A', $fontStyle, $paraCenter);
-    $marketTable->addCell(3000)->addText('N/A', $fontStyle, $paraCenter);
-} else {
-    for ($i = 0; $i < $maxRows; $i++) {
-        $marketTable->addRow();
-        // Existing Market
-        $marketTable->addCell(2000)->addText(
-            $existingMarkets->values()->get($i)->place_name ?? '',
-            $fontStyle, $paraCenter
-        );
+    $marketTable->addCell(2000, ['vMerge' => 'restart'])->addText('Existing Market', $fontStyle, $paraCenter);
+    $marketTable->addCell(7000, ['gridSpan' => 2])->addText('New Market', $fontStyle, $paraCenter);
 
-        // New Market - Place + Date
-        $new = $newMarkets->values()->get($i);
-        $marketTable->addCell(2000)->addText($new->place_name ?? '', $fontStyle, $paraCenter);
-        $marketTable->addCell(3000)->addText(
-            isset($new->effective_date) ? Carbon::parse($new->effective_date)->format('F d, Y') : '',
-            $fontStyle,
-            $paraCenter
-        );
+    $marketTable->addRow();
+    $marketTable->addCell(null, ['vMerge' => 'continue']);
+    $marketTable->addCell(4500)->addText('Specify Place', $fontStyle, $paraCenter);
+    $marketTable->addCell(2500)->addText('Effective Date', $fontStyle, $paraCenter);
+
+    $maxRows = max($existingMarkets->count(), $newMarkets->count());
+    if ($maxRows === 0) {
+        $marketTable->addRow();
+        $marketTable->addCell(2000)->addText('N/A', $fontStyle, $paraCenter);
+        $marketTable->addCell(4500)->addText('N/A', $fontStyle, $paraCenter);
+        $marketTable->addCell(2500)->addText('N/A', $fontStyle, $paraCenter);
+    } else {
+        for ($i = 0; $i < $maxRows; $i++) {
+            $marketTable->addRow();
+            $marketTable->addCell(2000)->addText(
+                $existingMarkets->values()->get($i)->place_name ?? '',
+                $fontStyle, $paraCenter
+            );
+            $new = $newMarkets->values()->get($i);
+            $marketTable->addCell(4500)->addText($new->place_name ?? '', $fontStyle, $paraCenter);
+            $marketTable->addCell(2500)->addText(
+                isset($new->effective_date) ? Carbon::parse($new->effective_date)->format('F d, Y') : '',
+                $fontStyle,
+                $paraCenter
+            );
+        }
     }
-}
-    // Add to template placeholder
     $templateProcessor->setComplexBlock('market_table', $marketTable);
 
-
     // Products Table
-    $productTable = new Table(['borderSize' => 6, 'borderColor' => '000000', 'alignment'   => Jc::CENTER]);
+    $productTable = new Table(['borderSize' => 6, 'borderColor' => '000000', 'alignment' => Jc::CENTER]);
     $productTable->addRow();
     $productTable->addCell(3000)->addText('Product', $fontStyle, $paraCenter);
     $productTable->addCell(1500)->addText('Volume', $fontStyle, $paraCenter);
@@ -461,19 +1024,18 @@ if ($maxRows === 0) {
         $productTable->addRow();
         $productTable->addCell(3000)->addText($prod->product_name, $fontStyle, $paraCenter);
         $productTable->addCell(1500)->addText($prod->volume, $fontStyle, $paraCenter);
-        $productTable->addCell(1500)->addText("₱$prod->quarter", $fontStyle, $paraCenter);
+        $productTable->addCell(1500)->addText("Q$prod->quarter", $fontStyle, $paraCenter);
         $productTable->addCell(2000)->addText(number_format($prod->gross_sales, 2), $fontStyle, $paraCenter);
     }
     $templateProcessor->setComplexBlock('products_table', $productTable);
 
-    // Male/Female Table
-    $genderTable = new Table(['borderSize' => 6, 'borderColor' => '000000', 'alignment'   => Jc::CENTER]);
+    // Gender Table
+    $genderTable = new Table(['borderSize' => 6, 'borderColor' => '000000', 'alignment' => Jc::CENTER]);
     $genderTable->addRow();
     $genderTable->addCell(2000)->addText('No. of Employees', $fontStyle, $paraCenter);
     $genderTable->addCell(2000)->addText('No. of Males', $fontStyle, $paraCenter);
     $genderTable->addCell(2000)->addText('No. of Females', $fontStyle, $paraCenter);
     $genderTable->addCell(2000)->addText('No. of Person With Disability', $fontStyle, $paraCenter);
-
     $genderTable->addRow();
     $genderTable->addCell(2000)->addText($totalNew, $fontStyle, $paraCenter);
     $genderTable->addCell(2000)->addText($newMale, $fontStyle, $paraCenter);
@@ -482,26 +1044,19 @@ if ($maxRows === 0) {
     $templateProcessor->setComplexBlock('newdirect_table', $genderTable);
 
     // Forward/Backward Table
-    $fbTable = new Table(['borderSize' => 6, 'borderColor' => '000000', 'alignment'   => Jc::CENTER]);
-
-    // 🔹 Row 1: Header with Overall Total + Forward/Backward headings
+    $fbTable = new Table(['borderSize' => 6, 'borderColor' => '000000', 'alignment' => Jc::CENTER]);
     $fbTable->addRow();
-    $fbTable->addCell(2000, ['vMerge' => 'restart']) // Start vertical merge
-    ->addText('Overall Total', $fontStyle, $paraCenter); // Left-most cell
+    $fbTable->addCell(2000, ['vMerge' => 'restart'])->addText('Overall Total', $fontStyle, $paraCenter);
     $fbTable->addCell(3000, ['gridSpan' => 3])->addText('Forward', $fontStyle, $paraCenter);
     $fbTable->addCell(3000, ['gridSpan' => 3])->addText('Backward', $fontStyle, $paraCenter);
-
-    // 🔹 Row 2: Sub-header with Male | Female | Total for each direction
     $fbTable->addRow();
-    $fbTable->addCell(2000, ['vMerge' => 'continue']); // Continue merged cell
+    $fbTable->addCell(2000, ['vMerge' => 'continue']);
     $fbTable->addCell(1000)->addText('Male', $fontStyle, $paraCenter);
     $fbTable->addCell(1000)->addText('Female', $fontStyle, $paraCenter);
     $fbTable->addCell(1000)->addText('Total', $fontStyle, $paraCenter);
     $fbTable->addCell(1000)->addText('Male', $fontStyle, $paraCenter);
     $fbTable->addCell(1000)->addText('Female', $fontStyle, $paraCenter);
     $fbTable->addCell(1000)->addText('Total', $fontStyle, $paraCenter);
-
-    // 🔹 Row 3: Data row
     $fbTable->addRow();
     $fbTable->addCell(2000)->addText($overallTotal, $fontStyle, $paraCenter);
     $fbTable->addCell(1000)->addText($ifMale, $fontStyle, $paraCenter);
@@ -510,48 +1065,161 @@ if ($maxRows === 0) {
     $fbTable->addCell(1000)->addText($ibMale, $fontStyle, $paraCenter);
     $fbTable->addCell(1000)->addText($ibFemale, $fontStyle, $paraCenter);
     $fbTable->addCell(1000)->addText($backwardTotal, $fontStyle, $paraCenter);
-
     $templateProcessor->setComplexBlock('newindirect_table', $fbTable);
 
+    $tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'reports_' . uniqid();
+    if (!is_dir($tempDir)) {
+        mkdir($tempDir, 0777, true);
+    }
+    
+    $docxFilename = 'report_' . $project->project_id . '_' . $report->report_id . '_' . time() . '.docx';
+    $tempDocx = $tempDir . DIRECTORY_SEPARATOR . $docxFilename;
+    
+    Log::info('Saving DOCX file', ['path' => $tempDocx]);
+    $templateProcessor->saveAs($tempDocx);
+    
+    if (!file_exists($tempDocx)) {
+        Log::error('DOCX file was not created', ['path' => $tempDocx]);
+        $this->cleanupTempDirectory($tempDir);
+        throw new \Exception('Failed to create DOCX file');
+    }
+    
+    Log::info('DOCX file created successfully', [
+        'path' => $tempDocx,
+        'size' => filesize($tempDocx)
+    ]);
 
-    // Generate file
-    $tempFile = tempnam(sys_get_temp_dir(), 'word');
-    $templateProcessor->saveAs($tempFile);
+    // Find LibreOffice
+    $libreOfficePaths = [
+        'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+        'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+        'C:\\Program Files\\LibreOffice\\program\\soffice.com',
+        'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.com',
+    ];
+    
+    $libreOfficePath = null;
+    foreach ($libreOfficePaths as $path) {
+        if (file_exists($path)) {
+            $libreOfficePath = $path;
+            break;
+        }
+    }
+    
+    if (!$libreOfficePath) {
+        Log::error('LibreOffice not found');
+        $this->cleanupTempDirectory($tempDir);
+        throw new \Exception('LibreOffice not found. Please install LibreOffice.');
+    }
 
-    return response()->download($tempFile, "Report_{$project->project_id}.docx")->deleteFileAfterSend(true);
+    // Convert to PDF with better quality settings
+    $command = sprintf(
+        '"%s" --headless --convert-to pdf:writer_pdf_Export --outdir "%s" "%s"',
+        $libreOfficePath,
+        $tempDir,
+        $tempDocx
+    );
+    
+    Log::info('Executing conversion command', ['command' => $command]);
+    
+    $output = [];
+    $returnCode = null;
+    exec($command . ' 2>&1', $output, $returnCode);
+    
+    sleep(2);
+    
+    $pdfFilename = str_replace('.docx', '.pdf', $docxFilename);
+    $tempPdf = $tempDir . DIRECTORY_SEPARATOR . $pdfFilename;
+    
+    if (!file_exists($tempPdf)) {
+        Log::error('PDF file was not created', [
+            'expected_path' => $tempPdf,
+            'temp_dir_contents' => is_dir($tempDir) ? scandir($tempDir) : []
+        ]);
+        $this->cleanupTempDirectory($tempDir);
+        throw new \Exception('PDF file was not created by LibreOffice.');
+    }
+    
+    Log::info('PDF file created successfully', [
+        'path' => $tempPdf,
+        'size' => filesize($tempPdf)
+    ]);
+
+    // Store in private storage
+    $storagePath = "reports/report_{$project->project_id}_{$report->report_id}_" . time() . ".pdf";
+    
+    $reportsDir = storage_path('app/private/reports');
+    if (!is_dir($reportsDir)) {
+        mkdir($reportsDir, 0777, true);
+    }
+    
+    $pdfContent = file_get_contents($tempPdf);
+    $stored = Storage::disk('private')->put($storagePath, $pdfContent);
+    
+    if (!$stored) {
+        Log::error('Failed to store PDF');
+        $this->cleanupTempDirectory($tempDir);
+        throw new \Exception('Failed to store PDF in private storage');
+    }
+    
+    Log::info('PDF stored successfully', ['storage_path' => $storagePath]);
+
+    $this->cleanupTempDirectory($tempDir);
+
+    return $storagePath;
 }
 
-
-
-public function create(ProjectModel $project)
+private function cleanupTempDirectory($dir)
 {
-    Log::info('Opening report creation page', [
-        'project_id' => $project->project_id,
-    ]);
-
-    $project->load([
-        'company',
-        'objectives' => function ($q) {
-            $q->where('report', 'approved');
-        },
-        'items',
-        'refunds',
-        'markets',
-    ]);
-
-    $equipments = $project->items->where('type', 'equipment')->values();
-    $nonequipments = $project->items->where('type', 'nonequip')->values();
-
-    return Inertia::render('Reports/Create', [
-        'project' => $project,
-        'objects' => $project->objectives,
-        'equipments' => $equipments,
-        'nonequipments' => $nonequipments,
-        'refunds' => $project->refunds,
-        'markets' => $project->markets,
-    ]);
+    if (!is_dir($dir)) {
+        return;
+    }
+    
+    try {
+        $files = array_diff(scandir($dir), ['.', '..']);
+        foreach ($files as $file) {
+            $path = $dir . DIRECTORY_SEPARATOR . $file;
+            if (is_file($path)) {
+                @chmod($path, 0777);
+                @unlink($path);
+            }
+        }
+        @rmdir($dir);
+        Log::info('Cleaned up temp directory', ['dir' => $dir]);
+    } catch (\Exception $e) {
+        Log::warning('Failed to cleanup temp directory', [
+            'dir' => $dir,
+            'error' => $e->getMessage()
+        ]);
+    }
 }
+    public function create(ProjectModel $project)
+    {
+        Log::info('Opening report creation page', [
+            'project_id' => $project->project_id,
+        ]);
 
+        $project->load([
+            'company',
+            'objectives' => function ($q) {
+                $q->where('report', 'approved');
+            },
+            'items',
+            'refunds',
+            'markets',
+        ]);
+
+        $equipments = $project->items->where('type', 'equipment')->values();
+        $nonequipments = $project->items->where('type', 'nonequip')->values();
+
+        return Inertia::render('Reports/Create', [
+            'project' => $project,
+            'objects' => $project->objectives,
+            'equipments' => $equipments,
+            'nonequipments' => $nonequipments,
+            'refunds' => $project->refunds,
+            'markets' => $project->markets,
+        ]);
+    }
 
     public function store(Request $request)
     {
@@ -589,178 +1257,198 @@ public function create(ProjectModel $project)
             'nonequipments_actual.*.remarks' => 'nullable|string',
         ]);
 
-       Log::info('Creating new report - validated data received', [
-        'validated' => $validated,
-    ]);
-
-    DB::beginTransaction();
-
-    try {
-        // Create the report
-        $report = ReportModel::create([
-            'project_id'   => $validated['project_id'],
-            'util_remarks' => $validated['util_remarks'] ?? null,
-            'new_male'     => $validated['new_male'] ?? 0,
-            'new_female'   => $validated['new_female'] ?? 0,
-            'new_ifmale'   => $validated['new_ifmale'] ?? 0,
-            'new_iffemale' => $validated['new_iffemale'] ?? 0,
-            'new_ibmale'   => $validated['new_ibmale'] ?? 0,
-            'new_ibfemale' => $validated['new_ibfemale'] ?? 0,
-            'problems'     => $validated['problems'] ?? null,
-            'actions'      => $validated['actions'] ?? null,
-            'promotional'  => $validated['promotional'] ?? null,
+        Log::info('Creating new report - validated data received', [
+            'validated' => $validated,
         ]);
 
-        $reportId = $report->report_id;
+        DB::beginTransaction();
 
-        Log::debug('Report row inserted', [
-            'report_id' => $reportId,
-            'project_id' => $validated['project_id']
-        ]);
+        try {
+            // Create the report
+            $report = ReportModel::create([
+                'project_id'   => $validated['project_id'],
+                'util_remarks' => $validated['util_remarks'] ?? null,
+                'new_male'     => $validated['new_male'] ?? 0,
+                'new_female'   => $validated['new_female'] ?? 0,
+                'new_ifmale'   => $validated['new_ifmale'] ?? 0,
+                'new_iffemale' => $validated['new_iffemale'] ?? 0,
+                'new_ibmale'   => $validated['new_ibmale'] ?? 0,
+                'new_ibfemale' => $validated['new_ibfemale'] ?? 0,
+                'problems'     => $validated['problems'] ?? null,
+                'actions'      => $validated['actions'] ?? null,
+                'promotional'  => $validated['promotional'] ?? null,
+            ]);
 
-        // ✅ Save objectives
-        if (!empty($validated['actual_accom'])) {
-            foreach ($validated['actual_accom'] as $index => $accom) {
-                $remarks = $validated['actual_remarks'][$index] ?? null;
+            $reportId = $report->report_id;
 
-                Log::debug('Inserting objective report', [
-                    'index' => $index,
-                    'actual_accom' => $accom,
-                    'actual_remarks' => $remarks,
-                ]);
+            Log::debug('Report row inserted', [
+                'report_id' => $reportId,
+                'project_id' => $validated['project_id']
+            ]);
 
-                DB::table('tbl_objectives')->insert([
-                    'project_id'     => $validated['project_id'],
-                    'report'      => $reportId,
-                    'details'   => $accom,
-                    'remarks' => $remarks,
-                ]);
-            }
-        } else {
-            Log::info('No actual_accom provided, skipping objectives insert.');
-        }
+            // Save objectives
+            if (!empty($validated['actual_accom'])) {
+                foreach ($validated['actual_accom'] as $index => $accom) {
+                    $remarks = $validated['actual_remarks'][$index] ?? null;
 
-        // ✅ Save products
-        if (!empty($validated['products'])) {
-            foreach ($validated['products'] as $i => $product) {
-                Log::debug('Processing product', ['index' => $i, 'data' => $product]);
-
-                if (!empty($product['product_name'])) {
-                    DB::table('tbl_products')->insert([
-                        'report_id'    => $reportId,
-                        'product_name' => $product['product_name'],
-                        'volume'       => $product['volume'] ?? 0,
-                        'quarter'      => $product['quarter'] ?? 1,
-                        'gross_sales'  => $product['gross_sales'] ?? 0,
+                    Log::debug('Inserting objective report', [
+                        'index' => $index,
+                        'actual_accom' => $accom,
+                        'actual_remarks' => $remarks,
                     ]);
-                    Log::info('Product inserted', ['product_name' => $product['product_name']]);
-                } else {
-                    Log::warning('Skipping product with empty name', ['index' => $i]);
-                }
-            }
-        }
 
-        // ✅ Save new markets
-        if (!empty($validated['markets_new'])) {
-            foreach ($validated['markets_new'] as $i => $market) {
-                Log::debug('Processing market', ['index' => $i, 'data' => $market]);
-
-                if (!empty($market['place_name'])) {
-                    DB::table('tbl_markets')->insert([
-                        'project_id'     => $validated['project_id'],
-                        'place_name'     => $market['place_name'],
-                        'effective_date' => $market['effective_date'],
-                        'type'           => 'new',
+                    DB::table('tbl_objectives')->insert([
+                        'project_id' => $validated['project_id'],
+                        'report'     => $reportId,
+                        'details'    => $accom,
+                        'remarks'    => $remarks,
                     ]);
-                    Log::info('Market inserted', ['place_name' => $market['place_name']]);
-                } else {
-                    Log::warning('Skipping market with empty place_name', ['index' => $i]);
                 }
+            } else {
+                Log::info('No actual_accom provided, skipping objectives insert.');
             }
-        }
 
-        // ✅ Equipment and Non-Equipment inserts
-        Log::debug('Processing equipment and non-equipment actual data');
+            // Save products
+            if (!empty($validated['products'])) {
+                foreach ($validated['products'] as $i => $product) {
+                    Log::debug('Processing product', ['index' => $i, 'data' => $product]);
 
-        if (!empty($validated['equipments_actual'])) {
-            $equipments = DB::table('tbl_items')
-                ->where('project_id', $validated['project_id'])
-                ->where('type', 'equipment')
-                ->where('report', 'approved')
-                ->get();
-
-            foreach ($equipments as $index => $equipment) {
-                if (isset($validated['equipments_actual'][$index])) {
-                    $actualData = $validated['equipments_actual'][$index];
-                    Log::debug('Equipment actual data', ['index' => $index, 'data' => $actualData]);
-
-                    if (!empty($actualData['actual']) || !empty($actualData['acknowledge']) || !empty($actualData['remarks'])) {
-                        DB::table('tbl_items')->insert([
-                            'project_id'    => $validated['project_id'],
-                            'item_name'     => $actualData['actual'] ?? $equipment->item_name,
-                            'specifications'=> $equipment->specifications,
-                            'quantity'      => $equipment->quantity,
-                            'item_cost'     => $equipment->item_cost,
-                            'type'          => 'equipment',
-                            'report'        => $reportId,
-                            'acknowledge'   => $actualData['acknowledge'],
-                            'remarks'       => $actualData['remarks'],
+                    if (!empty($product['product_name'])) {
+                        DB::table('tbl_products')->insert([
+                            'report_id'    => $reportId,
+                            'product_name' => $product['product_name'],
+                            'volume'       => $product['volume'] ?? 0,
+                            'quarter'      => $product['quarter'] ?? 1,
+                            'gross_sales'  => $product['gross_sales'] ?? 0,
                         ]);
-                        Log::info('Equipment inserted', ['item_name' => $actualData['actual'] ?? $equipment->item_name]);
+                        Log::info('Product inserted', ['product_name' => $product['product_name']]);
+                    } else {
+                        Log::warning('Skipping product with empty name', ['index' => $i]);
                     }
                 }
             }
-        }
 
-        if (!empty($validated['nonequipments_actual'])) {
-            $nonequipments = DB::table('tbl_items')
-                ->where('project_id', $validated['project_id'])
-                ->where('type', 'nonequip')
-                ->where('report', 'approved')
-                ->get();
+            // Save new markets
+            if (!empty($validated['markets_new'])) {
+                foreach ($validated['markets_new'] as $i => $market) {
+                    Log::debug('Processing market', ['index' => $i, 'data' => $market]);
 
-            foreach ($nonequipments as $index => $nonequipment) {
-                if (isset($validated['nonequipments_actual'][$index])) {
-                    $actualData = $validated['nonequipments_actual'][$index];
-                    Log::debug('Non-equipment actual data', ['index' => $index, 'data' => $actualData]);
-
-                    if (!empty($actualData['actual']) || !empty($actualData['acknowledge']) || !empty($actualData['remarks'])) {
-                        DB::table('tbl_items')->insert([
-                            'project_id'    => $validated['project_id'],
-                            'item_name'     => $actualData['actual'] ?? $nonequipment->item_name,
-                            'specifications'=> $nonequipment->specifications,
-                            'quantity'      => $nonequipment->quantity,
-                            'item_cost'     => $nonequipment->item_cost,
-                            'type'          => 'nonequip',
-                            'report'        => $reportId,
-                            'acknowledge'   => $actualData['acknowledge'],
-                            'remarks'       => $actualData['remarks'],
+                    if (!empty($market['place_name'])) {
+                        DB::table('tbl_markets')->insert([
+                            'project_id'     => $validated['project_id'],
+                            'place_name'     => $market['place_name'],
+                            'effective_date' => $market['effective_date'],
+                            'type'           => 'new',
                         ]);
-                        Log::info('Non-equipment inserted', ['item_name' => $actualData['actual'] ?? $nonequipment->item_name]);
+                        Log::info('Market inserted', ['place_name' => $market['place_name']]);
+                    } else {
+                        Log::warning('Skipping market with empty place_name', ['index' => $i]);
                     }
                 }
             }
+
+            // Equipment and Non-Equipment inserts
+            Log::debug('Processing equipment and non-equipment actual data');
+
+            if (!empty($validated['equipments_actual'])) {
+                $equipments = DB::table('tbl_items')
+                    ->where('project_id', $validated['project_id'])
+                    ->where('type', 'equipment')
+                    ->where('report', 'approved')
+                    ->get();
+
+                foreach ($equipments as $index => $equipment) {
+                    if (isset($validated['equipments_actual'][$index])) {
+                        $actualData = $validated['equipments_actual'][$index];
+                        Log::debug('Equipment actual data', ['index' => $index, 'data' => $actualData]);
+
+                        if (!empty($actualData['actual']) || !empty($actualData['acknowledge']) || !empty($actualData['remarks'])) {
+                            DB::table('tbl_items')->insert([
+                                'project_id'     => $validated['project_id'],
+                                'item_name'      => $actualData['actual'] ?? $equipment->item_name,
+                                'specifications' => $equipment->specifications,
+                                'quantity'       => $equipment->quantity,
+                                'item_cost'      => $equipment->item_cost,
+                                'type'           => 'equipment',
+                                'report'         => $reportId,
+                                'acknowledge'    => $actualData['acknowledge'],
+                                'remarks'        => $actualData['remarks'],
+                            ]);
+                            Log::info('Equipment inserted', ['item_name' => $actualData['actual'] ?? $equipment->item_name]);
+                        }
+                    }
+                }
+            }
+
+            if (!empty($validated['nonequipments_actual'])) {
+                $nonequipments = DB::table('tbl_items')
+                    ->where('project_id', $validated['project_id'])
+                    ->where('type', 'nonequip')
+                    ->where('report', 'approved')
+                    ->get();
+
+                foreach ($nonequipments as $index => $nonequipment) {
+                    if (isset($validated['nonequipments_actual'][$index])) {
+                        $actualData = $validated['nonequipments_actual'][$index];
+                        Log::debug('Non-equipment actual data', ['index' => $index, 'data' => $actualData]);
+
+                        if (!empty($actualData['actual']) || !empty($actualData['acknowledge']) || !empty($actualData['remarks'])) {
+                            DB::table('tbl_items')->insert([
+                                'project_id'     => $validated['project_id'],
+                                'item_name'      => $actualData['actual'] ?? $nonequipment->item_name,
+                                'specifications' => $nonequipment->specifications,
+                                'quantity'       => $nonequipment->quantity,
+                                'item_cost'      => $nonequipment->item_cost,
+                                'type'           => 'nonequip',
+                                'report'         => $reportId,
+                                'acknowledge'    => $actualData['acknowledge'],
+                                'remarks'        => $actualData['remarks'],
+                            ]);
+                            Log::info('Non-equipment inserted', ['item_name' => $actualData['actual'] ?? $nonequipment->item_name]);
+                        }
+                    }
+                }
+            }
+
+            // Generate PDF file and save to storage
+            try {
+                $filePath = $this->generateReportFile($reportId);
+                
+                // Update report with file path
+                $report->file_path = $filePath;
+                $report->save();
+                
+                Log::info('Report PDF generated and saved', [
+                    'report_id' => $reportId,
+                    'file_path' => $filePath
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to generate PDF', [
+                    'report_id' => $reportId,
+                    'error' => $e->getMessage()
+                ]);
+                // Continue without failing the whole transaction
+            }
+
+            DB::commit();
+
+            Log::notice('Report created successfully', [
+                'project_id' => $validated['project_id'],
+                'report_id'  => $reportId,
+            ]);
+
+            return redirect()->route('reports.index')->with('success', 'Report created successfully.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Failed to create report', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+                'data'    => $validated,
+            ]);
+
+            return back()->withErrors(['error' => 'Failed to create report. Please check logs.']);
         }
-
-        DB::commit();
-
-        Log::notice('Report created successfully', [
-            'project_id' => $validated['project_id'],
-            'report_id'  => $reportId,
-        ]);
-
-        return redirect()->route('reports.index')->with('success', 'Report created successfully.');
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-
-        Log::error('Failed to create report', [
-            'message' => $e->getMessage(),
-            'trace'   => $e->getTraceAsString(),
-            'data'    => $validated,
-        ]);
-
-        return back()->withErrors(['error' => 'Failed to create report. Please check logs.']);
     }
-}
 }

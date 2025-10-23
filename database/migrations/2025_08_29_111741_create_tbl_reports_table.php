@@ -24,7 +24,8 @@ return new class extends Migration
             $table->text('problems')->nullable();
             $table->text('actions')->nullable();
             $table->text('promotional')->nullable();
-            
+            $table->text('file_path')->nullable();
+
             $table->timestamps(); // created_at & updated_at
 
             // Foreign key
