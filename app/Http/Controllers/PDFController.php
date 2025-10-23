@@ -57,7 +57,7 @@ public function getCompanyDetails($id)
 
         $office = OfficeModel::find($company->office_id);
 
-        $templatePath = storage_path('app/templates/template.docx');
+        $templatePath = storage_path('../public/templates/template.docx');
         $templateProcessor = new TemplateProcessor($templatePath);
 
         $templateProcessor->setImageValue('image', [

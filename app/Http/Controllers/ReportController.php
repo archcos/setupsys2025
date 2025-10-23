@@ -177,7 +177,7 @@ public function downloadReport($report_id)
 
 
     // --- Load Template ONCE ---
-    $templatePath = storage_path('app/templates/form.docx');
+    $templatePath = storage_path('../public/templates/form.docx');
     $templateProcessor = new TemplateProcessor($templatePath);
 
     // --- Fill placeholders ---
