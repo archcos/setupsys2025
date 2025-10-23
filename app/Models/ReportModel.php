@@ -26,6 +26,7 @@ class ReportModel extends Model
         'problems',
         'actions',
         'promotional',
+        'file_path'
     ];
 
     public function project()

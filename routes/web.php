@@ -156,12 +156,14 @@ Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
 
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/reports', action: [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/create/{project}', [ReportController::class, 'create'])->name('reports.create');
     Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');
-    Route::get('/reports/download/{report}', [ReportController::class, 'downloadReport'])
-        ->name('reports.download');
     Route::delete('/reports/{id}', [ReportController::class, 'destroy'])->name('reports.destroy');
+    
+    // New routes for viewing and downloading
+    Route::get('/reports/{report_id}/view', [ReportController::class, 'viewReport'])->name('reports.view');
+    Route::get('/reports/{report_id}/download', [ReportController::class, 'downloadReport'])->name('reports.download');
 });
 
 

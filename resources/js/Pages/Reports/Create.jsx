@@ -77,7 +77,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
       specifications: item.specifications,
       quantity: item.quantity,
       item_cost: item.item_cost,
-      acknowledge: "",
+      acknowledge: "Yes",
       remarks: "",
     })),
     nonequipments_actual: nonequipments.map((item) => ({
@@ -85,7 +85,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
       specifications: item.specifications,
       quantity: item.quantity,
       item_cost: item.item_cost,
-      acknowledge: "",
+      acknowledge: "Yes",
       remarks: "",
     })),
   });

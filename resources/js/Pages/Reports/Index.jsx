@@ -34,9 +34,10 @@ function formatReportDate(dateStr) {
 export default function Index({ projects, filters }) {
   const [search, setSearch] = useState(filters.search || "");
   const [perPage, setPerPage] = useState(filters.perPage || 10);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [openDropdown, setOpenDropdown] = useState(null); // track open project
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const [showModal, setShowModal] = useState(false);
+  const [modalUrl, setModalUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const { auth } = usePage().props;
   const role = auth?.user?.role;
@@ -48,6 +49,16 @@ export default function Index({ projects, filters }) {
     }, 400);
     return () => clearTimeout(delay);
   }, [search, perPage]);
+
+  useEffect(() => {
+  const handleEsc = (e) => {
+    if (e.key === "Escape") setShowModal(false);
+  };
+
+  window.addEventListener("keydown", handleEsc);
+  return () => window.removeEventListener("keydown", handleEsc);
+}, []);
+
 
   return (
         <main className="flex-1 p-6 overflow-y-auto">
@@ -142,8 +153,21 @@ export default function Index({ projects, filters }) {
         className="flex items-center justify-between text-xs text-gray-700"
       >
         <span>{formatReportDate(report.created_at)}</span>
+    <div className="flex gap-2">
+          {/* View */}
+      <button
+        onClick={() => {
+          setLoading(true);
+          setModalUrl(route("reports.view", report.report_id));
+          setShowModal(true);
+        }}
+        className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition text-[10px]"
+      >
+        View
+      </button>
 
-        <div className="flex gap-2">
+
+
           {/* Download */}
           <a
             href={route("reports.download", report.report_id)}
@@ -230,6 +254,44 @@ export default function Index({ projects, filters }) {
               )}
             </div>
           </div>
-        </main>
-  );
+{showModal && (
+  <div
+    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn"
+    onClick={() => setShowModal(false)} // Close by clicking outside
+  >
+    <div
+      className="bg-white rounded-xl w-[90%] h-[90%] shadow-2xl relative overflow-hidden animate-slideUp"
+      onClick={(e) => e.stopPropagation()} // Prevent close when clicking inside
+    >
+      {/* Close Button */}
+      <button
+        onClick={() => setShowModal(false)}
+        className="absolute top-3 right-3 p-2 bg-gray-200 rounded-full hover:bg-gray-300 z-50"
+      >
+        <X className="w-5 h-5 text-gray-700" />
+      </button>
+
+      {/* Loading Spinner */}
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-40">
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-400 border-t-transparent"></div>
+        </div>
+      )}
+
+      {/* PDF */}
+      <iframe
+        src={modalUrl}
+        className="w-full h-full rounded-xl"
+        frameBorder="0"
+        onLoad={() => setLoading(false)}
+      />
+    </div>
+  </div>
+)}
+
+
+                    </main>
+                    
+              );
+              
 }
