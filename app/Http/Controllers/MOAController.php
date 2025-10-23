@@ -78,7 +78,7 @@ public function generateFromMoa($moa_id)
     $office = $company->office;
 
     // Load template
-    $templatePath = storage_path('app/templates/template.docx');
+    $templatePath = storage_path('../public/templates/template.docx');
     $templateProcessor = new TemplateProcessor($templatePath);
 
     // Load image
