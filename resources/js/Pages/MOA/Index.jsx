@@ -11,7 +11,11 @@ import {
   Clock,
   Users,
   X,
-  ArrowUpDown
+  ArrowUpDown,
+  Upload,
+  Trash2,
+  FileCheck,
+  AlertCircle
 } from 'lucide-react';
 
 export default function MOAIndex({ moas, filters }) {
@@ -19,10 +23,11 @@ export default function MOAIndex({ moas, filters }) {
   const [perPage, setPerPage] = useState(filters?.perPage || 10);
   const [sortBy, setSortBy] = useState(filters?.sortBy || 'created_at');
   const [sortOrder, setSortOrder] = useState(filters?.sortOrder || 'desc');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const [uploadingMoaId, setUploadingMoaId] = useState(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [moaToDelete, setMoaToDelete] = useState(null);
 
-  const { auth } = usePage().props;
+  const { auth, flash } = usePage().props;
   const isStaff = auth?.user?.role === 'staff';
 
   useEffect(() => {
@@ -66,6 +71,52 @@ export default function MOAIndex({ moas, filters }) {
     });
   };
 
+  const handleFileUpload = (moaId, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('approved_file', file);
+
+    setUploadingMoaId(moaId);
+
+    router.post(`/moa/${moaId}/upload-approved`, formData, {
+      preserveScroll: true,
+      onSuccess: () => {
+        e.target.value = '';
+        setUploadingMoaId(null);
+      },
+      onError: () => {
+        setUploadingMoaId(null);
+      },
+      onFinish: () => {
+        setUploadingMoaId(null);
+      },
+    });
+  };
+
+  const handleDeleteApprovedFile = (moaId) => {
+    setMoaToDelete(moaId);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!moaToDelete) return;
+
+    router.delete(`/moa/${moaToDelete}/delete-approved`, {
+      preserveScroll: true,
+      onFinish: () => {
+        setDeleteModalOpen(false);
+        setMoaToDelete(null);
+      },
+    });
+  };
+
+  const cancelDelete = () => {
+    setDeleteModalOpen(false);
+    setMoaToDelete(null);
+  };
+
   const getStatusBadge = (progress) => {
     const isImplementation = progress === 'Implementation';
     return (
@@ -85,10 +136,13 @@ export default function MOAIndex({ moas, filters }) {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return '—';
     return new Date(dateString).toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'short', 
-      day: 'numeric' 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -109,16 +163,76 @@ export default function MOAIndex({ moas, filters }) {
     <main className="flex-1 p-6 overflow-y-auto">
       <Head title="MOA List" />
 
+      {/* Delete Confirmation Modal - RENDERS OVER EVERYTHING */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Delete Approved MOA File
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Are you sure you want to delete the approved MOA file? This will revert the project status to <span className="font-semibold text-amber-600">Draft MOA</span>.
+                </p>
+                <p className="text-sm text-red-600 font-medium">
+                  This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={cancelDelete}
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
+              >
+                Delete File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
+        {/* Flash Messages */}
+        {flash?.success && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-800">
+            <CheckCircle className="w-5 h-5" />
+            {flash.success}
+          </div>
+        )}
+        {flash?.error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800">
+            <AlertCircle className="w-5 h-5" />
+            {flash.error}
+          </div>
+        )}
+
         {/* Main Content Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Card Header */}
           <div className="bg-gradient-to-r from-gray-50 to-white p-6 border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <FileText className="w-5 h-5 text-purple-600" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <FileText className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">MOA Management</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Upload approved files to automatically set status to Implementation
+                  </p>
+                </div>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900">MOA Management</h2>
             </div>
           </div>
 
@@ -205,7 +319,7 @@ export default function MOAIndex({ moas, filters }) {
                     </button>
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Status & Actions
+                    Status & Files
                   </th>
                 </tr>
               </thead>
@@ -248,55 +362,117 @@ export default function MOAIndex({ moas, filters }) {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center justify-center gap-3">
+                      <div className="flex flex-col gap-3">
                         {/* Status Badge */}
-                        <div className="mb-2">
+                        <div className="flex justify-center">
                           {getStatusBadge(moa.project?.progress)}
                         </div>
                         
-                        <div className="flex items-center gap-2">
-                          {/* Acknowledgment Toggle */}
-                          <label
-                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all duration-200 ${
-                              isStaff 
-                                ? 'cursor-pointer hover:bg-gray-100' 
-                                : 'cursor-not-allowed opacity-50'
-                            }`}
-                            title={!isStaff ? "Only PSTO staff can acknowledge this" : ""}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={moa.project?.progress === 'Implementation'}
-                              disabled={!isStaff}
-                              onChange={(e) => {
-                                const newProgress = e.target.checked ? 'Implementation' : 'Draft MOA';
-                                router.put(`/projects/${moa.project?.project_id}/progress`, {
-                                  progress: newProgress,
-                                }, { preserveState: true });
-                              }}
-                              className={`w-3 h-3 rounded border transition-all ${
-                                isStaff 
-                                  ? 'border-gray-300 text-green-600 focus:ring-green-500' 
-                                  : 'border-gray-200 cursor-not-allowed'
-                              }`}
-                            />
-                            <span className={`${
-                              moa.project?.progress === 'Implementation'
-                                ? 'text-green-700'
-                                : 'text-blue-600'
-                            }`}>
-                              {moa.project?.progress === 'Implementation' ? 'Ack.' : 'Mark'}
-                            </span>
-                          </label>
+                        {/* File Management Section */}
+                        <div className="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg">
+                          {/* Draft File Actions */}
+                          <div className="flex items-center justify-between gap-2 pb-2 border-b border-gray-200">
+                            <span className="text-xs text-gray-600 font-medium">Draft:</span>
+                            <a 
+                              href={`/moa/${moa.moa_id}/docx`}
+                              className="flex items-center gap-1 p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-all"
+                              title="Download Draft MOA"
+                            >
+                              <Download className="w-4 h-4" />
+                              <span className="text-xs font-medium">Download Now</span>
+                            </a>
+                          </div>
 
-                          {/* Download Button */}
-                          <a 
-                            href={`/moa/${moa.moa_id}/docx`}
-                            className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200"
-                            title="Download MOA"
-                          >
-                            <Download className="w-4 h-4" />
-                          </a>
+
+                          {/* Approved File Section */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-gray-600 font-medium">Approved:</span>
+                              {moa.approved_file_path && (
+                                <FileCheck className="w-3 h-3 text-green-600" />
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center gap-1">
+                              {/* Download Approved File */}
+                              {moa.approved_file_path && (
+                                <a 
+                                  href={`/moa/${moa.moa_id}/download-approved`}
+                                  className="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-all"
+                                  title="Download Approved MOA"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </a>
+                              )}
+
+                              {/* Upload Button (Staff Only) */}
+                              {isStaff && (
+                                <label
+                                  className={`flex items-center gap-1 p-1.5 rounded transition-all ${
+                                    uploadingMoaId === moa.moa_id
+                                      ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                                      : 'text-purple-600 hover:text-purple-700 hover:bg-purple-50 cursor-pointer'
+                                  }`}
+                                  title={
+                                    uploadingMoaId === moa.moa_id
+                                      ? "Uploading..."
+                                      : moa.approved_file_path 
+                                      ? "Replace Approved MOA" 
+                                      : "Upload Approved MOA (Sets to Implementation)"
+                                  }
+                                >
+                                  {uploadingMoaId === moa.moa_id ? (
+                                    <>
+                                      <div className="w-4 h-4 border-2 border-gray-300 border-t-purple-600 rounded-full animate-spin" />
+                                      <span className="text-xs font-medium">Uploading...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="w-4 h-4" />
+                                      <span className="text-xs font-medium">Upload Now</span>
+                                    </>
+                                  )}
+
+                                  <input
+                                    type="file"
+                                    accept=".docx,.pdf"
+                                    onChange={(e) => handleFileUpload(moa.moa_id, e)}
+                                    disabled={uploadingMoaId === moa.moa_id}
+                                    className="hidden"
+                                  />
+                                </label>
+                              )}
+
+                              {/* Delete Approved File (Staff Only) */}
+                              {isStaff && moa.approved_file_path && (
+                                <button
+                                  onClick={() => handleDeleteApprovedFile(moa.moa_id)}
+                                  className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-all"
+                                  title="Delete Approved File (Reverts to Draft MOA)"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Approved File Info */}
+                          {moa.approved_file_path && (
+                            <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
+                              <div>Uploaded: {formatDate(moa.approved_file_uploaded_at)}</div>
+                              {moa.approved_by_user && (
+                                <div>By: {moa.approved_by_user.name}</div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Help Text for Staff */}
+                          {isStaff && !moa.approved_file_path && (
+                            <div className="text-xs text-blue-600 pt-2 border-t border-gray-200 flex items-start gap-1">
+                              <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                              <span>Upload approved file to set status to Implementation</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>

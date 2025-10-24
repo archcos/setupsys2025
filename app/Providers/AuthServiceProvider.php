@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\MOAModel;
 use App\Models\ReportModel;
+use App\Policies\MOAPolicy;
 use App\Policies\ReportPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
@@ -14,6 +16,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     protected $policies = [
         ReportModel::class => ReportPolicy::class,
+        MOAModel::class => MOAPolicy::class,
     ];
 
     /**

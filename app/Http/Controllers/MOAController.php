@@ -2,23 +2,31 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use App\Models\MOAModel;
 use App\Models\ProjectModel;
 use App\Models\CompanyModel;
+use App\Models\DirectorModel;
 use App\Models\UserModel;
 use Carbon\Carbon;
-use Carbon\CarbonPeriod;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use \NumberFormatter;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\SimpleType\Jc;
 use PhpOffice\PhpWord\TemplateProcessor;
-use Symfony\Component\Process\Process;
+use Inertia\Inertia;
 
 class MOAController extends Controller
 {
 
+    use AuthorizesRequests;
 public function index(Request $request)
 {
+    $this->authorize('viewAny', MOAModel::class);
+
     $search = $request->input('search');
     $perPage = $request->input('perPage', 10);
     $sortBy = $request->input('sortBy', 'created_at');
@@ -26,7 +34,8 @@ public function index(Request $request)
     $userId = session('user_id');
     $user = UserModel::find($userId);
 
-    $query = MOAModel::with('project.company.office');
+    // Eager load approved_by_user relationship
+    $query = MOAModel::with(['project.company.office', 'approvedByUser']);
 
     if ($search) {
         $query->where(function ($q) use ($search) {
@@ -46,14 +55,11 @@ public function index(Request $request)
         $query->whereRaw('0 = 1');
     }
 
-    // Apply sorting
     if ($sortBy === 'project_cost') {
-        // Join with tbl_projects to sort by project_cost
         $query->join('tbl_projects', 'tbl_moa.project_id', '=', 'tbl_projects.project_id')
               ->orderBy('tbl_projects.project_cost', $sortOrder)
-              ->select('tbl_moa.*'); // Select only MOA columns to avoid conflicts
+              ->select('tbl_moa.*');
     } else {
-        // Sort by MOA table columns (like created_at)
         $query->orderBy('tbl_moa.' . $sortBy, $sortOrder);
     }
 
@@ -66,13 +72,201 @@ public function index(Request $request)
 }
 
 
+public function uploadApprovedFile(Request $request, $moa_id)
+{
+    $moa = MOAModel::with('project.company')->findOrFail($moa_id);
+    $this->authorize('uploadApprovedFile', $moa);
 
+    $validator = Validator::make($request->all(), [
+        'approved_file' => [
+            'required',
+            'file',
+            'mimes:docx,pdf',
+            'max:10240', // 10MB
+        ],
+    ], [
+        'approved_file.required' => 'Please select a file to upload.',
+        'approved_file.mimes' => 'Only DOCX and PDF files are allowed.',
+        'approved_file.max' => 'File size must not exceed 10MB.',
+    ]);
+
+    if ($validator->fails()) {
+        return back()->withErrors($validator)->withInput();
+    }
+
+    try {
+        $file = $request->file('approved_file');
+        $extension = $file->getClientOriginalExtension();
+        
+        // Sanitize project and company names for filename
+        $projectTitle = preg_replace('/[^A-Za-z0-9\-]/', '_', $moa->project->project_title);
+        $projectTitle = substr($projectTitle, 0, 50);
+        
+        $companyName = preg_replace('/[^A-Za-z0-9\-]/', '_', $moa->project->company->company_name);
+        $companyName = substr($companyName, 0, 50);
+        
+        $timestamp = now()->format('Y-m-d_His');
+        $fileName = "MOA_{$projectTitle}_{$companyName}_{$timestamp}.{$extension}";
+        
+        // Delete old file if exists
+        if ($moa->approved_file_path) {
+            try {
+                Storage::disk('private')->delete($moa->approved_file_path);
+                Log::info("Deleted old approved file: {$moa->approved_file_path}");
+            } catch (\Exception $e) {
+                Log::warning("Failed to delete old file: {$e->getMessage()}");
+            }
+        }
+        
+        // Store new file
+        $path = $file->storeAs('moa', $fileName, 'private');
+        
+        if (!$path) {
+            throw new \Exception('Failed to store file on disk');
+        }
+        
+        // Update MOA database
+        $moa->update([
+            'approved_file_path' => $path,
+            'approved_file_uploaded_at' => now(),
+            'approved_by' => session('user_id'),
+        ]);
+
+        // ✅ Automatically update project progress to Implementation
+        $project = $moa->project;
+        $project->progress = 'Implementation';
+        $project->save();
+
+        Log::info("Approved MOA file uploaded and progress updated", [
+            'moa_id' => $moa->moa_id,
+            'file_path' => $path,
+            'uploaded_by' => session('user_id'),
+            'project_progress' => 'Implementation',
+        ]);
+
+        // Send notification
+        $officeUsers = UserModel::where('office_id', $moa->project->company->office_id)
+            ->where('role', 'rpmo')
+            ->get();
+
+        foreach ($officeUsers as $user) {
+            NotificationController::createNotificationAndEmail([
+                'title' => 'Approved MOA Uploaded',
+                'message' => "An approved MOA file has been uploaded for:<br>Project: {$moa->project->project_title}<br>Company: {$moa->project->company->company_name}<br>Status: Implementation",
+                'office_id' => $moa->project->company->office_id,
+                'company_id' => $moa->project->company->company_id,
+            ]);
+        }
+
+        return back()->with('success', 'Approved MOA file uploaded successfully. Project status updated to Implementation.');
+        
+    } catch (\Exception $e) {
+        Log::error('MOA File Upload Error', [
+            'moa_id' => $moa_id,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+        
+        return back()->withErrors([
+            'error' => 'Failed to upload file: ' . $e->getMessage()
+        ]);
+    }
+}
+
+public function deleteApprovedFile($moa_id)
+{
+    try {
+        $moa = MOAModel::with('project.company')->findOrFail($moa_id);
+        $this->authorize('deleteApprovedFile', $moa);
+
+        if (!$moa->approved_file_path) {
+            return back()->withErrors(['error' => 'No approved file to delete.']);
+        }
+
+        $filePath = $moa->approved_file_path;
+        
+        // Delete file from storage
+        if (Storage::disk('private')->exists($filePath)) {
+            Storage::disk('private')->delete($filePath);
+        }
+
+        // Update MOA database
+        $moa->update([
+            'approved_file_path' => null,
+            'approved_file_uploaded_at' => null,
+            'approved_by' => null,
+        ]);
+
+        // ✅ Automatically revert project progress back to Draft MOA
+        $project = $moa->project;
+        $project->progress = 'Draft MOA';
+        $project->save();
+
+        Log::info("Approved MOA file deleted and progress reverted", [
+            'moa_id' => $moa->moa_id,
+            'file_path' => $filePath,
+            'deleted_by' => session('user_id'),
+            'project_progress' => 'Draft MOA',
+        ]);
+
+        return back()->with('success', 'Approved file deleted successfully. Project status reverted to Draft MOA.');
+        
+    } catch (\Exception $e) {
+        Log::error('MOA File Delete Error', [
+            'moa_id' => $moa_id,
+            'error' => $e->getMessage(),
+        ]);
+        
+        return back()->withErrors([
+            'error' => 'Failed to delete file: ' . $e->getMessage()
+        ]);
+    }
+}
+
+public function downloadApprovedFile($moa_id)
+{
+    $moa = MOAModel::findOrFail($moa_id);
+    $this->authorize('downloadApprovedFile', $moa);
+
+    if (!$moa->hasApprovedFile()) {
+        return back()->withErrors(['error' => 'No approved file found for this MOA.']);
+    }
+
+    $filePath = storage_path('app/private/' . $moa->approved_file_path);
+    $fileName = basename($moa->approved_file_path);
+
+    return response()->download($filePath, $fileName);
+}
+
+// public function deleteApprovedFile($moa_id)
+// {
+//     $moa = MOAModel::findOrFail($moa_id);
+//     $this->authorize('deleteApprovedFile', $moa);
+
+//     try {
+//         if ($moa->approved_file_path && Storage::disk('private')->exists($moa->approved_file_path)) {
+//             Storage::disk('private')->delete($moa->approved_file_path);
+//         }
+
+//         $moa->update([
+//             'approved_file_path' => null,
+//             'approved_file_uploaded_at' => null,
+//             'approved_by' => null,
+//         ]);
+
+//         return back()->with('success', 'Approved file deleted successfully.');
+//     } catch (\Exception $e) {
+//         Log::error('MOA File Delete Error: ' . $e->getMessage());
+//         return back()->withErrors(['error' => 'Failed to delete file: ' . $e->getMessage()]);
+//     }
+// }
 
 
 public function generateFromMoa($moa_id)
 {
     // Load MOA with all necessary relationships
     $moa = MOAModel::with(['project.company.office', 'project.items', 'project.activities'])->findOrFail($moa_id);
+    $this->authorize('generate', $moa);
     $project = $moa->project;
     $company = $project->company;
     $office = $company->office;
@@ -369,5 +563,165 @@ public function generateFromMoa($moa_id)
 
         return response()->download($outputPath)->deleteFileAfterSend(true);
     }
+
+
+
+public function showForm(Request $request)
+{
+    $this->authorize('viewAny', MOAModel::class);
+
+    $userId = session('user_id');
+    $user = UserModel::find($userId);
+
+    // Build company query based on user role
+    $companiesQuery = CompanyModel::select('company_id', 'company_name');
+    
+    if ($user->role === 'staff') {
+        $companiesQuery->where('office_id', $user->office_id);
+    } elseif ($user->role !== 'rpmo') {
+        $companiesQuery->whereRaw('0 = 1'); // No access
+    }
+    
+    $companies = $companiesQuery->get();
+    
+    $companyId = $request->query('company_id');
+    $selectedCompany = null;
+    $projects = collect([]);
+
+    if ($companyId) {
+        $selectedCompany = CompanyModel::with('office')->find($companyId);
+        
+        if ($selectedCompany) {
+            // Verify access
+            if ($user->role === 'staff' && $selectedCompany->office_id !== $user->office_id) {
+                abort(403, 'Unauthorized access to this company.');
+            }
+
+            $projects = ProjectModel::where('company_id', $companyId)
+                ->with(['activities', 'items'])
+                ->select('project_id', 'project_title', 'company_id')
+                ->get();
+        }
+    }
+
+    return Inertia::render('MOA/GenerateDocxForm', [
+        'companies' => $companies,
+        'selectedCompany' => $selectedCompany,
+        'projects' => $projects,
+        'filters' => [
+            'company_id' => $companyId,
+        ]
+    ]);
+}
+public function getCompanyDetails($id)
+{
+    try {
+        $company = CompanyModel::with([
+            'projects.activities', // assuming you have correct relations
+            'office'
+        ])->findOrFail($id);
+
+        return response()->json($company);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Server error',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
+
+
+public function generateDocx(Request $request)
+{
+    try {
+        $this->authorize('viewAny', MOAModel::class);
+
+        // Validate
+        $request->validate([
+            'project_id' => 'required|exists:tbl_projects,project_id',
+            'witness' => 'required|string',
+        ]);
+
+        // Load project with relationships
+        $project = ProjectModel::with(['company.office'])
+            ->findOrFail($request->project_id);
+        
+        $company = $project->company;
+        $officeId = $company->office_id;
+
+        // Get owner details
+        $inputName = trim($request->input('owner_name', ''));
+        $inputPosition = trim($request->input('owner_position', ''));
+        
+        $ownerName = !empty($inputName) ? $inputName : ($company->owner_name ?? 'N/A');
+        $ownerPosition = !empty($inputPosition) ? $inputPosition : 'Owner';
+        $witness = $request->input('witness');
+
+        // Process cost in words
+        $costInWords = (new NumberFormatter('en', NumberFormatter::SPELLOUT))
+            ->format($project->project_cost);
+        $costInWords = ucwords($costInWords);
+
+        // Get director details using the office_id from company
+        $director = DirectorModel::where('office_id', $officeId)->first();
+        
+        $pdName = 'N/A';
+        $pdTitle = 'N/A';
+        
+        if ($director) {
+            $middleInitial = $director->middle_name 
+                ? strtoupper(substr($director->middle_name, 0, 1)) . '.' 
+                : '';
+            $pdName = trim("{$director->first_name} {$middleInitial} {$director->last_name}");
+            $pdTitle = $director->title ?? 'N/A';
+        }
+
+        // Save MOA record to database (NO DOCUMENT GENERATION)
+        $moa = MOAModel::updateOrCreate(
+            ['project_id' => $project->project_id],
+            [
+                'office_id' => $officeId,
+                'owner_name' => $ownerName,
+                'owner_position' => $ownerPosition,
+                'witness' => $witness,
+                'pd_name' => $pdName,
+                'pd_title' => $pdTitle,
+                'amount_words' => $costInWords,
+                'project_cost' => $project->project_cost,
+            ]
+        );
+
+        // Send notifications to office users
+        $officeUsers = UserModel::where('office_id', $officeId)
+            ->where('role', '!=', 'user')
+            ->get();
+
+        foreach ($officeUsers as $user) {
+            NotificationController::createNotificationAndEmail([
+                'title' => 'MOA Draft Created',
+                'message' => "A MOA draft has been created for:<br>Project: {$project->project_title}<br>Company: {$company->company_name}",
+                'office_id' => $officeId,
+                'company_id' => $company->company_id,
+            ]);
+        }
+
+        // Update project progress
+        $project->progress = 'Draft MOA';
+        $project->save();
+
+        return redirect()->route('moa.index')
+            ->with('success', 'MOA draft saved successfully. You can now generate the document from the MOA list.');
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return back()->withErrors($e->errors())->withInput();
+    } catch (\Exception $e) {
+        Log::error('MOA Draft Creation Error: ' . $e->getMessage());
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+        
+        return back()->withErrors([
+            'error' => 'Failed to create MOA draft: ' . $e->getMessage()
+        ])->withInput();
+    }
+}
 
 }
