@@ -79,16 +79,16 @@ Route::middleware(['auth'])->group(function () {
 
 //MOA
 Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
-    Route::get('/moa/generate-pdf', [PDFController::class, 'index']);
-    Route::post('/moa/generate-pdf', [PDFController::class, 'generate']);
-
-    Route::get('/draft-moa', [PDFController::class, 'showForm'])->name('docx.form');
-    Route::get('/moa/company/{id}/details', [PDFController::class, 'getCompanyDetails']);
-    Route::post('/moa/generate-docx', [PDFController::class, 'generateDocx'])->name('moa.generateDocx');
+    Route::get('/draft-moa', [MOAController::class, 'showForm'])->name('docx.form');
+    Route::post('/moa/generate-docx', [MOAController::class, 'generateDocx'])->name('moa.generateDocx');
 
     Route::get('/moa', [MOAController::class, 'index'])->name('moa.index');
     Route::get('/moa/{moa_id}/docx', [MOAController::class, 'generateFromMoa'])->name('moa.generate.docx');
-    Route::get('/moa/{moa_id}/pdf', [MOAController::class, 'viewPdf']);
+
+    // New routes for approved file management
+    Route::post('/moa/{moa_id}/upload-approved', [MOAController::class, 'uploadApprovedFile'])->name('moa.upload.approved');
+    Route::get('/moa/{moa_id}/download-approved', [MOAController::class, 'downloadApprovedFile'])->name('moa.download.approved');
+    Route::delete('/moa/{moa_id}/delete-approved', [MOAController::class, 'deleteApprovedFile'])->name('moa.delete.approved');
     Route::get('/review-approval', [ProjectController::class, 'reviewApproval'])
         ->name('projects.review-approval');
     Route::post('/projects/{id}/update-progress', [ProjectController::class, 'updateProgressReview'])

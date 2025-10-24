@@ -20,16 +20,24 @@ return new class extends Migration
             $table->decimal('project_cost', 10, 2);
             $table->string('amount_words', 255);
 
+            // Add approved file columns here (without ->after())
+            $table->string('approved_file_path')->nullable();
+            $table->timestamp('approved_file_uploaded_at')->nullable();
+            $table->unsignedBigInteger('approved_by')->nullable();
+
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
-
-            $table->dateTime('acknowledge_date')->nullable();
-
-            // Foreign key
+        
+            // Foreign keys
             $table->foreign('project_id')
-                  ->references('project_id')
-                  ->on('tbl_projects')
-                  ->onDelete('cascade');
+                    ->references('project_id')
+                    ->on('tbl_projects')
+                    ->onDelete('cascade');
+                    
+            $table->foreign('approved_by')
+                ->references('user_id')
+                ->on('tbl_users')
+                ->onDelete('set null');
         });
     }
 

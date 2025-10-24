@@ -110,12 +110,26 @@ export default function Sidebar({ isOpen }) {
           />
         )}
        {(role === 'rpmo' || role === 'staff') && (
-        <Dropdown
-          title="Review & Approval"
-          icon={<UserCheck2 size={18} />}
-          isOpen={dropdowns.review}
-          onToggle={() => toggleDropdown('review')}
-          links={[
+  <Dropdown
+    title="Review & Approval"
+    icon={<UserCheck2 size={18} />}
+    isOpen={dropdowns.review}
+    onToggle={() => toggleDropdown('review')}
+    links={
+      role === 'staff'
+        ? [
+            { 
+              label: 'Draft MOA', 
+              href: '/draft-moa', 
+              icon: <FileSignature size={16} /> 
+            },
+            { 
+              label: 'MOA List', 
+              href: '/moa', 
+              icon: <FileText size={16} /> 
+            },
+          ]
+        : [
             { 
               label: 'Internal RTEC Review', 
               href: `/review-approval?stage=internal_rtec`, 
@@ -150,10 +164,12 @@ export default function Sidebar({ isOpen }) {
               label: 'MOA List', 
               href: '/moa', 
               icon: <FileText size={16} /> 
-            },      
-          ]}
-        />
+            },
+          ]
+    }
+  />
 )}
+
         {role === 'rpmo' && (
           <Dropdown
             title="Implementation"
