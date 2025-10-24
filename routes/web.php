@@ -155,6 +155,7 @@ Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
 
 
 
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/create/{project}', [ReportController::class, 'create'])->name('reports.create');
@@ -165,6 +166,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/reports/{report_id}/view', [ReportController::class, 'viewReport'])->name('reports.view');
     Route::get('/reports/{report_id}/download', [ReportController::class, 'downloadReport'])->name('reports.download');
 });
+
 
 
 Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {

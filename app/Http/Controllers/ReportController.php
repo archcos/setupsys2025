@@ -114,47 +114,43 @@ class ReportController extends Controller
     }
 
 public function viewReport($report_id)
-    {
-        $userId = Auth::id();
-        $user = UserModel::where('user_id', $userId)->firstOrFail();
-        
-        $report = ReportModel::with(['project.company'])->findOrFail($report_id);
-        
-        // ✅ Now this will work
-        $this->authorize('view', $report);
+{
+    // ✅ Load all required relationships for policy check
+    $report = ReportModel::with(['project.company'])->findOrFail($report_id);
+    
+    // ✅ Authorize AFTER loading relationships
+    $this->authorize('view', $report);
 
-        // Check if file exists
-        if (!$report->file_path || !Storage::disk('private')->exists($report->file_path)) {
-            return redirect()->back()->with('error', 'Report file not found.');
-        }
-
-        // Return the PDF file
-        return response()->file(Storage::disk('private')->path($report->file_path));
+    // Check if file exists
+    if (!$report->file_path || !Storage::disk('private')->exists($report->file_path)) {
+        return redirect()->back()->with('error', 'Report file not found.');
     }
 
-    public function downloadReport($report_id)
-    {
-        $userId = Auth::id();
-        $user = UserModel::where('user_id', $userId)->firstOrFail();
-        
-        $report = ReportModel::with(['project.company'])->findOrFail($report_id);
-        
-        // ✅ Now this will work
-        $this->authorize('view', $report);
+    // Return the PDF file
+    return response()->file(Storage::disk('private')->path($report->file_path));
+}
 
-        // Check if file exists
-        if (!$report->file_path || !Storage::disk('private')->exists($report->file_path)) {
-            return redirect()->back()->with('error', 'Report file not found.');
-        }
+public function downloadReport($report_id)
+{
+    // ✅ Load all required relationships for policy check
+    $report = ReportModel::with(['project.company'])->findOrFail($report_id);
+    
+    // ✅ Authorize AFTER loading relationships
+    $this->authorize('view', $report);
 
-        // Download the PDF file
-        $filePath = Storage::disk('private')->path($report->file_path);
-        
-        return response()->download(
-            $filePath,
-            "Report_{$report->project->project_id}_{$report->report_id}.pdf"
-        );
+    // Check if file exists
+    if (!$report->file_path || !Storage::disk('private')->exists($report->file_path)) {
+        return redirect()->back()->with('error', 'Report file not found.');
     }
+
+    // Download the PDF file
+    $filePath = Storage::disk('private')->path($report->file_path);
+    
+    return response()->download(
+        $filePath,
+        "Report_{$report->project->project_id}_{$report->report_id}.pdf"
+    );
+}
 //FOR LINUX
 // private function generateReportFile($report_id)
 // {
