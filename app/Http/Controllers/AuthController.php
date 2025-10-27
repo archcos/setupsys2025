@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AnnouncementModel;
+use App\Models\BlockedIp;
 use App\Models\FrequencyModel;
 use App\Models\SavedDeviceModel;
 use Illuminate\Http\Request;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Session;
 
 class AuthController extends Controller
@@ -35,11 +37,45 @@ public function index()
 
 public function signin(Request $request)
 {
+    $ip = $request->ip();
+    $key = 'signin:' . $ip;
+
+    // Check if IP is blocked
+    $blocked = BlockedIp::where('ip', $ip)
+        ->where('blocked_until', '>', Carbon::now())
+        ->first();
+
+    if ($blocked) {
+        return back()->withErrors([
+            'message' => 'Your IP is temporarily blocked due to suspicious activity.',
+        ]);
+    }
+
+    // Rate limit sign-in — max 10 attempts per minute
+    if (RateLimiter::tooManyAttempts($key, 10)) {
+        $seconds = RateLimiter::availableIn($key);
+
+        BlockedIp::updateOrCreate(
+            ['ip' => $ip],
+            [
+                'reason' => 'Rate limit exceeded in sign-in',
+                'blocked_until' => Carbon::now()->addYears(10),
+            ]
+        );
+
+        return back()->withErrors([
+            'message' => "Too many sign-in attempts. You are temporarily blocked for 1 hour.",
+        ]);
+    }
+
+    RateLimiter::hit($key, 60); // 1 minute decay
+
+    // Validate login credentials
     $credentials = $request->validate([
         'username' => [
             'required',
             'string',
-            'max:12',
+            'max:20',
             'regex:/^[A-Za-z0-9_]+$/'
         ],
         'password' => [
@@ -50,13 +86,29 @@ public function signin(Request $request)
         ],
     ], [
         'username.regex' => 'Username can only contain letters, numbers, and underscores.',
-        'username.max' => 'Username must not exceed 12 characters.',
+        'username.max' => 'Username must not exceed 20 characters.',
         'password.min' => 'Password must be at least 8 characters.',
     ]);
 
+    // Block anyone trying to log in as "iamsuperadmin"
+    if (strtolower($credentials['username']) === 'iamsuperadmin') {
+        BlockedIp::updateOrCreate(
+            ['ip' => $ip],
+            [
+                'reason' => 'Attempted login as iamsuperadmin',
+                'blocked_until' => Carbon::now()->addHours(1),
+            ]
+        );
+
+        return back()->withErrors([
+            'message' => 'Access denied. Suspicious activity detected.',
+        ]);
+    }
+
+    // Proceed with normal login if not blocked
     $user = UserModel::where('username', $credentials['username'])->first();
 
-    if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+    if (!$user || !Hash::check($credentials['password'], $user->password)) {
         return back()->withErrors(['message' => 'Invalid username or password.']);
     }
 
@@ -64,6 +116,7 @@ public function signin(Request $request)
         return back()->withErrors(['message' => 'Your account is disabled.']);
     }
 
+    // Prevent multiple active sessions
     $hasSession = DB::table('sessions')
         ->where('user_id', $user->user_id)
         ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->timestamp)
@@ -73,14 +126,16 @@ public function signin(Request $request)
         return back()->withErrors(['message' => 'This account is already logged in on another device.']);
     }
 
+    // Login process
     $request->session()->invalidate();
     $request->session()->regenerate();
 
-    Auth::login($user); // automatically stores user_id in session row
+    Auth::login($user);
 
     Session::put('user_id', $user->user_id);
     Session::put('role', $user->role);
 
+    // Track daily login frequency for regular users
     if ($user->role === 'user') {
         $today = Carbon::today()->toDateString();
 
@@ -99,24 +154,86 @@ public function signin(Request $request)
             ]);
         }
     }
-    
+
+    RateLimiter::clear($key);
+
     return $user->role === 'user'
         ? redirect()->route('user.dashboard')
         : redirect()->route('home');
 }
 
 
+
 // //OTP DONT DELETE
 // public function signin(Request $request)
 // {
+//     $ip = $request->ip();
+//     $key = 'signin:' . $ip;
+
+//     // 1. Check if IP is currently blocked
+//     $blocked = BlockedIp::where('ip', $ip)
+//         ->where('blocked_until', '>', Carbon::now())
+//         ->first();
+
+//     if ($blocked) {
+//         return back()->withErrors([
+//             'message' => 'Your IP is temporarily blocked due to suspicious activity.',
+//         ]);
+//     }
+
+//     // 2. Rate limit sign-in attempts — max 10 per minute per IP
+//     if (RateLimiter::tooManyAttempts($key, 10)) {
+//         $seconds = RateLimiter::availableIn($key);
+
+//         BlockedIp::updateOrCreate(
+//             ['ip' => $ip],
+//             [
+//                 'reason' => 'Rate limit exceeded in sign-in',
+//                 'blocked_until' => Carbon::now()->addHours(1),
+//             ]
+//         );
+
+//         return back()->withErrors([
+//             'message' => "Too many sign-in attempts. You are temporarily blocked for 1 hour.",
+//         ]);
+//     }
+
+//     RateLimiter::hit($key, 60); // 1 minute decay
+
+//     // 3. Validate login credentials
 //     $credentials = $request->validate([
-//         'username' => 'required|string',
-//         'password' => 'required|string',
+//         'username' => [
+//             'required',
+//             'string',
+//             'max:12',
+//             'regex:/^[A-Za-z0-9_]+$/'
+//         ],
+//         'password' => 'required|string|min:8|max:255',
+//     ], [
+//         'username.regex' => 'Username can only contain letters, numbers, and underscores.',
+//         'username.max' => 'Username must not exceed 12 characters.',
+//         'password.min' => 'Password must be at least 8 characters.',
 //     ]);
 
+//     // 4. Block attempts to sign in as “iamsuperadmin”
+//     if (strtolower($credentials['username']) === 'iamsuperadmin') {
+//         BlockedIp::updateOrCreate(
+//             ['ip' => $ip],
+//             [
+//                 'reason' => 'Attempted login as iamsuperadmin',
+//                 'blocked_until' => Carbon::now()->addHours(1),
+//             ]
+//         );
+
+//         return back()->withErrors([
+//             'message' => 'Access denied. Suspicious activity detected.',
+//         ]);
+//     }
+
+//     // 5. Check if user exists and credentials match
 //     $user = UserModel::where('username', $credentials['username'])->first();
 
-//     if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+//     if (!$user || !Hash::check($credentials['password'], $user->password)) {
 //         return back()->withErrors(['message' => 'Invalid username or password.']);
 //     }
 
@@ -124,7 +241,7 @@ public function signin(Request $request)
 //         return back()->withErrors(['message' => 'Your account is disabled.']);
 //     }
 
-//     // Check active session
+//     // 6. Check for existing active session
 //     $hasSession = DB::table('sessions')
 //         ->where('user_id', $user->user_id)
 //         ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->timestamp)
@@ -134,7 +251,7 @@ public function signin(Request $request)
 //         return back()->withErrors(['message' => 'This account is already logged in on another device.']);
 //     }
 
-//     // Get device info
+//     // 7. Device info collection
 //     $deviceMac = $request->header('X-Device-ID') ?? $request->ip();
 //     $deviceName = $request->header('User-Agent');
 //     $deviceFingerprint = hash('sha256',
@@ -142,26 +259,25 @@ public function signin(Request $request)
 //         ($request->header('X-Device-ID') ?? $request->ip())
 //     );
 
-//     /**
-//      *  Allow multiple users on the same device fingerprint,
-//      * but require OTP the first time per user.
-//      */
+//     // 8. Check if device already trusted for this user
 //     $trusted = SavedDeviceModel::where('user_id', $user->user_id)
 //         ->where('device_fingerprint', $deviceFingerprint)
 //         ->exists();
 
 //     if ($trusted) {
-//         // This specific user already trusted this device fingerprint
+//         // Device already trusted → Log user in directly
 //         Auth::login($user);
 //         Session::put('user_id', $user->user_id);
 //         Session::put('role', $user->role);
+
+//         RateLimiter::clear($key);
 
 //         return $user->role === 'user'
 //             ? redirect()->route('user.dashboard')
 //             : redirect()->route('home');
 //     }
 
-//     // ✅ If not trusted yet for this user, send OTP
+//     // 9. New device → require OTP verification
 //     $this->sendOtp($user->email);
 
 //     Session::put('pending_user_id', $user->user_id);
@@ -172,6 +288,7 @@ public function signin(Request $request)
 
 //     return redirect()->route('otp.verify.form');
 // }
+
 
 
 // protected function sendOtp($email)
@@ -260,7 +377,7 @@ public function signin(Request $request)
 //     Session::put('user_id', $user->user_id);
 //     Session::put('role', $user->role);
 
-//     // ✅ Always create new record (unique per user_id + fingerprint)
+//     // Always create new record (unique per user_id + fingerprint)
 //     $deviceMac = Session::pull('device_mac');
 //     $deviceName = Session::pull('device_name');
 //     $deviceFingerprint = Session::pull('device_fingerprint');
