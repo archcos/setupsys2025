@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ProjectModel;
 use App\Models\UserModel;
 use App\Models\ActivityModel;
-use App\Models\MOAModel;
+use App\Models\MoaModel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -34,7 +34,7 @@ public function index()
         ->groupBy('project_id')
         ->pluck('last_activity_date', 'project_id');
 
-    $moas = MOAModel::whereIn('project_id', $projectIds)
+    $moas = MoaModel::whereIn('project_id', $projectIds)
         ->get()
         ->keyBy('project_id');
 
