@@ -11,7 +11,7 @@ class AdminUserSeeder extends Seeder
     public function run(): void
     {
         DB::table('tbl_users')->updateOrInsert(
-            ['username' => env('DEFAULT_ADMIN_USERNAME', 'admin')],
+            ['username' => env('DEFAULT_ADMIN_USERNAME', 'iamsuperadmin')],
             [
                 'password' => Hash::make(env('DEFAULT_ADMIN_PASSWORD', 'admin123')),
                 'email' => env('DEFAULT_ADMIN_EMAIL', 'admin@example.com'),
