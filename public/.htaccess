@@ -31,7 +31,7 @@
     AddOutputFilterByType DEFLATE application/javascript
     AddOutputFilterByType DEFLATE text/javascript
 
-    Header add Content-Security-Policy "upgrade-insecure-requests"
+#    Header add Content-Security-Policy "upgrade-insecure-requests"
 
 # </IfModule>
 
