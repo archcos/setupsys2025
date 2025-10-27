@@ -107,6 +107,8 @@ class ReportController extends Controller
         ItemModel::where('report', $id)->delete();
         ObjectiveModel::where('report', $id)->delete();
 
+         // Delete markets linked by report_id
+        MarketModel::where('report_id', $id)->delete();
         // Delete the report
         $report->delete();
 
@@ -1332,6 +1334,7 @@ private function cleanupTempDirectory($dir)
                     if (!empty($market['place_name'])) {
                         DB::table('tbl_markets')->insert([
                             'project_id'     => $validated['project_id'],
+                            'report_id'      => $reportId,
                             'place_name'     => $market['place_name'],
                             'effective_date' => $market['effective_date'],
                             'type'           => 'new',

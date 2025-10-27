@@ -15,6 +15,7 @@ class MarketModel extends Model
 
     protected $fillable = [
         'project_id',
+        'report_id',
         'place_name',
         'effective_date',
         'type'
