@@ -109,7 +109,7 @@ export default function Index({ projects, filters }) {
                       Add Project
                     </Link>
                     
-                    <button
+                    {/* <button
                       onClick={handleSync}
                       disabled={isSyncing}
                       className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 ${
@@ -120,7 +120,7 @@ export default function Index({ projects, filters }) {
                     >
                       <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
                       {isSyncing ? 'Syncing...' : 'Sync CSV'}
-                    </button>
+                    </button> */}
                   </div>
                 </div>
               </div>
