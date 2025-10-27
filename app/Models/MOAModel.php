@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 
-class MOAModel extends Model
+class MoaModel extends Model
 {
     protected $table = 'tbl_moa';
     protected $primaryKey = 'moa_id';
