@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
-use App\Models\MOAModel;
+use App\Models\MoaModel;
 use App\Models\ProjectModel;
 use App\Models\CompanyModel;
 use App\Models\DirectorModel;
@@ -25,7 +25,7 @@ class MOAController extends Controller
     use AuthorizesRequests;
 public function index(Request $request)
 {
-    $this->authorize('viewAny', MOAModel::class);
+    $this->authorize('viewAny', MoaModel::class);
 
     $search = $request->input('search');
     $perPage = $request->input('perPage', 10);
@@ -35,7 +35,7 @@ public function index(Request $request)
     $user = UserModel::find($userId);
 
     // Eager load approved_by_user relationship
-    $query = MOAModel::with(['project.company.office', 'approvedByUser']);
+    $query = MoaModel::with(['project.company.office', 'approvedByUser']);
 
     if ($search) {
         $query->where(function ($q) use ($search) {
@@ -74,7 +74,7 @@ public function index(Request $request)
 
 public function uploadApprovedFile(Request $request, $moa_id)
 {
-    $moa = MOAModel::with('project.company')->findOrFail($moa_id);
+    $moa = MoaModel::with('project.company')->findOrFail($moa_id);
     $this->authorize('uploadApprovedFile', $moa);
 
     $validator = Validator::make($request->all(), [
@@ -176,7 +176,7 @@ public function uploadApprovedFile(Request $request, $moa_id)
 public function deleteApprovedFile($moa_id)
 {
     try {
-        $moa = MOAModel::with('project.company')->findOrFail($moa_id);
+        $moa = MoaModel::with('project.company')->findOrFail($moa_id);
         $this->authorize('deleteApprovedFile', $moa);
 
         if (!$moa->approved_file_path) {
@@ -225,7 +225,7 @@ public function deleteApprovedFile($moa_id)
 
 public function downloadApprovedFile($moa_id)
 {
-    $moa = MOAModel::findOrFail($moa_id);
+    $moa = MoaModel::findOrFail($moa_id);
     $this->authorize('downloadApprovedFile', $moa);
 
     if (!$moa->hasApprovedFile()) {
@@ -265,7 +265,7 @@ public function downloadApprovedFile($moa_id)
 public function generateFromMoa($moa_id)
 {
     // Load MOA with all necessary relationships
-    $moa = MOAModel::with(['project.company.office', 'project.items', 'project.activities'])->findOrFail($moa_id);
+    $moa = MoaModel::with(['project.company.office', 'project.items', 'project.activities'])->findOrFail($moa_id);
     $this->authorize('generate', $moa);
     $project = $moa->project;
     $company = $project->company;
@@ -568,7 +568,7 @@ public function generateFromMoa($moa_id)
 
 public function showForm(Request $request)
 {
-    $this->authorize('viewAny', MOAModel::class);
+    $this->authorize('viewAny', MoaModel::class);
 
     $userId = session('user_id');
     $user = UserModel::find($userId);
@@ -634,7 +634,7 @@ public function getCompanyDetails($id)
 public function generateDocx(Request $request)
 {
     try {
-        $this->authorize('viewAny', MOAModel::class);
+        $this->authorize('viewAny', MoaModel::class);
 
         // Validate
         $request->validate([
@@ -677,7 +677,7 @@ public function generateDocx(Request $request)
         }
 
         // Save MOA record to database (NO DOCUMENT GENERATION)
-        $moa = MOAModel::updateOrCreate(
+        $moa = MoaModel::updateOrCreate(
             ['project_id' => $project->project_id],
             [
                 'office_id' => $officeId,
