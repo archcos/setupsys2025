@@ -36,7 +36,10 @@ import {
   FileInput,
   Check,
   CheckCheck,
-  Stamp
+  Stamp,
+  UserPen,
+  UserCog,
+  AudioLines
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen }) {
@@ -89,9 +92,10 @@ export default function Sidebar({ isOpen }) {
             isOpen={dropdowns.adminpanel}
             onToggle={() => toggleDropdown('adminpanel')}
             links={[
-              { label: 'User Management', href: `/admin/users`, icon: <User size={16} /> },
-              { label: 'Blocked Management', href: `/blocked-ips`, icon: <ShieldAlert size={16} /> },
-              { label: 'Frequency Management', href: `/login-frequency`, icon: <ShieldAlert size={16} /> },
+              { label: 'User Management', href: `/admin/users`, icon: <UserPen size={16} /> },
+              { label: 'Director Management', href: `/admin/directors`, icon: <UserCog size={16} /> },
+              { label: 'Blocking Management', href: `/blocked-ips`, icon: <ShieldAlert size={16} /> },
+              { label: 'Login Frequency Table', href: `/login-frequency`, icon: <AudioLines size={16} /> },
             ]}
           />
         )}

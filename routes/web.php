@@ -9,6 +9,7 @@ use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\Admin\BlockedIpController;
+use App\Http\Controllers\Admin\DirectorController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FrequencyController;
 use App\Http\Controllers\HomeController;
@@ -16,7 +17,6 @@ use App\Http\Controllers\ImplementationController;
 use App\Http\Controllers\MOAController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PageController;
-use App\Http\Controllers\PDFController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TagController;
@@ -89,6 +89,7 @@ Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
     Route::post('/moa/{moa_id}/upload-approved', [MOAController::class, 'uploadApprovedFile'])->name('moa.upload.approved');
     Route::get('/moa/{moa_id}/download-approved', [MOAController::class, 'downloadApprovedFile'])->name('moa.download.approved');
     Route::delete('/moa/{moa_id}/delete-approved', [MOAController::class, 'deleteApprovedFile'])->name('moa.delete.approved');
+    
     Route::get('/review-approval', [ProjectController::class, 'reviewApproval'])
         ->name('projects.review-approval');
     Route::post('/projects/{id}/update-progress', [ProjectController::class, 'updateProgressReview'])
@@ -126,6 +127,11 @@ Route::middleware(['auth', 'role:head'])->group(function () {
 });
 
 Route::middleware(['auth', 'role:head'])->group(function () {
+    Route::get('/admin/directors', [DirectorController::class, 'index'])->name('admin.directors.index');
+    Route::put('/admin/directors/{id}', [DirectorController::class, 'update'])->name('admin.directors.update');
+});
+
+Route::middleware(['auth', 'role:head'])->group(function () {
     Route::get('/blocked-ips', [BlockedIpController::class, 'index'])->name('blocked.ips.index');
     Route::post('/blocked-ips', [BlockedIpController::class, 'store'])->name('blocked.ips.store');
     Route::post('blocked-ips/{id}/block-again', [BlockedIpController::class, 'blockAgain'])->name('blocked.blockAgain');
@@ -145,13 +151,13 @@ Route::middleware(['auth'])->group(function () {
         ->name('refunds.user');
 });
 
-Route::put('/companies/{id}/update-added-by', [CompanyController::class, 'updateAddedBy']);
+// Route::put('/companies/{id}/update-added-by', [CompanyController::class, 'updateAddedBy']);
 
 
 
-Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
-    ->middleware('role:head')
-    ->name('projects.sync');
+// Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
+//     ->middleware('role:head')
+//     ->name('projects.sync');
 
 
 
