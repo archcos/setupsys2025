@@ -2,7 +2,7 @@
 
 namespace App\Policies;
 
-use App\Models\MOAModel;
+use App\Models\MoaModel;
 use App\Models\UserModel;
 
 class MOAPolicy
@@ -12,7 +12,7 @@ class MOAPolicy
         return in_array($user->role, ['rpmo', 'staff']);
     }
 
-    public function view(UserModel $user, MOAModel $moa): bool
+    public function view(UserModel $user, MoaModel $moa): bool
     {
         // RPMO can view all MOAs
         if ($user->role === 'rpmo') {
@@ -27,7 +27,7 @@ class MOAPolicy
         return false;
     }
 
-    public function generate(UserModel $user, MOAModel $moa)
+    public function generate(UserModel $user, MoaModel $moa)
         {
             // RPMO and Head can access all MOAs
             if (in_array($user->role, ['rpmo', 'head'])) {
@@ -42,7 +42,7 @@ class MOAPolicy
             return false;
         }
 
-    public function uploadApprovedFile(UserModel $user, MOAModel $moa): bool
+    public function uploadApprovedFile(UserModel $user, MoaModel $moa): bool
     {
         // Only staff can upload approved MOA files
         if ($user->role !== 'staff') {
@@ -53,7 +53,7 @@ class MOAPolicy
         return $user->office_id === $moa->project->company->office_id;
     }
 
-    public function downloadApprovedFile(UserModel $user, MOAModel $moa): bool
+    public function downloadApprovedFile(UserModel $user, MoaModel $moa): bool
     {
         // RPMO can download all approved files
         if ($user->role === 'rpmo') {
@@ -68,7 +68,7 @@ class MOAPolicy
         return false;
     }
 
-    public function deleteApprovedFile(UserModel $user, MOAModel $moa): bool
+    public function deleteApprovedFile(UserModel $user, MoaModel $moa): bool
     {
         // Only staff can delete approved files from their office
         if ($user->role === 'staff') {

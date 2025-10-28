@@ -15,7 +15,9 @@ import {
   AlertCircle,
   Eye,
   Search,
-  X
+  X,
+  FileCheck,
+  PhilippinePeso
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -25,7 +27,32 @@ export default function Dashboard() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const stages = ['Complete Details', 'Draft MOA', 'Implementation', 'Liquidation', 'Refund', 'Completed'];
+  const stages = ['Complete Details', 'Review & Approval', 'Draft MOA', 'Implementation', 'Liquidation', 'Refund', 'Completed'];
+  
+  const reviewApprovalStages = [
+    'internal_rtec',
+    'internal_compliance',
+    'external_rtec',
+    'external_compliance',
+    'approval',
+    'Approved'
+  ];
+
+  const getReviewApprovalLabel = (progress) => {
+    const labels = {
+      'internal_rtec': 'Internal RTEC',
+      'internal_compliance': 'Internal Compliance',
+      'external_rtec': 'External RTEC',
+      'external_compliance': 'External Compliance',
+      'approval': 'Approval',
+      'Approved': 'Approved'
+    };
+    return labels[progress] || progress;
+  };
+
+  const isReviewApprovalStage = (progress) => {
+    return reviewApprovalStages.includes(progress);
+  };
 
   const openModal = (project) => {
     setSelectedProject(project);
@@ -65,7 +92,12 @@ export default function Dashboard() {
   });
 
   const getProjectProgress = (project) => {
-    const currentStageIndex = stages.indexOf(project.progress);
+    let currentStageIndex;
+    if (isReviewApprovalStage(project.progress)) {
+      currentStageIndex = 1; // Review & Approval is index 1
+    } else {
+      currentStageIndex = stages.indexOf(project.progress);
+    }
     return Math.round((currentStageIndex / (stages.length - 1)) * 100);
   };
 
@@ -78,6 +110,14 @@ export default function Dashboard() {
 
     if (project.progress === 'Completed') {
       return { status: 'completed', color: 'green', message: 'Project completed' };
+    }
+    
+    if (isReviewApprovalStage(project.progress)) {
+      return { 
+        status: 'in-review', 
+        color: 'indigo', 
+        message: `R&A: ${getReviewApprovalLabel(project.progress)}` 
+      };
     }
     
     if (project.progress === 'Implementation') {
@@ -232,12 +272,14 @@ export default function Dashboard() {
                   const statusColors = {
                     completed: 'bg-green-50 border-green-200',
                     'in-progress': 'bg-blue-50 border-blue-200',
+                    'in-review': 'bg-indigo-50 border-indigo-200',
                     'needs-attention': 'bg-orange-50 border-orange-200'
                   };
 
                   const statusTextColors = {
                     completed: 'text-green-700',
                     'in-progress': 'text-blue-700',
+                    'in-review': 'text-indigo-700',
                     'needs-attention': 'text-orange-700'
                   };
 
@@ -282,6 +324,19 @@ export default function Dashboard() {
                       {/* Quick Status Indicators */}
                       <div className="p-6">
                         <div className="space-y-3">
+                          {/* Review & Approval Status */}
+                          {isReviewApprovalStage(project.progress) && (
+                            <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+                              <div className="flex items-center gap-2 mb-2">
+                                <FileCheck className="w-4 h-4 text-indigo-600" />
+                                <span className="text-xs font-medium text-indigo-700">Review & Approval Stage</span>
+                              </div>
+                              <p className="text-sm text-indigo-600 font-medium">
+                                {getReviewApprovalLabel(project.progress)}
+                              </p>
+                            </div>
+                          )}
+
                           {/* Implementation Status */}
                           {project.progress === 'Implementation' && (
                             <div className="bg-gray-50 rounded-lg p-4">
@@ -324,7 +379,9 @@ export default function Dashboard() {
 
                           {/* Current Stage */}
                           <div className="text-xs text-gray-600">
-                            Current Stage: <span className="font-medium text-gray-900">{project.progress}</span>
+                            Current Stage: <span className="font-medium text-gray-900">
+                              {isReviewApprovalStage(project.progress) ? 'Review & Approval' : project.progress}
+                            </span>
                           </div>
                         </div>
 
@@ -378,196 +435,314 @@ export default function Dashboard() {
 
 {/* Project Details Modal */}
 {isModalOpen && selectedProject && (
-  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2">
-    <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full h-[85vh] flex flex-col overflow-hidden">
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 flex justify-between items-center">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <FileText className="w-5 h-5 opacity-80" />
+          <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+            <FileText className="w-5 h-5" />
+          </div>
           <div>
-            <h2 className="text-lg font-bold">{selectedProject.project_title}</h2>
-            <p className="text-blue-100 text-xs">Project Details & Progress</p>
+            <h2 className="text-xl font-bold">{selectedProject.project_title}</h2>
+            <p className="text-blue-50 text-sm opacity-90">Project Timeline & Status</p>
           </div>
         </div>
-        <button onClick={closeModal} className="p-1 hover:bg-white/20 rounded">
+        <button onClick={closeModal} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
           <X className="w-5 h-5" />
         </button>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-6">
         {(() => {
-          const currentStageIndex = stages.indexOf(selectedProject.progress);
-          const hasReached = (stage) => currentStageIndex >= stages.indexOf(stage);
+          const isInReview = isReviewApprovalStage(selectedProject.progress);
+          const currentStageIndex = isInReview ? 1 : stages.indexOf(selectedProject.progress);
+          const hasReached = (stage) => {
+            const stageIdx = stages.indexOf(stage);
+            if (isInReview && stageIdx === 1) return true;
+            return currentStageIndex >= stageIdx;
+          };
           const implementation = selectedProject.implementation || {};
           const tags = implementation.tags || [];
           const projectCost = parseFloat(selectedProject?.project_cost || 0);
           const totalTagged = tags.reduce((sum, t) => sum + parseFloat(t.tag_amount || 0), 0);
           const percentage = projectCost > 0 ? (totalTagged / projectCost) * 100 : 0;
+          const progressPercent = Math.round((currentStageIndex / (stages.length - 1)) * 100);
 
           return (
-            <>
-              {/* Overview */}
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: "Project Cost", value: `₱${projectCost.toLocaleString()}`, color: "blue" },
-                  { label: "Current Stage", value: selectedProject.progress, color: "green" },
-                  { label: "Progress", value: `${Math.round((currentStageIndex / (stages.length - 1)) * 100)}%`, color: "purple" }
-                ].map((card, i) => (
-                  <div key={i} className={`rounded-lg border p-3 bg-${card.color}-50 border-${card.color}-200`}>
-                    <p className={`text-xs font-medium text-${card.color}-600`}>{card.label}</p>
-                    <p className={`text-lg font-bold text-${card.color}-700`}>{card.value}</p>
+            <div className="space-y-5">
+              {/* Overview Cards */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                  <div className="flex items-center gap-2 text-blue-600 mb-1">
+                    <PhilippinePeso className="w-4 h-4" />
+                    <p className="text-xs font-semibold uppercase tracking-wide">Project Cost</p>
                   </div>
-                ))}
+                  <p className="text-2xl font-bold text-blue-700">₱{projectCost.toLocaleString()}</p>
+                </div>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+                  <div className="flex items-center gap-2 text-green-600 mb-1">
+                    <Target className="w-4 h-4" />
+                    <p className="text-xs font-semibold uppercase tracking-wide">Current Stage</p>
+                  </div>
+                  <p className="text-lg font-bold text-green-700 leading-tight">{isInReview ? 'Review & Approval' : selectedProject.progress}</p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+                  <div className="flex items-center gap-2 text-purple-600 mb-1">
+                    <TrendingUp className="w-4 h-4" />
+                    <p className="text-xs font-semibold uppercase tracking-wide">Progress</p>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <p className="text-2xl font-bold text-purple-700">{progressPercent}%</p>
+                    <div className="flex-1 h-2 bg-purple-200 rounded-full overflow-hidden mb-1">
+                      <div className="bg-purple-600 h-full transition-all" style={{ width: `${progressPercent}%` }} />
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Stage Sections */}
-              {[
-                {
-                  title: "Complete Details", icon: FileText, color: "blue",
-                  items: [
-                    { label: "Company Profile", date: selectedProject.company?.created_at ? new Date(selectedProject.company.created_at).toLocaleDateString() : null, status: Boolean(selectedProject.company?.created_at) },
-                    { label: "Project Details", date: selectedProject.last_activity_date, status: hasReached("Complete Details") }
-                  ]
-                },
-                {
-                  title: "Draft MOA", icon: FileText, color: "green",
-                  items: [
-                    { label: "Generated MOA", date: selectedProject.moa?.updated_at, status: hasReached("Draft MOA") },
-                    { label: "Verified MOA", date: selectedProject.moa?.acknowledge_date, status: hasReached("Implementation") }
-                  ]
-                },
-                {
-                  title: "Implementation", icon: Target, color: "orange",
-                  items: [
-                    { label: "Signboard", date: implementation.tarp_upload, status: Boolean(implementation.tarp_upload) },
-                    { label: "Post-Dated Check", date: implementation.pdc_upload, status: Boolean(implementation.pdc_upload) },
-                    { label: "First Untagging (50%)", date: null, status: percentage >= 50 },
-                    { label: "Final Untagging (100%)", date: null, status: percentage >= 100 }
-                  ]
-                },
-                {
-                  title: "Liquidation", icon: BarChart3, color: "purple",
-                  items: [{ label: "Liquidation Report", date: implementation.liquidation_upload, status: Boolean(implementation.liquidation_upload) }]
-                },
-                {
-  title: "Refund", icon: TrendingUp, color: "pink",
-  customContent: (
-    <div className="space-y-2">
-      {/* Refund Period */}
-      {selectedProject.refund?.initial && selectedProject.refund?.end ? (
-        <p className="text-xs text-gray-600">
-          Refund Period: <span className="font-medium">{selectedProject.refund.initial_formatted  }</span> 
-          &nbsp;to&nbsp;
-          <span className="font-medium">{selectedProject.refund.end_formatted}</span>
-        </p>
-      ) : (
-        <p className="text-xs italic text-gray-500">No refund schedule set</p>
-      )}
-
-      {/* Refund Status */}
-{selectedProject.refund?.completed ? (
-  <p className="text-green-600 text-xs font-medium">✅ All refunds are paid</p>
-) : selectedProject.refund?.currentMonthOngoing ? (
-  <div className="flex justify-between items-center">
-    <span className="text-yellow-600 text-xs font-medium">
-      🔄 Refund for this month is ongoing
-    </span>
-    <Link
-      href={`/my-refunds?project=${selectedProject.project_id}`}
-      className="text-blue-600 text-xs underline hover:text-blue-800"
-    >
-      View All Refunds
-    </Link>
-  </div>
-) : (
-  <div className="flex justify-between items-center">
-    <span className="text-gray-600 text-xs">Refunds not yet completed</span>
-    <Link
-      href={`/my-refunds?project=${selectedProject.project_id}`}
-      className="text-blue-600 text-xs underline hover:text-blue-800"
-    >
-      View Refunds
-    </Link>
-  </div>
-)}
-
-      {/* Refund History Scrollable */}
-      {selectedProject.refund?.refunds?.length > 0 && (
-        <div className="mt-2 max-h-28 overflow-y-auto bg-white border rounded-lg p-2">
-          {selectedProject.refund.refunds.map((r, idx) => (
-            <div key={idx} className="flex justify-between text-xs border-b last:border-0 py-1">
-              <span>{r.month_paid}</span>
-              <span className={r.status === 'paid' ? 'text-green-600' : 'text-red-600'}>
-                {r.status}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-},
-                {
-                  title: "Completed", icon: Award, color: "emerald",
-                  items: [{ label: selectedProject.progress === "Completed" ? "Completed" : "Not Yet Completed", date: null, status: selectedProject.progress === "Completed" }]
-                }
-              ].map((stage, i) => {
-                const IconComp = stage.icon;
-                return (
-                  <div key={i} className="bg-gray-50 rounded-lg border p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className={`p-1 rounded bg-${stage.color}-100 text-${stage.color}-600`}><IconComp className="w-4 h-4" /></div>
-                      <h3 className="font-semibold text-gray-800 text-sm">{stage.title}</h3>
+              {/* Timeline */}
+              <div className="space-y-3">
+                {/* Complete Details */}
+                <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-blue-200 transition-colors">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-blue-100">
+                      <FileText className="w-4 h-4 text-blue-600" />
                     </div>
-                    <div className="ml-6 space-y-1">
-                      {stage.customContent ? (
-                        stage.customContent
-                      ) : (
-                        stage.items.map((item, idx) => (
-                          <div key={idx} className="flex items-center gap-2 text-sm">
-                            {renderStatus(item.status)}
-                            <span>{item.label}{item.date && <> – {fmtDate(item.date)}</>}</span>
-                          </div>
-                        ))
-                      )}
-
+                    <h3 className="font-bold text-gray-800">Complete Details</h3>
+                  </div>
+                  <div className="ml-11 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        {renderStatus(Boolean(selectedProject.company?.created_at))}
+                        <span className="text-gray-700">Company Profile</span>
+                      </div>
+                      {selectedProject.company?.created_at && <span className="text-xs text-gray-500">{fmtDate(selectedProject.company.created_at)}</span>}
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        {renderStatus(hasReached("Complete Details"))}
+                        <span className="text-gray-700">Project Details</span>
+                      </div>
+                      {selectedProject.last_activity_date && <span className="text-xs text-gray-500">{fmtDate(selectedProject.last_activity_date)}</span>}
                     </div>
                   </div>
-                );
-              })}
+                </div>
+
+                {/* Review & Approval */}
+                <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-indigo-200 transition-colors">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-indigo-100">
+                      <FileCheck className="w-4 h-4 text-indigo-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-800">Review & Approval</h3>
+                  </div>
+                  <div className="ml-11">
+                    {isInReview ? (
+                      <div className="flex items-center gap-2 p-2 bg-indigo-50 rounded-lg border border-indigo-200">
+                        <Clock className="w-4 h-4 text-indigo-600" />
+                        <span className="text-sm font-medium text-indigo-700">{getReviewApprovalLabel(selectedProject.progress)}</span>
+                      </div>
+                    ) : hasReached("Review & Approval") ? (
+                      <div className="flex items-center gap-2 text-sm text-green-600">
+                        <CheckCircle className="w-5 h-5" />
+                        <span className="font-medium">Completed</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Circle className="w-5 h-5" />
+                        <span>Pending</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Draft MOA */}
+                <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-green-200 transition-colors">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-green-100">
+                      <FileText className="w-4 h-4 text-green-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-800">Draft MOA</h3>
+                  </div>
+                  <div className="ml-11 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        {renderStatus(hasReached("Draft MOA"))}
+                        <span className="text-gray-700">Generated MOA</span>
+                      </div>
+                      {selectedProject.moa?.updated_at && <span className="text-xs text-gray-500">{fmtDate(selectedProject.moa.updated_at)}</span>}
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        {renderStatus(hasReached("Implementation"))}
+                        <span className="text-gray-700">Verified MOA</span>
+                      </div>
+                      {selectedProject.moa?.acknowledge_date && <span className="text-xs text-gray-500">{fmtDate(selectedProject.moa.acknowledge_date)}</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Implementation */}
+                <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-orange-200 transition-colors">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-orange-100">
+                      <Target className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-800">Implementation</h3>
+                  </div>
+                  <div className="ml-11 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        {renderStatus(Boolean(implementation.tarp_upload))}
+                        <span className="text-gray-700">Signboard</span>
+                      </div>
+                      {implementation.tarp_upload && <span className="text-xs text-gray-500">{fmtDate(implementation.tarp_upload)}</span>}
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        {renderStatus(Boolean(implementation.pdc_upload))}
+                        <span className="text-gray-700">Post-Dated Check</span>
+                      </div>
+                      {implementation.pdc_upload && <span className="text-xs text-gray-500">{fmtDate(implementation.pdc_upload)}</span>}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      {renderStatus(percentage >= 50)}
+                      <span className="text-gray-700">First Untagging (50%)</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      {renderStatus(percentage >= 100)}
+                      <span className="text-gray-700">Final Untagging (100%)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Liquidation */}
+                <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-purple-200 transition-colors">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-purple-100">
+                      <BarChart3 className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-800">Liquidation</h3>
+                  </div>
+                  <div className="ml-11">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        {renderStatus(Boolean(implementation.liquidation_upload))}
+                        <span className="text-gray-700">Liquidation Report</span>
+                      </div>
+                      {implementation.liquidation_upload && <span className="text-xs text-gray-500">{fmtDate(implementation.liquidation_upload)}</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Refund */}
+                <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-pink-200 transition-colors">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-pink-100">
+                      <TrendingUp className="w-4 h-4 text-pink-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-800">Refund</h3>
+                  </div>
+                  <div className="ml-11 space-y-2">
+                    {selectedProject.refund?.initial && selectedProject.refund?.end ? (
+                      <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+                        <Calendar className="w-3 h-3" />
+                        <span><span className="font-semibold">{selectedProject.refund.initial_formatted}</span> to <span className="font-semibold">{selectedProject.refund.end_formatted}</span></span>
+                      </div>
+                    ) : (
+                      <p className="text-xs italic text-gray-400">No refund schedule set</p>
+                    )}
+
+                    {selectedProject.refund?.completed ? (
+                      <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                        <CheckCircle className="w-4 h-4" />
+                        <span>All refunds paid</span>
+                      </div>
+                    ) : selectedProject.refund?.currentMonthOngoing ? (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-yellow-600 text-sm font-medium">
+                          <Clock className="w-4 h-4" />
+                          <span>Current month ongoing</span>
+                        </div>
+                        <Link href={`/my-refunds?project=${selectedProject.project_id}`} className="text-blue-600 text-xs font-medium hover:underline">
+                          View All →
+                        </Link>
+                      </div>
+                    ) : (
+                      <Link href={`/my-refunds?project=${selectedProject.project_id}`} className="text-blue-600 text-xs font-medium hover:underline">
+                        View Refunds →
+                      </Link>
+                    )}
+
+                    {selectedProject.refund?.refunds?.length > 0 && (
+                      <div className="mt-2 max-h-24 overflow-y-auto bg-gray-50 rounded-lg p-2 space-y-1">
+                        {selectedProject.refund.refunds.map((r, idx) => (
+                          <div key={idx} className="flex justify-between items-center text-xs">
+                            <span className="text-gray-700">{r.month_paid}</span>
+                            <span className={`font-semibold uppercase text-[10px] px-2 py-0.5 rounded ${r.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {r.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Completed */}
+                <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-emerald-200 transition-colors">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-emerald-100">
+                      <Award className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-800">Completed</h3>
+                  </div>
+                  <div className="ml-11">
+                    <div className="flex items-center gap-2 text-sm">
+                      {renderStatus(selectedProject.progress === "Completed")}
+                      <span className="text-gray-700">{selectedProject.progress === "Completed" ? "Project Completed" : "Not Yet Completed"}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Equipment Untagging */}
               {tags.length > 0 && (
-                <div className="bg-blue-50 rounded-lg border p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="w-4 h-4 text-blue-600" />
-                    <h4 className="font-semibold text-gray-800 text-sm">Equipment Untagging</h4>
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="w-5 h-5 text-blue-600" />
+                    <h4 className="font-bold text-gray-800">Equipment Untagging</h4>
                   </div>
-                  {tags.map((tag, i) => (
-                    <div key={i} className="flex justify-between text-sm py-1">
-                      <span>{tag.tag_name}</span>
-                      <span className="font-semibold text-blue-600">₱{parseFloat(tag.tag_amount).toLocaleString()}</span>
+                  <div className="space-y-1.5">
+                    {tags.map((tag, i) => (
+                      <div key={i} className="flex justify-between items-center text-sm bg-white/60 px-3 py-2 rounded-lg">
+                        <span className="text-gray-700">{tag.tag_name}</span>
+                        <span className="font-bold text-blue-600">₱{parseFloat(tag.tag_amount).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <div className="flex justify-between items-center text-sm mb-2">
+                      <span className="text-gray-700">Total Tagged: <span className="font-bold text-blue-600">₱{totalTagged.toLocaleString()}</span></span>
+                      <span className="text-xs text-gray-600">{percentage.toFixed(1)}% of ₱{projectCost.toLocaleString()}</span>
                     </div>
-                  ))}
-                  <div className="mt-2 text-xs text-gray-700 flex justify-between">
-                    <span>Total: <b className="text-blue-600">₱{totalTagged.toLocaleString()}</b></span>
-                    <span>{percentage.toFixed(1)}% of ₱{selectedProject.project_cost.toLocaleString()}</span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-200 rounded-full mt-1 overflow-hidden">
-                    <div className="bg-blue-500 h-full" style={{ width: `${Math.min(percentage, 100)}%` }} />
+                    <div className="w-full h-3 bg-blue-200 rounded-full overflow-hidden">
+                      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full transition-all" style={{ width: `${Math.min(percentage, 100)}%` }} />
+                    </div>
                   </div>
                 </div>
               )}
-            </>
+            </div>
           );
         })()}
       </div>
 
       {/* Footer */}
-      <div className="bg-gray-50 p-3 border-t flex justify-end">
-        <button onClick={closeModal} className="px-4 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700">
+      <div className="bg-gray-50 px-6 py-3 border-t flex justify-end">
+        <button onClick={closeModal} className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium text-sm">
           Close
         </button>
       </div>
