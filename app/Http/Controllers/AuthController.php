@@ -452,7 +452,7 @@ public function update(Request $request, string $id)
         'first_name'   => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
         'middle_name'  => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
         'last_name'    => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
-        'username'     => ['required', 'string', 'max:12', 'regex:/^[A-Za-z0-9_]+$/', 'unique:tbl_users,username,' . $id . ',user_id'],
+        'username'     => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9_]+$/', 'unique:tbl_users,username,' . $id . ',user_id'],
         'email'        => ['required', 'email', 'max:255', 'unique:tbl_users,email,' . $id . ',user_id'],
         'password'     => [
             'nullable', 'string', 'min:8',
