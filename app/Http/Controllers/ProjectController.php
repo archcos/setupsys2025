@@ -9,7 +9,7 @@ use App\Models\ImplementationModel;
 use App\Models\ItemModel;
 use App\Models\MarketModel;
 use App\Models\MessageModel;
-use App\Models\MOAModel;
+use App\Models\MoaModel;
 use App\Models\UserModel;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -807,7 +807,7 @@ public function updateProgress(Request $request, $id)
         }
 
         // Update acknowledge_date in tbl_moa
-        $moa = MOAModel::where('project_id', $project->project_id)->first();
+        $moa = MoaModel::where('project_id', $project->project_id)->first();
         if ($moa) {
             $moa->acknowledge_date = Carbon::now();
             $moa->save();
