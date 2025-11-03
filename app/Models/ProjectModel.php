@@ -101,4 +101,9 @@ class ProjectModel extends Model
     {
         return $this->hasMany(MessageModel::class, 'project_id', 'project_id')->latest();
     }
+
+    public function rtecs()
+    {
+        return $this->hasMany(RtecModel::class, 'project_id', 'project_id');
+    }
 }
