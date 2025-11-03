@@ -12,7 +12,15 @@ import {
   Package,
   X,
   AlertCircle,
-  PhilippinePesoIcon
+  PhilippinePeso,
+  CheckCircle,
+  Clock,
+  XCircle,
+  FileText,
+  Play,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 
 // Helper to format date string to "MMM YYYY"
@@ -23,25 +31,116 @@ function formatMonthYear(dateStr) {
   return d.toLocaleString('default', { month: 'short', year: 'numeric' });
 }
 
-export default function Index({ projects, filters }) {
+// Helper to get status badge
+function getStatusBadge(progress) {
+  const statusConfig = {
+    'Complete Details': { 
+      icon: Clock, 
+      bg: 'bg-blue-100', 
+      text: 'text-blue-800', 
+      label: 'Pending Review' 
+    },
+    'internal_rtec': { 
+      icon: FileText, 
+      bg: 'bg-yellow-100', 
+      text: 'text-yellow-800', 
+      label: 'Internal RTEC' 
+    },
+    'internal_compliance': { 
+      icon: FileText, 
+      bg: 'bg-yellow-100', 
+      text: 'text-yellow-800', 
+      label: 'Internal Compliance' 
+    },
+    'external_rtec': { 
+      icon: FileText, 
+      bg: 'bg-purple-100', 
+      text: 'text-purple-800', 
+      label: 'External RTEC' 
+    },
+    'external_compliance': { 
+      icon: FileText, 
+      bg: 'bg-orange-100', 
+      text: 'text-orange-800', 
+      label: 'External Compliance' 
+    },
+    'approval': { 
+      icon: Clock, 
+      bg: 'bg-indigo-100', 
+      text: 'text-indigo-800', 
+      label: 'Awaiting Approval' 
+    },
+    'Approved': { 
+      icon: CheckCircle, 
+      bg: 'bg-green-100', 
+      text: 'text-green-800', 
+      label: 'Approved' 
+    },
+    'Draft MOA': { 
+      icon: FileText, 
+      bg: 'bg-cyan-100', 
+      text: 'text-cyan-800', 
+      label: 'Draft MOA' 
+    },
+    'Implementation': { 
+      icon: Play, 
+      bg: 'bg-teal-100', 
+      text: 'text-teal-800', 
+      label: 'Implementation' 
+    },
+    'Disapproved': { 
+      icon: XCircle, 
+      bg: 'bg-red-100', 
+      text: 'text-red-800', 
+      label: 'Disapproved' 
+    },
+  };
+
+  const config = statusConfig[progress] || { 
+    icon: Clock, 
+    bg: 'bg-gray-100', 
+    text: 'text-gray-800', 
+    label: progress || 'Unknown' 
+  };
+
+  const Icon = config.icon;
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+      <Icon className="w-3.5 h-3.5" />
+      {config.label}
+    </span>
+  );
+}
+
+export default function Index({ projects, filters, offices }) {
   const [search, setSearch] = useState(filters.search || '');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [perPage, setPerPage] = useState(filters.perPage || 10);
+  const [sortField, setSortField] = useState(filters.sortField || 'project_title');
+  const [sortDirection, setSortDirection] = useState(filters.sortDirection || 'asc');
+  const [officeFilter, setOfficeFilter] = useState(filters.officeFilter || '');
   const [selectedProject, setSelectedProject] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const { auth } = usePage().props;
   const role = auth?.user?.role;
 
   useEffect(() => {
     const delaySearch = setTimeout(() => {
-      router.get('/projects', { search }, { preserveState: true, replace: true });
+      router.get('/projects', { 
+        search, 
+        perPage,
+        sortField,
+        sortDirection,
+        officeFilter
+      }, { 
+        preserveState: true, 
+        replace: true 
+      });
     }, 400);
     return () => clearTimeout(delaySearch);
-  }, [search]);
+  }, [search, officeFilter]);
 
   useEffect(() => {
     const handleEsc = (e) => {
@@ -49,10 +148,35 @@ export default function Index({ projects, filters }) {
         setShowDeleteModal(false);
       }
     };
-
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
+
+  const handleSort = (field) => {
+    const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
+    setSortField(field);
+    setSortDirection(newDirection);
+    
+    router.get('/projects', {
+      search,
+      perPage,
+      sortField: field,
+      sortDirection: newDirection,
+      officeFilter
+    }, {
+      preserveScroll: true,
+      preserveState: true,
+    });
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-4 h-4 text-gray-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-4 h-4 text-blue-600" />
+      : <ArrowDown className="w-4 h-4 text-blue-600" />;
+  };
 
   const handleDeleteClick = (project) => {
     if (role !== 'rpmo') {
@@ -82,34 +206,24 @@ export default function Index({ projects, filters }) {
     router.get('/projects', {
       search,
       perPage: newPerPage,
+      sortField,
+      sortDirection,
+      officeFilter
     }, {
       preserveScroll: true,
       preserveState: true,
     });
   };
 
-  const handleSync = () => {
-    if (confirm('Sync projects from CSV?')) {
-      setIsSyncing(true);
-      router.post('/projects/sync', {}, {
-        preserveScroll: true,
-        onSuccess: () => {
-          alert('CSV sync complete!');
-          setIsSyncing(false);
-        },
-        onError: () => {
-          alert('Failed to sync CSV.');
-          setIsSyncing(false);
-        },
-      });
-    }
+  const handleOfficeFilterChange = (e) => {
+    const newOffice = e.target.value;
+    setOfficeFilter(newOffice);
   };
 
   return (
     <main className="flex-1 p-6 overflow-y-auto">
       <Head title="Projects" />
       <div className="max-w-7xl mx-auto">
-        {/* Main Content Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Card Header */}
           <div className="bg-gray-50 p-6 border-b border-gray-100">
@@ -136,7 +250,6 @@ export default function Index({ projects, filters }) {
           {/* Filters Section */}
           <div className="p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
             <div className="flex flex-col lg:flex-row gap-4">
-              {/* Search Bar */}
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
@@ -156,7 +269,22 @@ export default function Index({ projects, filters }) {
                 )}
               </div>
 
-              {/* Per Page Selector */}
+              <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm min-w-[200px]">
+                <Building2 className="w-4 h-4 text-gray-400" />
+                <select
+                  value={officeFilter}
+                  onChange={handleOfficeFilterChange}
+                  className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1"
+                >
+                  <option value="">All Offices</option>
+                  {offices && offices.map((office) => (
+                    <option key={office.office_id} value={office.office_id}>
+                      {office.office_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm">
                 <select
                   value={perPage}
@@ -178,10 +306,14 @@ export default function Index({ projects, filters }) {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleSort('project_title')}
+                      className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                    >
                       <Building2 className="w-4 h-4" />
                       Project Title and Company
-                    </div>
+                      {getSortIcon('project_title')}
+                    </button>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
@@ -196,10 +328,24 @@ export default function Index({ projects, filters }) {
                     </div>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <PhilippinePesoIcon className="w-4 h-4" />
+                    <button
+                      onClick={() => handleSort('project_cost')}
+                      className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                    >
+                      <PhilippinePeso className="w-4 h-4" />
                       Project Cost
-                    </div>
+                      {getSortIcon('project_cost')}
+                    </button>
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <button
+                      onClick={() => handleSort('progress')}
+                      className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      Status
+                      {getSortIcon('progress')}
+                    </button>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
@@ -214,7 +360,6 @@ export default function Index({ projects, filters }) {
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {projects.data.map((project) => {
-                  // Format dates or fallback to '-'
                   const phaseOneInitial = formatMonthYear(project.release_initial);
                   const phaseOneEnd = formatMonthYear(project.release_end);
                   const phaseTwoInitial = formatMonthYear(project.refund_initial);
@@ -248,9 +393,12 @@ export default function Index({ projects, filters }) {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-gray-900">
-                            {project.project_cost ? `₱${project.project_cost}` : '-'}
+                            {project.project_cost ? `₱${parseFloat(project.project_cost).toLocaleString()}` : '-'}
                           </span>
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {getStatusBadge(project.progress)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -421,7 +569,6 @@ function ProjectModal({ project, isOpen, onClose }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        {/* Modal Header */}
         <div className="bg-blue-500 p-6 rounded-t-2xl text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -442,10 +589,8 @@ function ProjectModal({ project, isOpen, onClose }) {
           </div>
         </div>
 
-        {/* Modal Content */}
         <div className="p-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Project Information */}
             <div className="space-y-6">
               <div className="bg-blue-50 rounded-xl p-5 border border-blue-200">
                 <div className="flex items-center gap-3 mb-4">
@@ -473,11 +618,11 @@ function ProjectModal({ project, isOpen, onClose }) {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <PhilippinePesoIcon className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
+                    <PhilippinePeso className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div>
                       <p className="text-sm font-medium text-gray-600">Project Cost</p>
                       <p className="text-gray-900 font-semibold">
-                        {project.project_cost ? `₱${project.project_cost}` : 'Not specified'}
+                        {project.project_cost ? `₱${parseFloat(project.project_cost).toLocaleString()}` : 'Not specified'}
                       </p>
                     </div>
                   </div>
@@ -501,7 +646,6 @@ function ProjectModal({ project, isOpen, onClose }) {
               </div>
             </div>
 
-            {/* Project Items */}
             <div className="space-y-6">
               <div className="bg-green-50 rounded-xl p-5 border border-green-200">
                 <div className="flex items-center gap-3 mb-4">
@@ -526,7 +670,7 @@ function ProjectModal({ project, isOpen, onClose }) {
                           </div>
                           <div>
                             <p className="text-xs text-gray-500">Cost</p>
-                            <p className="font-medium text-green-600">₱{item.item_cost}</p>
+                            <p className="font-medium text-green-600">₱{parseFloat(item.item_cost).toLocaleString()}</p>
                           </div>
                         </div>
                       </div>
@@ -543,7 +687,6 @@ function ProjectModal({ project, isOpen, onClose }) {
           </div>
         </div>
 
-        {/* Modal Footer */}
         <div className="bg-gray-50 px-6 py-4 rounded-b-2xl border-t border-gray-200">
           <div className="flex justify-end gap-3">
             <button

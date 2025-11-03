@@ -229,22 +229,6 @@ export default function Home() {
                 <p className="text-xs text-gray-600">Distribution for {selectedYear}</p>
               </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <Calendar className="w-3 h-3 text-gray-500" />
-              <label className="text-xs font-medium text-gray-700">Year:</label>
-              <select
-                value={selectedYear}
-                onChange={handleYearChange}
-                className="pl-2 pr-6 py-1 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-              >
-                {availableYears.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
           <div className="space-y-2">

@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProjectModel;
-use App\Models\UserModel;
 use App\Models\OfficeModel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class HomeController extends Controller
@@ -13,8 +13,7 @@ class HomeController extends Controller
     public function index(Request $request)
     {
         $year = $request->input('year') ?? date('Y');
-        $userId = session('user_id');
-        $user = UserModel::find($userId);
+        $user = Auth::user();
 
         $query = ProjectModel::with('company.office')
             ->whereYear('year_obligated', $year);

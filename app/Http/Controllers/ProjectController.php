@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\NotificationCreatedMail;
 use App\Models\ObjectiveModel;
 use App\Models\ProjectModel;
 use App\Models\CompanyModel;
@@ -10,12 +11,14 @@ use App\Models\ItemModel;
 use App\Models\MarketModel;
 use App\Models\MessageModel;
 use App\Models\MoaModel;
+use App\Models\RtecModel;
 use App\Models\UserModel;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
 class ProjectController extends Controller
@@ -28,16 +31,28 @@ public function index(Request $request)
     }
 
     $search = $request->input('search');
-    $perPage = $request->input('perPage', 10); // Default 10
+    $perPage = $request->input('perPage', 10);
+    $sortField = $request->input('sortField', 'project_title');
+    $sortDirection = $request->input('sortDirection', 'asc');
+    $officeFilter = $request->input('officeFilter');
+
+    // Validate sort field to prevent SQL injection
+    $allowedSortFields = ['project_title', 'project_cost', 'progress'];
+    if (!in_array($sortField, $allowedSortFields)) {
+        $sortField = 'project_title';
+    }
+
+    // Validate sort direction
+    $sortDirection = in_array($sortDirection, ['asc', 'desc']) ? $sortDirection : 'asc';
 
     $query = ProjectModel::with([
-        'company',
+        'company.office',
         'items' => function ($q) {
-            $q->where('report', 'approved'); // ✅ Only approved items
+            $q->where('report', 'approved');
         },
-       'messages' => function ($q) {
-        $q->orderBy('created_at', 'desc');
-    }
+        'messages' => function ($q) {
+            $q->orderBy('created_at', 'desc');
+        }
     ]);
 
     // Filter by user role
@@ -46,6 +61,13 @@ public function index(Request $request)
     } elseif ($user->role === 'staff') {
         $query->whereHas('company', function ($q) use ($user) {
             $q->where('office_id', $user->office_id);
+        });
+    }
+
+    // Apply office filter
+    if ($officeFilter) {
+        $query->whereHas('company', function ($q) use ($officeFilter) {
+            $q->where('office_id', $officeFilter);
         });
     }
 
@@ -73,19 +95,26 @@ public function index(Request $request)
         $q->where('report', 'approved');
     });
 
-    $projects = $query->orderBy('project_title')->paginate($perPage)->withQueryString();
+    // Apply sorting
+    $query->orderBy($sortField, $sortDirection);
+
+    $projects = $query->paginate($perPage)->withQueryString();
+
+    // Get all offices for the filter dropdown
+    $offices = \App\Models\OfficeModel::orderBy('office_name')->get();
 
     return Inertia::render('Projects/Index', [
         'projects' => $projects,
-        'filters' => $request->only('search', 'perPage'),
+        'offices' => $offices,
+        'filters' => $request->only('search', 'perPage', 'sortField', 'sortDirection', 'officeFilter'),
     ]);
 }
 
 
     public function create()
     {
-        $userId = session('user_id');
-        $user = UserModel::find($userId);
+        $user = Auth::user();
+
 
         $companies = CompanyModel::query();
 
@@ -102,8 +131,8 @@ public function index(Request $request)
 
 public function store(Request $request)
     {
-        $userId = session('user_id');
-        $user = UserModel::find($userId);
+    $user = Auth::user();
+
 
     if ($request->has('release_initial')) {
         $releaseInitial = $request->input('release_initial');
@@ -226,10 +255,7 @@ if (!empty($validated['place_name'])) {
     ]);
 }
 
-
-
 return redirect('/projects')->with('success', 'Project, items, and objectives created successfully.');
-
 }
 
 public function edit($id)
@@ -243,130 +269,440 @@ public function edit($id)
         },
         'markets' => function ($query) {
             $query->where('type', 'existing');
+        },
+        'rtecs' => function ($query) use ($id) {
+            // ✅ Only load RTEC records matching current project progress
+            $currentProgress = ProjectModel::find($id)->progress ?? '';
+            $query->with('user')
+                  ->where('progress', $currentProgress)
+                  ->orderBy('created_at', 'desc');
         }
     ])->findOrFail($id);
     
+    // Format RTEC schedules to simple datetime string
+    if ($project->rtecs && $project->rtecs->isNotEmpty()) {
+        $project->rtecs->transform(function ($rtec) {
+            if ($rtec->schedule) {
+                // Convert to Carbon and format as simple datetime
+                $rtec->schedule = Carbon::parse($rtec->schedule)->format('Y-m-d H:i:s');
+            }
+            return $rtec;
+        });
+    }
+    
     $companies = CompanyModel::all();
+
+    // Get IRTEC and ERTEC users
+    $irtecUsers = UserModel::where('role', 'irtec')
+        ->select('user_id', 'first_name', 'middle_name', 'last_name', 'role')
+        ->orderBy('first_name')
+        ->get();
+
+    $ertecUsers = UserModel::where('role', 'ertec')
+        ->select('user_id', 'first_name', 'middle_name', 'last_name', 'role')
+        ->orderBy('first_name')
+        ->get();
 
     return Inertia::render('Projects/Edit', [
         'project' => $project,
         'companies' => $companies,
+        'irtecUsers' => $irtecUsers,
+        'ertecUsers' => $ertecUsers,
     ]);
 }
 
-public function update(Request $request, $id)
-{
-    $project = ProjectModel::findOrFail($id);
+    public function update(Request $request, $id)
+    {
+        $project = ProjectModel::findOrFail($id);
+        $user = Auth::user();
 
-    Log::info("Updating project: {$project->project_id}");
+        Log::info("Updating project: {$project->project_id}");
 
-    // Fixed validation - removed unique constraint that was causing issues
-    $validated = $request->validate([
-        'project_title'     => 'required|string|max:255',
-        'company_id'        => 'required|exists:tbl_companies,company_id',
-        'project_cost'      => 'required|numeric',
-        'year_obligated'    => 'required|string',
-        'revenue'           => 'nullable|numeric',
-        'net_income'        => 'nullable|numeric',
-        'current_asset'     => 'nullable|numeric',
-        'noncurrent_asset'  => 'nullable|numeric',
-        'equity'            => 'nullable|numeric',
-        'liability'         => 'nullable|numeric',
-        'release_initial'   => 'required|regex:/^\d{4}-\d{2}$/',
-        'release_end'       => 'required|regex:/^\d{4}-\d{2}$/',
-        'refund_initial'    => 'required|regex:/^\d{4}-\d{2}$/',
-        'refund_end'        => 'required|regex:/^\d{4}-\d{2}$/',
-        'refund_amount'    => 'nullable|numeric|min:0',  // <-- NEW
-        'last_refund'       => 'nullable|numeric|min:0', // <-- NEW
-        'place_name'        => 'required|string',
-        'items'             => 'nullable|array',
-        'items.*.item_name' => 'required_with:items|string|max:255',
-        'items.*.specifications' => 'nullable|string',
-        'items.*.item_cost' => 'required_with:items|numeric|min:0',
-        'items.*.quantity' => 'required_with:items|integer|min:1',
-        'items.*.type' => 'required|in:equipment,nonequip', 
-        'objectives'        => 'nullable|array',
-        'objectives.*.details' => 'required_with:objectives|string',
-    ]);
+        // Build validation rules dynamically
+        $rules = [
+            'project_title'     => 'required|string|max:255',
+            'company_id'        => 'required|exists:tbl_companies,company_id',
+            'project_cost'      => 'required|numeric',
+            'year_obligated'    => 'required|string',
+            'revenue'           => 'nullable|numeric',
+            'net_income'        => 'nullable|numeric',
+            'current_asset'     => 'nullable|numeric',
+            'noncurrent_asset'  => 'nullable|numeric',
+            'equity'            => 'nullable|numeric',
+            'liability'         => 'nullable|numeric',
+            'release_initial'   => 'required|regex:/^\d{4}-\d{2}$/',
+            'release_end'       => 'required|regex:/^\d{4}-\d{2}$/',
+            'refund_initial'    => 'required|regex:/^\d{4}-\d{2}$/',
+            'refund_end'        => 'required|regex:/^\d{4}-\d{2}$/',
+            'refund_amount'     => 'nullable|numeric|min:0',
+            'last_refund'       => 'nullable|numeric|min:0',
+            'place_name'        => 'required|string',
+            'items'             => 'nullable|array',
+            'items.*.item_name' => 'required_with:items|string|max:255',
+            'items.*.specifications' => 'nullable|string',
+            'items.*.item_cost' => 'required_with:items|numeric|min:0',
+            'items.*.quantity'  => 'required_with:items|integer|min:1',
+            'items.*.type'      => 'required|in:equipment,nonequip', 
+            'objectives'        => 'nullable|array',
+            'objectives.*.details' => 'required_with:objectives|string',
+        ];
 
-    Log::info('Validated data:', $validated);
+        // Add RPMO-specific validation rules
+        if ($user->role === 'rpmo') {
+            $rules['progress'] = 'required|string|in:internal_rtec,internal_compliance,external_rtec,external_compliance,approval,Implementation,Refund,Terminated,Withdrawn,Completed';
+            
+            // Add RTEC field validation only if progress requires RTEC
+            $rtecStatuses = ['internal_rtec', 'internal_compliance', 'external_rtec', 'external_compliance', 'approval'];
+            if (in_array($request->progress, $rtecStatuses)) {
+                $rules['rtec_user_ids'] = 'nullable|array';
+                $rules['rtec_user_ids.*'] = 'exists:tbl_users,user_id';
+                $rules['rtec_schedule'] = 'nullable|date_format:Y-m-d\TH:i';
+                $rules['rtec_zoom_link'] = 'nullable|url|max:500';
+            }
+        }
 
-    // Update main project fields
-    $project->update([
-        'project_title'     => $validated['project_title'],
-        'company_id'        => $validated['company_id'],
-        'project_cost'      => $validated['project_cost'],
-        'year_obligated'    => $validated['year_obligated'],
-        'revenue'           => $validated['revenue'] ?? null,
-        'net_income'        => $validated['net_income'] ?? null,
-        'current_asset'     => $validated['current_asset'] ?? null,
-        'noncurrent_asset'  => $validated['noncurrent_asset'] ?? null,
-        'equity'            => $validated['equity'] ?? null,
-        'liability'         => $validated['liability'] ?? null,
-        'release_initial'   => $validated['release_initial'],
-        'release_end'       => $validated['release_end'],
-        'refund_amount'    => $validated['refund_amount'] ?? null, // <-- NEW
-        'last_refund'       => $validated['last_refund'] ?? null,   // <-- NEW
-        'refund_initial'    => $validated['refund_initial'],
-        'refund_end'        => $validated['refund_end'],
-    ]);
+        $validated = $request->validate($rules);
 
-    Log::info("Project updated successfully.");
+        Log::info('Validated data:', $validated);
 
-    // Replace items
-    $project->items()->where('report', 'approved')->delete();
-    Log::info("Deleted old items.");
+        // Update main project fields
+        $updateData = [
+            'project_title'     => $validated['project_title'],
+            'company_id'        => $validated['company_id'],
+            'project_cost'      => $validated['project_cost'],
+            'year_obligated'    => $validated['year_obligated'],
+            'revenue'           => $validated['revenue'] ?? null,
+            'net_income'        => $validated['net_income'] ?? null,
+            'current_asset'     => $validated['current_asset'] ?? null,
+            'noncurrent_asset'  => $validated['noncurrent_asset'] ?? null,
+            'equity'            => $validated['equity'] ?? null,
+            'liability'         => $validated['liability'] ?? null,
+            'release_initial'   => $validated['release_initial'],
+            'release_end'       => $validated['release_end'],
+            'refund_amount'     => $validated['refund_amount'] ?? null,
+            'last_refund'       => $validated['last_refund'] ?? null,
+            'refund_initial'    => $validated['refund_initial'],
+            'refund_end'        => $validated['refund_end'],
+        ];
 
-    if (!empty($validated['items'])) {
-        foreach ($validated['items'] as $item) {
-            $project->items()->create([
-                'item_name'      => $item['item_name'],
-                'specifications' => $item['specifications'] ?? null,
-                'item_cost'      => $item['item_cost'],
-                'quantity'       => $item['quantity'],
-                'type'           => $item['type'],
-                'report'       => 'approved',
+        // Add progress if user is RPMO
+        if ($user->role === 'rpmo' && isset($validated['progress'])) {
+            $updateData['progress'] = $validated['progress'];
+        }
+
+        $project->update($updateData);
+
+        Log::info("Project updated successfully.");
+
+        // Replace items
+        $project->items()->where('report', 'approved')->delete();
+        Log::info("Deleted old items.");
+
+        if (!empty($validated['items'])) {
+            foreach ($validated['items'] as $item) {
+                $project->items()->create([
+                    'item_name'      => $item['item_name'],
+                    'specifications' => $item['specifications'] ?? null,
+                    'item_cost'      => $item['item_cost'],
+                    'quantity'       => $item['quantity'],
+                    'type'           => $item['type'],
+                    'report'         => 'approved',
+                ]);
+            }
+            Log::info("Items recreated.", ['items_count' => count($validated['items'])]);
+        }
+
+        // Replace objectives
+        $project->objectives()->where('report', 'approved')->delete();
+        Log::info("Deleted old objectives.");
+
+        if (!empty($validated['objectives'])) {
+            foreach ($validated['objectives'] as $objective) {
+                $project->objectives()->create([
+                    'details' => $objective['details'],
+                    'report'  => 'approved',
+                ]);
+            }
+            Log::info("Objectives recreated.", ['objectives_count' => count($validated['objectives'])]);
+        }
+
+        // Handle market update/creation
+        $market = $project->markets()
+            ->where('type', 'existing')
+            ->where('project_id', $project->project_id)
+            ->first();
+
+        if ($market) {
+            $market->place_name = $validated['place_name'];
+            $market->save();
+            Log::info('Market updated', ['id' => $market->id, 'place_name' => $market->place_name]);
+        } else {
+            $project->markets()->create([
+                'type' => 'existing',
+                'place_name' => $validated['place_name'],
+            ]);
+            Log::info('Market created', ['place_name' => $validated['place_name']]);
+        }
+
+        // Handle RTEC data if user is RPMO
+        if ($user->role === 'rpmo' && isset($validated['progress'])) {
+            $rtecStatuses = ['internal_rtec', 'internal_compliance', 'external_rtec', 'external_compliance', 'approval'];
+            
+            if (in_array($validated['progress'], $rtecStatuses)) {
+                // Check if any RTEC field is filled
+                $hasRtecData = !empty($validated['rtec_user_ids']) || 
+                              !empty($validated['rtec_schedule']) || 
+                              !empty($validated['rtec_zoom_link']);
+
+                if ($hasRtecData && !empty($validated['rtec_user_ids'])) {
+                    // Convert datetime-local format to SQL datetime
+                    $scheduleDateTime = null;
+                    if (!empty($validated['rtec_schedule'])) {
+                        $scheduleDateTime = str_replace('T', ' ', $validated['rtec_schedule']) . ':00';
+                    }
+
+                    // Get old RTEC records before deletion for comparison
+                    $oldRtecRecords = RtecModel::where('project_id', $project->project_id)
+                        ->where('progress', $validated['progress'])
+                        ->with('user')
+                        ->get();
+
+                    // Delete old records for this specific progress stage
+                    RtecModel::where('project_id', $project->project_id)
+                        ->where('progress', $validated['progress'])
+                        ->delete();
+
+                    Log::info('Deleted old RTEC records for current progress', [
+                        'project_id' => $project->project_id,
+                        'progress' => $validated['progress']
+                    ]);
+
+                    // Track if there are any changes (users, schedule, or zoom link)
+                    $oldUserIds = $oldRtecRecords->pluck('user_id')->toArray();
+                    $newUserIds = $validated['rtec_user_ids'];
+                    
+                    // Check for user changes
+                    $userChanges = count($oldUserIds) !== count($newUserIds) || 
+                                  count(array_diff($oldUserIds, $newUserIds)) > 0 ||
+                                  count(array_diff($newUserIds, $oldUserIds)) > 0;
+                    
+                    // Check for schedule/zoom link changes
+                    $oldSchedule = $oldRtecRecords->first()->schedule ?? null;
+                    $oldZoomLink = $oldRtecRecords->first()->zoom_link ?? null;
+                    $scheduleChanged = $oldSchedule != $scheduleDateTime;
+                    $zoomLinkChanged = $oldZoomLink != ($validated['rtec_zoom_link'] ?? null);
+                    
+                    $hasChanges = $userChanges || $scheduleChanged || $zoomLinkChanged;
+
+                    // Create new RTEC records
+                    $newRtecRecords = [];
+                    foreach ($validated['rtec_user_ids'] as $userId) {
+                        $rtec = RtecModel::create([
+                            'project_id' => $project->project_id,
+                            'user_id' => $userId,
+                            'progress' => $validated['progress'],
+                            'schedule' => $scheduleDateTime,
+                            'zoom_link' => $validated['rtec_zoom_link'] ?? null,
+                        ]);
+                        $newRtecRecords[] = $rtec;
+
+                        Log::info('RTEC record created', [
+                            'project_id' => $project->project_id,
+                            'user_id' => $userId,
+                            'progress' => $validated['progress'],
+                            'schedule' => $scheduleDateTime,
+                        ]);
+                    }
+
+                    // Send email notifications if there are changes and stage is internal/external RTEC
+                    if ($hasChanges && in_array($validated['progress'], ['internal_rtec', 'external_rtec'])) {
+                        Log::info('Sending RTEC notifications', [
+                            'project_id' => $project->project_id,
+                            'progress' => $validated['progress'],
+                            'user_changes' => $userChanges ?? false,
+                            'schedule_changed' => $scheduleChanged ?? false,
+                            'zoom_link_changed' => $zoomLinkChanged ?? false,
+                        ]);
+                        $this->sendRtecNotifications($newRtecRecords, $project, $user);
+                    } else {
+                        Log::info('RTEC notification skipped', [
+                            'project_id' => $project->project_id,
+                            'progress' => $validated['progress'],
+                            'has_changes' => $hasChanges,
+                            'is_rtec_stage' => in_array($validated['progress'], ['internal_rtec', 'external_rtec']),
+                        ]);
+                    }
+                }
+            }
+        }
+
+        return redirect('/projects')->with('success', 'Project updated successfully.');
+    }
+
+    /**
+     * Send email notifications to all relevant stakeholders
+     */
+    private function sendRtecNotifications($rtecRecords, $project, $assignedBy)
+    {
+        try {
+            // Load project with company relationship
+            $project->load('company.office');
+            
+            // Collect all recipient emails
+            $recipients = $this->collectRtecRecipients($rtecRecords, $project);
+
+            // Format progress for display
+            $progressLabels = [
+                'internal_rtec' => 'Internal RTEC',
+                'internal_compliance' => 'Internal Compliance',
+                'external_rtec' => 'External RTEC',
+                'external_compliance' => 'External Compliance',
+                'approval' => 'Approval Stage',
+            ];
+            $progressLabel = $progressLabels[$rtecRecords[0]->progress] ?? $rtecRecords[0]->progress;
+
+            // Get schedule and zoom link from first RTEC record
+            $schedule = $rtecRecords[0]->schedule;
+            $scheduleText = $schedule 
+                ? Carbon::parse($schedule)->format('F j, Y \a\t g:i A')
+                : 'Not scheduled';
+            
+            $zoomLink = $rtecRecords[0]->zoom_link;
+
+            // Get RTEC member names
+            $rtecMemberNames = collect($rtecRecords)->map(function($rtec) {
+                $user = UserModel::find($rtec->user_id);
+                return $user ? $user->name : 'Unknown';
+            })->join(', ');
+
+            // Build notification data
+            $notification = [
+                'title' => "RTEC Meeting: {$project->project_title}",
+                'message' => "
+                    <div style='font-family: Arial, sans-serif;'>
+                        <p><strong>RTEC Assignment Notification</strong></p>
+                        <p>The following project has been updated with RTEC information:</p>
+                        
+                        <div style='background-color: #f8f9fa; padding: 15px; border-left: 4px solid #0056b3; margin: 20px 0;'>
+                            <p style='margin: 5px 0;'><strong>Project:</strong> {$project->project_title}</p>
+                            <p style='margin: 5px 0;'><strong>Project ID:</strong> {$project->project_id}</p>
+                            <p style='margin: 5px 0;'><strong>Company:</strong> {$project->company->company_name}</p>
+                            <p style='margin: 5px 0;'><strong>Office:</strong> " . ($project->company->office->office_name ?? 'N/A') . "</p>
+                            <p style='margin: 5px 0;'><strong>Stage:</strong> {$progressLabel}</p>
+                            <p style='margin: 5px 0;'><strong>Schedule:</strong> {$scheduleText}</p>
+                            " . ($zoomLink ? "<p style='margin: 5px 0;'><strong>Zoom Link:</strong> <a href='{$zoomLink}' style='color: #0056b3;'>{$zoomLink}</a></p>" : "") . "
+                        </div>
+                        
+                        <p><strong>RTEC Members Assigned:</strong></p>
+                        <p style='margin-left: 20px;'>{$rtecMemberNames}</p>
+                        
+                        <p style='margin-top: 20px;'>Updated by: <strong>{$assignedBy->name}</strong></p>
+                        <p>Please review the project details and prepare accordingly.</p>
+                    </div>
+                "
+            ];
+
+            // Send emails to all unique recipients
+            $successCount = 0;
+            $failCount = 0;
+
+            foreach ($recipients as $recipient) {
+                try {
+                    Mail::to($recipient['email'])->send(new NotificationCreatedMail($notification));
+                    $successCount++;
+                    
+                    Log::info('RTEC notification email sent', [
+                        'recipient_email' => $recipient['email'],
+                        'recipient_name' => $recipient['name'],
+                        'recipient_role' => $recipient['role'],
+                        'project_id' => $project->project_id,
+                    ]);
+                } catch (\Exception $e) {
+                    $failCount++;
+                    Log::error('Failed to send RTEC notification to recipient', [
+                        'recipient_email' => $recipient['email'],
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            Log::info('RTEC notification batch complete', [
+                'project_id' => $project->project_id,
+                'total_recipients' => $recipients->count(),
+                'success' => $successCount,
+                'failed' => $failCount,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send RTEC notifications', [
+                'project_id' => $project->project_id ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
         }
-        Log::info("Items recreated.", $validated['items']);
     }
 
-    // Replace objectives
-    $project->objectives()->where('report', 'approved')->delete();
-    Log::info("Deleted old objectives.");
+    /**
+     * Collect all recipients for RTEC notifications
+     */
+    private function collectRtecRecipients($rtecRecords, $project)
+    {
+        $recipients = [];
 
-    if (!empty($validated['objectives'])) {
-        foreach ($validated['objectives'] as $objective) {
-            $project->objectives()->create([
-                'details' => $objective['details'],
-                'report'  => 'approved',
-            ]);
+        // 1. All selected RTEC members
+        foreach ($rtecRecords as $rtec) {
+            $rtecUser = UserModel::find($rtec->user_id);
+            if ($rtecUser && $rtecUser->email) {
+                $recipients[] = [
+                    'email' => $rtecUser->email,
+                    'name' => $rtecUser->name,
+                    'role' => $rtecUser->role,
+                ];
+            }
         }
-        Log::info("Objectives recreated.", $validated['objectives']);
+
+        // 2. Company email
+        if ($project->company && $project->company->email) {
+            $recipients[] = [
+                'email' => $project->company->email,
+                'name' => $project->company->company_name,
+                'role' => 'company',
+            ];
+        }
+
+        // 3. All RPMO users
+        $rpmoUsers = UserModel::where('role', 'rpmo')
+            ->whereNotNull('email')
+            ->get();
+        
+        foreach ($rpmoUsers as $rpmoUser) {
+            $recipients[] = [
+                'email' => $rpmoUser->email,
+                'name' => $rpmoUser->name,
+                'role' => 'rpmo',
+            ];
+        }
+
+        // 4. Staff users from the same office as the project
+        if ($project->company && $project->company->office_id) {
+            $officeStaff = UserModel::where('role', 'staff')
+                ->where('office_id', $project->company->office_id)
+                ->whereNotNull('email')
+                ->get();
+            
+            foreach ($officeStaff as $staff) {
+                $recipients[] = [
+                    'email' => $staff->email,
+                    'name' => $staff->name,
+                    'role' => 'staff',
+                ];
+            }
+        }
+
+        // Remove duplicate emails
+        return collect($recipients)->unique('email')->values();
     }
 
-    // Handle market update/creation
-    $market = $project->markets()
-        ->where('type', 'existing')
-        ->where('project_id', $project->project_id)
-        ->first();
-
-    if ($market) {
-        // Update existing market
-        $market->place_name = $validated['place_name'];
-        $market->save();
-        Log::info('Market updated', ['id' => $market->id, 'place_name' => $market->place_name]);
-    } else {
-        // Create a new market linked to this project
-        $project->markets()->create([
-            'type' => 'existing',
-            'place_name' => $validated['place_name'],
-        ]);
-        Log::info('Market created', ['place_name' => $validated['place_name']]);
-    }
-
-    return redirect('/projects')->with('success', 'Project updated successfully.');
-}
 
 
 public function syncProjectsFromCSV()
@@ -584,7 +920,7 @@ public function reviewApproval(Request $request)
     $stage = $request->input('stage', 'internal_rtec');
 
     $progressMap = [
-        'internal_rtec' => 'Complete Details',
+        'internal_rtec' => 'internal_rtec',
         'internal_compliance' => 'internal_compliance',
         'external_rtec' => 'external_rtec',
         'external_compliance' => 'external_compliance',
