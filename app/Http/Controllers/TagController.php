@@ -33,7 +33,7 @@ class TagController extends Controller
 
         $tag = TagModel::create($validated);
 
-        // 🔄 Check project progress
+        // Check project progress
         $this->updateProjectProgress($tag->implement_id);
 
         return back()->with('success', 'Tag added successfully.');
@@ -53,7 +53,7 @@ class TagController extends Controller
             'tag_amount' => $validated['tag_amount'],
         ]);
 
-        // 🔄 Check project progress
+        // Check project progress
         $this->updateProjectProgress($tag->implement_id);
 
         return back()->with('success', 'Tag updated successfully.');
@@ -66,7 +66,7 @@ class TagController extends Controller
         $implementId = $tag->implement_id;
         $tag->delete();
 
-        // 🔄 Check project progress (maybe revert progress if below total)
+        // Check project progress (maybe revert progress if below total)
         $this->updateProjectProgress($implementId);
 
         return back()->with('success', 'Tag deleted successfully.');

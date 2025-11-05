@@ -7,7 +7,6 @@ use App\Models\ProjectModel;
 use App\Models\RefundModel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
@@ -71,7 +70,7 @@ public function index()
     })
     ->paginate(10)
     ->through(function ($project) use ($selectedDate) {
-        // ✅ Check if current selected month & year match refund_end
+        // Check if current selected month & year match refund_end
         if (
             $project->refund_end &&
             Carbon::parse($project->refund_end)->isSameMonth($selectedDate) &&
@@ -203,7 +202,7 @@ public function userRefunds()
             $today = Carbon::now()->startOfMonth();
 
             if ($project->refund_initial && $project->refund_end) {
-                // ✅ No need to adjust, they are already YYYY-MM-01
+                // No need to adjust, they are already YYYY-MM-01
                 $start = Carbon::parse($project->refund_initial);
                 $end   = Carbon::parse($project->refund_end);
 
@@ -219,8 +218,8 @@ public function userRefunds()
                     } else {
                         // Otherwise, default behavior:
                         $refundAmount = $start->equalTo($end)
-                            ? ($project->last_refund ?? 0)   // ✅ final month → last_refund
-                            : ($project->refund_amount ?? 0); // ✅ all other months → regular refund_amount
+                            ? ($project->last_refund ?? 0)   // final month → last_refund
+                            : ($project->refund_amount ?? 0); // all other months → regular refund_amount
                         $status = 'unpaid';
                     }
 

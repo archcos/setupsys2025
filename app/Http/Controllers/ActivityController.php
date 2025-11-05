@@ -5,49 +5,47 @@ namespace App\Http\Controllers;
 use App\Models\ActivityModel;
 use App\Models\NotificationModel;
 use App\Models\ProjectModel;
-use App\Models\UserModel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class ActivityController extends Controller
 {
- public function index(Request $request)
-{
-    $userId = session('user_id');
-    $user = UserModel::where('user_id', $userId)->first();
+    public function index(Request $request)
+    {
+        $user = Auth::user(); // Get authenticated user
 
-    $search = $request->input('search');
-    $perPage = $request->input('perPage', 10);
+        $search = $request->input('search');
+        $perPage = $request->input('perPage', 10);
 
-    $query = ActivityModel::with('project.company');
+        $query = ActivityModel::with('project.company');
 
-    if ($search) {
-        $query->where('activity_name', 'like', "%$search%")
-            ->orWhereHas('project', function ($q) use ($search) {
-                $q->where('project_title', 'like', "%$search%");
+        if ($search) {
+            $query->where('activity_name', 'like', "%$search%")
+                ->orWhereHas('project', function ($q) use ($search) {
+                    $q->where('project_title', 'like', "%$search%");
+                });
+        }
+
+        // Staff users see only their office's data
+        if ($user && $user->role === 'staff') {
+            $query->whereHas('project.company', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
             });
+        }
+
+        $activities = $query->orderBy('activity_id', 'desc')->paginate($perPage);
+
+        return Inertia::render('Activities/Index', [
+            'activities' => $activities,
+            'filters' => $request->only('search', 'perPage'),
+        ]);
     }
-
-    if ($user->role === 'staff') {
-        $query->whereHas('project.company', function ($q) use ($user) {
-            $q->where('office_id', $user->office_id);
-        });
-    }
-
-    $activities = $query->orderBy('activity_id', 'desc')->paginate($perPage);
-
-
-    return Inertia::render('Activities/Index', [
-        'activities' => $activities,
-        'filters' => $request->only('search', 'perPage'),
-    ]);
-}
 
     public function readonly(Request $request)
     {
+        $user = Auth::user();
         $search = $request->input('search');
-        $userId = session('user_id');
-        $user = UserModel::find($userId);
 
         $query = ActivityModel::with('project.company')
             ->when($user && $user->role === 'user', function ($q) use ($user) {
@@ -62,6 +60,13 @@ class ActivityController extends Controller
             })
             ->orderBy('activity_id', 'desc');
 
+        if ($search) {
+            $query->where('activity_name', 'like', "%$search%")
+                ->orWhereHas('project', function ($q) use ($search) {
+                    $q->where('project_title', 'like', "%$search%");
+                });
+        }
+
         $activities = $query->get();
 
         return Inertia::render('Activities/ActivityList', [
@@ -69,22 +74,17 @@ class ActivityController extends Controller
         ]);
     }
 
-
-
     public function create()
     {
-        $userId = session('user_id');
-        $user = UserModel::where('user_id', $userId)->first();
-
+        $user = Auth::user();
         $query = ProjectModel::with('company');
 
-        // Apply office filter for staff only
-        if ($user->role === 'staff') {
+        // Staff users only see projects in their office
+        if ($user && $user->role === 'staff') {
             $query->whereHas('company', function ($q) use ($user) {
                 $q->where('office_id', $user->office_id);
             });
         }
-        // Admin sees all — no filter
 
         return Inertia::render('Activities/Create', [
             'projects' => $query->get(),
@@ -120,11 +120,9 @@ class ActivityController extends Controller
             'title' => 'Company Project Updated',
             'message' => "CREATED: A company project for '{$project->company->company_name}' has been completed, titled '{$project->project_title}'. Please contact PSTO {$office->office_name} for verification.",
             'office_id' => 1,
-            'company_id' => $project->company_id, 
+            'company_id' => $project->company_id,
         ]);
 
-
-    
         return redirect('/activities')->with('success', 'Activities created!');
     }
 
@@ -152,19 +150,14 @@ class ActivityController extends Controller
         $activity->update($validated);
 
         $project = ProjectModel::with('company.office')->findOrFail($validated['project_id']);
-        // $project->progress = 'Complete Details';
-        // $project->save();
-
         $office = $project->company->office;
 
         NotificationModel::create([
             'title' => 'Company Project Updated',
             'message' => "UPDATED: A company project for '{$project->company->company_name}' has been updated, titled '{$project->project_title}'. Please contact PSTO {$office->office_name} for verification.",
             'office_id' => 1,
-            'company_id' => $project->company_id, 
+            'company_id' => $project->company_id,
         ]);
-
-
 
         return redirect('/activities')->with('success', 'Activity updated!');
     }

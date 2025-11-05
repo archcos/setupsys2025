@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class MessageModel extends Model
 {
-    protected $table = 'tbl_messages'; // adjust to your actual table name
+    protected $table = 'tbl_messages'; // THIS IS FOR THE REMARKS IN REVIEW AND APPROVAL
     protected $primaryKey = 'message_id';
     
     protected $fillable = [
@@ -17,7 +17,7 @@ class MessageModel extends Model
         'status'
     ];
 
-    // ✅ Add this relationship
+    // Add this relationship
     public function user()
     {
         return $this->belongsTo(UserModel::class, 'created_by', 'user_id');

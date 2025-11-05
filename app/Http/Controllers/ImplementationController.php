@@ -5,13 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\ImplementationModel;
 use App\Models\ItemModel;
 use App\Models\ProjectModel;
-use App\Models\TagModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Carbon\Carbon;
 use GuzzleHttp\Psr7\Utils;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
@@ -114,16 +111,11 @@ public function checklist($implementId)
 
     public function uploadToSupabase(Request $request, $field)
     {
-        Log::info('📥 Starting Supabase file upload for field: ' . $field);
 
         $validFields = ['tarp', 'pdc', 'liquidation'];
         if (!in_array($field, $validFields)) {
-            Log::error("❌ Invalid field: $field");
             abort(400, 'Invalid field');
         }
-
-        Log::info('📝 Request data:', $request->all());
-        Log::info('📦 Uploaded files:', $request->allFiles());
 
         $validated = $request->validate([
             'implement_id' => 'required|exists:tbl_implements,implement_id',
@@ -155,7 +147,7 @@ public function checklist($implementId)
         $uploadUrl = "{$supabaseUrl}/storage/v1/object/{$bucket}/{$path}";
 
         try {
-            Log::info("📤 Uploading to Supabase: $uploadUrl");
+            Log::info("Uploading to Supabase: $uploadUrl");
 
             $fileSize = filesize($file->getRealPath());
 
@@ -177,7 +169,6 @@ public function checklist($implementId)
             }
 
             $publicUrl = "{$supabaseUrl}/storage/v1/object/public/{$bucket}/{$path}";
-            Log::info("✅ File uploaded successfully: $publicUrl");
 
             // Save URL and upload timestamp
             $implementation->$field = $publicUrl;
@@ -187,15 +178,13 @@ public function checklist($implementId)
             if ($field === 'liquidation') {
             ProjectModel::where('project_id', $implementation->project_id)
                 ->update(['progress' => 'Refund']);
-
-            Log::info("📊 Project {$implementation->project_id} progress updated to 'Liquidation'");
         }
 
 
             return redirect()->back()->with('success', ucfirst($field) . ' uploaded successfully.');
 
         } catch (\Exception $e) {
-            Log::error('🔥 Exception during upload: ' . $e->getMessage());
+            Log::error('Exception during upload: ' . $e->getMessage());
             return redirect()->back()->withErrors(['upload' => 'Upload failed. Please try again.']);
         }
     }
@@ -247,8 +236,6 @@ public function checklist($implementId)
         // Clear DB field
         $implementation->$field = null;
         $implementation->save();
-
-        Log::info("✅ {$field} deleted and set to NULL for implement_id {$implementation->implement_id}");
 
         return back()->with('success', ucfirst($field) . ' file deleted and field cleared.');
     }

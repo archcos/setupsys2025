@@ -35,6 +35,7 @@ public function index(Request $request)
     $sortField = $request->input('sortField', 'project_title');
     $sortDirection = $request->input('sortDirection', 'asc');
     $officeFilter = $request->input('officeFilter');
+    $progressFilter = $request->input('progressFilter');
 
     // Validate sort field to prevent SQL injection
     $allowedSortFields = ['project_title', 'project_cost', 'progress'];
@@ -69,6 +70,11 @@ public function index(Request $request)
         $query->whereHas('company', function ($q) use ($officeFilter) {
             $q->where('office_id', $officeFilter);
         });
+    }
+
+    // Apply progress filter
+    if ($progressFilter) {
+        $query->where('progress', $progressFilter);
     }
 
     // Apply search
@@ -106,10 +112,9 @@ public function index(Request $request)
     return Inertia::render('Projects/Index', [
         'projects' => $projects,
         'offices' => $offices,
-        'filters' => $request->only('search', 'perPage', 'sortField', 'sortDirection', 'officeFilter'),
+        'filters' => $request->only('search', 'perPage', 'sortField', 'sortDirection', 'officeFilter', 'progressFilter'),
     ]);
 }
-
 
     public function create()
     {
@@ -271,7 +276,7 @@ public function edit($id)
             $query->where('type', 'existing');
         },
         'rtecs' => function ($query) use ($id) {
-            // ✅ Only load RTEC records matching current project progress
+            // Only load RTEC records matching current project progress
             $currentProgress = ProjectModel::find($id)->progress ?? '';
             $query->with('user')
                   ->where('progress', $currentProgress)
@@ -984,7 +989,7 @@ public function reviewApproval(Request $request)
         return $project;
     });
 
-    // ✅ Fetch users with roles other than 'staff' or 'user'
+    // Fetch users with roles other than 'staff' or 'user'
     $availableUsers = UserModel::whereNotIn('role', ['staff', 'user'])
         ->select('user_id', 'first_name', 'middle_name', 'last_name', 'role')
         ->orderBy('first_name')
@@ -1000,7 +1005,7 @@ public function reviewApproval(Request $request)
         'projects' => $projects,
         'filters' => $request->only('search', 'perPage', 'stage'),
         'currentStage' => $stage,
-        'availableUsers' => $availableUsers, // ✅ Pass available users to frontend
+        'availableUsers' => $availableUsers, // Pass available users to frontend
     ]);
 }
 
@@ -1070,7 +1075,7 @@ public function updateProgressReview(Request $request, $id)
         $project->progress = $newProgress;
         $project->save();
 
-        // ✅ Create multiple messages
+        // Create multiple messages
         foreach ($request->remarks as $remark) {
             MessageModel::create([
                 'project_id' => $project->project_id,
@@ -1095,7 +1100,7 @@ public function updateProgressReview(Request $request, $id)
         $project->progress = 'Disapproved';
         $project->save();
 
-        // ✅ Create multiple disapproval messages
+        // Create multiple disapproval messages
         foreach ($request->remarks as $remark) {
             MessageModel::create([
                 'project_id' => $project->project_id,

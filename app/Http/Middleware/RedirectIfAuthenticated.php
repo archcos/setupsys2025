@@ -4,19 +4,20 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class RedirectIfAuthenticated
 {
     public function handle(Request $request, Closure $next)
     {
-        if (session()->has('user_id')) {
-            $role = session('role'); // adjust based on your session key
+        if (Auth::check()) {
+            $user = Auth::user();
 
-            if ($role === 'user') {
+            if ($user->role === 'user') {
                 return redirect()->route('user.dashboard');
             }
 
-            // default redirect for admin or staff
+            // Default redirect for admin or staff
             return redirect()->route('home');
         }
 
