@@ -31,7 +31,6 @@ class UserModel extends Authenticatable
         'password',
     ];
 
-    // ✅ Add this accessor for full name
     protected $appends = ['name'];
 
     public function getNameAttribute()

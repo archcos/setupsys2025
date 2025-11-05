@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\ProjectModel;
 use App\Models\ActivityModel;
 use App\Models\MoaModel;
+use App\Models\RtecModel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -152,4 +154,132 @@ class DashboardController extends Controller
             'userCompanyName' => $user->companies->first()?->company_name ?? 'Your Company',
         ]);
     }
+
+public function rtecdashboard(Request $request)
+{
+    $user = Auth::user();
+    $role = $user->role;
+    
+    // Define allowed progress statuses based on role
+    $allowedStatuses = $this->getAllowedStatuses($role);
+    
+    // Check if user has full access (rd or au roles)
+    $hasFullAccess = in_array($role, ['rd', 'au']);
+    
+    // Initialize statusCounts array
+    $statusCounts = [];
+    
+    // Get counts for each status
+    foreach ($allowedStatuses as $status) {
+        if ($hasFullAccess) {
+            // For rd and au: count unique projects with this status
+            $count = RtecModel::where('progress', $status)
+                ->whereHas('project', function ($query) use ($status) {
+                    $query->where('progress', $status);
+                })
+                ->distinct('project_id') // <--- only unique projects
+                ->count('project_id');   // <--- count unique project IDs
+        } else {
+            // For irtec and ertec: count only assigned unique projects
+            $count = RtecModel::where('user_id', $user->user_id)
+                ->where('progress', $status)
+                ->whereHas('project', function ($query) use ($status) {
+                    $query->where('progress', $status);
+                })
+                ->distinct('project_id') // <--- ensure no duplicate projects
+                ->count('project_id');
+        }
+
+        $statusCounts[$status] = $count;
+    }
+
+    
+    // Get filtered projects
+    $filterStatus = $request->input('status');
+    
+    // Base query with matching progress requirement
+    if ($hasFullAccess) {
+        // For rd and au: show all RTECs (no user_id filter)
+        $projectsQuery = RtecModel::whereIn('progress', $allowedStatuses)
+            ->with([
+                'project.company',
+                'user'
+            ]);
+    } else {
+        // For irtec and ertec: show only assigned RTECs
+        $projectsQuery = RtecModel::where('user_id', $user->user_id)
+            ->whereIn('progress', $allowedStatuses)
+            ->with([
+                'project.company',
+                'user'
+            ]);
+    }
+    
+    // Apply filter if status is selected
+    if ($filterStatus && in_array($filterStatus, $allowedStatuses)) {
+        // Filter by specific status - both rtec and project must match
+        $projectsQuery->where('progress', $filterStatus)
+            ->whereHas('project', function($query) use ($filterStatus) {
+                $query->where('progress', $filterStatus);
+            });
+    } else {
+        // No filter selected - show all projects where rtec and project progress match
+        $projectsQuery->where(function($query) use ($allowedStatuses) {
+            foreach ($allowedStatuses as $status) {
+                $query->orWhere(function($q) use ($status) {
+                    $q->where('progress', $status)
+                      ->whereHas('project', function($subQuery) use ($status) {
+                          $subQuery->where('progress', $status);
+                      });
+                });
+            }
+        });
+    }
+    
+  $projects = $projectsQuery
+    ->orderBy('created_at', 'desc')
+    ->get()
+    ->when($hasFullAccess, fn($collection) => $collection->unique('project_id')) // <--- only unique projects for rd/au
+    ->values()
+    ->map(function ($rtec) {
+        return [
+            'rtec_id' => $rtec->rtec_id,
+            'project_id' => $rtec->project_id,
+            'project_title' => $rtec->project->project_title ?? 'N/A',
+            'company_name' => $rtec->project->company->company_name ?? 'N/A',
+            'assigned_user' => $rtec->user->name ?? 'Unassigned',
+            'progress' => $rtec->progress,
+            'schedule' => $rtec->schedule ? $rtec->schedule->format('M d, Y h:i A') : 'Not scheduled',
+            'zoom_link' => $rtec->zoom_link,
+            'created_at' => $rtec->created_at->format('M d, Y'),
+        ];
+    });
+
+    return inertia('RtecDashboard', [
+        'statusCounts' => $statusCounts,
+        'allowedStatuses' => $allowedStatuses,
+        'projects' => $projects,
+        'currentFilter' => $filterStatus,
+        'userRole' => $role,
+    ]);
+}
+
+private function getAllowedStatuses($role)
+{
+    if ($role === 'irtec') {
+        return ['internal_rtec', 'internal_compliance'];
+    } elseif ($role === 'ertec') {
+        return ['external_rtec', 'external_compliance', 'approval', 'Approved'];
+    }
+    
+    // For rd, au, admin or other roles: show all statuses
+    return [
+        'internal_rtec',
+        'internal_compliance',
+        'external_rtec',
+        'external_compliance',
+        'approval',
+        'Approved'
+    ];
+}
 }
