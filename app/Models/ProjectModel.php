@@ -92,7 +92,6 @@ class ProjectModel extends Model
     {
         return $this->hasMany(MarketModel::class, 'project_id', 'project_id');
     }
-
     public function reports()
     {
         return $this->hasMany(ReportModel::class, 'project_id', 'project_id');

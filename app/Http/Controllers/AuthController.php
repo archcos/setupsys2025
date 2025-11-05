@@ -157,9 +157,23 @@ public function signin(Request $request)
 
     RateLimiter::clear($key);
 
+    if (empty($user->role)) {
+        Auth::logout();
+        return back()->withErrors([
+            'message' => 'Your account does not have a valid role assigned. Please contact the administrator.',
+        ]);
+    }
+
     return $user->role === 'user'
         ? redirect()->route('user.dashboard')
-        : redirect()->route('home');
+        : (in_array($user->role, ['irtec', 'ertec', 'rd', 'au'])
+            ? redirect()->route('rtec.dashboard')
+            : (in_array($user->role, ['staff', 'rpmo'])
+                ? redirect()->route('home')
+                : back()->withErrors([
+                    'message' => 'Your account does not have permission to access the system. Please contact the administrator.',
+                ])));
+
 }
 
 

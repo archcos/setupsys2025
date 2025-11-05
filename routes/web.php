@@ -46,7 +46,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('user.dashboard')->middleware('role:user');
     Route::get('/users/{id}/edit', [AuthController::class, 'edit'])->name('users.edit');
     Route::put('/users/{id}', [AuthController::class, 'update'])->name('users.update');
-
+    Route::get('/rtec/dashboard', [DashboardController::class, 'rtecdashboard'])
+    ->name('rtec.dashboard');
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
