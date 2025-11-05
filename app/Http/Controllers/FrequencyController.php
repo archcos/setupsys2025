@@ -3,12 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\FrequencyModel;
-use App\Models\Office;
 use App\Models\OfficeModel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Carbon\Carbon;
 
@@ -20,10 +18,10 @@ class FrequencyController extends Controller
         $selectedOffice = $request->input('office', 'all');
         $selectedYear = $request->input('year', Carbon::now()->year);
 
-        // ✅ Determine date range based on filter
+        // Determine date range based on filter
         $dateRange = $this->getDateRange($filter, $selectedYear);
 
-        // ✅ Query with date range and office filter
+        // Query with date range and office filter
         $query = FrequencyModel::with(['user', 'office'])
             ->whereBetween('login_date', [$dateRange['start'], $dateRange['end']])
             ->when($selectedOffice !== 'all', function($q) use ($selectedOffice) {
@@ -49,7 +47,7 @@ class FrequencyController extends Controller
             $availableYears = [Carbon::now()->year];
         }
 
-        // ✅ Create time-based chart data (Bar Chart)
+        // Create time-based chart data (Bar Chart)
         $chartData = [];
         if ($records->count() > 0) {
             switch ($filter) {
@@ -113,7 +111,7 @@ class FrequencyController extends Controller
             }
         }
 
-        // ✅ Create office distribution data (Pie Chart) - filtered by date range
+        // Create office distribution data (Pie Chart) - filtered by date range
         $officeChartData = [];
         
         $officeGrouped = $records->groupBy('office_id');
@@ -211,7 +209,7 @@ class FrequencyController extends Controller
 
         $filename = 'login_frequency_' . $filter . '_' . now()->format('Y-m-d_H-i-s') . '.csv';
 
-        // ✅ Apply same filters as the view
+        // Apply same filters as the view
         $dateRange = $this->getDateRange($filter, $selectedYear);
 
         $response = new StreamedResponse(function () use ($dateRange, $selectedOffice) {

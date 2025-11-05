@@ -18,10 +18,10 @@ class RegisterController extends Controller
      */
     public function index()
     {
-        // 🔄 Clear any existing session data
+        // Clear any existing session data
         session()->invalidate();
 
-        // 🆕 Generate a fresh session and CSRF token
+        // Generate a fresh session and CSRF token
         session()->regenerateToken();
 
         $offices = OfficeModel::all();
@@ -67,7 +67,7 @@ class RegisterController extends Controller
 
         RateLimiter::hit($key, 60); // 1 minute decay
 
-        // ✅ Validate fields (including honeypot)
+        // Validate fields (including honeypot)
         $validator = Validator::make($request->all(), [
             'first_name'   => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
             'middle_name'  => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],

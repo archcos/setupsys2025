@@ -179,29 +179,59 @@ export default function CompanyCreate() {
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">SETUP Industry Sector</label>
-                    <select
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
-                      value={data.setup_industry}
-                      onChange={(e) => setData("setup_industry", e.target.value)}
-                      required
-                    >
-                      <option value="">Choose industry sector</option>
-                      <option value="Food processing">Food Processing</option>
-                      <option value="Beverage manufacturing">Beverage Manufacturing</option>
-                      <option value="Textile manufacturing">Textile Manufacturing</option>
-                      <option value="Wearing apparel manufacturing">Apparel Manufacturing</option>
-                      <option value="Information and Communication">IT & Communications</option>
-                      <option value="Other regional priority industries">Other Priority Industries</option>
-                    </select>
-                    {errors.setup_industry && (
-                      <div className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                        <AlertCircle className="w-4 h-4" />
-                        {errors.setup_industry}
-                      </div>
-                    )}
-                  </div>
+<div>
+  <label className="block text-sm font-semibold text-gray-700 mb-2">Industry Classification</label>
+  <select
+    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+    value={data.industry}
+    onChange={(e) => setData("industry", e.target.value)}
+    required
+  >
+    <option value="">Select Industry</option>
+
+    <optgroup label="Major Industry Sectors">
+      <option value="Agriculture/Aquaculture/Forestry">Agriculture / Aquaculture / Forestry</option>
+      <option value="Creative Industry">Creative Industry</option>
+      <option value="Energy and Environment">Energy and Environment</option>
+      <option value="Food Processing">Food Processing</option>
+      <option value="Furniture">Furniture</option>
+      <option value="Gifts, Decors, Handicrafts">Gifts, Decors, Handicrafts</option>
+      <option value="Health and Wellness">Health and Wellness</option>
+      <option value="Metals and Engineering">Metals and Engineering</option>
+      <option value="Other Regional Priority Sectors">Other Regional Priority Sectors</option>
+    </optgroup>
+
+    <optgroup label="Sub-Industries / Manufacturing">
+      <option value="Crop and animal production, hunting, and related service activities">Crop and animal production, hunting, and related service activities</option>
+      <option value="Forestry and Logging">Forestry and Logging</option>
+      <option value="Fishing and aquaculture">Fishing and aquaculture</option>
+      <option value="Food processing">Food processing</option>
+      <option value="Beverage manufacturing">Beverage manufacturing</option>
+      <option value="Textile manufacturing">Textile manufacturing</option>
+      <option value="Wearing apparel manufacturing">Wearing apparel manufacturing</option>
+      <option value="Leather and related products manufacturing">Leather and related products manufacturing</option>
+      <option value="Wood and products of wood and cork manufacturing">Wood and products of wood and cork manufacturing</option>
+      <option value="Paper and paper products manufacturing">Paper and paper products manufacturing</option>
+      <option value="Chemicals and chemical products manufacturing">Chemicals and chemical products manufacturing</option>
+      <option value="Basic pharmaceutical products and pharmaceutical preparations manufacturing">Basic pharmaceutical products and pharmaceutical preparations manufacturing</option>
+      <option value="Rubber and plastic products manufacturing">Rubber and plastic products manufacturing</option>
+      <option value="Non-metallic mineral products manufacturing">Non-metallic mineral products manufacturing</option>
+      <option value="Fabricated metal products manufacturing">Fabricated metal products manufacturing</option>
+      <option value="Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing">Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing</option>
+      <option value="Other transport equipment manufacturing">Other transport equipment manufacturing</option>
+      <option value="Furniture manufacturing">Furniture manufacturing</option>
+      <option value="Information and Communication">Information and Communication</option>
+      <option value="Other regional priority industries approved by the Regional Development Council">Other regional priority industries approved by the Regional Development Council</option>
+    </optgroup>
+  </select>
+
+  {errors.industry && (
+    <div className="text-red-500 text-sm mt-1 flex items-center gap-1">
+      <AlertCircle className="w-4 h-4" />
+      {errors.industry}
+    </div>
+  )}
+</div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Enterprise Type</label>

@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
-use App\Models\AnnouncementModel; // ✅ Use the correct model
+use App\Models\AnnouncementModel; // Use the correct model
 
 class AnnouncementController extends Controller
 {
@@ -15,7 +15,7 @@ class AnnouncementController extends Controller
 
         $announcements = AnnouncementModel::with('office')
             ->when($user->role === 'staff', function ($query) use ($user) {
-                // ✅ Filter by the logged-in user's office
+                // Filter by the logged-in user's office
                 $query->where('office_id', $user->office_id);
             })
             ->orderBy('created_at', 'desc')
@@ -23,7 +23,7 @@ class AnnouncementController extends Controller
 
         return Inertia::render('Announcement/Index', [
             'announcements' => $announcements,
-            'userRole' => $user->role, // ✅ pass user role
+            'userRole' => $user->role, // pass user role
         ]);
     }
 
@@ -41,13 +41,13 @@ class AnnouncementController extends Controller
     {
         $request->validate([
             'title' => 'required|string|max:150',
-            'details' => 'required|string|max:500', // ✅ Match with DB column name (details not body)
+            'details' => 'required|string|max:500', // Match with DB column name (details not body)
             'office_id' => 'required|exists:tbl_offices,office_id',
         ]);
 
         AnnouncementModel::create([
             'title' => $request->title,
-            'details' => $request->details, // ✅ Match your migration column
+            'details' => $request->details, // Match your migration column
             'office_id' => $request->office_id,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,

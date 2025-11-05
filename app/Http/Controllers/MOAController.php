@@ -132,7 +132,7 @@ public function uploadApprovedFile(Request $request, $moa_id)
             'approved_by' => session('user_id'),
         ]);
 
-        // ✅ Automatically update project progress to Implementation
+        // Automatically update project progress to Implementation
         $project = $moa->project;
         $project->progress = 'Implementation';
         $project->save();
@@ -197,7 +197,7 @@ public function deleteApprovedFile($moa_id)
             'approved_by' => null,
         ]);
 
-        // ✅ Automatically revert project progress back to Draft MOA
+        // Automatically revert project progress back to Draft MOA
         $project = $moa->project;
         $project->progress = 'Draft MOA';
         $project->save();
@@ -295,7 +295,7 @@ public function generateFromMoa($moa_id)
     $refundInitial  = $project->refund_initial ? Carbon::parse($project->refund_initial)->format('F Y') : 'N/A';
     $refundEnd      = $project->refund_end ? Carbon::parse($project->refund_end)->format('F Y') : 'N/A';
 
-    // ✅ Group into phase strings
+    // Group into phase strings
     $phaseOne = "$releaseInitial - $releaseEnd";
     $phaseTwo = "$refundInitial - $refundEnd";
 
@@ -432,14 +432,14 @@ public function generateFromMoa($moa_id)
         $activitiesTable->addRow();
         $activitiesTable->addCell(5000)->addText("Refund Period", $boldArial);
 
-        // ✅ This will now correctly use your $phaseTwo string (Refund Start - Refund End)
+        // This will now correctly use your $phaseTwo string (Refund Start - Refund End)
         $activitiesTable->addCell(4000)->addText($phaseTwo, $arialFont, ['alignment' => Jc::CENTER]);
 
         // Insert into template
         $templateProcessor->setComplexBlock('ACTIVITY_TABLE', $activitiesTable);
 
 
-        $start = Carbon::parse($project->refund_initial)->startOfYear(); // ✅ force to January of that year
+        $start = Carbon::parse($project->refund_initial)->startOfYear(); // force to January of that year
         $end   = Carbon::parse($project->refund_end);
 
         $periodMonths = [];

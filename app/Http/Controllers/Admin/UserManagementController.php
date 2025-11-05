@@ -16,15 +16,15 @@ class UserManagementController extends Controller
 
 public function index(Request $request)
 {
-    // ✅ Use Auth guard instead of Session
+    // Use Auth guard instead of Session
     if (Auth::user()->role !== 'head' && Auth::user()->role !== 'admin') {
         abort(403, 'Unauthorized');
     }
 
-    // ✅ Include soft deleted users
+    // Include soft deleted users
     $query = UserModel::withTrashed()->with('office');
 
-    // ✅ Search
+    // Search
     if ($request->filled('search')) {
         $query->where(function ($q) use ($request) {
             $q->where('first_name', 'like', "%{$request->search}%")
@@ -33,24 +33,24 @@ public function index(Request $request)
         });
     }
 
-    // ✅ Role Filter
+    // Role Filter
     if ($request->filled('role')) {
         $query->where('role', $request->role);
     }
 
-    // ✅ Office Filter
+    // Office Filter
     if ($request->filled('office_id')) {
         $query->where('office_id', $request->office_id);
     }
 
-    // ✅ Status Filter
+    // Status Filter
     if ($request->filled('status')) {
         $query->where('status', $request->status);
     }
 
     $users = $query->paginate(10)->appends($request->all());
 
-    // ✅ Identify online users
+    // Identify online users
     $onlineUserIds = DB::table('sessions')
         ->pluck('user_id')
         ->filter()
@@ -62,7 +62,7 @@ public function index(Request $request)
         return $user;
     });
 
-    // ✅ Calculate counts (not paginated)
+    // Calculate counts (not paginated)
     $totalUsers = UserModel::withTrashed()->count();
     $activeUsers = UserModel::where('status', 'active')->count();
     $onlineUsers = UserModel::whereIn('user_id', $onlineUserIds)->count();
@@ -87,7 +87,7 @@ public function index(Request $request)
      */
 public function update(Request $request, $id)
 {
-    // ✅ Only admin can update
+    // Only admin can update
     if (Auth::user()->role !== 'head') {
         abort(403, 'Unauthorized');
     }
@@ -100,13 +100,13 @@ public function update(Request $request, $id)
         'admin_password' => 'required|string',
     ]);
 
-    // ✅ Verify admin password
+    // Verify admin password
     $admin = Auth::user();
     if (!Hash::check($request->admin_password, $admin->password)) {
         return back()->withErrors(['admin_password' => 'Incorrect admin password.']);
     }
 
-    // ✅ Update target user
+    // Update target user
     $user = UserModel::findOrFail($id);
     $user->office_id = $request->office_id;
     $user->role = $request->role;
@@ -141,7 +141,7 @@ public function forceLogout(Request $request, $id)
         return back()->withErrors(['message' => 'User not found.']);
     }
 
-    // ✅ Delete all active sessions for this user
+    // Delete all active sessions for this user
     DB::table('sessions')->where('user_id', $user->user_id)->delete();
 
     return back()->with('success', 'User has been forcibly logged out.');
@@ -168,10 +168,10 @@ public function deleteUser(Request $request, $id)
         return back()->withErrors(['message' => 'User not found.']);
     }
 
-    // ✅ End all their sessions
+    // End all their sessions
     DB::table('sessions')->where('user_id', $user->user_id)->delete();
 
-    // ✅ Soft delete the user (not permanent)
+    // Soft delete the user (not permanent)
     $user->delete();
 
     return back()->with('success', 'User deleted successfully (soft deleted).');

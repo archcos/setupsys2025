@@ -13,11 +13,9 @@ import {
   Trash2,
   AlertCircle
 } from 'lucide-react';
-import Sidebar from '../../components/Sidebar';
-import Header from '../../components/Header';
+
 
 export default function Create({ companies }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const { data, setData, post, processing, errors } = useForm({
     project_id: '',
@@ -48,7 +46,6 @@ export default function Create({ companies }) {
     post('/projects');
   };
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   // Auto-fill release/refund end dates
   useEffect(() => {

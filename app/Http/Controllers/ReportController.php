@@ -22,8 +22,6 @@ use Inertia\Inertia;
 use PhpOffice\PhpWord\TemplateProcessor;
 use PhpOffice\PhpWord\Element\Table;
 use PhpOffice\PhpWord\SimpleType\Jc;
-use PhpOffice\PhpWord\Settings;
-use PhpOffice\PhpWord\IOFactory;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class ReportController extends Controller
@@ -117,10 +115,10 @@ class ReportController extends Controller
 
 public function viewReport($report_id)
 {
-    // ✅ Load all required relationships for policy check
+    // Load all required relationships for policy check
     $report = ReportModel::with(['project.company'])->findOrFail($report_id);
     
-    // ✅ Authorize AFTER loading relationships
+    // Authorize AFTER loading relationships
     $this->authorize('view', $report);
 
     // Check if file exists
@@ -134,10 +132,10 @@ public function viewReport($report_id)
 
 public function downloadReport($report_id)
 {
-    // ✅ Load all required relationships for policy check
+    // Load all required relationships for policy check
     $report = ReportModel::with(['project.company'])->findOrFail($report_id);
     
-    // ✅ Authorize AFTER loading relationships
+    // Authorize AFTER loading relationships
     $this->authorize('view', $report);
 
     // Check if file exists
@@ -493,13 +491,13 @@ public function downloadReport($report_id)
 //     $fbTable->addCell(1000)->addText($backwardTotal, $fontStyle, $paraCenter);
 //     $templateProcessor->setComplexBlock('newindirect_table', $fbTable);
 
-//     // ✅ FIXED: Create unique temp directory
+//     // FIXED: Create unique temp directory
 //     $tempDir = sys_get_temp_dir() . '/reports_' . uniqid();
 //     if (!is_dir($tempDir)) {
 //         mkdir($tempDir, 0755, true);
 //     }
     
-//     // ✅ FIXED: Save DOCX with unique name
+//     // FIXED: Save DOCX with unique name
 //     $docxFilename = 'report_' . $project->project_id . '_' . $report->report_id . '_' . time() . '.docx';
 //     $tempDocx = $tempDir . '/' . $docxFilename;
     
@@ -516,7 +514,7 @@ public function downloadReport($report_id)
 //         'size' => filesize($tempDocx)
 //     ]);
 
-//     // ✅ FIXED: Convert to PDF using LibreOffice
+//     // FIXED: Convert to PDF using LibreOffice
 //     Log::info('Converting DOCX to PDF using LibreOffice');
     
 //     $command = sprintf(
@@ -545,7 +543,7 @@ public function downloadReport($report_id)
 //         throw new \Exception('PDF conversion failed: ' . implode("\n", $output));
 //     }
 
-//     // ✅ FIXED: Check for generated PDF
+//     // FIXED: Check for generated PDF
 //     $pdfFilename = str_replace('.docx', '.pdf', $docxFilename);
 //     $tempPdf = $tempDir . '/' . $pdfFilename;
     
@@ -563,7 +561,7 @@ public function downloadReport($report_id)
 //         'size' => filesize($tempPdf)
 //     ]);
 
-//     // ✅ FIXED: Store in private storage
+//     // FIXED: Store in private storage
 //     $storagePath = "reports/report_{$project->project_id}_{$report->report_id}_" . time() . ".pdf";
     
 //     // Ensure reports directory exists
@@ -586,7 +584,7 @@ public function downloadReport($report_id)
 //         'full_path' => Storage::disk('private')->path($storagePath)
 //     ]);
 
-//     // ✅ Clean up temp files
+//     // Clean up temp files
 //     $this->cleanupTempDirectory($tempDir);
 
 //     return $storagePath;
@@ -721,7 +719,7 @@ $actualItems = ItemModel::where('project_id', $project->project_id)
 
 $equipTable = new Table(['borderSize' => 6, 'borderColor' => '000000']);
 
-// ✅ Header Row 1 - This row spans properly now
+// Header Row 1 - This row spans properly now
 $equipTable->addRow(500);
 $equipTable->addCell(3700, ['gridSpan' => 3, 'valign' => 'center'])
     ->addText('Approved Equipment', $fontStyle, $paraCenter);
@@ -732,7 +730,7 @@ $equipTable->addCell(1500, ['vMerge' => 'restart', 'valign' => 'center'])
 $equipTable->addCell(1500, ['vMerge' => 'restart', 'valign' => 'center'])
     ->addText('Remarks', $fontStyle, $paraCenter);
 
-// ✅ Header Row 2 - Sub-headers with proper column continuation
+// Header Row 2 - Sub-headers with proper column continuation
 $equipTable->addRow(500);
 $equipTable->addCell(700, ['valign' => 'center'])->addText('Qty', $fontStyle, $paraCenter);
 $equipTable->addCell(1500, ['valign' => 'center'])->addText('Particulars', $fontStyle, $paraCenter);
@@ -740,10 +738,10 @@ $equipTable->addCell(1500, ['valign' => 'center'])->addText('Cost', $fontStyle, 
 $equipTable->addCell(700, ['valign' => 'center'])->addText('Qty', $fontStyle, $paraCenter);
 $equipTable->addCell(1500, ['valign' => 'center'])->addText('Particulars', $fontStyle, $paraCenter);
 $equipTable->addCell(1500, ['valign' => 'center'])->addText('Cost', $fontStyle, $paraCenter);
-$equipTable->addCell(1500, ['vMerge' => 'continue']); // ✅ Continue Acknowledge merge
-$equipTable->addCell(1500, ['vMerge' => 'continue']); // ✅ Continue Remarks merge
+$equipTable->addCell(1500, ['vMerge' => 'continue']); // Continue Acknowledge merge
+$equipTable->addCell(1500, ['vMerge' => 'continue']); // Continue Remarks merge
 
-// ✅ Data Rows - Now Acknowledge and Remarks will show
+// Data Rows - Now Acknowledge and Remarks will show
 $maxRows = max($approvedItems->count(), $actualItems->count());
 for ($i = 0; $i < $maxRows; $i++) {
     $equipTable->addRow(400);
@@ -772,7 +770,7 @@ for ($i = 0; $i < $maxRows; $i++) {
     $equipTable->addCell(1500, ['valign' => 'center'])
         ->addText($actual->item_cost ?? '', $fontStyle);
     
-    // ✅ These are the columns that should now show
+    // These are the columns that should now show
     $equipTable->addCell(1500, ['valign' => 'center'])
         ->addText($actual->acknowledge ?? '', $fontStyle);
     $equipTable->addCell(1500, ['valign' => 'center'])
@@ -791,7 +789,7 @@ $actualItems = ItemModel::where('project_id', $project->project_id)
 
 $equipTable = new Table(['borderSize' => 6, 'borderColor' => '000000']);
 
-// ✅ Header Row 1 - This row spans properly now
+// Header Row 1 - This row spans properly now
 $equipTable->addRow(500);
 $equipTable->addCell(3700, ['gridSpan' => 3, 'valign' => 'center'])
     ->addText('Approved Equipment', $fontStyle, $paraCenter);
@@ -802,7 +800,7 @@ $equipTable->addCell(1700, ['vMerge' => 'restart', 'valign' => 'center'])
 $equipTable->addCell(1500, ['vMerge' => 'restart', 'valign' => 'center'])
     ->addText('Remarks', $fontStyle, $paraCenter);
 
-// ✅ Header Row 2 - Sub-headers with proper column continuation
+// Header Row 2 - Sub-headers with proper column continuation
 $equipTable->addRow(500);
 $equipTable->addCell(700, ['valign' => 'center'])->addText('Qty', $fontStyle, $paraCenter);
 $equipTable->addCell(1500, ['valign' => 'center'])->addText('Particulars', $fontStyle, $paraCenter);
@@ -810,10 +808,10 @@ $equipTable->addCell(1500, ['valign' => 'center'])->addText('Cost', $fontStyle, 
 $equipTable->addCell(700, ['valign' => 'center'])->addText('Qty', $fontStyle, $paraCenter);
 $equipTable->addCell(1500, ['valign' => 'center'])->addText('Particulars', $fontStyle, $paraCenter);
 $equipTable->addCell(1500, ['valign' => 'center'])->addText('Cost', $fontStyle, $paraCenter);
-$equipTable->addCell(1700, ['vMerge' => 'continue']); // ✅ Continue Acknowledge merge
-$equipTable->addCell(1500, ['vMerge' => 'continue']); // ✅ Continue Remarks merge
+$equipTable->addCell(1700, ['vMerge' => 'continue']); // Continue Acknowledge merge
+$equipTable->addCell(1500, ['vMerge' => 'continue']); // Continue Remarks merge
 
-// ✅ Data Rows - Now Acknowledge and Remarks will show
+// Data Rows - Now Acknowledge and Remarks will show
 $maxRows = max($approvedItems->count(), $actualItems->count());
 for ($i = 0; $i < $maxRows; $i++) {
     $equipTable->addRow(400);
@@ -842,7 +840,7 @@ for ($i = 0; $i < $maxRows; $i++) {
     $equipTable->addCell(1500, ['valign' => 'center'])
         ->addText($actual->item_cost ?? '', $fontStyle);
     
-    // ✅ These are the columns that should now show
+    // These are the columns that should now show
     $equipTable->addCell(1700, ['valign' => 'center'])
         ->addText($actual->acknowledge ?? '', $fontStyle);
     $equipTable->addCell(1500, ['valign' => 'center'])
@@ -863,7 +861,7 @@ $actualNonequip = ItemModel::where('project_id', $project->project_id)
 
 $nonequipTable = new Table(['borderSize' => 6, 'borderColor' => '000000']);
 
-// ✅ Header Row 1
+// Header Row 1
 $nonequipTable->addRow(500);
 $nonequipTable->addCell(3700, ['gridSpan' => 3, 'valign' => 'center'])
     ->addText('Approved Non-Equipment', $fontStyle, $paraCenter);
@@ -874,7 +872,7 @@ $nonequipTable->addCell(1700, ['vMerge' => 'restart', 'valign' => 'center'])
 $nonequipTable->addCell(1500, ['vMerge' => 'restart', 'valign' => 'center'])
     ->addText('Remarks', $fontStyle, $paraCenter);
 
-// ✅ Header Row 2
+// Header Row 2
 $nonequipTable->addRow(500);
 $nonequipTable->addCell(700, ['valign' => 'center'])->addText('Qty', $fontStyle, $paraCenter);
 $nonequipTable->addCell(1500, ['valign' => 'center'])->addText('Particulars', $fontStyle, $paraCenter);
@@ -882,10 +880,10 @@ $nonequipTable->addCell(1500, ['valign' => 'center'])->addText('Cost', $fontStyl
 $nonequipTable->addCell(700, ['valign' => 'center'])->addText('Qty', $fontStyle, $paraCenter);
 $nonequipTable->addCell(1500, ['valign' => 'center'])->addText('Particulars', $fontStyle, $paraCenter);
 $nonequipTable->addCell(1500, ['valign' => 'center'])->addText('Cost', $fontStyle, $paraCenter);
-$nonequipTable->addCell(1700, ['vMerge' => 'continue']); // ✅ Continue merge
-$nonequipTable->addCell(1500, ['vMerge' => 'continue']); // ✅ Continue merge
+$nonequipTable->addCell(1700, ['vMerge' => 'continue']); // Continue merge
+$nonequipTable->addCell(1500, ['vMerge' => 'continue']); // Continue merge
 
-// ✅ Data Rows
+// Data Rows
 $maxRowsNonequip = max($approvedNonequip->count(), $actualNonequip->count());
 for ($i = 0; $i < $maxRowsNonequip; $i++) {
     $nonequipTable->addRow(400);
@@ -914,7 +912,7 @@ for ($i = 0; $i < $maxRowsNonequip; $i++) {
     $nonequipTable->addCell(1500, ['valign' => 'center'])
         ->addText($actual->item_cost ?? '', $fontStyle);
     
-    // ✅ These should now show
+    // These should now show
     $nonequipTable->addCell(1700, ['valign' => 'center'])
         ->addText($actual->acknowledge ?? '', $fontStyle);
     $nonequipTable->addCell(1500, ['valign' => 'center'])

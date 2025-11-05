@@ -20,7 +20,11 @@ import {
   Play,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Trophy,
+  Award,
+  HandCoins,
+  Filter
 } from 'lucide-react';
 
 // Helper to format date string to "MMM YYYY"
@@ -94,6 +98,18 @@ function getStatusBadge(progress) {
       text: 'text-red-800', 
       label: 'Disapproved' 
     },
+    'Refund': { 
+      icon: HandCoins, 
+      bg: 'bg-green-100', 
+      text: 'text-green-800', 
+      label: 'Refund' 
+    },
+    'Completed': { 
+      icon: Award, 
+      bg: 'bg-green-100', 
+      text: 'text-green-800', 
+      label: 'Completed' 
+    },
   };
 
   const config = statusConfig[progress] || { 
@@ -113,12 +129,29 @@ function getStatusBadge(progress) {
   );
 }
 
+// Progress status options for filter
+const progressOptions = [
+  { value: 'Complete Details', label: 'Pending Review' },
+  { value: 'internal_rtec', label: 'Internal RTEC' },
+  { value: 'internal_compliance', label: 'Internal Compliance' },
+  { value: 'external_rtec', label: 'External RTEC' },
+  { value: 'external_compliance', label: 'External Compliance' },
+  { value: 'approval', label: 'Awaiting Approval' },
+  { value: 'Approved', label: 'Approved' },
+  { value: 'Draft MOA', label: 'Draft MOA' },
+  { value: 'Implementation', label: 'Implementation' },
+  { value: 'Disapproved', label: 'Disapproved' },
+  { value: 'Refund', label: 'Refund' },
+  { value: 'Completed', label: 'Completed' },
+];
+
 export default function Index({ projects, filters, offices }) {
   const [search, setSearch] = useState(filters.search || '');
   const [perPage, setPerPage] = useState(filters.perPage || 10);
   const [sortField, setSortField] = useState(filters.sortField || 'project_title');
   const [sortDirection, setSortDirection] = useState(filters.sortDirection || 'asc');
   const [officeFilter, setOfficeFilter] = useState(filters.officeFilter || '');
+  const [progressFilter, setProgressFilter] = useState(filters.progressFilter || '');
   const [selectedProject, setSelectedProject] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
@@ -133,14 +166,15 @@ export default function Index({ projects, filters, offices }) {
         perPage,
         sortField,
         sortDirection,
-        officeFilter
+        officeFilter,
+        progressFilter
       }, { 
         preserveState: true, 
         replace: true 
       });
     }, 400);
     return () => clearTimeout(delaySearch);
-  }, [search, officeFilter]);
+  }, [search, officeFilter, progressFilter]);
 
   useEffect(() => {
     const handleEsc = (e) => {
@@ -162,7 +196,8 @@ export default function Index({ projects, filters, offices }) {
       perPage,
       sortField: field,
       sortDirection: newDirection,
-      officeFilter
+      officeFilter,
+      progressFilter
     }, {
       preserveScroll: true,
       preserveState: true,
@@ -208,7 +243,8 @@ export default function Index({ projects, filters, offices }) {
       perPage: newPerPage,
       sortField,
       sortDirection,
-      officeFilter
+      officeFilter,
+      progressFilter
     }, {
       preserveScroll: true,
       preserveState: true,
@@ -218,6 +254,11 @@ export default function Index({ projects, filters, offices }) {
   const handleOfficeFilterChange = (e) => {
     const newOffice = e.target.value;
     setOfficeFilter(newOffice);
+  };
+
+  const handleProgressFilterChange = (e) => {
+    const newProgress = e.target.value;
+    setProgressFilter(newProgress);
   };
 
   return (
@@ -249,53 +290,73 @@ export default function Index({ projects, filters, offices }) {
 
           {/* Filters Section */}
           <div className="p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search by company name or project title..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch('')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col lg:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search by company name or project title..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                  />
+                  {search && (
+                    <button
+                      onClick={() => setSearch('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm">
+                  <select
+                    value={perPage}
+                    onChange={handlePerPageChange}
+                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
                   >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                    {[10, 20, 50, 100].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  <span className="text-sm text-gray-700">entries</span>
+                </div>
               </div>
 
-              <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm min-w-[200px]">
-                <Building2 className="w-4 h-4 text-gray-400" />
-                <select
-                  value={officeFilter}
-                  onChange={handleOfficeFilterChange}
-                  className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1"
-                >
-                  <option value="">All Offices</option>
-                  {offices && offices.map((office) => (
-                    <option key={office.office_id} value={office.office_id}>
-                      {office.office_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <div className="flex flex-col lg:flex-row gap-4">
+                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm min-w-[200px]">
+                  <Building2 className="w-4 h-4 text-gray-400" />
+                  <select
+                    value={officeFilter}
+                    onChange={handleOfficeFilterChange}
+                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1"
+                  >
+                    <option value="">All Offices</option>
+                    {offices && offices.map((office) => (
+                      <option key={office.office_id} value={office.office_id}>
+                        {office.office_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm">
-                <select
-                  value={perPage}
-                  onChange={handlePerPageChange}
-                  className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
-                >
-                  {[10, 20, 50, 100].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-                <span className="text-sm text-gray-700">entries</span>
+                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm min-w-[200px]">
+                  <Filter className="w-4 h-4 text-gray-400" />
+                  <select
+                    value={progressFilter}
+                    onChange={handleProgressFilterChange}
+                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1"
+                  >
+                    <option value="">All Status</option>
+                    {progressOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           </div>

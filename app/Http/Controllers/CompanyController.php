@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 use Inertia\Inertia;
 use App\Models\CompanyModel;
+use App\Models\OfficeModel;
 use App\Models\UserModel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -13,17 +15,20 @@ class CompanyController extends Controller
     
 public function index(Request $request)
 {
-    $userId = session('user_id');
-    $user = UserModel::where('user_id', $userId)->first();
+    $user = Auth::user();
 
     $query = CompanyModel::with(['office', 'addedByUser']);
 
-    // Get all users sorted alphabetically (by first name then last name)
+    // Get all users sorted alphabetically
     $allUsers = UserModel::select('user_id', 'first_name', 'last_name')
         ->orderBy('first_name')
         ->orderBy('last_name')
         ->get();
 
+    // Get all offices for filter dropdown
+    $allOffices = OfficeModel::select('office_id', 'office_name')
+        ->orderBy('office_name')
+        ->get();
 
     // Role-based filtering
     if ($user->role === 'user') {
@@ -32,8 +37,8 @@ public function index(Request $request)
         $query->where('office_id', $user->office_id);
     }
 
-    // Search
-    if ($request->has('search')) {
+    // Search (now includes products)
+    if ($request->has('search') && $request->search) {
         $search = $request->search;
         $query->where(function ($q) use ($search) {
             $q->where('company_name', 'like', "%$search%")
@@ -42,22 +47,48 @@ public function index(Request $request)
               ->orWhere('street', 'like', "%$search%")
               ->orWhere('barangay', 'like', "%$search%")
               ->orWhere('municipality', 'like', "%$search%")
-              ->orWhere('province', 'like', "%$search%");
+              ->orWhere('province', 'like', "%$search%")
+              ->orWhere('products', 'like', "%$search%"); // Added products to search
         });
     }
 
-    $perPage = $request->input('perPage', 10); // default to 10
+    // Filter by office
+    if ($request->has('office') && $request->office) {
+        $query->where('office_id', $request->office);
+    }
 
-    $companies = $query->orderBy('company_name')->paginate($perPage)->withQueryString();
+    // Filter by industry type
+    if ($request->has('industry_type') && $request->industry_type) {
+        $query->where('industry_type', $request->industry_type);
+    }
+
+    // Filter by setup industry
+    if ($request->has('setup_industry') && $request->setup_industry) {
+        $query->where('setup_industry', $request->setup_industry);
+    }
+
+    // Sorting
+    $sortField = $request->input('sort', 'company_name');
+    $sortDirection = $request->input('direction', 'asc');
+
+    $allowedSorts = ['company_name', 'owner_name', 'email', 'industry_type', 'setup_industry', 'created_at'];
+    if (!in_array($sortField, $allowedSorts)) {
+        $sortField = 'company_name';
+    }
+
+    $sortDirection = in_array($sortDirection, ['asc', 'desc']) ? $sortDirection : 'asc';
+    $query->orderBy($sortField, $sortDirection);
+
+    $perPage = $request->input('perPage', 10);
+    $companies = $query->paginate($perPage)->withQueryString();
 
     return Inertia::render('Companies/Index', [
         'companies' => $companies,
-        'filters' => $request->only('search', 'perPage'),
-        'allUsers' => $user->role === 'head' ? $allUsers : null,
-
+        'filters' => $request->only('search', 'perPage', 'office', 'industry_type', 'setup_industry', 'sort', 'direction'),
+        'allUsers' => $user->role === 'admin' ? $allUsers : null,
+        'allOffices' => $allOffices,
     ]);
 }
-
 public function updateAddedBy(Request $request, $id)
 {
     $request->validate([

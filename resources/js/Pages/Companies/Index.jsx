@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import {
   Search,
   Plus,
-  RefreshCw,
   Eye,
   Edit3,
   Trash2,
@@ -21,13 +20,14 @@ import {
   AlertCircle
 } from 'lucide-react';
 
-export default function Index({ companies, filters, allUsers = [] }) {
+export default function Index({ companies, filters, allUsers = [], allOffices = [] }) {
   const [search, setSearch] = useState(filters.search || '');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [perPage, setPerPage] = useState(filters.perPage || 10);
   const [selectedCompany, setSelectedCompany] = useState(null);
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const [officeFilter, setOfficeFilter] = useState(filters.office || '');
+  const [setupIndustryFilter, setSetupIndustryFilter] = useState(filters.setup_industry || '');
+  const [industryTypeFilter, setIndustryTypeFilter] = useState(filters.industry_type_filter || '');
 
   const [openDropdownCompanyId, setOpenDropdownCompanyId] = useState(null);
   const [dropdownSearchTerm, setDropdownSearchTerm] = useState("");
@@ -39,10 +39,18 @@ export default function Index({ companies, filters, allUsers = [] }) {
 
   useEffect(() => {
     const delaySearch = setTimeout(() => {
-      router.get('/companies', { search }, { preserveState: true, replace: true });
+      router.get('/companies', { 
+        search,
+        office: officeFilter,
+        setup_industry: setupIndustryFilter,
+        industry_type: industryTypeFilter,
+        sort: filters.sort || 'company_name',
+        direction: filters.direction || 'asc',
+        perPage 
+      }, { preserveState: true, replace: true });
     }, 400);
     return () => clearTimeout(delaySearch);
-  }, [search]);
+  }, [search, officeFilter, setupIndustryFilter, industryTypeFilter]);
 
   useEffect(() => {
     const handleEsc = (e) => {
@@ -79,10 +87,51 @@ export default function Index({ companies, filters, allUsers = [] }) {
     router.get('/companies', {
       search,
       perPage: newPerPage,
+      office: officeFilter,
+      setup_industry: setupIndustryFilter,
+      industry_type: industryTypeFilter,
+      sort: filters.sort || 'company_name',
+      direction: filters.direction || 'asc',
     }, {
       preserveScroll: true,
       preserveState: true,
     });
+  };
+
+  const handleSortToggle = () => {
+    const newDirection = (filters.direction === 'asc') ? 'desc' : 'asc';
+    router.get('/companies', {
+      search,
+      perPage,
+      office: officeFilter,
+      setup_industry: setupIndustryFilter,
+      industry_type: industryTypeFilter,
+      sort: 'company_name',
+      direction: newDirection,
+    }, {
+      preserveScroll: true,
+      preserveState: true,
+    });
+  };
+
+  const handleOfficeChange = (e) => {
+    setOfficeFilter(e.target.value);
+  };
+
+  const handleSetupIndustryChange = (e) => {
+    setSetupIndustryFilter(e.target.value);
+  };
+
+  const handleIndustryTypeChange = (e) => {
+    setIndustryTypeFilter(e.target.value);
+  };
+
+  const clearFilters = () => {
+    setSearch('');
+    setOfficeFilter('');
+    setSetupIndustryFilter('');
+    setIndustryTypeFilter('');
+    router.get('/companies', { perPage }, { preserveState: true });
   };
 
   const handleSync = () => {
@@ -132,39 +181,132 @@ export default function Index({ companies, filters, allUsers = [] }) {
 
           {/* Filters Section */}
           <div className="p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
-            <div className="flex flex-col lg:flex-row gap-4">
-              {/* Search Bar */}
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search ..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch('')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            <div className="flex flex-col gap-4">
+              {/* Search Bar and Per Page Selector */}
+              <div className="flex flex-col lg:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search companies, products, other details..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                  />
+                  {search && (
+                    <button
+                      onClick={() => setSearch('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Per Page Selector */}
+                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm">
+                  <select
+                    value={perPage}
+                    onChange={handlePerPageChange}
+                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
                   >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                    {[10, 20, 50, 100].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  <span className="text-sm text-gray-700">entries</span>
+                </div>
               </div>
 
-              {/* Per Page Selector */}
-              <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm">
-                <select
-                  value={perPage}
-                  onChange={handlePerPageChange}
-                  className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
-                >
-                  {[10, 20, 50, 100].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-                <span className="text-sm text-gray-700">entries</span>
+              {/* Filter Row */}
+              <div className="flex flex-col lg:flex-row gap-4">
+                {/* Office Filter */}
+                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm min-w-[200px]">
+                  <Building className="w-4 h-4 text-gray-400" />
+                  <select
+                    value={officeFilter}
+                    onChange={handleOfficeChange}
+                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1"
+                  >
+                    <option value="">All Offices</option>
+                    {allOffices.map((office) => (
+                      <option key={office.office_id} value={office.office_id}>
+                        {office.office_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Industry Type Filter */}
+                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm min-w-[200px]">
+                  <Filter className="w-4 h-4 text-gray-400" />
+                  <select
+                    value={industryTypeFilter}
+                    onChange={handleIndustryTypeChange}
+                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1"
+                  >
+                    <option value="">All Enterprise Types</option>
+                    <option value="MICRO">MICRO</option>
+                    <option value="SMALL">SMALL</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                  </select>
+                </div>
+
+                {/* Setup Industry Filter */}
+                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm min-w-[200px]">
+                  <Factory className="w-4 h-4 text-gray-400" />
+                  <select
+                    value={setupIndustryFilter}
+                    onChange={handleSetupIndustryChange}
+                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1"
+                  >
+                    <option value="">All Industries</option>
+                    <optgroup label="Major Industry Sectors">
+                      <option value="Agriculture/Aquaculture/Forestry">Agriculture / Aquaculture / Forestry</option>
+                      <option value="Creative Industry">Creative Industry</option>
+                      <option value="Energy and Environment">Energy and Environment</option>
+                      <option value="Food Processing">Food Processing</option>
+                      <option value="Furniture">Furniture</option>
+                      <option value="Gifts, Decors, Handicrafts">Gifts, Decors, Handicrafts</option>
+                      <option value="Health and Wellness">Health and Wellness</option>
+                      <option value="Metals and Engineering">Metals and Engineering</option>
+                      <option value="Other Regional Priority Sectors">Other Regional Priority Sectors</option>
+                    </optgroup>
+                    <optgroup label="Sub-Industries / Manufacturing">
+                      <option value="Crop and animal production, hunting, and related service activities">Crop and animal production, hunting, and related service activities</option>
+                      <option value="Forestry and Logging">Forestry and Logging</option>
+                      <option value="Fishing and aquaculture">Fishing and aquaculture</option>
+                      <option value="Food processing">Food processing</option>
+                      <option value="Beverage manufacturing">Beverage manufacturing</option>
+                      <option value="Textile manufacturing">Textile manufacturing</option>
+                      <option value="Wearing apparel manufacturing">Wearing apparel manufacturing</option>
+                      <option value="Leather and related products manufacturing">Leather and related products manufacturing</option>
+                      <option value="Wood and products of wood and cork manufacturing">Wood and products of wood and cork manufacturing</option>
+                      <option value="Paper and paper products manufacturing">Paper and paper products manufacturing</option>
+                      <option value="Chemicals and chemical products manufacturing">Chemicals and chemical products manufacturing</option>
+                      <option value="Basic pharmaceutical products and pharmaceutical preparations manufacturing">Basic pharmaceutical products and pharmaceutical preparations manufacturing</option>
+                      <option value="Rubber and plastic products manufacturing">Rubber and plastic products manufacturing</option>
+                      <option value="Non-metallic mineral products manufacturing">Non-metallic mineral products manufacturing</option>
+                      <option value="Fabricated metal products manufacturing">Fabricated metal products manufacturing</option>
+                      <option value="Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing">Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing</option>
+                      <option value="Other transport equipment manufacturing">Other transport equipment manufacturing</option>
+                      <option value="Furniture manufacturing">Furniture manufacturing</option>
+                      <option value="Information and Communication">Information and Communication</option>
+                      <option value="Other regional priority industries approved by the Regional Development Council">Other regional priority industries approved by the Regional Development Council</option>
+                    </optgroup>
+                  </select>
+                </div>
+
+                {/* Clear Filters Button */}
+                {(search || officeFilter || setupIndustryFilter || industryTypeFilter) && (
+                  <button
+                    onClick={clearFilters}
+                    className="px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Clear
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -175,10 +317,14 @@ export default function Index({ companies, filters, allUsers = [] }) {
               <thead>
                 <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleSortToggle}
+                      className="flex items-center gap-2 hover:text-gray-900 transition-colors"
+                    >
                       <Building className="w-4 h-4" />
                       Company
-                    </div>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </button>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
@@ -201,13 +347,7 @@ export default function Index({ companies, filters, allUsers = [] }) {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
                       <Factory className="w-4 h-4" />
-                      Industry
-                    </div>
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4" />
-                      Products
+                      Setup Industry
                     </div>
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -254,14 +394,7 @@ export default function Index({ companies, filters, allUsers = [] }) {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {company.industry_type || company.setup_industry}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-900 truncate max-w-32" title={company.products}>
-                          {company.products}
+                          {company.setup_industry || 'Not specified'}
                         </span>
                       </div>
                     </td>
@@ -537,7 +670,17 @@ function CompanyModal({ company, isOpen, onClose }) {
                     <div>
                       <p className="text-sm font-medium text-gray-600">Industry Type</p>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 mt-1">
-                        {company.industry_type || company.setup_industry}
+                        {company.industry_type || 'Not specified'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Factory className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Setup Industry</p>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 mt-1">
+                        {company.setup_industry || 'Not specified'}
                       </span>
                     </div>
                   </div>
@@ -546,7 +689,7 @@ function CompanyModal({ company, isOpen, onClose }) {
                     <Package className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div>
                       <p className="text-sm font-medium text-gray-600">Products/Services</p>
-                      <p className="text-gray-900">{company.products}</p>
+                      <p className="text-gray-900">{company.products || 'Not specified'}</p>
                     </div>
                   </div>
                 </div>
