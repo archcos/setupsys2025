@@ -19,6 +19,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RtecController;
 use App\Http\Controllers\TagController;
 
 Route::middleware(['redirectIfAuthenticated'])->group(function () {
@@ -46,7 +47,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('user.dashboard')->middleware('role:user');
     Route::get('/users/{id}/edit', [AuthController::class, 'edit'])->name('users.edit');
     Route::put('/users/{id}', [AuthController::class, 'update'])->name('users.update');
-    Route::get('/rtec/dashboard', [DashboardController::class, 'rtecdashboard'])
+    Route::get('/rtec/dashboard', [RtecController::class, 'rtecdashboard'])
     ->name('rtec.dashboard');
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -161,7 +162,11 @@ Route::middleware(['auth'])->group(function () {
 //     ->name('projects.sync');
 
 
-
+Route::get('/rtec/projects/{project}/remarks', [RtecController::class, 'getProjectRemarks'])->name('rtec.remarks.index');
+Route::post('/rtec/projects/{project}/remarks', [RtecController::class, 'storeRemark'])->name('rtec.remarks.store');
+Route::put('/rtec/remarks/{remark}', [RtecController::class, 'updateRemark'])->name('rtec.remarks.update');
+Route::delete('/rtec/remarks/{remark}', [RtecController::class, 'deleteRemark'])->name('rtec.remarks.delete');
+Route::post('/rtec/remarks/{remark}/toggle-status', [RtecController::class, 'toggleRemarkStatus'])->name('rtec.remarks.toggle');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
