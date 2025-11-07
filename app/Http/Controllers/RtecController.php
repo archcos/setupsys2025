@@ -119,11 +119,21 @@ class RtecController extends Controller
             if ($selectedProjectData) {
                 $remarkSubject = $this->getRemarkSubject($progress);
                 
+                // Fetch parent remarks (where status is not a message_id reference)
                 $remarksData = MessageModel::where('project_id', $projectId)
                     ->where('subject', $remarkSubject)
-                    ->with(['user' => function($query) {
-                        $query->select('user_id', 'first_name', 'middle_name', 'last_name');
-                    }])
+                    ->whereIn('status', ['todo', 'done']) // Only get actual remarks, not comments
+                    ->with([
+                        'user' => function($query) {
+                            $query->select('user_id', 'first_name', 'middle_name', 'last_name');
+                        },
+                        'comments' => function($query) {
+                            $query->with(['user' => function($q) {
+                                $q->select('user_id', 'first_name', 'middle_name', 'last_name');
+                            }])
+                            ->orderBy('created_at', 'asc');
+                        }
+                    ])
                     ->orderBy('created_at', 'desc')
                     ->get();
             }
@@ -158,95 +168,169 @@ class RtecController extends Controller
         ];
     }
 
-public function storeRemark(Request $request, $projectId)
-{
-    $request->validate([
-        'message' => 'required|string',
-        'subject' => 'required|string'
-    ]);
+    public function storeRemark(Request $request, $projectId)
+    {
+        $request->validate([
+            'message' => 'required|string',
+            'subject' => 'required|string'
+        ]);
 
-    // Map the subject before saving
-    $mappedSubject = $this->getRemarkSubject($request->subject);
+        // Map the subject before saving
+        $mappedSubject = $this->getRemarkSubject($request->subject);
 
-    MessageModel::create([
-        'project_id' => $projectId,
-        'created_by' => Auth::id(),
-        'subject' => $mappedSubject,
-        'message' => $request->message,
-        'status' => 'todo'
-    ]);
+        MessageModel::create([
+            'project_id' => $projectId,
+            'created_by' => Auth::id(),
+            'subject' => $mappedSubject,
+            'message' => $request->message,
+            'status' => 'todo'
+        ]);
 
-    // Get progress from request body or query
-    $progress = $request->input('progress', $request->subject);
+        // Get progress from request body or query
+        $progress = $request->input('progress', $request->subject);
 
-    // Redirect back with modal open
-    return redirect()->route('rtec.dashboard', [
-        'status' => $request->query('status'),
-        'project_id' => $projectId,
-        'progress' => $progress
-    ]);
-}
-
-public function updateRemark(Request $request, $messageId)
-{
-    $remark = MessageModel::where('message_id', $messageId)->firstOrFail();
-    
-    if ($remark->created_by !== Auth::id()) {
-        abort(403, 'Unauthorized');
+        // Redirect back with modal open
+        return redirect()->route('rtec.dashboard', [
+            'status' => $request->query('status'),
+            'project_id' => $projectId,
+            'progress' => $progress
+        ]);
     }
 
-    $remark->update(['message' => $request->message]);
-    
-    // Get progress from request body or query
-    $progress = $request->input('progress', $request->query('progress'));
-    
-    return redirect()->route('rtec.dashboard', [
-        'status' => $request->query('status'),
-        'project_id' => $remark->project_id,
-        'progress' => $progress
-    ]);
-}
+    public function updateRemark(Request $request, $messageId)
+    {
+        $remark = MessageModel::where('message_id', $messageId)->firstOrFail();
+        
+        if ($remark->created_by !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
 
-public function deleteRemark(Request $request, $messageId)
-{
-    $remark = MessageModel::where('message_id', $messageId)->firstOrFail();
-
-    if ($remark->created_by !== Auth::id()) {
-        abort(403, 'Unauthorized');
+        $remark->update(['message' => $request->message]);
+        
+        // Get progress from request body or query
+        $progress = $request->input('progress', $request->query('progress'));
+        
+        return redirect()->route('rtec.dashboard', [
+            'status' => $request->query('status'),
+            'project_id' => $remark->project_id,
+            'progress' => $progress
+        ]);
     }
 
-    $projectId = $remark->project_id;
-    
-    $remark->delete();
-    
-    // Get progress from query
-    $progress = $request->query('progress');
-    
-    return redirect()->route('rtec.dashboard', [
-        'status' => $request->query('status'),
-        'project_id' => $projectId,
-        'progress' => $progress
-    ]);
-}
+    public function deleteRemark(Request $request, $messageId)
+    {
+        $remark = MessageModel::where('message_id', $messageId)->firstOrFail();
 
-public function toggleRemarkStatus(Request $request, $messageId)
-{
-    $remark = MessageModel::where('message_id', $messageId)->firstOrFail();
+        if ($remark->created_by !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
 
-    if ($remark->created_by !== Auth::id()) {
-        abort(403, 'Unauthorized');
+        $projectId = $remark->project_id;
+        
+        // Delete all comments associated with this remark
+        MessageModel::where('status', $messageId)->delete();
+        
+        // Delete the remark itself
+        $remark->delete();
+        
+        // Get progress from query
+        $progress = $request->query('progress');
+        
+        return redirect()->route('rtec.dashboard', [
+            'status' => $request->query('status'),
+            'project_id' => $projectId,
+            'progress' => $progress
+        ]);
     }
 
-    $remark->status = $remark->status === 'done' ? 'todo' : 'done';
-    $remark->save();
+    public function toggleRemarkStatus(Request $request, $messageId)
+    {
+        $remark = MessageModel::where('message_id', $messageId)->firstOrFail();
 
-    // Get progress from request body or query
-    $progress = $request->input('progress', $request->query('progress'));
+        if ($remark->created_by !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
 
-    return redirect()->route('rtec.dashboard', [
-        'status' => $request->query('status'),
-        'project_id' => $remark->project_id,
-        'progress' => $progress
-    ]);
-}
+        $remark->status = $remark->status === 'done' ? 'todo' : 'done';
+        $remark->save();
+
+        // Get progress from request body or query
+        $progress = $request->input('progress', $request->query('progress'));
+
+        return redirect()->route('rtec.dashboard', [
+            'status' => $request->query('status'),
+            'project_id' => $remark->project_id,
+            'progress' => $progress
+        ]);
+    }
+
+    // NEW: Store a comment on a remark
+    public function storeComment(Request $request, $messageId)
+    {
+        $request->validate([
+            'message' => 'required|string'
+        ]);
+
+        // Get the parent remark to get project_id and subject
+        $parentRemark = MessageModel::where('message_id', $messageId)->firstOrFail();
+
+        // Create comment with status set to the parent message_id
+        MessageModel::create([
+            'project_id' => $parentRemark->project_id,
+            'created_by' => Auth::id(),
+            'subject' => $parentRemark->subject,
+            'message' => $request->message,
+            'status' => (string)$messageId // Store parent message_id in status field
+        ]);
+
+        // Get progress from request
+        $progress = $request->input('progress');
+
+        return redirect()->route('rtec.dashboard', [
+            'status' => $request->query('status'),
+            'project_id' => $parentRemark->project_id,
+            'progress' => $progress
+        ]);
+    }
+
+    // NEW: Update a comment
+    public function updateComment(Request $request, $commentId)
+    {
+        $comment = MessageModel::where('message_id', $commentId)->firstOrFail();
+        
+        if ($comment->created_by !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        $comment->update(['message' => $request->message]);
+        
+        $progress = $request->input('progress', $request->query('progress'));
+        
+        return redirect()->route('rtec.dashboard', [
+            'status' => $request->query('status'),
+            'project_id' => $comment->project_id,
+            'progress' => $progress
+        ]);
+    }
+
+    // NEW: Delete a comment
+    public function deleteComment(Request $request, $commentId)
+    {
+        $comment = MessageModel::where('message_id', $commentId)->firstOrFail();
+
+        if ($comment->created_by !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        $projectId = $comment->project_id;
+        $comment->delete();
+        
+        $progress = $request->query('progress');
+        
+        return redirect()->route('rtec.dashboard', [
+            'status' => $request->query('status'),
+            'project_id' => $projectId,
+            'progress' => $progress
+        ]);
+    }
 }

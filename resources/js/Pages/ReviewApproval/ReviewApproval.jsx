@@ -1,5 +1,6 @@
 import { Link, router, Head, usePage } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   Search,
   X,
@@ -16,7 +17,12 @@ import {
   Plus,
   Trash2,
   User,
-  ClipboardMinus
+  ClipboardMinus,
+  ChevronDown,
+  ChevronUp,
+  MessageCircle,
+  Edit2,
+  Save
 } from 'lucide-react';
 
 function FlashMessage({ type = 'success', message, onClose }) {
@@ -399,36 +405,160 @@ export default function ReviewApproval({ projects, filters, currentStage, availa
   );
 }
 
-function ProjectModal({ project, isOpen, onClose }) {
+function ProjectModal({ project: initialProject, isOpen, onClose }) {
+  const { auth } = usePage().props;
+  const [project, setProject] = useState(initialProject);
   const [messageStatuses, setMessageStatuses] = useState({});
+  const [expandedComments, setExpandedComments] = useState({});
+  const [newComment, setNewComment] = useState({});
+  const [editingComment, setEditingComment] = useState(null);
+  const [editCommentMessage, setEditCommentMessage] = useState('');
 
   useEffect(() => {
-    if (project?.messages) {
+    setProject(initialProject);
+    if (initialProject?.messages) {
       const initialStatuses = {};
-      project.messages.forEach(msg => {
+      initialProject.messages.forEach(msg => {
         initialStatuses[msg.message_id] = msg.status;
       });
       setMessageStatuses(initialStatuses);
     }
-  }, [project]);
+  }, [initialProject]);
 
-  const toggleMessageStatus = (messageId) => {
+  const toggleMessageStatus = async (messageId) => {
+    const prevStatus = messageStatuses[messageId];
+    const newStatus = prevStatus === 'done' ? 'todo' : 'done';
+    
+    // Optimistic update
     setMessageStatuses(prev => ({
       ...prev,
-      [messageId]: prev[messageId] === 'done' ? 'todo' : 'done'
+      [messageId]: newStatus
     }));
 
-    router.post(`/messages/${messageId}/toggle-status`, {}, { 
-      preserveScroll: true,
-      preserveState: true,
-      only: ['projects', 'flash'],
-      onError: () => {
-        setMessageStatuses(prev => ({
+    try {
+      await axios.post(`/messages/${messageId}/toggle-status`);
+    } catch (error) {
+      console.error('Error toggling status:', error);
+      // Revert on error
+      setMessageStatuses(prev => ({
+        ...prev,
+        [messageId]: prevStatus
+      }));
+    }
+  };
+
+  const toggleComments = (messageId) => {
+    setExpandedComments(prev => ({
+      ...prev,
+      [messageId]: !prev[messageId]
+    }));
+  };
+
+  const handleAddComment = async (messageId) => {
+    const comment = newComment[messageId];
+    if (!comment?.trim()) return;
+
+    try {
+      const response = await axios.post(`/review/comments/${messageId}`, {
+        message: comment
+      });
+
+      if (response.data.success) {
+        // Update project messages with new comment
+        setProject(prevProject => {
+          const updatedMessages = prevProject.messages.map(msg => {
+            if (msg.message_id === messageId) {
+              return {
+                ...msg,
+                comments: [...(msg.comments || []), response.data.comment]
+              };
+            }
+            return msg;
+          });
+          return { ...prevProject, messages: updatedMessages };
+        });
+
+        // Clear input
+        setNewComment(prev => ({
           ...prev,
-          [messageId]: prev[messageId] === 'done' ? 'todo' : 'done'
+          [messageId]: ''
         }));
       }
-    });
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      alert('Failed to add comment');
+    }
+  };
+
+  const startEditingComment = (comment) => {
+    setEditingComment(comment.message_id);
+    setEditCommentMessage(comment.message);
+  };
+
+  const cancelEditingComment = () => {
+    setEditingComment(null);
+    setEditCommentMessage('');
+  };
+
+  const handleUpdateComment = async (commentId) => {
+    if (!editCommentMessage.trim()) return;
+
+    try {
+      const response = await axios.put(`/review/comments/${commentId}`, {
+        message: editCommentMessage
+      });
+
+      if (response.data.success) {
+        // Update project messages with edited comment
+        setProject(prevProject => {
+          const updatedMessages = prevProject.messages.map(msg => {
+            if (msg.comments) {
+              const updatedComments = msg.comments.map(c => 
+                c.message_id === commentId 
+                  ? { ...c, message: editCommentMessage }
+                  : c
+              );
+              return { ...msg, comments: updatedComments };
+            }
+            return msg;
+          });
+          return { ...prevProject, messages: updatedMessages };
+        });
+
+        setEditingComment(null);
+        setEditCommentMessage('');
+      }
+    } catch (error) {
+      console.error('Error updating comment:', error);
+      alert('Failed to update comment');
+    }
+  };
+
+  const handleDeleteComment = async (commentId, parentMessageId) => {
+    if (!confirm('Are you sure you want to delete this comment?')) return;
+
+    try {
+      const response = await axios.delete(`/review/comments/${commentId}`);
+
+      if (response.data.success) {
+        // Remove comment from project messages
+        setProject(prevProject => {
+          const updatedMessages = prevProject.messages.map(msg => {
+            if (msg.message_id === parentMessageId && msg.comments) {
+              return {
+                ...msg,
+                comments: msg.comments.filter(c => c.message_id !== commentId)
+              };
+            }
+            return msg;
+          });
+          return { ...prevProject, messages: updatedMessages };
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      alert('Failed to delete comment');
+    }
   };
 
   if (!isOpen) return null;
@@ -441,7 +571,7 @@ function ProjectModal({ project, isOpen, onClose }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="bg-blue-500 p-6 rounded-t-2xl text-white">
+        <div className="bg-blue-500 p-6 rounded-t-2xl text-white sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
@@ -476,25 +606,146 @@ function ProjectModal({ project, isOpen, onClose }) {
                   <div className="space-y-3">
                     {project.messages.map((msg) => {
                       const currentStatus = messageStatuses[msg.message_id] || msg.status;
+                      const commentsExpanded = expandedComments[msg.message_id];
+                      const commentsCount = msg.comments?.length || 0;
+
                       return (
                         <div
                           key={msg.message_id}
-                          className="bg-white rounded-lg p-4 border border-yellow-100"
+                          className="bg-white rounded-lg border border-yellow-100"
                         >
-                          <div className="flex items-start gap-3">
-                            <input
-                              type="checkbox"
-                              checked={currentStatus === 'done'}
-                              onChange={() => toggleMessageStatus(msg.message_id)}
-                              className="w-4 h-4 mt-1 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                            />
-                            <div className="flex-1">
-                              <p className="text-sm text-gray-700 whitespace-pre-line mb-2">{msg.message}</p>
-                              <p className="text-xs text-gray-500">
-                                {msg.user?.name || 'Unknown User'} • {new Date(msg.created_at).toLocaleString()}
-                              </p>
+                          <div className="p-4">
+                            <div className="flex items-start gap-3">
+                              <input
+                                type="checkbox"
+                                checked={currentStatus === 'done'}
+                                onChange={() => toggleMessageStatus(msg.message_id)}
+                                className="w-4 h-4 mt-1 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                              />
+                              <div className="flex-1">
+                                <p className={`text-sm text-gray-700 whitespace-pre-line mb-2 ${currentStatus === 'done' ? 'line-through' : ''}`}>{msg.message}</p>
+                                <p className="text-xs text-gray-500">
+                                  {msg.user?.name || 'Unknown User'} • {new Date(msg.created_at).toLocaleString()}
+                                </p>
+                              </div>
                             </div>
+
+                            {/* Comments Toggle */}
+                            <button
+                              onClick={() => toggleComments(msg.message_id)}
+                              className="mt-3 flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                              <span>{commentsCount} {commentsCount === 1 ? 'Comment' : 'Comments'}</span>
+                              {commentsExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </button>
                           </div>
+
+                          {/* Comments Section */}
+                          {commentsExpanded && (
+                            <div className="border-t border-yellow-100 bg-gray-50/50 p-4">
+                              {/* Existing Comments */}
+                              {msg.comments && msg.comments.length > 0 && (
+                                <div className="space-y-2 mb-3">
+                                  {msg.comments.map((comment) => {
+                                    const isCommentOwner = auth.user.user_id === comment.created_by;
+                                    const isEditingThisComment = editingComment === comment.message_id;
+
+                                    return (
+                                      <div
+                                        key={comment.message_id}
+                                        className="bg-white border border-gray-200 rounded-lg p-3"
+                                      >
+                                        {isEditingThisComment ? (
+                                          <div className="space-y-2">
+                                            <textarea
+                                              value={editCommentMessage}
+                                              onChange={(e) => setEditCommentMessage(e.target.value)}
+                                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                                              rows="2"
+                                            />
+                                            <div className="flex gap-2">
+                                              <button
+                                                onClick={() => handleUpdateComment(comment.message_id)}
+                                                className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700 flex items-center gap-1"
+                                              >
+                                                <Save className="w-3 h-3" />
+                                                Save
+                                              </button>
+                                              <button
+                                                onClick={cancelEditingComment}
+                                                className="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs font-semibold hover:bg-gray-300 flex items-center gap-1"
+                                              >
+                                                <XCircle className="w-3 h-3" />
+                                                Cancel
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-start gap-2">
+                                            <div className="flex-1">
+                                              <p className="text-sm text-gray-800">{comment.message}</p>
+                                              <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                                <span className="font-semibold">{comment.user?.name || 'Unknown'}</span>
+                                                <span>•</span>
+                                                <span>{new Date(comment.created_at).toLocaleString()}</span>
+                                              </div>
+                                            </div>
+                                            {isCommentOwner && (
+                                              <div className="flex gap-1">
+                                                <button
+                                                  onClick={() => startEditingComment(comment)}
+                                                  className="p-1 hover:bg-blue-100 rounded transition-colors"
+                                                  title="Edit"
+                                                >
+                                                  <Edit2 className="w-3 h-3 text-blue-600" />
+                                                </button>
+                                                <button
+                                                  onClick={() => handleDeleteComment(comment.message_id, msg.message_id)}
+                                                  className="p-1 hover:bg-red-100 rounded transition-colors"
+                                                  title="Delete"
+                                                >
+                                                  <Trash2 className="w-3 h-3 text-red-600" />
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* Add New Comment */}
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={newComment[msg.message_id] || ''}
+                                  onChange={(e) => setNewComment(prev => ({
+                                    ...prev,
+                                    [msg.message_id]: e.target.value
+                                  }))}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault();
+                                      handleAddComment(msg.message_id);
+                                    }
+                                  }}
+                                  placeholder="Add a comment..."
+                                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                                <button
+                                  onClick={() => handleAddComment(msg.message_id)}
+                                  disabled={!newComment[msg.message_id]?.trim()}
+                                  className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                  Add
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -515,10 +766,7 @@ function ProjectModal({ project, isOpen, onClose }) {
                   <h4 className="text-lg font-semibold text-gray-900">Project Information</h4>
                 </div>
 
-                
-                
                 <div className="space-y-4">
-
                   <div className="flex items-start gap-3">
                     <ClipboardMinus className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div>
@@ -603,7 +851,7 @@ function ProjectModal({ project, isOpen, onClose }) {
           </div>
         </div>
 
-        <div className="bg-gray-50 px-6 py-4 rounded-b-2xl border-t border-gray-200">
+        <div className="bg-gray-50 px-6 py-4 rounded-b-2xl border-t border-gray-200 sticky bottom-0">
           <div className="flex justify-end">
             <button
               onClick={onClose}

@@ -19,7 +19,9 @@ import {
   Trash2,
   Save,
   XCircle,
-  Loader2
+  ChevronDown,
+  ChevronUp,
+  MessageCircle
 } from 'lucide-react';
 
 export default function Dashboard({ statusCounts, allowedStatuses, projects, currentFilter, userRole, auth, selectedProjectData, remarksData }) {
@@ -30,6 +32,10 @@ export default function Dashboard({ statusCounts, allowedStatuses, projects, cur
   const [editingRemark, setEditingRemark] = useState(null);
   const [editMessage, setEditMessage] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [expandedComments, setExpandedComments] = useState({});
+  const [newComment, setNewComment] = useState({});
+  const [editingComment, setEditingComment] = useState(null);
+  const [editCommentMessage, setEditCommentMessage] = useState('');
 
   // Update remarks when data changes from Inertia
   useEffect(() => {
@@ -123,6 +129,10 @@ export default function Dashboard({ statusCounts, allowedStatuses, projects, cur
     setNewRemark('');
     setEditingRemark(null);
     setEditMessage('');
+    setExpandedComments({});
+    setNewComment({});
+    setEditingComment(null);
+    setEditCommentMessage('');
     
     router.get(route('rtec.dashboard'), 
       currentFilter ? { status: currentFilter } : {},
@@ -191,11 +201,83 @@ export default function Dashboard({ statusCounts, allowedStatuses, projects, cur
   };
 
   const handleDeleteRemark = (remarkId) => {
-    if (!confirm('Are you sure you want to delete this remark?')) return;
+    if (!confirm('Are you sure you want to delete this remark? All comments will also be deleted.')) return;
 
     router.delete(route('rtec.remarks.delete', remarkId), {
       preserveState: true,
       preserveScroll: true
+    });
+  };
+
+  // Comment functions
+  const toggleComments = (remarkId) => {
+    setExpandedComments(prev => ({
+      ...prev,
+      [remarkId]: !prev[remarkId]
+    }));
+  };
+
+  const handleAddComment = (remarkId) => {
+    const comment = newComment[remarkId];
+    if (!comment?.trim()) return;
+
+    router.post(route('rtec.comments.store', remarkId), {
+      message: comment,
+      progress: selectedProject.progress
+    }, {
+      preserveState: true,
+      preserveScroll: true,
+      data: {
+        status: currentFilter,
+        project_id: selectedProject.project_id,
+        progress: selectedProject.progress
+      },
+      onSuccess: () => {
+        setNewComment(prev => ({
+          ...prev,
+          [remarkId]: ''
+        }));
+      }
+    });
+  };
+
+  const startEditingComment = (comment) => {
+    setEditingComment(comment.message_id);
+    setEditCommentMessage(comment.message);
+  };
+
+  const cancelEditingComment = () => {
+    setEditingComment(null);
+    setEditCommentMessage('');
+  };
+
+  const handleUpdateComment = (commentId) => {
+    if (!editCommentMessage.trim()) return;
+
+    router.put(route('rtec.comments.update', commentId), {
+      message: editCommentMessage,
+      progress: selectedProject.progress
+    }, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        setEditingComment(null);
+        setEditCommentMessage('');
+      }
+    });
+  };
+
+  const handleDeleteComment = (commentId) => {
+    if (!confirm('Are you sure you want to delete this comment?')) return;
+
+    router.delete(route('rtec.comments.delete', commentId), {
+      preserveState: true,
+      preserveScroll: true,
+      data: {
+        status: currentFilter,
+        project_id: selectedProject.project_id,
+        progress: selectedProject.progress
+      }
     });
   };
 
@@ -422,88 +504,210 @@ export default function Dashboard({ statusCounts, allowedStatuses, projects, cur
                   {remarks.map((remark) => {
                     const isOwner = auth.user.user_id === remark.created_by;
                     const isEditing = editingRemark === remark.message_id;
+                    const commentsExpanded = expandedComments[remark.message_id];
+                    const commentsCount = remark.comments?.length || 0;
 
                     return (
                       <div
                         key={remark.message_id}
-                        className={`border rounded-xl p-4 transition-all ${
+                        className={`border rounded-xl transition-all ${
                           remark.status === 'done' 
                             ? 'bg-green-50 border-green-200' 
                             : 'bg-white border-gray-200'
                         }`}
                       >
-                        <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            checked={remark.status === 'done'}
-                            onChange={() => handleToggleStatus(remark.message_id)}
-                            disabled={!isOwner}
-                            className={`mt-1 w-5 h-5 rounded border-2 ${
-                              isOwner 
-                                ? 'cursor-pointer text-blue-600 focus:ring-blue-500' 
-                                : 'cursor-not-allowed opacity-50'
-                            }`}
-                          />
+                        <div className="p-4">
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={remark.status === 'done'}
+                              onChange={() => handleToggleStatus(remark.message_id)}
+                              disabled={!isOwner}
+                              className={`mt-1 w-5 h-5 rounded border-2 ${
+                                isOwner 
+                                  ? 'cursor-pointer text-blue-600 focus:ring-blue-500' 
+                                  : 'cursor-not-allowed opacity-50'
+                              }`}
+                            />
 
-                          <div className="flex-1 min-w-0">
-                            {isEditing ? (
-                              <div className="space-y-2">
-                                <textarea
-                                  value={editMessage}
-                                  onChange={(e) => setEditMessage(e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                                  rows="3"
-                                />
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => handleUpdateRemark(remark.message_id)}
-                                    className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-1"
-                                  >
-                                    <Save className="w-4 h-4" />
-                                    Save
-                                  </button>
-                                  <button
-                                    onClick={cancelEditing}
-                                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300 flex items-center gap-1"
-                                  >
-                                    <XCircle className="w-4 h-4" />
-                                    Cancel
-                                  </button>
+                            <div className="flex-1 min-w-0">
+                              {isEditing ? (
+                                <div className="space-y-2">
+                                  <textarea
+                                    value={editMessage}
+                                    onChange={(e) => setEditMessage(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                    rows="3"
+                                  />
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleUpdateRemark(remark.message_id)}
+                                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-1"
+                                    >
+                                      <Save className="w-4 h-4" />
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={cancelEditing}
+                                      className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300 flex items-center gap-1"
+                                    >
+                                      <XCircle className="w-4 h-4" />
+                                      Cancel
+                                    </button>
+                                  </div>
                                 </div>
+                              ) : (
+                                <>
+                                  <p className={`text-gray-800 ${remark.status === 'done' ? 'line-through' : ''}`}>
+                                    {remark.message}
+                                  </p>
+                                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                                    <span className="font-semibold">{remark.user?.name || 'Unknown'}</span>
+                                    <span>•</span>
+                                    <span>{new Date(remark.created_at).toLocaleString()}</span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+
+                            {isOwner && !isEditing && (
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => startEditing(remark)}
+                                  className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
+                                  title="Edit"
+                                >
+                                  <Edit2 className="w-4 h-4 text-blue-600" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteRemark(remark.message_id)}
+                                  className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-600" />
+                                </button>
                               </div>
-                            ) : (
-                              <>
-                                <p className={`text-gray-800 ${remark.status === 'done' ? 'line-through' : ''}`}>
-                                  {remark.message}
-                                </p>
-                                <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                                  <span className="font-semibold">{remark.user?.name || 'Unknown'}</span>
-                                  <span>•</span>
-                                  <span>{new Date(remark.created_at).toLocaleString()}</span>
-                                </div>
-                              </>
                             )}
                           </div>
 
-                          {isOwner && !isEditing && (
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => startEditing(remark)}
-                                className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
-                                title="Edit"
-                              >
-                                <Edit2 className="w-4 h-4 text-blue-600" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteRemark(remark.message_id)}
-                                className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4 text-red-600" />
-                              </button>
-                            </div>
+                          {/* Comments Toggle Button */}
+                          {!isEditing && (
+                            <button
+                              onClick={() => toggleComments(remark.message_id)}
+                              className="mt-3 flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                              <span>{commentsCount} {commentsCount === 1 ? 'Comment' : 'Comments'}</span>
+                              {commentsExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </button>
                           )}
                         </div>
+
+                        {/* Comments Section */}
+                        {commentsExpanded && !isEditing && (
+                          <div className="border-t border-gray-200 bg-gray-50/50 p-4">
+                            {/* Existing Comments */}
+                            {remark.comments && remark.comments.length > 0 && (
+                              <div className="space-y-2 mb-3">
+                                {remark.comments.map((comment) => {
+                                  const isCommentOwner = auth.user.user_id === comment.created_by;
+                                  const isEditingThisComment = editingComment === comment.message_id;
+
+                                  return (
+                                    <div
+                                      key={comment.message_id}
+                                      className="bg-white border border-gray-200 rounded-lg p-3"
+                                    >
+                                      {isEditingThisComment ? (
+                                        <div className="space-y-2">
+                                          <textarea
+                                            value={editCommentMessage}
+                                            onChange={(e) => setEditCommentMessage(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                                            rows="2"
+                                          />
+                                          <div className="flex gap-2">
+                                            <button
+                                              onClick={() => handleUpdateComment(comment.message_id)}
+                                              className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700 flex items-center gap-1"
+                                            >
+                                              <Save className="w-3 h-3" />
+                                              Save
+                                            </button>
+                                            <button
+                                              onClick={cancelEditingComment}
+                                              className="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs font-semibold hover:bg-gray-300 flex items-center gap-1"
+                                            >
+                                              <XCircle className="w-3 h-3" />
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-start gap-2">
+                                          <div className="flex-1">
+                                            <p className="text-sm text-gray-800">{comment.message}</p>
+                                            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                              <span className="font-semibold">{comment.user?.name || 'Unknown'}</span>
+                                              <span>•</span>
+                                              <span>{new Date(comment.created_at).toLocaleString()}</span>
+                                            </div>
+                                          </div>
+                                          {isCommentOwner && (
+                                            <div className="flex gap-1">
+                                              <button
+                                                onClick={() => startEditingComment(comment)}
+                                                className="p-1 hover:bg-blue-100 rounded transition-colors"
+                                                title="Edit"
+                                              >
+                                                <Edit2 className="w-3 h-3 text-blue-600" />
+                                              </button>
+                                              <button
+                                                onClick={() => handleDeleteComment(comment.message_id)}
+                                                className="p-1 hover:bg-red-100 rounded transition-colors"
+                                                title="Delete"
+                                              >
+                                                <Trash2 className="w-3 h-3 text-red-600" />
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {/* Add New Comment */}
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={newComment[remark.message_id] || ''}
+                                onChange={(e) => setNewComment(prev => ({
+                                  ...prev,
+                                  [remark.message_id]: e.target.value
+                                }))}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleAddComment(remark.message_id);
+                                  }
+                                }}
+                                placeholder="Add a comment..."
+                                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                              <button
+                                onClick={() => handleAddComment(remark.message_id)}
+                                disabled={!newComment[remark.message_id]?.trim()}
+                                className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
+                              >
+                                <Plus className="w-4 h-4" />
+                                Add
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

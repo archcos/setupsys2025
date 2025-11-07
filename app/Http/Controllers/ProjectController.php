@@ -1075,16 +1075,26 @@ public function updateProgressReview(Request $request, $id)
         $project->progress = $newProgress;
         $project->save();
 
+        // Determine message subject
+        if ($request->stage === 'internal_rtec') {
+            $subject = 'internal_compliance';
+        } elseif ($request->stage === 'external_rtec') {
+            $subject = 'external_compliance';
+        } else {
+            $subject = $newProgress; // keep same as new progress for others
+        }
+
         // Create multiple messages
         foreach ($request->remarks as $remark) {
             MessageModel::create([
                 'project_id' => $project->project_id,
                 'created_by' => $remark['created_by'],
-                'subject' => $newProgress,
+                'subject' => $subject,
                 'message' => $remark['message'],
-                'status' => 'todo'
+                'status' => 'todo',
             ]);
         }
+
 
         Log::info('Project approved with multiple remarks', [
             'project_id' => $project->project_id,
