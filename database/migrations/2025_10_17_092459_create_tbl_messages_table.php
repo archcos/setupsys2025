@@ -30,7 +30,7 @@ return new class extends Migration
             // Message contents
             $table->string('subject', 255); // e.g. "internal_compliance approved"
             $table->text('message'); // remarks
-            $table->string('status', 4); // remarks
+            $table->string('status', 11); // remarks
 
             $table->timestamps();
         });

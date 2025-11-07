@@ -574,7 +574,10 @@ public function showForm(Request $request)
     $user = UserModel::find($userId);
 
     // Build company query based on user role
-    $companiesQuery = CompanyModel::select('company_id', 'company_name');
+    $companiesQuery = CompanyModel::select('company_id', 'company_name')
+        ->whereHas('projects', function($query) {
+            $query->whereIn('progress', ['Approved', 'Draft MOA']);
+        });
     
     if ($user->role === 'staff') {
         $companiesQuery->where('office_id', $user->office_id);
@@ -597,7 +600,9 @@ public function showForm(Request $request)
                 abort(403, 'Unauthorized access to this company.');
             }
 
+            // Only show projects with Approved or Draft MOA status
             $projects = ProjectModel::where('company_id', $companyId)
+                ->whereIn('progress', ['Approved', 'Draft MOA'])
                 ->with(['activities', 'items'])
                 ->select('project_id', 'project_title', 'company_id')
                 ->get();

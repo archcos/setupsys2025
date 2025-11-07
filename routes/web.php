@@ -19,6 +19,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\RtecController;
 use App\Http\Controllers\TagController;
 
@@ -47,8 +48,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('user.dashboard')->middleware('role:user');
     Route::get('/users/{id}/edit', [AuthController::class, 'edit'])->name('users.edit');
     Route::put('/users/{id}', [AuthController::class, 'update'])->name('users.update');
-    Route::get('/rtec/dashboard', [RtecController::class, 'rtecdashboard'])
-    ->name('rtec.dashboard');
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
@@ -92,14 +91,20 @@ Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
     Route::get('/moa/{moa_id}/download-approved', [MOAController::class, 'downloadApprovedFile'])->name('moa.download.approved');
     Route::delete('/moa/{moa_id}/delete-approved', [MOAController::class, 'deleteApprovedFile'])->name('moa.delete.approved');
     
-    Route::get('/review-approval', [ProjectController::class, 'reviewApproval'])
-        ->name('projects.review-approval');
-    Route::post('/projects/{id}/update-progress', [ProjectController::class, 'updateProgressReview'])
-        ->name('projects.update-progress');
+    
     Route::put('/projects/{id}/progress', [ProjectController::class, 'updateProgress'])->middleware('role:staff');
-    Route::post('/messages/{id}/toggle-status', [ProjectController::class, 'toggleMessageStatus'])->name('messages.toggle');
-
 });
+
+// Review Approval Routes
+Route::get('/review-approval', [ReviewController::class, 'reviewApproval'])->name('review.approval');
+Route::post('/projects/{id}/update-progress', [ReviewController::class, 'updateProgressReview'])->name('projects.updateProgress');
+Route::post('/messages/{id}/toggle-status', [ReviewController::class, 'toggleMessageStatus'])->name('messages.toggleStatus');
+
+// Review Comment Routes (NEW - same pattern as RTEC)
+Route::post('/review/comments/{messageId}', [ReviewController::class, 'storeComment'])->name('review.comments.store');
+Route::put('/review/comments/{commentId}', [ReviewController::class, 'updateComment'])->name('review.comments.update');
+Route::delete('/review/comments/{commentId}', [ReviewController::class, 'deleteComment'])->name('review.comments.delete');
+
 
 //NOTIFICATION
 Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
@@ -167,6 +172,23 @@ Route::post('/rtec/projects/{project}/remarks', [RtecController::class, 'storeRe
 Route::put('/rtec/remarks/{remark}', [RtecController::class, 'updateRemark'])->name('rtec.remarks.update');
 Route::delete('/rtec/remarks/{remark}', [RtecController::class, 'deleteRemark'])->name('rtec.remarks.delete');
 Route::post('/rtec/remarks/{remark}/toggle-status', [RtecController::class, 'toggleRemarkStatus'])->name('rtec.remarks.toggle');
+Route::get('/rtec/dashboard', [RtecController::class, 'rtecdashboard'])->name('rtec.dashboard');
+
+// Remark routes (existing)
+Route::post('/rtec/remarks/{projectId}', [RtecController::class, 'storeRemark'])->name('rtec.remarks.store');
+Route::put('/rtec/remarks/{messageId}', [RtecController::class, 'updateRemark'])->name('rtec.remarks.update');
+Route::delete('/rtec/remarks/{messageId}', [RtecController::class, 'deleteRemark'])->name('rtec.remarks.delete');
+Route::post('/rtec/remarks/{messageId}/toggle', [RtecController::class, 'toggleRemarkStatus'])->name('rtec.remarks.toggle');
+
+// NEW: Comment routes
+Route::post('/rtec/comments/{messageId}', [RtecController::class, 'storeComment'])->name('rtec.comments.store');
+Route::put('/rtec/comments/{commentId}', [RtecController::class, 'updateComment'])->name('rtec.comments.update');
+Route::delete('/rtec/comments/{commentId}', [RtecController::class, 'deleteComment'])->name('rtec.comments.delete');
+
+Route::get('/review-approval', [ReviewController::class, 'reviewApproval'])->name('review.approval');
+Route::post('/projects/{id}/update-progress', [ReviewController::class, 'updateProgressReview'])->name('projects.updateProgress');
+Route::post('/messages/{id}/toggle-status', [ReviewController::class, 'toggleMessageStatus'])->name('messages.toggleStatus');
+
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
