@@ -247,8 +247,10 @@ export default function Index({ projects, filters, offices }) {
           </div>
 
           {/* Filters Section */}
+{/* Filters Section */}
           <div className="p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
             <div className="flex flex-col gap-4">
+              {/* Search Bar and Per Page Selector */}
               <div className="flex flex-col lg:flex-row gap-4">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -257,7 +259,7 @@ export default function Index({ projects, filters, offices }) {
                     placeholder="Search by company name or project title..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                   />
                   {search && (
                     <button
@@ -269,7 +271,8 @@ export default function Index({ projects, filters, offices }) {
                   )}
                 </div>
 
-                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-300 shadow-sm">
+                {/* Per Page Selector */}
+                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm">
                   <select
                     value={perPage}
                     onChange={handlePerPageChange}
@@ -283,13 +286,15 @@ export default function Index({ projects, filters, offices }) {
                 </div>
               </div>
 
+              {/* Filter Row */}
               <div className="flex flex-col lg:flex-row gap-4">
-                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-300 shadow-sm min-w-[200px]">
+                {/* Office Filter */}
+                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm min-w-[200px]">
                   <Building2 className="w-4 h-4 text-gray-400" />
                   <select
                     value={officeFilter}
                     onChange={handleOfficeFilterChange}
-                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-3"
+                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1"
                   >
                     <option value="">All Offices</option>
                     {offices && offices.map((office) => (
@@ -300,12 +305,13 @@ export default function Index({ projects, filters, offices }) {
                   </select>
                 </div>
 
-                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-300 shadow-sm min-w-[200px]">
+                {/* Status Filter */}
+                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm min-w-[200px]">
                   <Filter className="w-4 h-4 text-gray-400" />
                   <select
                     value={progressFilter}
                     onChange={handleProgressFilterChange}
-                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-3"
+                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1"
                   >
                     <option value="">All Status</option>
                     {progressOptions.map((option) => (
