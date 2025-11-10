@@ -12,7 +12,7 @@ return new class extends Migration
 Schema::create('tbl_items', function (Blueprint $table) {
     $table->integer('item_id')->autoIncrement();
     $table->unsignedBigInteger('project_id')->nullable();
-    $table->string('item_name', 50)->nullable();    
+    $table->string('item_name', 100)->nullable();    
     $table->string('type', 10)->nullable();
     $table->text('specifications')->nullable();
     $table->integer('quantity')->nullable();

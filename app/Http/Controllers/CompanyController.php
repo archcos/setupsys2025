@@ -109,23 +109,24 @@ public function create()
 public function store(Request $request)
 {
     $validated = $request->validate([
-        'company_name'     => 'required|string|max:255',
-        'owner_name'       => 'required|string|max:255',
-        'email'            => 'nullable|email|max:255',
-        'street'           => 'required|string|max:255',
-        'barangay'         => 'required|string|max:255',
-        'municipality'     => 'required|string|max:255',
-        'province'         => 'required|string|max:255',
-        'district'         => 'required|string|max:255',
-        'sex'              => 'required|in:Male,Female',
-        'products'         => 'required|string|max:255',
-        'setup_industry'   => 'required|string|max:255',
-        'industry_type'    => 'required|in:MICRO,SMALL,MEDIUM',
-        'female'           => 'required|integer|min:0',
-        'male'             => 'required|integer|min:0',
-        'direct_male'      => 'required|integer|min:0',
-        'direct_female'    => 'required|integer|min:0',
-        'contact_number'   => 'required|string|max:20',
+        'company_name'     => 'nullable|string|max:254',
+        'owner_name'       => 'nullable|string|max:254',
+        'email'            => 'nullable|email|max:100',
+        'street'           => 'nullable|string|max:50',
+        'barangay'         => 'nullable|string|max:50',
+        'municipality'     => 'nullable|string|max:50',
+        'province'         => 'nullable|string|max:30',
+        'district'         => 'nullable|string|max:45',
+        'sex'              => 'nullable|in:Male,Female',
+        'products'         => 'nullable|string',
+        'setup_industry'   => 'nullable|string|max:150',
+        'industry_type'    => 'nullable|string|max:10',
+        'female'           => 'nullable|integer|min:0',
+        'male'             => 'nullable|integer|min:0',
+        'direct_male'      => 'nullable|integer|min:0',
+        'direct_female'    => 'nullable|integer|min:0',
+        'contact_number'   => 'nullable|string|max:13',
+        'current_market'   => 'nullable|string|max:100',
     ]);
 
     $user = UserModel::where('user_id', session('user_id'))->first();
@@ -275,30 +276,32 @@ public function edit($id)
 public function update(Request $request, $id)
 {
     $validated = $request->validate([
-        'company_name'     => 'required|string|max:255',
-        'owner_name'       => 'required|string|max:255',
-        'email'            => 'nullable|email|max:255',
-        'street'           => 'required|string|max:255',
-        'barangay'         => 'required|string|max:255',
-        'municipality'     => 'required|string|max:255',
-        'province'         => 'required|string|max:255',
-        'district'         => 'required|string|max:255',
-        'sex'              => 'required|in:Male,Female',
-        'products'         => 'required|string|max:255',
-        'setup_industry'   => 'required|string|max:255',
-        'industry_type'    => 'required|string|max:255',
-        'female'           => 'required|integer|min:0',
-        'male'             => 'required|integer|min:0',
-        'direct_male'      => 'required|integer|min:0',
-        'direct_female'    => 'required|integer|min:0',
-        'contact_number'   => 'required|string|max:20',
+        'company_name'     => 'nullable|string|max:254',
+        'owner_name'       => 'nullable|string|max:254',
+        'email'            => 'nullable|email|max:100',
+        'street'           => 'nullable|string|max:50',
+        'barangay'         => 'nullable|string|max:50',
+        'municipality'     => 'nullable|string|max:50',
+        'province'         => 'nullable|string|max:30',
+        'district'         => 'nullable|string|max:45',
+        'sex'              => 'nullable|in:Male,Female',
+        'products'         => 'nullable|string',
+        'setup_industry'   => 'nullable|string|max:150',
+        'industry_type'    => 'nullable|string|max:10',
+        'female'           => 'nullable|integer|min:0',
+        'male'             => 'nullable|integer|min:0',
+        'direct_male'      => 'nullable|integer|min:0',
+        'direct_female'    => 'nullable|integer|min:0',
+        'contact_number'   => 'nullable|string|max:13',
+        'current_market'   => 'nullable|string|max:100',
     ]);
 
     $company = CompanyModel::findOrFail($id);
     $company->update($validated);
 
-    return redirect()->route('companies.index')->with('success', 'Company updated.');
+    return redirect()->route('companies.index')->with('success', 'Company updated successfully.');
 }
+
 
 
 

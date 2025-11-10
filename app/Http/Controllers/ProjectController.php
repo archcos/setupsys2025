@@ -176,9 +176,42 @@ class ProjectController extends Controller
             $companies->where('added_by', $user->user_id);
         }
 
+        // Generate the next project code
+        $nextProjectCode = $this->generateNextProjectCode();
+
         return Inertia::render('Projects/Create', [
-            'companies' => $companies->orderBy('company_name')->get()
+            'companies' => $companies->orderBy('company_name')->get(),
+            'nextProjectCode' => $nextProjectCode
         ]);
+    }
+
+    /**
+     * Generate the next project code in format YYYYMM##
+     */
+    private function generateNextProjectCode()
+    {
+        $currentYear = date('Y');
+        $currentMonth = date('m');
+        $prefix = $currentYear . $currentMonth;
+
+        // Find the latest project code with the current year-month prefix
+        $latestProject = ProjectModel::where('project_id', 'like', $prefix . '%')
+            ->orderBy('project_id', 'desc')
+            ->first();
+
+        if ($latestProject) {
+            // Extract the incremental number from the latest project code
+            $lastIncrement = (int) substr($latestProject->project_id, -2);
+            $nextIncrement = $lastIncrement + 1;
+        } else {
+            // First project for this month
+            $nextIncrement = 1;
+        }
+
+        // Format the increment as 2 digits
+        $incrementStr = str_pad($nextIncrement, 2, '0', STR_PAD_LEFT);
+
+        return $prefix . $incrementStr;
     }
 
     public function store(Request $request)
@@ -207,7 +240,7 @@ class ProjectController extends Controller
         }
 
         $validated = $request->validate([
-            'project_id'        => 'required|string|max:255',
+            'project_id'        => 'required|string|max:255|regex:/^\d{8}$/|unique:tbl_projects,project_id',
             'project_title'     => 'required|string|max:255',
             'company_id'        => 'required|exists:tbl_companies,company_id',
             'project_cost'      => 'required|numeric',
@@ -227,20 +260,16 @@ class ProjectController extends Controller
             'refund_end'        => 'nullable|date',
             'place_name'        => 'nullable|string',
             'items'             => 'array',
-            'items.*.item_name' => 'required|string|max:255',
-            'items.*.specifications' => 'required|string',
+            'items.*.item_name' => 'required|string|max:100',
+            'items.*.specifications' => 'required|string|max:255',
             'items.*.item_cost' => 'required|numeric|min:0',
             'items.*.quantity'  => 'required|integer|min:1',
             'items.*.type'      => 'required|string|max:10',
             'objectives'        => 'array',
-            'objectives.*.details' => 'required|string',
+            'objectives.*.details' => 'required|string|max:255',
+        ], [
+            'project_id.unique' => 'This Project Code already exists.',
         ]);
-
-        if (ProjectModel::where('project_id', $validated['project_id'])->exists()) {
-            return redirect()->back()->withErrors([
-                'project_id' => 'This Project ID already exists.'
-            ])->withInput();
-        }
 
         $project = ProjectModel::create([
             'project_id'        => $validated['project_id'],
@@ -299,7 +328,6 @@ class ProjectController extends Controller
 
         return redirect('/projects')->with('success', 'Project, items, and objectives created successfully.');
     }
-
     public function edit($id)
     {
         $project = ProjectModel::with([
