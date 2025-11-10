@@ -13,19 +13,19 @@ return new class extends Migration
             
             $table->string('company_name', 254)->nullable();
             $table->string('owner_name', 254)->nullable();
-            $table->string('email', 150)->nullable();
+            $table->string('email', 100)->nullable();
             $table->unsignedBigInteger('added_by')->nullable();
             $table->unsignedSmallInteger('office_id')->nullable();
 
-            $table->string('street', 45)->nullable();
-            $table->string('barangay', 45)->nullable();
-            $table->string('municipality', 45)->nullable();
-            $table->string('province', 45)->nullable();
+            $table->string('street', 50)->nullable();
+            $table->string('barangay', 50)->nullable();
+            $table->string('municipality', 50)->nullable();
+            $table->string('province', 30)->nullable();
             $table->string('district', 45)->nullable();
-            $table->string('sex', 45)->nullable();
+            $table->enum('sex', ['Male', 'Female'])->nullable();
             $table->text('products')->nullable();
             $table->string('setup_industry', 150)->nullable();
-            $table->string('industry_type', 45)->nullable();
+            $table->string('industry_type', 10)->nullable();
 
             $table->smallInteger('female')->nullable();
             $table->smallInteger('male')->nullable();

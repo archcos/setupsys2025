@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('middle_name', 50)->nullable();
             $table->string('last_name', 50);
             $table->timestamp('updated_at')->nullable();
-            $table->enum('role', ['user','staff','head','rpmo', 'irtec', 'ertec', 'pd', 'au']);
+            $table->enum('role', ['user','staff','head','rpmo', 'rd', 'au']);
             $table->enum('status', ['inactive','active']);
             $table->softDeletes(); // Adds deleted_at column
             $table->foreign('office_id')->references('office_id')->on('tbl_offices')->onDelete('cascade');
