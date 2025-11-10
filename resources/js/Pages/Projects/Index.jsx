@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import {
   Search,
   Plus,
-  RefreshCw,
   Eye,
   Edit3,
   Trash2,
@@ -21,10 +20,9 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Trophy,
-  Award,
   HandCoins,
-  Filter
+  Filter,
+  Award
 } from 'lucide-react';
 
 // Helper to format date string to "MMM YYYY"
@@ -35,115 +33,57 @@ function formatMonthYear(dateStr) {
   return d.toLocaleString('default', { month: 'short', year: 'numeric' });
 }
 
+// Progress status options for filter and dropdown
+const progressOptions = [
+  { value: 'Complete Details', label: 'Pending Review', icon: Clock, color: 'blue' },
+  { value: 'internal_rtec', label: 'Internal RTEC', icon: FileText, color: 'yellow' },
+  { value: 'internal_compliance', label: 'Internal Compliance', icon: FileText, color: 'yellow' },
+  { value: 'external_rtec', label: 'External RTEC', icon: FileText, color: 'purple' },
+  { value: 'external_compliance', label: 'External Compliance', icon: FileText, color: 'orange' },
+  { value: 'approval', label: 'Awaiting Approval', icon: Clock, color: 'indigo' },
+  { value: 'Approved', label: 'Approved', icon: CheckCircle, color: 'green' },
+  { value: 'Draft MOA', label: 'Draft MOA', icon: FileText, color: 'cyan' },
+  { value: 'Implementation', label: 'Implementation', icon: Play, color: 'teal' },
+  { value: 'Disapproved', label: 'Disapproved', icon: XCircle, color: 'red' },
+  { value: 'Refund', label: 'Refund', icon: HandCoins, color: 'green' },
+  { value: 'Completed', label: 'Completed', icon: Award, color: 'green' },
+];
+
+// Helper to get status config
+function getStatusConfig(progress) {
+  return progressOptions.find(opt => opt.value === progress) || {
+    value: progress,
+    label: progress || 'Unknown',
+    icon: Clock,
+    color: 'gray'
+  };
+}
+
 // Helper to get status badge
 function getStatusBadge(progress) {
-  const statusConfig = {
-    'Complete Details': { 
-      icon: Clock, 
-      bg: 'bg-blue-100', 
-      text: 'text-blue-800', 
-      label: 'Pending Review' 
-    },
-    'internal_rtec': { 
-      icon: FileText, 
-      bg: 'bg-yellow-100', 
-      text: 'text-yellow-800', 
-      label: 'Internal RTEC' 
-    },
-    'internal_compliance': { 
-      icon: FileText, 
-      bg: 'bg-yellow-100', 
-      text: 'text-yellow-800', 
-      label: 'Internal Compliance' 
-    },
-    'external_rtec': { 
-      icon: FileText, 
-      bg: 'bg-purple-100', 
-      text: 'text-purple-800', 
-      label: 'External RTEC' 
-    },
-    'external_compliance': { 
-      icon: FileText, 
-      bg: 'bg-orange-100', 
-      text: 'text-orange-800', 
-      label: 'External Compliance' 
-    },
-    'approval': { 
-      icon: Clock, 
-      bg: 'bg-indigo-100', 
-      text: 'text-indigo-800', 
-      label: 'Awaiting Approval' 
-    },
-    'Approved': { 
-      icon: CheckCircle, 
-      bg: 'bg-green-100', 
-      text: 'text-green-800', 
-      label: 'Approved' 
-    },
-    'Draft MOA': { 
-      icon: FileText, 
-      bg: 'bg-cyan-100', 
-      text: 'text-cyan-800', 
-      label: 'Draft MOA' 
-    },
-    'Implementation': { 
-      icon: Play, 
-      bg: 'bg-teal-100', 
-      text: 'text-teal-800', 
-      label: 'Implementation' 
-    },
-    'Disapproved': { 
-      icon: XCircle, 
-      bg: 'bg-red-100', 
-      text: 'text-red-800', 
-      label: 'Disapproved' 
-    },
-    'Refund': { 
-      icon: HandCoins, 
-      bg: 'bg-green-100', 
-      text: 'text-green-800', 
-      label: 'Refund' 
-    },
-    'Completed': { 
-      icon: Award, 
-      bg: 'bg-green-100', 
-      text: 'text-green-800', 
-      label: 'Completed' 
-    },
-  };
-
-  const config = statusConfig[progress] || { 
-    icon: Clock, 
-    bg: 'bg-gray-100', 
-    text: 'text-gray-800', 
-    label: progress || 'Unknown' 
-  };
-
+  const config = getStatusConfig(progress);
   const Icon = config.icon;
+  
+  const colorClasses = {
+    blue: 'bg-blue-100 text-blue-800',
+    yellow: 'bg-yellow-100 text-yellow-800',
+    purple: 'bg-purple-100 text-purple-800',
+    orange: 'bg-orange-100 text-orange-800',
+    indigo: 'bg-indigo-100 text-indigo-800',
+    green: 'bg-green-100 text-green-800',
+    cyan: 'bg-cyan-100 text-cyan-800',
+    teal: 'bg-teal-100 text-teal-800',
+    red: 'bg-red-100 text-red-800',
+    gray: 'bg-gray-100 text-gray-800',
+  };
 
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${colorClasses[config.color]}`}>
       <Icon className="w-3.5 h-3.5" />
       {config.label}
     </span>
   );
 }
-
-// Progress status options for filter
-const progressOptions = [
-  { value: 'Complete Details', label: 'Pending Review' },
-  { value: 'internal_rtec', label: 'Internal RTEC' },
-  { value: 'internal_compliance', label: 'Internal Compliance' },
-  { value: 'external_rtec', label: 'External RTEC' },
-  { value: 'external_compliance', label: 'External Compliance' },
-  { value: 'approval', label: 'Awaiting Approval' },
-  { value: 'Approved', label: 'Approved' },
-  { value: 'Draft MOA', label: 'Draft MOA' },
-  { value: 'Implementation', label: 'Implementation' },
-  { value: 'Disapproved', label: 'Disapproved' },
-  { value: 'Refund', label: 'Refund' },
-  { value: 'Completed', label: 'Completed' },
-];
 
 export default function Index({ projects, filters, offices }) {
   const [search, setSearch] = useState(filters.search || '');
@@ -155,6 +95,7 @@ export default function Index({ projects, filters, offices }) {
   const [selectedProject, setSelectedProject] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(null);
 
   const { auth } = usePage().props;
   const role = auth?.user?.role;
@@ -211,6 +152,23 @@ export default function Index({ projects, filters, offices }) {
     return sortDirection === 'asc' 
       ? <ArrowUp className="w-4 h-4 text-blue-600" />
       : <ArrowDown className="w-4 h-4 text-blue-600" />;
+  };
+
+  const handleStatusChange = (projectId, newStatus) => {
+    if (updatingStatus) return;
+    
+    setUpdatingStatus(projectId);
+    
+    router.post(`/projects/${projectId}/update-status`, {
+      progress: newStatus
+    }, {
+      preserveScroll: true,
+      onFinish: () => setUpdatingStatus(null),
+      onError: (errors) => {
+        console.error('Status update failed:', errors);
+        alert('Failed to update status. Please try again.');
+      }
+    });
   };
 
   const handleDeleteClick = (project) => {
@@ -299,7 +257,7 @@ export default function Index({ projects, filters, offices }) {
                     placeholder="Search by company name or project title..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-500 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                   />
                   {search && (
                     <button
@@ -311,7 +269,7 @@ export default function Index({ projects, filters, offices }) {
                   )}
                 </div>
 
-                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm">
+                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-300 shadow-sm">
                   <select
                     value={perPage}
                     onChange={handlePerPageChange}
@@ -326,12 +284,12 @@ export default function Index({ projects, filters, offices }) {
               </div>
 
               <div className="flex flex-col lg:flex-row gap-4">
-                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm min-w-[200px]">
+                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-300 shadow-sm min-w-[200px]">
                   <Building2 className="w-4 h-4 text-gray-400" />
                   <select
                     value={officeFilter}
                     onChange={handleOfficeFilterChange}
-                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1"
+                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-3"
                   >
                     <option value="">All Offices</option>
                     {offices && offices.map((office) => (
@@ -342,12 +300,12 @@ export default function Index({ projects, filters, offices }) {
                   </select>
                 </div>
 
-                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm min-w-[200px]">
+                <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-300 shadow-sm min-w-[200px]">
                   <Filter className="w-4 h-4 text-gray-400" />
                   <select
                     value={progressFilter}
                     onChange={handleProgressFilterChange}
-                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1"
+                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-3"
                   >
                     <option value="">All Status</option>
                     {progressOptions.map((option) => (
@@ -372,7 +330,7 @@ export default function Index({ projects, filters, offices }) {
                       className="flex items-center gap-2 hover:text-blue-600 transition-colors"
                     >
                       <Building2 className="w-4 h-4" />
-                      Project Title and Company
+                      Project Title & Company
                       {getSortIcon('project_title')}
                     </button>
                   </th>
@@ -459,7 +417,35 @@ export default function Index({ projects, filters, offices }) {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        {getStatusBadge(project.progress)}
+                        <select
+                          value={project.progress}
+                          onChange={(e) => handleStatusChange(project.project_id, e.target.value)}
+                          disabled={updatingStatus === project.project_id}
+                          className={`text-xs font-medium rounded-full border-0 px-3 py-1.5 cursor-pointer focus:ring-2 focus:ring-offset-0 transition-all ${
+                            updatingStatus === project.project_id ? 'opacity-50 cursor-wait' : ''
+                          } ${(() => {
+                            const config = getStatusConfig(project.progress);
+                            const colorClasses = {
+                              blue: 'bg-blue-100 text-blue-800 focus:ring-blue-500',
+                              yellow: 'bg-yellow-100 text-yellow-800 focus:ring-yellow-500',
+                              purple: 'bg-purple-100 text-purple-800 focus:ring-purple-500',
+                              orange: 'bg-orange-100 text-orange-800 focus:ring-orange-500',
+                              indigo: 'bg-indigo-100 text-indigo-800 focus:ring-indigo-500',
+                              green: 'bg-green-100 text-green-800 focus:ring-green-500',
+                              cyan: 'bg-cyan-100 text-cyan-800 focus:ring-cyan-500',
+                              teal: 'bg-teal-100 text-teal-800 focus:ring-teal-500',
+                              red: 'bg-red-100 text-red-800 focus:ring-red-500',
+                              gray: 'bg-gray-100 text-gray-800 focus:ring-gray-500',
+                            };
+                            return colorClasses[config.color];
+                          })()}`}
+                        >
+                          {progressOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -701,6 +687,16 @@ function ProjectModal({ project, isOpen, onClose }) {
                     <div>
                       <p className="text-sm font-medium text-gray-600">Phase Two (Refund Schedule) Timeline</p>
                       <p className="text-gray-900">{phaseTwoDisplay}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Current Status</p>
+                      <div className="mt-1">
+                        {getStatusBadge(project.progress)}
+                      </div>
                     </div>
                   </div>
                 </div>

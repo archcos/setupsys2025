@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('tbl_offices', function (Blueprint $table) {
             $table->smallIncrements('office_id'); // in tbl_offices
-            $table->string('office_name', 100)->unique();
+            $table->string('office_name', 20)->unique();
         });
 
         // Insert initial data

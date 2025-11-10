@@ -105,4 +105,8 @@ class ProjectModel extends Model
     {
         return $this->hasMany(RtecModel::class, 'project_id', 'project_id');
     }
+    public function checklist()
+    {
+        return $this->hasOne(\App\Models\ChecklistModel::class, 'project_id');
+    }
 }

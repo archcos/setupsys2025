@@ -167,7 +167,7 @@ public function signin(Request $request)
     return $user->role === 'user'
         ? redirect()->route('user.dashboard')
         : (in_array($user->role, ['irtec', 'ertec', 'rd', 'au'])
-            ? redirect()->route('rtec.dashboard')
+            ? redirect()->route('rd-dashboard.index')
             : (in_array($user->role, ['staff', 'rpmo'])
                 ? redirect()->route('home')
                 : back()->withErrors([
