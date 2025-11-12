@@ -21,6 +21,7 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
     e.preventDefault();
     router.post('/logout');
   };
+  
 
   const hasUnread = notifications.some((notif) => !notif.is_read);
 
@@ -45,13 +46,28 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
   }, []);
 
   // 🔁 Refresh notifications every 5 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      router.reload({ only: ['notifications'] });
-    }, 5000);
+useEffect(() => {
+  const checkNotifications = async () => {
+    try {
+      const response = await fetch('/api/notifications/check');
+      if (response.status === 401) {
+        // Session expired
+        window.location.href = '/login';
+        return;
+      }
+      if (response.ok) {
+        const data = await response.json();
+        // Update your notification state
+      }
+    } catch (error) {
+      console.error('Failed to check notifications:', error);
+    }
+  };
 
-    return () => clearInterval(interval);
-  }, []);
+  checkNotifications();
+  const interval = setInterval(checkNotifications, 10000);
+  return () => clearInterval(interval);
+}, []);
 
   return (
     <header className="bg-blue-100 border-b px-6 py-4 flex items-center justify-between shadow-sm">

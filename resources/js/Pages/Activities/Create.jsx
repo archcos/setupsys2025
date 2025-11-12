@@ -175,9 +175,13 @@ export default function Create({ projects }) {
                             value={activity.activity_name}
                             onChange={(e) => handleActivityChange(index, 'activity_name', e.target.value)}
                             placeholder="Enter activity name"
+                            maxLength={45}
                             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white"
                             required
                           />
+                          <div className="mt-1 text-xs text-gray-500 text-right">
+                            {activity.activity_name.length}/45 characters
+                          </div>
                         </div>
                         
                         <div>

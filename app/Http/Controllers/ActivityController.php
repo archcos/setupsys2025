@@ -96,7 +96,7 @@ class ActivityController extends Controller
         $validated = $request->validate([
             'project_id' => 'required|exists:tbl_projects,project_id',
             'activities' => 'required|array|min:1',
-            'activities.*.activity_name' => 'required|string|max:255',
+            'activities.*.activity_name' => 'required|string|max:45',
             'activities.*.start_date' => 'required|date',
             'activities.*.end_date' => 'required|date|after_or_equal:activities.*.start_date',
         ]);
@@ -142,7 +142,7 @@ class ActivityController extends Controller
 
         $validated = $request->validate([
             'project_id' => 'required|exists:tbl_projects,project_id',
-            'activity_name' => 'required|string|max:255',
+            'activity_name' => 'required|string|max:45',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
         ]);

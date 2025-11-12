@@ -42,16 +42,22 @@ class MOAPolicy
             return false;
         }
 
-    public function uploadApprovedFile(UserModel $user, MoaModel $moa): bool
-    {
-        // Only staff can upload approved MOA files
-        if ($user->role !== 'staff') {
-            return false;
+        public function uploadApprovedFile(UserModel $user, MoaModel $moa): bool
+        {
+            // Only staff and rpmo can upload approved MOA files
+            if (!in_array($user->role, ['staff', 'rpmo'])) {
+                return false;
+            }
+
+            // RPMO can upload for all offices
+            if ($user->role === 'rpmo') {
+                return true;
+            }
+
+            // Staff can only upload for their own office
+            return $user->office_id === $moa->project->company->office_id;
         }
 
-        // Staff can only upload for their office
-        return $user->office_id === $moa->project->company->office_id;
-    }
 
     public function downloadApprovedFile(UserModel $user, MoaModel $moa): bool
     {
