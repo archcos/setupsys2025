@@ -172,6 +172,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/refunds/save', [RefundController::class, 'save']);
     Route::get('/my-refunds', [RefundController::class, 'userRefunds'])
         ->name('refunds.user');
+    Route::get('/refunds/project/{projectId}', [RefundController::class, 'projectRefunds'])->name('refunds.project.details');
+    Route::post('/refunds/bulk-update', [RefundController::class, 'bulkUpdate'])->name('refunds.bulk.update');
 });
 
 // Route::put('/companies/{id}/update-added-by', [CompanyController::class, 'updateAddedBy']);

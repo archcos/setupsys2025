@@ -269,9 +269,12 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
                                                                             
                                                                             {!paidExpanded && paidMonths.length > 3 && (
                                                                                 <div className="text-center mt-2">
-                                                                                    <span className="text-xs text-green-600 bg-white px-2 py-1 rounded-full border border-green-200">
+                                                                                    <button
+                                                                                        onClick={() => toggleSection(p.project_id, "paid")}
+                                                                                        className="text-xs text-green-600 bg-white px-2 py-1 rounded-full border border-green-200 hover:bg-green-50 hover:border-green-300 transition-colors"
+                                                                                    >
                                                                                         {paidMonths.length - 3} more months...
-                                                                                    </span>
+                                                                                    </button>
                                                                                 </div>
                                                                             )}
                                                                         </div>

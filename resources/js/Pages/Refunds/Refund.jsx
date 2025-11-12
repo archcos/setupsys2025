@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { useForm, Head, router, usePage } from '@inertiajs/react';
-import { Save, Search, Filter, Calendar, Building2, CheckCircle, AlertCircle, X, Check } from 'lucide-react';
+import { useForm, Head, router, usePage, Link } from '@inertiajs/react';
+import { Save, Search, Filter, Calendar, Building2, CheckCircle, AlertCircle, X, Check, Eye } from 'lucide-react';
 
-export default function Loan({ projects, selectedMonth, selectedYear, search, selectedStatus }) {
+export default function Refund({ projects, selectedMonth, selectedYear, search, selectedStatus }) {
   const { flash } = usePage().props;
   const [savingProject, setSavingProject] = useState(null);
   const [savedProjects, setSavedProjects] = useState(new Set());
@@ -59,20 +59,47 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
     router.get('/refunds', { month, year, search: searchValue, status: statusValue }, { preserveScroll: true });
   };
 
+  // Handle status change
+  const handleStatusChange = (projectId, newStatus) => {
+    setData(`status_${projectId}`, newStatus);
+    
+    // If restructured is selected, set amounts to 0
+    if (newStatus === 'restructured') {
+      setData(`refund_amount_${projectId}`, 0);
+      setData(`amount_due_${projectId}`, 0);
+    } else if (newStatus === 'paid' || newStatus === 'unpaid') {
+      // If changing from restructured to paid/unpaid, restore the original amounts
+      const project = projects.data.find(p => p.project_id === projectId);
+      const latestRefund = project?.refunds?.[0];
+      const refundAmount = latestRefund?.refund_amount ?? project?.refund_amount ?? 0;
+      
+      // Only restore if current values are 0 (meaning it was previously restructured)
+      if (data[`refund_amount_${projectId}`] == 0) {
+        setData(`refund_amount_${projectId}`, refundAmount);
+        setData(`amount_due_${projectId}`, refundAmount);
+      }
+    }
+  };
+
   const handleSave = (projectId) => {
     const project = projects.data.find(p => p.project_id === projectId);
     const month = selectedMonth.toString().padStart(2, '0');
     const saveDate = `${selectedYear}-${month}-01`;
+    const currentStatus = data[`status_${projectId}`];
 
     setSavingProject(projectId);
     
+    // Ensure amounts are 0 if status is restructured
+    const refundAmount = currentStatus === 'restructured' ? 0 : (data[`refund_amount_${projectId}`] ?? project.refund_amount ?? 0);
+    const amountDue = currentStatus === 'restructured' ? 0 : (data[`amount_due_${projectId}`] ?? project.amount_due ?? 0);
+    
     router.post('/refunds/save', {
       project_id: projectId,
-      refund_amount: data[`refund_amount_${projectId}`] ?? project.refund_amount ?? 0,
-      amount_due: data[`amount_due_${projectId}`] ?? project.amount_due ?? 0,
+      refund_amount: refundAmount,
+      amount_due: amountDue,
       check_num: data[`check_num_${projectId}`] ?? '',
       receipt_num: data[`receipt_num_${projectId}`] ?? '',
-      status: data[`status_${projectId}`],
+      status: currentStatus,
       save_date: saveDate,
     }, {
       preserveScroll: true,
@@ -80,7 +107,6 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
         setSavingProject(null);
       },
       onSuccess: (page) => {
-        // Add project to saved set and remove it after 3 seconds
         setSavedProjects(prev => new Set([...prev, projectId]));
         setTimeout(() => {
           setSavedProjects(prev => {
@@ -205,6 +231,7 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
                   <option value="">All</option>
                   <option value="paid">Paid</option>
                   <option value="unpaid">Unpaid</option>
+                  <option value="restructured">Restructured</option>
                 </select>
               </div>
 
@@ -243,15 +270,15 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
               }
             </div>
 
-            {/* Flash Messages - Keep these as backup */}
+            {/* Flash Messages */}
             {flash.success && (
-              <div className="mb-6 bg-green-50 border border-green-200 text-green-800 px-6 py-4 rounded-xl flex items-center gap-3">
+              <div className="mt-4 bg-green-50 border border-green-200 text-green-800 px-6 py-4 rounded-xl flex items-center gap-3">
                 <CheckCircle className="w-5 h-5 text-green-600" />
                 {flash.success}
               </div>
             )}
             {flash.error && (
-              <div className="mb-6 bg-red-50 border border-red-200 text-red-800 px-6 py-4 rounded-xl flex items-center gap-3">
+              <div className="mt-4 bg-red-50 border border-red-200 text-red-800 px-6 py-4 rounded-xl flex items-center gap-3">
                 <AlertCircle className="w-5 h-5 text-red-600" />
                 {flash.error}
               </div>
@@ -279,9 +306,7 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
                     Amount Due
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      Refund Amount
-                    </div>
+                    Refund Amount
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Check No.
@@ -302,6 +327,7 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
                   projects.data.map((p, idx) => {
                     const latestRefund = p.refunds?.[0];
                     const currentStatus = data[`status_${p.project_id}`] ?? latestRefund?.status ?? 'unpaid';
+                    const isRestructured = currentStatus === 'restructured';
                     
                     return (
                       <tr
@@ -330,7 +356,9 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
                               type="number"
                               value={data[`amount_due_${p.project_id}`] ?? ''}
                               onChange={(e) => setData(`amount_due_${p.project_id}`, e.target.value)}
-                              className="w-full pl-7 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                              className={`w-full pl-7 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                                isRestructured ? 'bg-gray-100 cursor-not-allowed' : ''
+                              }`}
                               placeholder="0.00"
                               disabled
                             />
@@ -343,8 +371,11 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
                               type="number"
                               value={data[`refund_amount_${p.project_id}`] ?? ''}
                               onChange={(e) => setData(`refund_amount_${p.project_id}`, e.target.value)}
-                              className="w-full pl-7 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                              className={`w-full pl-7 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                                isRestructured ? 'bg-gray-100 cursor-not-allowed' : ''
+                              }`}
                               placeholder="0.00"
+                              disabled={isRestructured}
                             />
                           </div>
                         </td>
@@ -369,18 +400,28 @@ export default function Loan({ projects, selectedMonth, selectedYear, search, se
                         <td className="px-6 py-4 text-center">
                           <select
                             value={currentStatus}
-                            onChange={(e) => setData(`status_${p.project_id}`, e.target.value)}
+                            onChange={(e) => handleStatusChange(p.project_id, e.target.value)}
                             className={`px-3 pr-6 py-1.5 text-xs font-medium rounded-lg focus:ring-1 transition-all duration-200
                               ${currentStatus === 'paid' 
                                 ? 'bg-green-100 text-green-800 border border-green-300' 
+                                : currentStatus === 'restructured'
+                                ? 'bg-blue-100 text-blue-800 border border-blue-300'
                                 : 'bg-red-100 text-red-800 border border-red-300'}`}
                           >
                             <option value="paid" className="text-green-700">Paid</option>
                             <option value="unpaid" className="text-red-700">Unpaid</option>
+                            <option value="restructured" className="text-blue-700">Restructured</option>
                           </select>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2">
+                            <Link
+                              href={`/refunds/project/${p.project_id}`}
+                              className="p-2 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 shadow-sm hover:shadow-lg"
+                              title="View Full Details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Link>
                             {renderSaveButton(p.project_id)}
                           </div>
                         </td>
