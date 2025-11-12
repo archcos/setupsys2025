@@ -86,13 +86,16 @@ Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
     Route::get('/draft-moa', [MOAController::class, 'showForm'])->name('docx.form');
     Route::post('/moa/generate-docx', [MOAController::class, 'generateDocx'])->name('moa.generateDocx');
 
+        // View approved PDF in browser (new route)
+    Route::get('/moa/{moa_id}/view-approved', [MOAController::class, 'viewApprovedFile'])
+        ->name('moa.view-approved');
+
     Route::get('/moa', [MOAController::class, 'index'])->name('moa.index');
     Route::get('/moa/{moa_id}/docx', [MOAController::class, 'generateFromMoa'])->name('moa.generate.docx');
 
     // New routes for approved file management
     Route::post('/moa/{moa_id}/upload-approved', [MOAController::class, 'uploadApprovedFile'])->name('moa.upload.approved');
     Route::get('/moa/{moa_id}/download-approved', [MOAController::class, 'downloadApprovedFile'])->name('moa.download.approved');
-    Route::delete('/moa/{moa_id}/delete-approved', [MOAController::class, 'deleteApprovedFile'])->name('moa.delete.approved');
     
     
     Route::put('/projects/{id}/progress', [ProjectController::class, 'updateProgress'])->middleware('role:staff');
@@ -117,9 +120,12 @@ Route::middleware(['auth'])->group(function () {
 
 
 //NOTIFICATION
-Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
-Route::post('/notifications/read/{id}', [NotificationController::class, 'markAsRead']);
+Route::middleware(['auth'])->group(function () {
+    Route::post('/notifications/read/{id}', [NotificationController::class, 'markAsRead']);
+    Route::get('/api/notifications/check', [NotificationController::class, 'checkUnread']);
 });
+
+
 
 
 Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {

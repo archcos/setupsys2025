@@ -136,6 +136,7 @@ export default function Edit({ activity, projects }) {
                         placeholder="Enter activity name"
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-white"
                         required
+                        maxLength={45}
                       />
                       {errors.activity_name && (
                         <div className="text-red-500 text-sm mt-2 flex items-center gap-1">

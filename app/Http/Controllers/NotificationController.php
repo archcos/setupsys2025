@@ -78,6 +78,38 @@ class NotificationController extends Controller
         return back()->with('success', 'Notification sent (check logs for email delivery).');
     }
 
+     public function checkUnread()
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['hasUnread' => false], 401);
+        }
+
+        $hasUnread = false;
+
+        // For regular company users — only notifications related to their companies
+        if ($user->role === 'user') {
+            $companyIds = CompanyModel::where('added_by', $user->user_id)->pluck('company_id');
+
+            $hasUnread = NotificationModel::whereIn('company_id', $companyIds)
+                ->where('is_read', false)
+                ->exists();
+        } 
+        // For staff — notifications within their assigned office
+        elseif ($user->role === 'staff') {
+            $hasUnread = NotificationModel::where('office_id', $user->office_id)
+                ->where('is_read', false)
+                ->exists();
+        } 
+        // For admin/head — check all notifications
+        else {
+            $hasUnread = NotificationModel::where('is_read', false)->exists();
+        }
+
+        return response()->json(['hasUnread' => $hasUnread]);
+    }
+
     /**
      * Create a notification record and email recipients.
      * Can be reused by other controllers (e.g., ActivityController).

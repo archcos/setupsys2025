@@ -81,12 +81,12 @@ public function uploadApprovedFile(Request $request, $moa_id)
         'approved_file' => [
             'required',
             'file',
-            'mimes:docx,pdf',
+            'mimes:pdf', // Only PDF allowed
             'max:10240', // 10MB
         ],
     ], [
         'approved_file.required' => 'Please select a file to upload.',
-        'approved_file.mimes' => 'Only DOCX and PDF files are allowed.',
+        'approved_file.mimes' => 'Only PDF files are allowed.',
         'approved_file.max' => 'File size must not exceed 10MB.',
     ]);
 
@@ -108,15 +108,8 @@ public function uploadApprovedFile(Request $request, $moa_id)
         $timestamp = now()->format('Y-m-d_His');
         $fileName = "MOA_{$projectTitle}_{$companyName}_{$timestamp}.{$extension}";
         
-        // Delete old file if exists
-        if ($moa->approved_file_path) {
-            try {
-                Storage::disk('private')->delete($moa->approved_file_path);
-                Log::info("Deleted old approved file: {$moa->approved_file_path}");
-            } catch (\Exception $e) {
-                Log::warning("Failed to delete old file: {$e->getMessage()}");
-            }
-        }
+        // Keep old file (DO NOT DELETE - just overwrite reference)
+        $oldFilePath = $moa->approved_file_path;
         
         // Store new file
         $path = $file->storeAs('moa', $fileName, 'private');
@@ -126,39 +119,33 @@ public function uploadApprovedFile(Request $request, $moa_id)
         }
         
         // Update MOA database
+        $isReupload = !empty($oldFilePath);
         $moa->update([
             'approved_file_path' => $path,
             'approved_file_uploaded_at' => now(),
             'approved_by' => session('user_id'),
         ]);
 
-        // Automatically update project progress to Implementation
-        $project = $moa->project;
-        $project->progress = 'Implementation';
-        $project->save();
-
-        Log::info("Approved MOA file uploaded and progress updated", [
-            'moa_id' => $moa->moa_id,
-            'file_path' => $path,
-            'uploaded_by' => session('user_id'),
-            'project_progress' => 'Implementation',
-        ]);
-
         // Send notification
         $officeUsers = UserModel::where('office_id', $moa->project->company->office_id)
-            ->where('role', 'rpmo')
+            ->whereIn('role', ['rpmo', 'staff']) // Notify both roles
             ->get();
 
+        $actionText = $isReupload ? 'reuploaded' : 'uploaded';
         foreach ($officeUsers as $user) {
             NotificationController::createNotificationAndEmail([
-                'title' => 'Approved MOA Uploaded',
-                'message' => "An approved MOA file has been uploaded for:<br>Project: {$moa->project->project_title}<br>Company: {$moa->project->company->company_name}<br>Status: Implementation",
+                'title' => $isReupload ? 'MOA Reuploaded' : 'MOA Uploaded',
+                'message' => "A MOA file has been {$actionText} for:<br>Project: {$moa->project->project_title}<br>Company: {$moa->project->company->company_name}",
                 'office_id' => $moa->project->company->office_id,
                 'company_id' => $moa->project->company->company_id,
             ]);
         }
 
-        return back()->with('success', 'Approved MOA file uploaded successfully. Project status updated to Implementation.');
+        $successMessage = $isReupload 
+            ? 'Approved MOA file reuploaded successfully.' 
+            : 'Approved MOA file uploaded successfully.';
+
+        return back()->with('success', $successMessage);
         
     } catch (\Exception $e) {
         Log::error('MOA File Upload Error', [
@@ -172,57 +159,27 @@ public function uploadApprovedFile(Request $request, $moa_id)
         ]);
     }
 }
-
-public function deleteApprovedFile($moa_id)
+public function viewApprovedFile($moa_id)
 {
-    try {
-        $moa = MoaModel::with('project.company')->findOrFail($moa_id);
-        $this->authorize('deleteApprovedFile', $moa);
+    $moa = MoaModel::findOrFail($moa_id);
+    $this->authorize('downloadApprovedFile', $moa); // Use same authorization as download
 
-        if (!$moa->approved_file_path) {
-            return back()->withErrors(['error' => 'No approved file to delete.']);
-        }
-
-        $filePath = $moa->approved_file_path;
-        
-        // Delete file from storage
-        if (Storage::disk('private')->exists($filePath)) {
-            Storage::disk('private')->delete($filePath);
-        }
-
-        // Update MOA database
-        $moa->update([
-            'approved_file_path' => null,
-            'approved_file_uploaded_at' => null,
-            'approved_by' => null,
-        ]);
-
-        // Automatically revert project progress back to Draft MOA
-        $project = $moa->project;
-        $project->progress = 'Draft MOA';
-        $project->save();
-
-        Log::info("Approved MOA file deleted and progress reverted", [
-            'moa_id' => $moa->moa_id,
-            'file_path' => $filePath,
-            'deleted_by' => session('user_id'),
-            'project_progress' => 'Draft MOA',
-        ]);
-
-        return back()->with('success', 'Approved file deleted successfully. Project status reverted to Draft MOA.');
-        
-    } catch (\Exception $e) {
-        Log::error('MOA File Delete Error', [
-            'moa_id' => $moa_id,
-            'error' => $e->getMessage(),
-        ]);
-        
-        return back()->withErrors([
-            'error' => 'Failed to delete file: ' . $e->getMessage()
-        ]);
+    if (!$moa->hasApprovedFile()) {
+        return back()->withErrors(['error' => 'No approved file found for this MOA.']);
     }
-}
 
+    $filePath = storage_path('app/private/' . $moa->approved_file_path);
+    
+    if (!file_exists($filePath)) {
+        return back()->withErrors(['error' => 'File not found on server.']);
+    }
+
+    // Return file for inline viewing in browser
+    return response()->file($filePath, [
+        'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="' . basename($moa->approved_file_path) . '"'
+    ]);
+}
 public function downloadApprovedFile($moa_id)
 {
     $moa = MoaModel::findOrFail($moa_id);
@@ -576,7 +533,7 @@ public function showForm(Request $request)
     // Build company query based on user role
     $companiesQuery = CompanyModel::select('company_id', 'company_name')
         ->whereHas('projects', function($query) {
-            $query->whereIn('progress', ['Approved', 'Draft MOA']);
+            $query->whereIn('progress', ['Project Created', 'Draft MOA', 'Complete Details']);
         });
     
     if ($user->role === 'staff') {

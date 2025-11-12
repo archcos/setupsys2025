@@ -67,10 +67,17 @@ export default function Sidebar({ isOpen }) {
 
   if (!isOpen) return null;
 
+    // Determine the home page based on role
+  const getHomePage = () => {
+    if (role === 'user') return '/dashboard';
+    if (['irtec', 'ertec', 'rd', 'au'].includes(role)) return '/rd-dashboard';
+    return '/home'; // staff, rpmo, head
+  };
+
   return (
     <aside className="w-64 bg-white text-gray-800 p-6 transition-all duration-300 min-h-screen shadow-md">
       <Link
-        href={role === 'user' ? '/dashboard' : '/home'}
+        href={getHomePage()}
         className="flex items-center justify-center gap-3 mb-8 hover:opacity-90"
       >
         <img src={logo} alt="Logo" className="w-10 h-10" />
@@ -79,11 +86,13 @@ export default function Sidebar({ isOpen }) {
 
       <nav className="space-y-4">
         <Link
-          href={role === 'user' ? '/dashboard' : '/home'}
+          href={getHomePage()}
           className="flex items-center gap-2 px-3 py-2 rounded-md hover:shadow hover:bg-gray-100 transition"
         >
-          <LayoutDashboard size={18} />
-          {role === 'user' ? 'Dashboard' : 'Overview'}
+         <LayoutDashboard size={18} />
+          {role === 'user' ? 'Dashboard' : 
+           ['irtec', 'ertec', 'rd', 'au'].includes(role) ? 'RD Dashboard' : 
+           'Overview'}
         </Link>
 
         {role === 'head' && (
