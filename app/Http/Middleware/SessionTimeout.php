@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Auth;
 
 class SessionTimeout
 {
-    protected $timeout = 60; // 10 minutes
+    protected $timeout = 600; // 10 minutes
 
     // Routes that shouldn't reset the timeout
     protected $excludedRoutes = [

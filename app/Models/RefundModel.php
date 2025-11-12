@@ -23,9 +23,26 @@ class RefundModel extends Model
         'receipt_num'
     ];
 
+    // Define valid status values
+    const STATUS_PAID = 'paid';
+    const STATUS_UNPAID = 'unpaid';
+    const STATUS_RESTRUCTURED = 'restructured';
+
     // Rename relation to project for clarity
     public function project()
     {
         return $this->belongsTo(ProjectModel::class, 'project_id', 'project_id');
+    }
+
+    // Optional: Add a scope to filter by status
+    public function scopeByStatus($query, $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    // Optional: Add accessor to get formatted status
+    public function getStatusLabelAttribute()
+    {
+        return ucfirst($this->status);
     }
 }

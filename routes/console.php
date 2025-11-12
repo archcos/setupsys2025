@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('loans:send-unpaid-reminders')->dailyAt('14:59');
+Schedule::command('refunds:send-unpaid-reminders')->dailyAt('14:59');
 
 //crontab -e
 //cd /path/to/your/project
