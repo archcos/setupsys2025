@@ -1,0 +1,37 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class RestructureModel extends Model
+{
+    protected $table = 'tbl_restructures';
+    protected $primaryKey = 'restruct_id';
+    public $timestamps = true;
+
+    protected $fillable = [
+        'project_id',
+        'added_by',
+        'type',
+        'status',
+        'remarks',
+        'restruct_start',
+        'restruct_end',
+        'restruct_amount',
+    ];
+
+    protected $casts = [
+        'restruct_amount' => 'decimal:2',
+    ];
+
+    public function project()
+    {
+        return $this->belongsTo(ProjectModel::class, 'project_id', 'project_id');
+    }
+
+    public function addedBy()
+    {
+        return $this->belongsTo(UserModel::class, 'added_by', 'user_id');
+    }
+}
