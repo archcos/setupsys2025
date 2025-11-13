@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\Admin\BlockedIpController;
 use App\Http\Controllers\Admin\DirectorController;
+use App\Http\Controllers\ApplyRestructController;
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FrequencyController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\PageController;
 use App\Http\Controllers\RDDashboardController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RestructureController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\RtecController;
 use App\Http\Controllers\TagController;
@@ -176,10 +178,47 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/refunds/bulk-update', [RefundController::class, 'bulkUpdate'])->name('refunds.bulk.update');
 });
 
+
+
+Route::get('/apply-restructuring', [ApplyRestructController::class, 'index'])->name('apply_restruct.index');
+Route::post('/apply-restruct/store', [ApplyRestructController::class, 'store'])->name('apply_restruct.store');
+Route::put('/apply-restruct/{apply_id}', [ApplyRestructController::class, 'update'])->name('apply_restruct.update');
+Route::delete('/apply-restruct/{apply_id}', [ApplyRestructController::class, 'destroy'])->name('apply_restruct.destroy');
+
 // Route::put('/companies/{id}/update-added-by', [CompanyController::class, 'updateAddedBy']);
 
+// Add this to your web.php routes file
 
-
+// Restructuring Routes
+Route::middleware(['auth'])->group(function () {
+    // List of applications to verify (accessible by RPMO and RD)
+    Route::get('/verify-restructure', [RestructureController::class, 'verifyList'])
+        ->name('verify_restruct.list');
+    
+    // Show verification page (accessible by RPMO and RD)
+    Route::get('/verify-restructure/{apply_id}', [RestructureController::class, 'verifyShow'])
+        ->name('verify_restruct.show');
+    
+    // RPMO only routes - Create, Update, Delete
+    Route::middleware(['role:rpmo'])->group(function () {
+        Route::post('/restructure', [RestructureController::class, 'store'])
+            ->name('restructure.store');
+        
+        Route::put('/restructure/{restruct_id}', [RestructureController::class, 'update'])
+            ->name('restructure.update');
+        
+        Route::delete('/restructure/{restruct_id}', [RestructureController::class, 'destroy'])
+            ->name('restructure.destroy');
+    });
+    
+    // Update status (accessible by both RPMO and RD with different statuses)
+    Route::put('/restructure/{restruct_id}/status', [RestructureController::class, 'updateStatus'])
+        ->name('restructure.update-status');
+    
+    // Update refund end date
+    Route::put('/project/{project_id}/refund-end', [RestructureController::class, 'updateRefundEnd'])
+        ->name('project.update-refund-end');
+});
 // Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
 //     ->middleware('role:head')
 //     ->name('projects.sync');

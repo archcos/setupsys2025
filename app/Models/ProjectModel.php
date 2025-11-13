@@ -60,7 +60,7 @@ class ProjectModel extends Model
 
     public function addedBy()
     {
-        return $this->belongsTo(User::class, 'added_by', 'user_id');
+        return $this->belongsTo(UserModel::class, 'added_by', 'user_id');
     }
 
     public function activities()
