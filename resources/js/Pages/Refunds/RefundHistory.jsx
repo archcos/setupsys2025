@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Building2, Calendar, CheckCircle2, XCircle, DollarSign, TrendingUp, Clock, FileText, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Building2, Calendar, CheckCircle2, XCircle, DollarSign, TrendingUp, Clock, FileText, RefreshCw, ChevronLeft } from 'lucide-react';
 
 export default function ProjectRefundDetails({ project, months, summary }) {
   const [selectedMonths, setSelectedMonths] = useState([]);
@@ -123,20 +123,18 @@ export default function ProjectRefundDetails({ project, months, summary }) {
   };
 
   return (
-    <main className="flex-1 p-4 overflow-y-auto bg-gray-50">
+    <main className="flex-1 p-4 overflow-y-auto">
       <Head title={`Refund Details - ${project.project_title}`} />
       
       <div className="max-w-7xl mx-auto space-y-4">
         {/* Header with Back Button */}
-        <div className="flex items-center gap-4">
-          <Link
+        <Link
             href="/refunds"
-            className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-sm text-sm"
+            className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-4 group"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Refunds
+            <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+            Back to Projects
           </Link>
-        </div>
 
         {/* Project Header Card */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">

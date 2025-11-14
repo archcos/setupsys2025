@@ -18,7 +18,6 @@ class RestructureModel extends Model
         'remarks',
         'restruct_start',
         'restruct_end',
-        'restruct_amount',
     ];
 
     protected $casts = [
@@ -34,4 +33,9 @@ class RestructureModel extends Model
     {
         return $this->belongsTo(UserModel::class, 'added_by', 'user_id');
     }
+
+    public function updates()
+{
+    return $this->hasMany(RestructureUpdateModel::class, 'restruct_id', 'restruct_id');
+}
 }

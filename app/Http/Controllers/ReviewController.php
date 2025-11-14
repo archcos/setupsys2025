@@ -23,113 +23,147 @@ use Inertia\Inertia;
 
 class ReviewController extends Controller
 {
-    public function reviewApproval(Request $request)
-    {
-        $user = Auth::user();
-        if (!$user) {
-            Log::warning('Unauthorized access attempt to reviewApproval.');
-            return redirect()->route('login');
-        }
-
-        $search = $request->input('search');
-        $perPage = $request->input('perPage', 10);
-        $stage = $request->input('stage', 'internal_rtec');
-
-        $progressMap = [
-            'internal_rtec' => 'internal_rtec',
-            'internal_compliance' => 'internal_compliance',
-            'external_rtec' => 'external_rtec',
-            'external_compliance' => 'external_compliance',
-            'approval' => 'approval',
-        ];
-
-        $query = ProjectModel::with([
-            'company',
-            'items' => function ($q) {
-                $q->where('report', 'approved');
-            }
-        ]);
-
-        if (isset($progressMap[$stage])) {
-            $query->where('progress', $progressMap[$stage]);
-        }
-
-        if ($user->role === 'user') {
-            $query->where('added_by', $user->user_id);
-        } elseif ($user->role === 'staff') {
-            $query->whereHas('company', function ($q) use ($user) {
-                $q->where('office_id', $user->office_id);
-            });
-        }
-
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('project_title', 'like', "%{$search}%")
-                  ->orWhere('project_cost', 'like', "%{$search}%")
-                  ->orWhereHas('company', function ($q) use ($search) {
-                      $q->where('company_name', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        $query->whereHas('items', function ($q) {
-            $q->where('report', 'approved');
-        });
-
-        $projects = $query->orderBy('project_title')->paginate($perPage)->withQueryString();
-
-        $projects->getCollection()->transform(function ($project) {
-            // Get all messages with their comments
-            $allMessages = MessageModel::with([
-                'user',
-                'comments' => function($query) {
-                    $query->with(['user' => function($q) {
-                        $q->select('user_id', 'first_name', 'middle_name', 'last_name');
-                    }])
-                    ->orderBy('created_at', 'asc');
-                }
-            ])
-                ->where('project_id', $project->project_id)
-                ->whereIn('status', ['todo', 'done']) // Only get remarks, not comments
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            $filteredMessages = $allMessages->filter(function ($message) use ($project) {
-                return trim($message->subject) === trim($project->progress);
-            })->values();
-
-            $project->setRelation('messages', $filteredMessages);
-            
-            Log::info('Project messages filtered with comments', [
-                'project_id' => $project->project_id,
-                'progress' => $project->progress,
-                'total_messages' => $allMessages->count(),
-                'filtered_messages' => $filteredMessages->count(),
-            ]);
-
-            return $project;
-        });
-
-        // Fetch users with roles other than 'staff' or 'user'
-        $availableUsers = UserModel::whereNotIn('role', ['staff', 'user'])
-            ->select('user_id', 'first_name', 'middle_name', 'last_name', 'role')
-            ->orderBy('first_name')
-            ->get();
-
-        Log::info("{$user->username} accessed reviewApproval page", [
-            'role' => $user->role,
-            'stage' => $stage,
-            'progress_filter' => $progressMap[$stage] ?? 'none',
-        ]);
-
-        return Inertia::render('ReviewApproval/ReviewApproval', [
-            'projects' => $projects,
-            'filters' => $request->only('search', 'perPage', 'stage'),
-            'currentStage' => $stage,
-            'availableUsers' => $availableUsers,
-        ]);
+public function reviewApproval(Request $request)
+{
+    $user = Auth::user();
+    if (!$user) {
+        Log::warning('Unauthorized access attempt to reviewApproval.');
+        return redirect()->route('login');
     }
 
+    $search = $request->input('search');
+    $perPage = $request->input('perPage', 10);
+    $stage = $request->input('stage', 'internal_rtec');
+
+    $progressMap = [
+        'internal_rtec' => 'internal_rtec',
+        'internal_compliance' => 'internal_compliance',
+        'external_rtec' => 'external_rtec',
+        'external_compliance' => 'external_compliance',
+        'approval' => 'approval',
+    ];
+
+    $query = ProjectModel::with([
+        'company',
+        'items' => function ($q) {
+            $q->where('report', 'approved');
+        }
+    ]);
+
+    // Apply progress stage filter
+    if (isset($progressMap[$stage])) {
+        $query->where('progress', $progressMap[$stage]);
+    }
+
+    // Apply role-based filtering with logging
+    if ($user->role === 'user') {
+        Log::info('Applying user filter', ['user_id' => $user->user_id]);
+        $query->where('added_by', $user->user_id);
+    } elseif ($user->role === 'staff') {
+        Log::info('Applying staff filter', [
+            'user_id' => $user->user_id,
+            'office_id' => $user->office_id
+        ]);
+        
+        // Make sure office_id exists
+        if (!$user->office_id) {
+            Log::error('Staff user has no office_id', ['user_id' => $user->user_id]);
+            return back()->with('error', 'Your account is not assigned to an office. Please contact administrator.');
+        }
+        
+        // Apply the office filter
+        $query->whereHas('company', function ($q) use ($user) {
+            $q->where('office_id', $user->office_id);
+        });
+        
+        // Debug: Log the SQL query
+        Log::info('Staff query SQL', [
+            'sql' => $query->toSql(),
+            'bindings' => $query->getBindings()
+        ]);
+    } else {
+        Log::info('No additional filter applied for role', ['role' => $user->role]);
+    }
+
+    // Apply search filter
+    if ($search) {
+        $query->where(function ($q) use ($search) {
+            $q->where('project_title', 'like', "%{$search}%")
+              ->orWhere('project_cost', 'like', "%{$search}%")
+              ->orWhereHas('company', function ($q) use ($search) {
+                  $q->where('company_name', 'like', "%{$search}%");
+              });
+        });
+    }
+
+    // Only show projects with approved items
+    $query->whereHas('items', function ($q) {
+        $q->where('report', 'approved');
+    });
+
+    // Execute query and get results
+    $projects = $query->orderBy('project_title')->paginate($perPage)->withQueryString();
+
+    // Log results count
+    Log::info('Projects retrieved', [
+        'role' => $user->role,
+        'office_id' => $user->office_id ?? 'N/A',
+        'total_projects' => $projects->total(),
+        'stage' => $stage
+    ]);
+
+    $projects->getCollection()->transform(function ($project) {
+        // Get all messages with their comments
+        $allMessages = MessageModel::with([
+            'user',
+            'comments' => function($query) {
+                $query->with(['user' => function($q) {
+                    $q->select('user_id', 'first_name', 'middle_name', 'last_name');
+                }])
+                ->orderBy('created_at', 'asc');
+            }
+        ])
+            ->where('project_id', $project->project_id)
+            ->whereIn('status', ['todo', 'done'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $filteredMessages = $allMessages->filter(function ($message) use ($project) {
+            return trim($message->subject) === trim($project->progress);
+        })->values();
+
+        $project->setRelation('messages', $filteredMessages);
+        
+        Log::info('Project messages filtered with comments', [
+            'project_id' => $project->project_id,
+            'progress' => $project->progress,
+            'total_messages' => $allMessages->count(),
+            'filtered_messages' => $filteredMessages->count(),
+        ]);
+
+        return $project;
+    });
+
+    // Fetch users with roles other than 'staff' or 'user'
+    $availableUsers = UserModel::whereNotIn('role', ['staff', 'user'])
+        ->select('user_id', 'first_name', 'middle_name', 'last_name', 'role')
+        ->orderBy('first_name')
+        ->get();
+
+    Log::info("{$user->username} accessed reviewApproval page", [
+        'role' => $user->role,
+        'office_id' => $user->office_id ?? 'N/A',
+        'stage' => $stage,
+        'progress_filter' => $progressMap[$stage] ?? 'none',
+    ]);
+
+    return Inertia::render('ReviewApproval/ReviewApproval', [
+        'projects' => $projects,
+        'filters' => $request->only('search', 'perPage', 'stage'),
+        'currentStage' => $stage,
+        'availableUsers' => $availableUsers,
+    ]);
+}
     public function toggleMessageStatus($id)
     {
         $user = Auth::user();
