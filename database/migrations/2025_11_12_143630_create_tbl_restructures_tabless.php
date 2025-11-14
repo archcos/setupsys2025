@@ -33,7 +33,6 @@ return new class extends Migration
             // Start and end dates (date type includes year, month, and day)
             $table->date('restruct_start')->nullable();
             $table->date('restruct_end')->nullable();
-            $table->decimal('restruct_amount', 10, 2)->nullable();
 
             // Optional timestamps
             $table->timestamps();

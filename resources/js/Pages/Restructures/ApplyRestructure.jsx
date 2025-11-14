@@ -327,10 +327,10 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
 
                 {/* Link Fields */}
                 {[
-                  { field: 'proponent', label: 'Proponent Link' },
-                  { field: 'psto', label: 'PSTO Link' },
-                  { field: 'annexc', label: 'Annex C Link' },
-                  { field: 'annexd', label: 'Annex D Link' }
+                  { field: 'proponent', label: 'Proponent Letter' },
+                  { field: 'psto', label: 'PD Letter' },
+                  { field: 'annexc', label: 'Annex C' },
+                  { field: 'annexd', label: 'Annex D' }
                 ].map(({ field, label }) => (
                   <div key={field}>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">

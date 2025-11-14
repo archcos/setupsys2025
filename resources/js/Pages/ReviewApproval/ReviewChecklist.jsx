@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useForm } from "@inertiajs/react";
+import { Head, useForm } from "@inertiajs/react";
 import { CheckCircle, Calendar, User, ArrowLeft, AlertTriangle } from "lucide-react";
 
 export default function Checklist({ project, checklist, errors }) {
@@ -77,9 +77,9 @@ export default function Checklist({ project, checklist, errors }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
+         <Head title={`Review - ${project.project_title}`} />
         <div className="mb-8">
           <button
             onClick={() => window.history.back()}
@@ -255,6 +255,5 @@ export default function Checklist({ project, checklist, errors }) {
 
 
       </div>
-    </div>
   );
 }
