@@ -225,75 +225,72 @@ class RefundController extends Controller
         }
     }
 
-    public function save()
-    {
-        $data = request()->validate([
-            'project_id'     => 'required|exists:tbl_projects,project_id',
-            'refund_amount'  => 'required|numeric|min:0',
-            'amount_due'     => 'nullable|numeric|min:0',
-            'check_num'      => 'nullable|numeric|min:0|max:11',
-            'receipt_num'    => 'nullable|numeric|min:0|max:11',
-            'status'         => 'required|in:paid,unpaid,restructured',
-            'save_date'      => 'required|date_format:Y-m-d',
-        ]);
+public function save()
+{
+    $data = request()->validate([
+        'project_id'     => 'required|exists:tbl_projects,project_id',
+        'refund_amount'  => 'required|numeric|min:0',
+        'amount_due'     => 'nullable|numeric|min:0',
+        'check_num'      => 'nullable|numeric|min:0|max:11',
+        'receipt_num'    => 'nullable|numeric|min:0|max:11',
+        'status'         => 'required|in:paid,unpaid,restructured',
+        'save_date'      => 'required|date_format:Y-m-d',
+    ]);
 
-        try {
-            $savedMonthDate = Carbon::parse($data['save_date'])->startOfMonth()->format('Y-m-d');
-            $readableMonth  = Carbon::parse($data['save_date'])->format('F Y');
+    try {
+        $savedMonthDate = Carbon::parse($data['save_date'])->startOfMonth()->format('Y-m-d');
+        $readableMonth  = Carbon::parse($data['save_date'])->format('F Y');
 
-            // If status is restructured, set amounts to 0
-            if ($data['status'] === 'restructured') {
-                $data['refund_amount'] = 0;
-                $data['amount_due'] = 0;
-            }
-
-            $refund = RefundModel::updateOrCreate(
-                [
-                    'project_id' => $data['project_id'],
-                    'month_paid' => $savedMonthDate
-                ],
-                [
-                    'refund_amount' => $data['refund_amount'],
-                    'amount_due'    => $data['amount_due'],
-                    'check_num'     => $data['check_num'] ?? null,
-                    'receipt_num'   => $data['receipt_num'] ?? null,
-                    'status'        => $data['status'],
-                ]
-            );
-
-            $formattedAmount = $refund->amount_due !== null
-                ? '₱' . number_format($refund->amount_due, 2)
-                : 'N/A';
-
-            $project   = $refund->project ?? null;
-            $company   = $project?->company ?? null;
-            $ownerName = $company?->owner_name ?? 'Valued Client';
-
-            $statusText  = strtoupper($refund->status);
-            $statusColor = $refund->status === 'unpaid' ? 'red' : ($refund->status === 'restructured' ? '#0066cc' : '#0056b3');
-            $statusHtml  = "<span style='color: {$statusColor}; font-weight: bold;'>{$statusText}</span>";
-
-            $notification = [
-                'title' => 'Refund Update',
-                'message' => "
-                    Dear {$ownerName},<br><br>
-                    Your refund record has been updated for the month of {$readableMonth}.<br><br>
-                    <strong>Status:</strong> {$statusHtml}<br>
-                    <strong>Amount:</strong> {$formattedAmount}<br><br>
-                    Thank you for your continued cooperation.<br>
-                    <em>- SETUP-RPMU</em>
-                ",
-            ];
-
-            if ($company && $company->email) {
-                Mail::to($company->email)->send(new NotificationCreatedMail($notification));
-            }
-
-            return back()->with('success', 'Refund saved successfully.');
-        } catch (\Exception $e) {
-            return back()->with('error', 'An error occurred while saving.');
+        // If status is restructured, set amounts to 0
+        if ($data['status'] === 'restructured') {
+            $data['refund_amount'] = 0;
+            $data['amount_due'] = 0;
         }
+
+        $refund = RefundModel::updateOrCreate(
+            [
+                'project_id' => $data['project_id'],
+                'month_paid' => $savedMonthDate
+            ],
+            [
+                'refund_amount' => $data['refund_amount'],
+                'amount_due'    => $data['amount_due'],
+                'check_num'     => $data['check_num'] ?? null,
+                'receipt_num'   => $data['receipt_num'] ?? null,
+                'status'        => $data['status'],
+            ]
+        );
+
+        $project   = $refund->project ?? null;
+        $company   = $project?->company ?? null;
+        $ownerName = $company?->owner_name ?? 'Valued Client';
+        $projectTitle = $project?->project_title ?? 'N/A';
+        $companyName = $company?->company_name ?? 'N/A';
+
+        // Send email notification
+        if ($company && $company->email) {
+            try {
+                Mail::to($company->email)->send(
+                    new \App\Mail\RefundNotificationMail(
+                        $ownerName,
+                        $projectTitle,
+                        $companyName,
+                        $readableMonth,
+                        $data['status'],
+                        $refund->amount_due
+                    )
+                );
+                \Illuminate\Support\Facades\Log::info("Refund notification email sent to {$company->email}");
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to send refund email to {$company->email}: " . $e->getMessage());
+            }
+        }
+
+        return back()->with('success', 'Refund saved successfully.');
+    } catch (\Exception $e) {
+        return back()->with('error', 'An error occurred while saving.');
     }
+}
 
     public function userRefunds()
     {

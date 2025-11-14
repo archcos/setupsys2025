@@ -311,7 +311,7 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
     setShowStatusModal(true);
   };
 
-  const handleStatusSubmit = () => {
+const handleStatusSubmit = () => {
     if (!statusData.remarks || statusData.remarks.trim() === '') {
       alert('Please provide remarks for this action');
       return;
@@ -319,21 +319,26 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
 
     const status = statusAction === 'approve' ? 'approved' : 'pending';
     
+    // Show processing state and prevent automatic redirect
     router.put(route('restructure.update-status', itemToUpdate.restruct_id), {
       status: status,
       remarks: statusData.remarks,
     }, {
-      preserveState: true,
-      preserveScroll: true,
-      onSuccess: () => {
-        setShowStatusModal(false);
-        setItemToUpdate(null);
-        setStatusAction(null);
-        resetStatus();
+      preserveState: false,  // Changed to false to allow full page reload after emails sent
+      preserveScroll: false,
+      onBefore: () => {
+        console.log('Starting status update and email sending...');
+      },
+      onSuccess: (page) => {
+        console.log('Status update and emails completed successfully');
+        // Modal will close and page will refresh automatically
       },
       onError: (errors) => {
         console.error('Status update errors:', errors);
         alert('Failed to update status: ' + (errors.error || 'Please try again.'));
+      },
+      onFinish: () => {
+        console.log('Request finished');
       }
     });
   };

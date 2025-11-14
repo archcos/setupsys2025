@@ -11,6 +11,7 @@ use App\Models\DirectorModel;
 use App\Models\UserModel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use \NumberFormatter;
@@ -127,19 +128,28 @@ public function uploadApprovedFile(Request $request, $moa_id)
         ]);
 
         // Send notification
-        $officeUsers = UserModel::where('office_id', $moa->project->company->office_id)
-            ->whereIn('role', ['rpmo', 'staff']) // Notify both roles
-            ->get();
+$officeUsers = UserModel::where('office_id', $moa->project->company->office_id)
+    ->whereIn('role', ['rpmo', 'staff'])
+    ->get();
 
-        $actionText = $isReupload ? 'reuploaded' : 'uploaded';
-        foreach ($officeUsers as $user) {
-            NotificationController::createNotificationAndEmail([
-                'title' => $isReupload ? 'MOA Reuploaded' : 'MOA Uploaded',
-                'message' => "A MOA file has been {$actionText} for:<br>Project: {$moa->project->project_title}<br>Company: {$moa->project->company->company_name}",
-                'office_id' => $moa->project->company->office_id,
-                'company_id' => $moa->project->company->company_id,
-            ]);
+    $actionType = $isReupload ? 'reuploaded' : 'uploaded';
+
+    foreach ($officeUsers as $user) {
+        try {
+            Mail::to($user->email)->send(
+                new \App\Mail\MoaNotificationMail(
+                    $actionType,
+                    $moa->project->project_title,
+                    $moa->project->company->company_name,
+                    $user->name
+                )
+            );
+            Log::info("MOA notification email sent to {$user->email}");
+        } catch (\Exception $e) {
+            Log::error("Failed to send MOA email to {$user->email}: " . $e->getMessage());
         }
+    }
+
 
         $successMessage = $isReupload 
             ? 'Approved MOA file reuploaded successfully.' 
@@ -653,20 +663,6 @@ public function generateDocx(Request $request)
             ]
         );
 
-        // Send notifications to office users
-        $officeUsers = UserModel::where('office_id', $officeId)
-            ->where('role', '!=', 'user')
-            ->get();
-
-        foreach ($officeUsers as $user) {
-            NotificationController::createNotificationAndEmail([
-                'title' => 'MOA Draft Created',
-                'message' => "A MOA draft has been created for:<br>Project: {$project->project_title}<br>Company: {$company->company_name}",
-                'office_id' => $officeId,
-                'company_id' => $company->company_id,
-            ]);
-        }
-
         // Update project progress
         $project->progress = 'Draft MOA';
         $project->save();
@@ -685,5 +681,4 @@ public function generateDocx(Request $request)
         ])->withInput();
     }
 }
-
 }

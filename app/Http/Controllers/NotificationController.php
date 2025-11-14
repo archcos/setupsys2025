@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\NotificationCreatedMail;
 use App\Models\CompanyModel;
 use App\Models\NotificationModel;
 use App\Models\UserModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
@@ -57,25 +55,7 @@ class NotificationController extends Controller
 
         $notification = NotificationModel::create($validated);
 
-        // Notify all staff/admin in the target office
-        $recipients = UserModel::where('office_id', $validated['office_id'])->get();
-
-        foreach ($recipients as $user) {
-            // Skip company users
-            if ($user->role === 'user') {
-                Log::info("Skipped sending email to {$user->email} (role: user)");
-                continue;
-            }
-
-            try {
-                Mail::to($user->email)->send(new NotificationCreatedMail($validated));
-                Log::info("Notification email sent to {$user->email}");
-            } catch (\Exception $e) {
-                Log::error("Failed to send notification email to {$user->email}: " . $e->getMessage());
-            }
-        }
-
-        return back()->with('success', 'Notification sent (check logs for email delivery).');
+        return back()->with('success', 'Notification created successfully.');
     }
 
      public function checkUnread()
@@ -111,28 +91,14 @@ class NotificationController extends Controller
     }
 
     /**
-     * Create a notification record and email recipients.
+     * Create a notification record in the database.
      * Can be reused by other controllers (e.g., ActivityController).
      */
-    public static function createNotificationAndEmail(array $data)
+    public static function createNotification(array $data)
     {
         $notification = NotificationModel::create($data);
-
-        $recipients = UserModel::where('office_id', $data['office_id'])->get();
-
-        foreach ($recipients as $user) {
-            if ($user->role === 'user') {
-                Log::info("Skipped sending email to {$user->email} (role: user)");
-                continue;
-            }
-
-            try {
-                Mail::to($user->email)->send(new NotificationCreatedMail($data));
-                Log::info("Notification email sent to {$user->email}");
-            } catch (\Exception $e) {
-                Log::error("Failed to send notification email to {$user->email}: " . $e->getMessage());
-            }
-        }
+        
+        Log::info("Notification created: {$data['title']} for office {$data['office_id']}");
 
         return $notification;
     }
