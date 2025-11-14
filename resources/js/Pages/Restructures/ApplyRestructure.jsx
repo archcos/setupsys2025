@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Head, useForm, router } from '@inertiajs/react';
-import { Plus, Edit3, Trash2, X, AlertCircle, ExternalLink } from 'lucide-react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
+import { Plus, Edit3, Trash2, X, AlertCircle, ExternalLink, CheckCircle } from 'lucide-react';
 
 export default function ApplyRestructIndex({ applyRestructs, projects }) {
+  const { props } = usePage();
   const [showForm, setShowForm] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
+  const [isSending, setIsSending] = useState(false);
   
   const { data, setData, post, put, reset, errors, processing } = useForm({
     project_id: '',
@@ -18,7 +20,7 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
   });
 
   const validateDriveLink = (url) => {
-    if (!url) return true;
+    if (!url) return false;
     const googleDriveRegex = /^https:\/\/(drive|docs)\.google\.com\/.+/;
     const oneDriveRegex = /^https:\/\/(onedrive\.live\.com|1drv\.ms)\/.+/;
     return googleDriveRegex.test(url) || oneDriveRegex.test(url);
@@ -28,8 +30,16 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
     setValidationErrors({});
     
     const newErrors = {};
+    
+    // Validate all fields are required
+    if (!data.project_id) {
+      newErrors.project_id = 'Project is required';
+    }
+
     ['proponent', 'psto', 'annexc', 'annexd'].forEach(field => {
-      if (data[field] && !validateDriveLink(data[field])) {
+      if (!data[field]) {
+        newErrors[field] = 'This field is required';
+      } else if (!validateDriveLink(data[field])) {
         newErrors[field] = 'Must be a valid Google Drive or OneDrive link';
       }
     });
@@ -39,6 +49,8 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
       return;
     }
 
+    setIsSending(true);
+
     if (editingItem) {
       put(route('apply_restruct.update', editingItem.apply_id), {
         onSuccess: () => {
@@ -46,6 +58,11 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
           setShowForm(false);
           setEditingItem(null);
           setValidationErrors({});
+          setIsSending(false);
+        },
+        onError: (errors) => {
+          console.error('Update error:', errors);
+          setIsSending(false);
         },
       });
     } else {
@@ -54,6 +71,11 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
           reset();
           setShowForm(false);
           setValidationErrors({});
+          setIsSending(false);
+        },
+        onError: (errors) => {
+          console.error('Store error:', errors);
+          setIsSending(false);
         },
       });
     }
@@ -93,16 +115,37 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
   };
 
   const handleCloseForm = () => {
-    setShowForm(false);
-    setEditingItem(null);
-    reset();
-    setValidationErrors({});
+    if (!isSending && !processing) {
+      setShowForm(false);
+      setEditingItem(null);
+      reset();
+      setValidationErrors({});
+    }
   };
 
   return (
       
       <div className="max-w-7xl mx-auto p-6 lg:p-8">
-              <Head title="Apply for Restructuring" />
+        <Head title="Apply for Restructuring" />
+
+        {/* Success/Error Alert */}
+        {props.flash?.success && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <div>
+              <p className="text-sm font-medium text-green-800">{props.flash.success}</p>
+            </div>
+          </div>
+        )}
+
+        {props.flash?.error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <div>
+              <p className="text-sm font-medium text-red-800">{props.flash.error}</p>
+            </div>
+          </div>
+        )}
 
         {/* Header */}
         <div className="mb-8">
@@ -114,8 +157,13 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
               <p className="text-slate-600 mt-1">Manage project restructuring applications</p>
             </div>
             <button
-              onClick={() => setShowForm(true)}
-              className="inline-flex items-center justify-center px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5"
+              onClick={() => {
+                setShowForm(true);
+                reset();
+                setValidationErrors({});
+              }}
+              disabled={isSending}
+              className="inline-flex items-center justify-center px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-5 h-5 mr-2" />
               Add New Application
@@ -240,14 +288,16 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleEdit(item)}
-                            className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                            disabled={isSending}
+                            className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Edit"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(item)}
-                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                            disabled={isSending}
+                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -289,7 +339,7 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
                   </div>
                   <button
                     onClick={handleCloseForm}
-                    disabled={processing}
+                    disabled={processing || isSending}
                     className="text-slate-400 hover:text-slate-600 transition-colors duration-200 disabled:opacity-50"
                   >
                     <X className="w-6 h-6" />
@@ -299,6 +349,17 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
 
               {/* Modal Body */}
               <div className="p-6 space-y-5">
+                {/* Loading Email Indicator */}
+                {(isSending || processing) && (
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
+                    <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="text-sm font-medium text-blue-700">Saving and sending emails to administrators...</span>
+                  </div>
+                )}
+
                 {/* Project Select */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -307,7 +368,7 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
                   <select
                     value={data.project_id}
                     onChange={(e) => setData('project_id', e.target.value)}
-                    disabled={processing}
+                    disabled={processing || isSending}
                     className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="">Select a project</option>
@@ -317,10 +378,10 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
                       </option>
                     ))}
                   </select>
-                  {errors.project_id && (
+                  {(errors.project_id || validationErrors.project_id) && (
                     <p className="mt-1.5 text-sm text-red-600 flex items-center">
                       <AlertCircle className="w-4 h-4 mr-1" />
-                      {errors.project_id}
+                      {errors.project_id || validationErrors.project_id}
                     </p>
                   )}
                 </div>
@@ -334,7 +395,7 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
                 ].map(({ field, label }) => (
                   <div key={field}>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      {label}
+                      {label} <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <input
@@ -350,7 +411,7 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
                             });
                           }
                         }}
-                        disabled={processing}
+                        disabled={processing || isSending}
                         placeholder="https://drive.google.com/... or https://onedrive.live.com/..."
                         className="w-full px-4 py-2.5 pl-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
@@ -372,17 +433,17 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
                 <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                   <button
                     onClick={handleCloseForm}
-                    disabled={processing}
+                    disabled={processing || isSending}
                     className="px-5 py-2.5 text-slate-700 font-medium rounded-lg hover:bg-slate-100 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSubmit}
-                    disabled={processing}
+                    disabled={processing || isSending}
                     className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {processing ? (
+                    {processing || isSending ? (
                       <>
                         <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -442,6 +503,5 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
           </div>
         )}
       </div>
-
   );
 }

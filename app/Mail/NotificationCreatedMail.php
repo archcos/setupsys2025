@@ -25,9 +25,15 @@ class NotificationCreatedMail extends Mailable
                 <p style='margin: 0 0 20px 0;'>{$this->notification['message']}</p>
                 
                 <hr style='border:none; border-top:1px solid #ddd; margin:30px 0;'>
-                <p style='font-size:12px; color:#777;'>
-                    This is an automated message. Please do not reply to this email.
-                </p>
+                <!-- Footer -->
+                    <div style='background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;'>
+                        <p style='margin: 0 0 10px 0; color: #666; font-size: 13px;'>
+                            This is an automated notification from SETUPSYS
+                        </p>
+                        <p style='margin: 0; color: #999; font-size: 12px;'>
+                            © 2025 SETUPSYS. All rights reserved.
+                        </p>
+                    </div>
             </div>
         ";
 
