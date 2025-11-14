@@ -180,11 +180,12 @@ Route::middleware(['auth'])->group(function () {
 
 
 
-Route::get('/apply-restructuring', [ApplyRestructController::class, 'index'])->name('apply_restruct.index');
-Route::post('/apply-restruct/store', [ApplyRestructController::class, 'store'])->name('apply_restruct.store');
-Route::put('/apply-restruct/{apply_id}', [ApplyRestructController::class, 'update'])->name('apply_restruct.update');
-Route::delete('/apply-restruct/{apply_id}', [ApplyRestructController::class, 'destroy'])->name('apply_restruct.destroy');
-
+Route::middleware(['auth'])->group(function () {
+    Route::get('/apply-restructuring', [ApplyRestructController::class, 'index'])->name('apply_restruct.index');
+    Route::post('/apply-restruct/store', [ApplyRestructController::class, 'store'])->name('apply_restruct.store');
+    Route::put('/apply-restruct/{apply_id}', [ApplyRestructController::class, 'update'])->name('apply_restruct.update');
+    Route::delete('/apply-restruct/{apply_id}', [ApplyRestructController::class, 'destroy'])->name('apply_restruct.destroy');
+});
 // Route::put('/companies/{id}/update-added-by', [CompanyController::class, 'updateAddedBy']);
 
 // Add this to your web.php routes file
