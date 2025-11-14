@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Session;
@@ -315,10 +316,16 @@ public function signin(Request $request)
 //         'attempts' => 0,
 //     ], now()->addMinutes(5));
 
-//     Mail::raw("Your OTP code is: {$otp}\nThis code expires in 5 minutes.\n\nREMINDER: Please don't share this code to anyone.", function ($message) use ($email) {
-//         $message->to($email)
-//             ->subject('SETUP Login OTP Code');
-//     });
+//     // Get user name for personalization
+//     $user = UserModel::where('email', $email)->first();
+//     $userName = $user ? $user->name : 'User';
+
+//     // Send professional OTP email
+//     try {
+//         Mail::to($email)->send(new \App\Mail\OtpVerificationMail($otp, $userName));
+//     } catch (\Exception $e) {
+//         Log::error("Failed to send OTP email to {$email}: " . $e->getMessage());
+//     }
 // }
 
 // protected function maskEmail($email)
@@ -437,6 +444,7 @@ public function signin(Request $request)
 
 //     return response()->json(['message' => 'OTP resent successfully.'], 200);
 // }
+
 
 public function logout(Request $request)
 {

@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\RestructureApprovedMail;
+use App\Mail\RestructureRaisedMail;
+use App\Mail\RestructureDeniedMail;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\RestructureModel;
 use App\Models\RestructureUpdateModel;
 use App\Models\ApplyRestructModel;
+use App\Models\DirectorModel;
 use App\Models\ProjectModel;
 use App\Models\RefundModel;
+use App\Models\UserModel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class RestructureController extends Controller
 {
@@ -20,19 +26,16 @@ class RestructureController extends Controller
         $user = Auth::user();
         
         if ($user->role === 'rd') {
-            // For RD: Get unique project IDs that have raised or approved restructures
             $projectIds = RestructureModel::whereIn('status', ['raised', 'approved'])
                 ->distinct()
                 ->pluck('project_id')
                 ->toArray();
             
-            // Get applications for those projects only
             $applyRestructs = ApplyRestructModel::with(['project', 'addedBy'])
                 ->whereIn('project_id', $projectIds)
                 ->latest()
                 ->get();
         } else {
-            // For RPMO and others: Show all applications
             $applyRestructs = ApplyRestructModel::with(['project', 'addedBy'])
                 ->latest()
                 ->get();
@@ -46,7 +49,6 @@ class RestructureController extends Controller
         ]);
     }
 
-    // Show verification page for specific application
     public function verifyShow($apply_id)
     {
         $user = Auth::user();
@@ -56,13 +58,11 @@ class RestructureController extends Controller
 
         $project = ProjectModel::findOrFail($applyRestruct->project_id);
 
-        // Base query for restructures - load with updates relationship
         $restructuresQuery = RestructureModel::where('project_id', $project->project_id)
             ->with(['addedBy', 'updates' => function($query) {
                 $query->orderBy('update_start');
             }]);
         
-        // If user is RD, only show restructures with status = 'raised' or 'approved'
         if ($user->role === 'rd') {
             $restructuresQuery->whereIn('status', ['raised', 'approved']);
         }
@@ -79,7 +79,6 @@ class RestructureController extends Controller
         ]);
     }
 
-    // Helper function to check date overlap
     private function hasDateOverlap($projectId, $newStart, $newEnd, $excludeId = null)
     {
         $query = RestructureModel::where('project_id', $projectId);
@@ -96,7 +95,6 @@ class RestructureController extends Controller
             $newStartTime = strtotime($newStart);
             $newEndTime = strtotime($newEnd);
 
-            // Check for any overlap
             if ($newStartTime <= $existingEnd && $newEndTime >= $existingStart) {
                 return [
                     'overlap' => true,
@@ -108,13 +106,11 @@ class RestructureController extends Controller
         return ['overlap' => false];
     }
 
-    // Store new restructure entry
     public function store(Request $request)
     {
         Log::info('Restructure Store Request:', $request->all());
 
         try {
-            // Validate the request
             $validated = $request->validate([
                 'project_id' => 'required|exists:tbl_projects,project_id',
                 'type' => 'required|string|max:50',
@@ -130,21 +126,17 @@ class RestructureController extends Controller
 
             Log::info('Validation passed:', $validated);
 
-            // Get project to check refund period
             $project = ProjectModel::findOrFail($request->project_id);
 
-            // Format dates: add '-01' to make YYYY-MM into YYYY-MM-01
             $restructStart = $request->restruct_start . '-01';
             $restructEnd = $request->restruct_end . '-01';
 
-            // Validate date order
             if (strtotime($restructEnd) <= strtotime($restructStart)) {
                 return redirect()->back()->withErrors([
                     'restruct_end' => 'End date must be after start date'
                 ])->withInput();
             }
 
-            // Validate dates are within refund period
             $refundInitial = strtotime($project->refund_initial);
             $refundEnd = strtotime($project->refund_end);
             $startTime = strtotime($restructStart);
@@ -164,7 +156,6 @@ class RestructureController extends Controller
                 ])->withInput();
             }
 
-            // Check for date overlap with existing restructures
             $overlapCheck = $this->hasDateOverlap($request->project_id, $restructStart, $restructEnd);
             
             if ($overlapCheck['overlap']) {
@@ -177,7 +168,6 @@ class RestructureController extends Controller
                 ])->withInput();
             }
 
-            // Validate update amounts if provided
             if ($request->has('updates') && is_array($request->updates)) {
                 $restructEndTime = strtotime($restructEnd);
                 
@@ -187,14 +177,12 @@ class RestructureController extends Controller
                     $updateStartTime = strtotime($updateStart);
                     $updateEndTime = strtotime($updateEnd);
 
-                    // Validate update end is after update start
                     if ($updateEndTime <= $updateStartTime) {
                         return redirect()->back()->withErrors([
                             'updates' => 'Update end date must be after start date'
                         ])->withInput();
                     }
 
-                    // Validate update start is AFTER restructuring end date
                     if ($updateStartTime <= $restructEndTime) {
                         return redirect()->back()->withErrors([
                             'updates' => 'Update start date must be after the restructuring end date (' . 
@@ -202,7 +190,6 @@ class RestructureController extends Controller
                         ])->withInput();
                     }
 
-                    // Validate update dates don't exceed project refund end
                     if ($updateEndTime > $refundEnd) {
                         return redirect()->back()->withErrors([
                             'updates' => 'Update end date cannot exceed the project refund end date (' . 
@@ -217,7 +204,6 @@ class RestructureController extends Controller
                 'end' => $restructEnd
             ]);
 
-            // Create the restructure record
             $restructure = RestructureModel::create([
                 'project_id' => $request->project_id,
                 'added_by' => Auth::id(),
@@ -228,7 +214,6 @@ class RestructureController extends Controller
                 'restruct_end' => $restructEnd,
             ]);
 
-            // Create update entries if provided
             if ($request->has('updates') && is_array($request->updates)) {
                 foreach ($request->updates as $update) {
                     RestructureUpdateModel::create([
@@ -245,7 +230,34 @@ class RestructureController extends Controller
                 'data' => $restructure->toArray()
             ]);
 
-            return redirect()->back()->with('success', 'Restructuring added successfully.');
+            // Send emails if status is raised or pending
+            if (in_array($request->status, ['raised', 'pending'])) {
+                Log::info('=== SENDING EMAILS AFTER CREATE ===', [
+                    'status' => $request->status,
+                    'timestamp' => now()->toDateTimeString()
+                ]);
+                
+                try {
+                    // Reload with relationships for email
+                    $restructure = RestructureModel::with(['project.company', 'addedBy'])->findOrFail($restructure->restruct_id);
+                    
+                    $this->sendStatusUpdateEmailsSync($restructure, $request->status, $request->remarks);
+                    
+                    Log::info('=== EMAILS SENT SUCCESSFULLY ===');
+                    
+                    // Add delay to ensure emails complete
+                    sleep(2);
+                    
+                } catch (\Exception $emailError) {
+                    Log::error('Email sending failed:', [
+                        'error' => $emailError->getMessage(),
+                        'trace' => $emailError->getTraceAsString()
+                    ]);
+                }
+            }
+
+            $statusMessage = $request->status === 'raised' ? 'raised' : 'added';
+            return redirect()->back()->with('success', "Restructuring {$statusMessage} successfully. Email notifications have been sent.");
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation Error:', $e->errors());
@@ -265,7 +277,6 @@ class RestructureController extends Controller
         }
     }
 
-    // Update restructure entry
     public function update(Request $request, $restruct_id)
     {
         Log::info('Restructure Update Request:', [
@@ -288,21 +299,17 @@ class RestructureController extends Controller
 
             $restructure = RestructureModel::findOrFail($restruct_id);
             
-            // Get project to check refund period
             $project = ProjectModel::findOrFail($restructure->project_id);
 
-            // Format dates
             $restructStart = $request->restruct_start . '-01';
             $restructEnd = $request->restruct_end . '-01';
 
-            // Validate date order
             if (strtotime($restructEnd) <= strtotime($restructStart)) {
                 return redirect()->back()->withErrors([
                     'restruct_end' => 'End date must be after start date'
                 ])->withInput();
             }
 
-            // Validate dates are within refund period
             $refundInitial = strtotime($project->refund_initial);
             $refundEnd = strtotime($project->refund_end);
             $startTime = strtotime($restructStart);
@@ -322,7 +329,6 @@ class RestructureController extends Controller
                 ])->withInput();
             }
 
-            // Check for date overlap (excluding current record)
             $overlapCheck = $this->hasDateOverlap($restructure->project_id, $restructStart, $restructEnd, $restruct_id);
             
             if ($overlapCheck['overlap']) {
@@ -335,7 +341,6 @@ class RestructureController extends Controller
                 ])->withInput();
             }
 
-            // Validate update amounts if provided
             if ($request->has('updates') && is_array($request->updates)) {
                 $restructEndTime = strtotime($restructEnd);
                 
@@ -345,14 +350,12 @@ class RestructureController extends Controller
                     $updateStartTime = strtotime($updateStart);
                     $updateEndTime = strtotime($updateEnd);
 
-                    // Validate update end is after update start
                     if ($updateEndTime <= $updateStartTime) {
                         return redirect()->back()->withErrors([
                             'updates' => 'Update end date must be after start date'
                         ])->withInput();
                     }
 
-                    // Validate update start is AFTER restructuring end date
                     if ($updateStartTime <= $restructEndTime) {
                         return redirect()->back()->withErrors([
                             'updates' => 'Update start date must be after the restructuring end date (' . 
@@ -360,7 +363,6 @@ class RestructureController extends Controller
                         ])->withInput();
                     }
 
-                    // Validate update dates don't exceed project refund end
                     if ($updateEndTime > $refundEnd) {
                         return redirect()->back()->withErrors([
                             'updates' => 'Update end date cannot exceed the project refund end date (' . 
@@ -378,7 +380,6 @@ class RestructureController extends Controller
                 'remarks' => $request->remarks,
             ]);
 
-            // Delete existing updates and create new ones
             RestructureUpdateModel::where('restruct_id', $restruct_id)->delete();
             
             if ($request->has('updates') && is_array($request->updates)) {
@@ -394,7 +395,34 @@ class RestructureController extends Controller
 
             Log::info('Restructure updated successfully:', $restructure->toArray());
 
-            return redirect()->back()->with('success', 'Restructuring updated successfully.');
+            // Send emails if status is raised or pending
+            if (in_array($request->status, ['raised', 'pending'])) {
+                Log::info('=== SENDING EMAILS AFTER UPDATE ===', [
+                    'status' => $request->status,
+                    'timestamp' => now()->toDateTimeString()
+                ]);
+                
+                try {
+                    // Reload with relationships for email
+                    $restructure = RestructureModel::with(['project.company', 'addedBy'])->findOrFail($restructure->restruct_id);
+                    
+                    $this->sendStatusUpdateEmailsSync($restructure, $request->status, $request->remarks);
+                    
+                    Log::info('=== EMAILS SENT SUCCESSFULLY ===');
+                    
+                    // Add delay to ensure emails complete
+                    sleep(2);
+                    
+                } catch (\Exception $emailError) {
+                    Log::error('Email sending failed:', [
+                        'error' => $emailError->getMessage(),
+                        'trace' => $emailError->getTraceAsString()
+                    ]);
+                }
+            }
+
+            $statusMessage = $request->status === 'raised' ? 'raised' : 'updated';
+            return redirect()->back()->with('success', "Restructuring {$statusMessage} successfully. Email notifications have been sent.");
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation Error:', $e->errors());
@@ -412,13 +440,11 @@ class RestructureController extends Controller
         }
     }
 
-    // Delete restructure entry
     public function destroy($restruct_id)
     {
         try {
             $restructure = RestructureModel::findOrFail($restruct_id);
             
-            // Delete associated updates first
             RestructureUpdateModel::where('restruct_id', $restruct_id)->delete();
             
             $restructure->delete();
@@ -438,14 +464,14 @@ class RestructureController extends Controller
         }
     }
 
-    // Update status (Raise or Deny for RPMO, Approve or Deny for RD)
     public function updateStatus(Request $request, $restruct_id)
     {
         try {
-            Log::info('Status Update Request:', [
+            Log::info('=== STATUS UPDATE STARTED ===', [
                 'restruct_id' => $restruct_id,
                 'request_data' => $request->all(),
-                'user_role' => Auth::user()->role ?? 'unknown'
+                'user_role' => Auth::user()->role ?? 'unknown',
+                'timestamp' => now()->toDateTimeString()
             ]);
 
             $validated = $request->validate([
@@ -456,16 +482,14 @@ class RestructureController extends Controller
             $restructure = RestructureModel::findOrFail($restruct_id);
             $userRole = Auth::user()->role;
 
-            // Role-based status validation
+            // Role-based validation
             if ($userRole === 'rpmo') {
-                // RPMO can only raise or deny (pending)
                 if (!in_array($validated['status'], ['raised', 'pending'])) {
                     return redirect()->back()->withErrors([
                         'error' => 'RPMO can only raise or deny restructuring requests.'
                     ]);
                 }
             } elseif ($userRole === 'rd') {
-                // RD can only approve or deny (pending) items that are already raised
                 if ($restructure->status !== 'raised') {
                     return redirect()->back()->withErrors([
                         'error' => 'Only raised restructuring requests can be approved or denied.'
@@ -483,28 +507,75 @@ class RestructureController extends Controller
                 ]);
             }
             
-            // Update the restructure status
+            Log::info('Validation passed, updating restructure status');
+            
+            // Update the restructure
             $restructure->update([
                 'status' => $validated['status'],
                 'remarks' => $validated['remarks'],
             ]);
+
+            Log::info('Restructure status updated successfully', [
+                'new_status' => $validated['status']
+            ]);
+
+            // Reload with relationships
+            $restructure = RestructureModel::with(['project.company', 'addedBy'])->findOrFail($restruct_id);
             
-            // If RD approved the restructure, create refund entries for each month
-            if ($userRole === 'rd' && $validated['status'] === 'approved') {
+            Log::info('Relationships loaded', [
+                'has_project' => isset($restructure->project),
+                'has_company' => isset($restructure->project->company),
+                'has_added_by' => isset($restructure->addedBy)
+            ]);
+            
+            // Create refund entries if approved
+            if ($validated['status'] === 'approved') {
+                Log::info('Status is approved, creating refund entries...');
                 $this->createRestructuredRefundEntries($restructure);
+                Log::info('Refund entries created successfully');
+            }
+
+            // Send emails SYNCHRONOUSLY
+            Log::info('=== STARTING EMAIL SENDING PROCESS ===', [
+                'status' => $validated['status'],
+                'timestamp' => now()->toDateTimeString()
+            ]);
+            
+            $emailStartTime = microtime(true);
+            
+            try {
+                $this->sendStatusUpdateEmailsSync($restructure, $validated['status'], $validated['remarks']);
+                
+                $emailEndTime = microtime(true);
+                $emailDuration = round($emailEndTime - $emailStartTime, 2);
+                
+                Log::info('=== EMAIL SENDING COMPLETED SUCCESSFULLY ===', [
+                    'duration_seconds' => $emailDuration
+                ]);
+            } catch (\Exception $emailError) {
+                Log::error('Email sending failed but continuing:', [
+                    'error' => $emailError->getMessage(),
+                    'trace' => $emailError->getTraceAsString()
+                ]);
             }
             
-            Log::info('Status updated successfully:', [
+            // Add delay to ensure all emails are fully sent before redirect
+            Log::info('Adding post-email delay to ensure completion...');
+            sleep(2);
+            Log::info('Post-email delay completed');
+            
+            Log::info('=== STATUS UPDATE COMPLETED ===', [
                 'restruct_id' => $restructure->restruct_id,
-                'status' => $validated['status'],
-                'updated_by' => Auth::user()->name
+                'final_status' => $validated['status'],
+                'updated_by' => Auth::user()->name,
+                'timestamp' => now()->toDateTimeString()
             ]);
 
             $statusMessage = $validated['status'] === 'approved' ? 'approved' : 
                             ($validated['status'] === 'raised' ? 'raised' : 'denied');
 
             return redirect()->back()
-                ->with('success', "Restructuring request has been {$statusMessage} successfully.");
+                ->with('success', "Restructuring request has been {$statusMessage} successfully. Email notifications have been sent.");
                     
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation Error:', [
@@ -515,7 +586,7 @@ class RestructureController extends Controller
             return redirect()->back()->withErrors($e->errors())->withInput();
             
         } catch (\Exception $e) {
-            Log::error('Status Update Error:', [
+            Log::error('=== STATUS UPDATE ERROR ===', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
@@ -529,10 +600,321 @@ class RestructureController extends Controller
     }
 
     /**
+     * Send emails synchronously (not queued) to ensure they're sent before page redirect
+     */
+    private function sendStatusUpdateEmailsSync(RestructureModel $restructure, $status, $remarks)
+    {
+        try {
+            Log::info('sendStatusUpdateEmailsSync called', [
+                'restructure_id' => $restructure->restruct_id,
+                'status' => $status,
+                'timestamp' => now()->toDateTimeString()
+            ]);
+
+            if ($status === 'raised') {
+                Log::info('Preparing to send RAISED emails');
+                $this->sendRaisedEmailsSync($restructure, $remarks);
+            } elseif ($status === 'approved') {
+                Log::info('Preparing to send APPROVED emails');
+                $this->sendApprovedEmailsSync($restructure, $remarks);
+            } elseif ($status === 'pending') {
+                Log::info('Preparing to send DENIED emails');
+                $this->sendDeniedEmailsSync($restructure, $remarks);
+            }
+
+            Log::info('All status emails dispatched successfully');
+
+        } catch (\Exception $e) {
+            Log::error('Error in sendStatusUpdateEmailsSync:', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Send raised emails synchronously to Regional Directors
+     */
+    private function sendRaisedEmailsSync(RestructureModel $restructure, $remarks)
+    {
+        try {
+            Log::info('=== SENDING RAISED EMAILS ===');
+            
+            $directors = DirectorModel::where('office_id', 1)
+                ->whereNotNull('email')
+                ->get();
+
+            Log::info('Directors query completed', [
+                'count' => $directors->count(),
+                'directors' => $directors->pluck('email')->toArray()
+            ]);
+
+            if ($directors->isEmpty()) {
+                Log::warning('No directors found with office_id=1 and non-null email');
+                return;
+            }
+
+            $successCount = 0;
+            $failCount = 0;
+
+            foreach ($directors as $director) {
+                try {
+                    $recipientName = $director->honorific . ' ' . $director->last_name;
+                    
+                    Log::info('Attempting to send raised email', [
+                        'to' => $director->email,
+                        'recipient_name' => $recipientName
+                    ]);
+
+                    Mail::to($director->email)->send(new RestructureRaisedMail($restructure, $recipientName, $remarks));
+
+                    $successCount++;
+                    Log::info('✓ Raised email sent successfully', [
+                        'to' => $director->email
+                    ]);
+                    
+                } catch (\Exception $e) {
+                    $failCount++;
+                    Log::error('✗ Failed to send raised email', [
+                        'to' => $director->email,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            }
+
+            Log::info('Raised emails summary', [
+                'total_directors' => $directors->count(),
+                'successful' => $successCount,
+                'failed' => $failCount
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error in sendRaisedEmailsSync:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Send approved emails synchronously
+     */
+    private function sendApprovedEmailsSync(RestructureModel $restructure, $remarks)
+    {
+        try {
+            Log::info('=== SENDING APPROVED EMAILS ===');
+            
+            $projectOfficeId = $restructure->project->company->office_id;
+            $companyEmail = $restructure->project->company->email;
+
+            Log::info('Fetching recipients', [
+                'project_office_id' => $projectOfficeId,
+                'company_email' => $companyEmail
+            ]);
+
+            $rpmoUsers = UserModel::where('role', 'rpmo')
+                ->whereNotNull('email')
+                ->get();
+
+            $staffUsers = UserModel::where('role', 'staff')
+                ->where('office_id', $projectOfficeId)
+                ->whereNotNull('email')
+                ->get();
+
+            Log::info('Recipients found', [
+                'rpmo_users' => $rpmoUsers->count(),
+                'staff_users' => $staffUsers->count(),
+                'rpmo_emails' => $rpmoUsers->pluck('email')->toArray(),
+                'staff_emails' => $staffUsers->pluck('email')->toArray()
+            ]);
+
+            $successCount = 0;
+            $failCount = 0;
+
+            // Send to all RPMO users
+            foreach ($rpmoUsers as $user) {
+                try {
+                    Log::info('Sending approved email to RPMO user', ['to' => $user->email]);
+                    
+                    Mail::to($user->email)->send(new RestructureApprovedMail(
+                        $restructure, 
+                        $restructure->project->company->company_name, 
+                        Auth::user()->name, 
+                        $remarks
+                    ));
+
+                    $successCount++;
+                    Log::info('✓ Approved email sent to RPMO user', ['to' => $user->email]);
+                    
+                } catch (\Exception $e) {
+                    $failCount++;
+                    Log::error('✗ Failed to send approved email to RPMO user', [
+                        'to' => $user->email,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Send to all staff users
+            foreach ($staffUsers as $user) {
+                try {
+                    Log::info('Sending approved email to staff user', ['to' => $user->email]);
+                    
+                    Mail::to($user->email)->send(new RestructureApprovedMail(
+                        $restructure, 
+                        $user->name, 
+                        Auth::user()->name, 
+                        $remarks
+                    ));
+
+                    $successCount++;
+                    Log::info('✓ Approved email sent to staff user', ['to' => $user->email]);
+                    
+                } catch (\Exception $e) {
+                    $failCount++;
+                    Log::error('✗ Failed to send approved email to staff user', [
+                        'to' => $user->email,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Send to company email
+            if ($companyEmail) {
+                try {
+                    Log::info('Sending approved email to company', ['to' => $companyEmail]);
+                    
+                    Mail::to($companyEmail)->send(new RestructureApprovedMail(
+                        $restructure, 
+                        $restructure->project->company->company_name, 
+                        Auth::user()->name, 
+                        $remarks
+                    ));
+
+                    $successCount++;
+                    Log::info('✓ Approved email sent to company', ['to' => $companyEmail]);
+                    
+                } catch (\Exception $e) {
+                    $failCount++;
+                    Log::error('✗ Failed to send approved email to company', [
+                        'to' => $companyEmail,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            Log::info('Approved emails summary', [
+                'total_recipients' => $rpmoUsers->count() + $staffUsers->count() + ($companyEmail ? 1 : 0),
+                'successful' => $successCount,
+                'failed' => $failCount
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error in sendApprovedEmailsSync:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Send denied emails synchronously
+     */
+    private function sendDeniedEmailsSync(RestructureModel $restructure, $remarks)
+    {
+        try {
+            Log::info('=== SENDING DENIED EMAILS ===');
+            
+            $projectOfficeId = $restructure->project->company->office_id;
+
+            $rpmoUsers = UserModel::where('role', 'rpmo')
+                ->whereNotNull('email')
+                ->get();
+
+            $staffUsers = UserModel::where('role', 'staff')
+                ->where('office_id', $projectOfficeId)
+                ->whereNotNull('email')
+                ->get();
+
+            Log::info('Recipients found', [
+                'rpmo_users' => $rpmoUsers->count(),
+                'staff_users' => $staffUsers->count(),
+                'rpmo_emails' => $rpmoUsers->pluck('email')->toArray(),
+                'staff_emails' => $staffUsers->pluck('email')->toArray()
+            ]);
+
+            $successCount = 0;
+            $failCount = 0;
+
+            foreach ($rpmoUsers as $user) {
+                try {
+                    Log::info('Sending denied email to RPMO user', ['to' => $user->email]);
+                    
+                    Mail::to($user->email)->send(new RestructureDeniedMail(
+                        $restructure, 
+                        $user->name, 
+                        Auth::user()->name, 
+                        $remarks
+                    ));
+
+                    $successCount++;
+                    Log::info('✓ Denied email sent to RPMO user', ['to' => $user->email]);
+                    
+                } catch (\Exception $e) {
+                    $failCount++;
+                    Log::error('✗ Failed to send denied email to RPMO user', [
+                        'to' => $user->email,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            foreach ($staffUsers as $user) {
+                try {
+                    Log::info('Sending denied email to staff user', ['to' => $user->email]);
+                    
+                    Mail::to($user->email)->send(new RestructureDeniedMail(
+                        $restructure, 
+                        $user->name, 
+                        Auth::user()->name, 
+                        $remarks
+                    ));
+
+                    $successCount++;
+                    Log::info('✓ Denied email sent to staff user', ['to' => $user->email]);
+                    
+                } catch (\Exception $e) {
+                    $failCount++;
+                    Log::error('✗ Failed to send denied email to staff user', [
+                        'to' => $user->email,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            Log::info('Denied emails summary', [
+                'total_recipients' => $rpmoUsers->count() + $staffUsers->count(),
+                'successful' => $successCount,
+                'failed' => $failCount
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error in sendDeniedEmailsSync:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
      * Create refund entries for restructured months
-     * 
-     * @param RestructureModel $restructure
-     * @return void
      */
     private function createRestructuredRefundEntries(RestructureModel $restructure)
     {
@@ -546,20 +928,17 @@ class RestructureController extends Controller
                 'end_date' => $endDate->format('Y-m-d')
             ]);
             
-            // Generate entries for each month in the range
             $currentDate = $startDate->copy();
             $entriesCreated = 0;
             
             while ($currentDate->lte($endDate)) {
                 $monthPaid = $currentDate->format('Y-m-01');
                 
-                // Check if entry already exists for this month and project
                 $existingRefund = RefundModel::where('project_id', $restructure->project_id)
                     ->where('month_paid', $monthPaid)
                     ->first();
                 
                 if ($existingRefund) {
-                    // Update existing entry to restructured status
                     $existingRefund->update([
                         'status' => RefundModel::STATUS_RESTRUCTURED,
                         'refund_amount' => 0,
@@ -571,7 +950,6 @@ class RestructureController extends Controller
                         'month_paid' => $monthPaid
                     ]);
                 } else {
-                    // Create new refund entry
                     RefundModel::create([
                         'project_id' => $restructure->project_id,
                         'month_paid' => $monthPaid,
@@ -589,8 +967,6 @@ class RestructureController extends Controller
                 }
                 
                 $entriesCreated++;
-                
-                // Move to next month
                 $currentDate->addMonth();
             }
             
@@ -603,8 +979,6 @@ class RestructureController extends Controller
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
-            // Don't throw the exception - log it but allow the status update to succeed
         }
     }
 
@@ -615,8 +989,6 @@ class RestructureController extends Controller
         ]);
 
         $project = ProjectModel::findOrFail($project_id);
-        
-        // Add '-01' to make it a full date
         $refundEnd = $request->refund_end . '-01';
         
         $project->update([
