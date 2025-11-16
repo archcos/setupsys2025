@@ -176,6 +176,8 @@ Route::middleware(['auth'])->group(function () {
         ->name('refunds.user');
     Route::get('/refunds/project/{projectId}', [RefundController::class, 'projectRefunds'])->name('refunds.project.details');
     Route::post('/refunds/bulk-update', [RefundController::class, 'bulkUpdate'])->name('refunds.bulk.update');
+    Route::get('/user/refunds/{projectId}', [RefundController::class, 'userProjectRefunds'])
+    ->name('user.refunds.details');
 });
 
 

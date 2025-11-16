@@ -139,7 +139,7 @@ class UnpaidRefundReminderMail extends Mailable
                                 📋 Important Note
                             </p>
                             <p style='margin: 0; color: #856404; font-size: 13px; line-height: 1.6;'>
-                                If you have submitted a Project Restructure for this time period, please disregard this reminder. Your restructured payment schedule will be honored.
+                                If you have an Approved Project Restructuring for this time period, please disregard this reminder. Your restructured payment schedule will be honored.
                             </p>
                         </div>
 

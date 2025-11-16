@@ -444,4 +444,112 @@ public function save()
             return back()->with('error', 'An error occurred while updating: ' . $e->getMessage());
         }
     }
+
+    /**
+ * Show detailed refund history for the logged-in user's own project
+ * View-only version for company users to see their project refund details
+ */
+public function userProjectRefunds($projectId)
+{
+    try {
+        $userId = Auth::id();
+
+        // Get project and verify it belongs to the logged-in user's company
+        $project = ProjectModel::with([
+            'company',
+            'refunds'
+        ])
+        ->whereHas('company', function ($q) use ($userId) {
+            $q->where('added_by', $userId);
+        })
+        ->findOrFail($projectId);
+
+        $months = [];
+        $totalPaid = 0;
+        $totalUnpaid = 0;
+        $paidCount = 0;
+        $unpaidCount = 0;
+
+        if ($project->refund_initial && $project->refund_end) {
+            $start = Carbon::parse($project->refund_initial);
+            $end = Carbon::parse($project->refund_end);
+
+            while ($start <= $end) {
+                $monthRefund = $project->refunds
+                    ->where('month_paid', $start->format('Y-m-d'))
+                    ->first();
+
+                if ($monthRefund) {
+                    $refundAmount = $monthRefund->refund_amount;
+                    $status = $monthRefund->status;
+                    $amountDue = $monthRefund->amount_due;
+                    $checkNum = $monthRefund->check_num;
+                    $receiptNum = $monthRefund->receipt_num;
+                } else {
+                    // Get refund amount considering restructures and updates
+                    $refundAmount = $this->getRefundAmountForMonth($project, $start);
+                    $status = 'unpaid';
+                    $amountDue = $refundAmount;
+                    $checkNum = null;
+                    $receiptNum = null;
+                }
+
+                // Calculate totals
+                if ($status === 'paid') {
+                    $totalPaid += $refundAmount;
+                    $paidCount++;
+                } else {
+                    $totalUnpaid += $refundAmount;
+                    $unpaidCount++;
+                }
+
+                $months[] = [
+                    'month' => $start->format('F Y'),
+                    'month_date' => $start->format('Y-m-d'),
+                    'refund_amount' => $refundAmount,
+                    'amount_due' => $amountDue,
+                    'status' => $status,
+                    'check_num' => $checkNum,
+                    'receipt_num' => $receiptNum,
+                    'is_past' => $start->isPast(),
+                ];
+
+                $start->addMonth();
+            }
+        }
+
+        return Inertia::render('Refunds/UserRefundHistory', [
+            'project' => [
+                'project_id' => $project->project_id,
+                'project_title' => $project->project_title,
+                'project_cost' => $project->project_cost,
+                'refund_amount' => $project->refund_amount,
+                'last_refund' => $project->last_refund,
+                'refund_initial' => $project->refund_initial,
+                'refund_end' => $project->refund_end,
+                'company' => [
+                    'company_name' => $project->company->company_name ?? 'N/A',
+                    'email' => $project->company->email ?? null,
+                ],
+            ],
+            'months' => $months,
+            'summary' => [
+                'total_paid' => $totalPaid,
+                'total_unpaid' => $totalUnpaid,
+                'paid_count' => $paidCount,
+                'unpaid_count' => $unpaidCount,
+                'total_months' => count($months),
+                'completion_percentage' => count($months) > 0 
+                    ? round(($paidCount / count($months)) * 100, 2) 
+                    : 0,
+            ],
+        ]);
+
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        return back()->with('error', 'Project not found or you do not have permission to view this project.');
+    } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Log::error('Error loading user project refund history: ' . $e->getMessage());
+        return back()->with('error', 'Failed to load project refund history. Please try again.');
+    }
+}
 }
