@@ -293,13 +293,7 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4" />
-                      Project Details
-                    </div>
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4" />
-                      Company
+                      Project & Company
                     </div>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -339,14 +333,12 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
                             <div className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2">
                               {p.project_title}
                             </div>
+                            <div className="text-xs text-gray-600 font-medium mb-0.5">
+                              {p.company.company_name}
+                            </div>
                             <div className="text-xs text-gray-500">
                               ID: {p.project_id}
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900 font-medium">
-                            {p.company.company_name}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -370,11 +362,17 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
                             <input
                               type="number"
                               value={data[`refund_amount_${p.project_id}`] ?? ''}
-                              onChange={(e) => setData(`refund_amount_${p.project_id}`, e.target.value)}
+                              onChange={(e) => {
+                                let val = e.target.value;
+
+                                if (val.length > 10) return; // block extra digits
+                                setData(`refund_amount_${p.project_id}`, val);
+                              }}
                               className={`w-full pl-7 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                                 isRestructured ? 'bg-gray-100 cursor-not-allowed' : ''
                               }`}
                               placeholder="0.00"
+                              maxLength="10"
                               disabled={isRestructured}
                             />
                           </div>
@@ -383,18 +381,28 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
                           <input
                             type="text"
                             value={data[`check_num_${p.project_id}`] ?? latestRefund?.check_num ?? ''}
-                            onChange={(e) => setData(`check_num_${p.project_id}`, e.target.value)}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                              setData(`check_num_${p.project_id}`, value);
+                            }}
                             className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                             placeholder="Check No."
+                            maxLength="10"
+                            pattern="\d{10}"
                           />
                         </td>
                         <td className="px-6 py-4">
                           <input
                             type="text"
                             value={data[`receipt_num_${p.project_id}`] ?? latestRefund?.receipt_num ?? ''}
-                            onChange={(e) => setData(`receipt_num_${p.project_id}`, e.target.value)}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                              setData(`receipt_num_${p.project_id}`, value);
+                            }}
                             className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                             placeholder="Receipt No."
+                            maxLength="10"
+                            pattern="\d{10}"
                           />
                         </td>
                         <td className="px-6 py-4 text-center">
@@ -430,7 +438,7 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
                   })
                 ) : (
                   <tr>
-                    <td colSpan="8" className="text-center py-12">
+                    <td colSpan="7" className="text-center py-12">
                       <div className="flex flex-col items-center gap-4">
                         <div>
                           <h3 className="text-lg font-medium text-gray-900 mb-1">No projects found</h3>
