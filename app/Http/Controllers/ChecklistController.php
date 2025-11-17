@@ -6,7 +6,14 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\ChecklistModel;
 use App\Models\ProjectModel;
+use App\Models\DirectorModel;
+use App\Models\UserModel;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
+use App\Mail\ChecklistApprovalMail;
+use App\Mail\ChecklistDenyMail;
+use App\Mail\ChecklistCompletedMail;
 
 class ChecklistController extends Controller
 {
@@ -18,7 +25,7 @@ class ChecklistController extends Controller
         $sortOrder = $request->input('sortOrder', 'asc');
 
         // Valid sort columns
-        $validSortColumns = ['project_title', 'company_id', 'year_obligated', 'created_at'];
+        $validSortColumns = ['project_title', 'company_id', 'year_obligated', 'created_at', 'progress'];
         if (!in_array($sortBy, $validSortColumns)) {
             $sortBy = 'project_title';
         }
@@ -32,8 +39,23 @@ class ChecklistController extends Controller
                 'project_title',
                 'company_id',
                 'year_obligated',
+                'progress',
                 'created_at'
             );
+
+        // Filter by office based on user role
+        $user = Auth::user();
+        if ($user) {
+            if ($user->role === 'staff' && $user->office_id) {
+                $query->whereHas('company', function ($q) use ($user) {
+                    $q->where('office_id', $user->office_id);
+                });
+            } elseif ($user->role !== 'rpmo') {
+                // Non-RPMO and non-staff roles see nothing
+                $query->whereRaw('1 = 0');
+            }
+            // RPMO role sees all (no filter applied)
+        }
 
         // Apply search filter
         if ($search) {
@@ -62,9 +84,22 @@ class ChecklistController extends Controller
         $projects = $query->get();
 
         // Get all available years for filter dropdown
-        $years = ProjectModel::distinct()
-            ->whereNotNull('year_obligated')
-            ->orderBy('year_obligated', 'desc')
+        $yearsQuery = ProjectModel::distinct()
+            ->whereNotNull('year_obligated');
+
+        // Filter years by role
+        if ($user) {
+            if ($user->role === 'staff' && $user->office_id) {
+                $yearsQuery->whereHas('company', function ($q) use ($user) {
+                    $q->where('office_id', $user->office_id);
+                });
+            } elseif ($user->role !== 'rpmo') {
+                // Non-RPMO and non-staff roles see nothing
+                $yearsQuery->whereRaw('1 = 0');
+            }
+        }
+
+        $years = $yearsQuery->orderBy('year_obligated', 'desc')
             ->pluck('year_obligated')
             ->toArray();
 
@@ -79,15 +114,28 @@ class ChecklistController extends Controller
             ]
         ]);
     }
-
     public function index($projectId)
     {
         $project = ProjectModel::findOrFail($projectId);
         $checklist = ChecklistModel::where('project_id', $projectId)->first();
 
-        return Inertia::render('ReviewApproval/ReviewChecklist', [
+        // Check authorization
+        $user = Auth::user();
+        if ($user) {
+            if ($user->role === 'staff' && $user->office_id) {
+                if ($project->company->office_id !== $user->office_id) {
+                    abort(403, 'Unauthorized access to this project.');
+                }
+            } elseif ($user->role !== 'rpmo') {
+                // Non-RPMO and non-staff roles cannot access
+                abort(403, 'Unauthorized access to this project.');
+            }
+        }
+
+        return Inertia::render('ReviewApproval/Compliance', [
             'project' => $project,
             'checklist' => $checklist,
+            'userRole' => $user->role ?? null,
         ]);
     }
 
@@ -98,6 +146,20 @@ class ChecklistController extends Controller
             'project_id' => 'required|exists:tbl_projects,project_id',
             'links' => 'array',
         ]);
+
+        // Authorization check
+        $user = Auth::user();
+        if ($user) {
+            if ($user->role === 'staff' && $user->office_id) {
+                $project = ProjectModel::findOrFail($request->project_id);
+                if ($project->company->office_id !== $user->office_id) {
+                    abort(403, 'Unauthorized to update this project.');
+                }
+            } elseif ($user->role !== 'rpmo') {
+                // Non-RPMO and non-staff roles cannot update
+                abort(403, 'Unauthorized to update this project.');
+            }
+        }
 
         // Validate each link
         foreach (range(1, 4) as $i) {
@@ -116,7 +178,7 @@ class ChecklistController extends Controller
         // Get existing checklist or create new instance
         $checklist = ChecklistModel::firstOrNew(['project_id' => $request->project_id]);
 
-        $user = Auth::user()->name ?? 'System';
+        $currentUser = Auth::user()->name ?? 'System';
 
         foreach (range(1, 4) as $i) {
             $linkKey = "link_$i";
@@ -131,14 +193,84 @@ class ChecklistController extends Controller
                 if ($checklist->$linkKey !== $link) {
                     $checklist->$linkKey = $link;
                     $checklist->$dateKey = now();
-                    $checklist->$addedByKey = $user;
+                    $checklist->$addedByKey = $currentUser;
                 }
             }
         }
 
         $checklist->save();
 
+        // Check if all 4 links are filled
+        $filledLinks = collect([1, 2, 3, 4])
+            ->filter(fn($i) => !empty($checklist->{"link_$i"}))
+            ->count();
+
+        // If staff and checklist is complete (4/4), send email to RPMO users
+        if ($user->role === 'staff' && $filledLinks === 4) {
+            $rpmoUsers = UserModel::where('role', 'rpmo')->get();
+            
+            if ($rpmoUsers->count() > 0) {
+                foreach ($rpmoUsers as $rpmoUser) {
+                    Mail::to($rpmoUser->email)->send(new ChecklistCompletedMail($request->project_id, $user));
+                }
+            }
+        }
+
         return redirect()->back()->with('success', 'Checklist updated successfully.');
+    }
+
+    public function approve(Request $request)
+    {
+        $request->validate([
+            'project_id' => 'required|exists:tbl_projects,project_id',
+        ]);
+
+        // Only RPMO can approve
+        $user = Auth::user();
+        if (!$user || $user->role !== 'rpmo') {
+            abort(403, 'Only RPMO can approve projects.');
+        }
+
+        $project = ProjectModel::findOrFail($request->project_id);
+
+        // Update project progress to 'approval'
+        $project->progress = 'approval';
+        $project->save();
+
+        // Get director with office_id = 1
+        $director = DirectorModel::where('office_id', 1)->first();
+
+        if ($director && $director->email) {
+            Mail::to($director->email)->send(new ChecklistApprovalMail($project, $user));
+        }
+
+        return redirect()->back()->with('success', 'Project approved and raised to Regional Director.');
+    }
+
+    public function deny(Request $request)
+    {
+        $request->validate([
+            'project_id' => 'required|exists:tbl_projects,project_id',
+            'remark' => 'required|string|min:5|max:500',
+        ]);
+
+        // Only RPMO can deny
+        $user = Auth::user();
+        if (!$user || $user->role !== 'rpmo') {
+            abort(403, 'Only RPMO can deny projects.');
+        }
+
+        $project = ProjectModel::findOrFail($request->project_id);
+        $remark = $request->input('remark');
+
+        // Get director with office_id = 1
+        $director = DirectorModel::where('office_id', 1)->first();
+
+        if ($director && $director->email) {
+            Mail::to($director->email)->send(new ChecklistDenyMail($project, $user, $remark));
+        }
+
+        return redirect()->back()->with('success', 'Project denied. Director has been notified with remarks.');
     }
 
     private function isValidCloudLink($url)

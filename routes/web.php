@@ -112,6 +112,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/checklists', [ChecklistController::class, 'list'])->name('checklist.list');
     Route::get('/checklists/{id}', [ChecklistController::class, 'index'])->name('checklist.index');
     Route::post('/checklists/store', [ChecklistController::class, 'store'])->name('checklist.store');
+  Route::post('/checklists/approve', [ChecklistController::class, 'approve'])->name('checklist.approve');
+    Route::post('/checklists/deny', [ChecklistController::class, 'deny'])->name('checklist.deny');
 });
 
 Route::middleware(['auth'])->group(function () {
