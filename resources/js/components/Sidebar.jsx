@@ -40,7 +40,9 @@ import {
   UserPen,
   UserCog,
   AudioLines,
-  Award
+  Award,
+  NotebookPen,
+  SearchCheck
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen }) {
@@ -154,13 +156,13 @@ export default function Sidebar({ isOpen }) {
 
               ...(role === 'staff'
                 ? [
-                    { label: 'Apply for Restructuring', href: '/apply-restructuring', icon: <HandCoins size={16} /> },
+                    { label: 'Apply for Restructuring', href: '/apply-restructuring', icon: <NotebookPen size={16} /> },
                   ]
                 : []),
 
               ...(role === 'rpmo' || role === 'rd'
                 ? [
-                    { label: 'Verify Restructure', href: '/verify-restructure', icon: <HandCoins size={16} /> },
+                    { label: 'Verify Restructure', href: '/verify-restructure', icon: <SearchCheck size={16} /> },
                   ]
                 : []),
             ]}

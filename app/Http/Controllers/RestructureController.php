@@ -14,6 +14,7 @@ use App\Models\DirectorModel;
 use App\Models\ProjectModel;
 use App\Models\RefundModel;
 use App\Models\UserModel;
+use App\Models\OfficeModel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -21,33 +22,94 @@ use Illuminate\Support\Facades\Mail;
 
 class RestructureController extends Controller
 {
-    public function verifyList()
-    {
-        $user = Auth::user();
+public function verifyList(Request $request)
+{
+    $user = Auth::user();
+    
+    // Get filter parameters
+    $search = $request->input('search', '');
+    $perPage = $request->input('perPage', 10);
+    $officeFilter = $request->input('officeFilter', '');
+    $statusFilter = $request->input('statusFilter', '');
+    $sortBy = $request->input('sortBy', 'desc'); // 'asc' or 'desc'
+    
+    // Build query
+    $query = ApplyRestructModel::with(['project.company.office', 'addedBy', 'restructure']);
+    
+    // Role-based filtering
+    if ($user->role === 'rd') {
+        $projectIds = RestructureModel::whereIn('status', ['raised', 'approved'])
+            ->distinct()
+            ->pluck('project_id')
+            ->toArray();
         
-        if ($user->role === 'rd') {
-            $projectIds = RestructureModel::whereIn('status', ['raised', 'approved'])
-                ->distinct()
-                ->pluck('project_id')
-                ->toArray();
-            
-            $applyRestructs = ApplyRestructModel::with(['project', 'addedBy'])
-                ->whereIn('project_id', $projectIds)
-                ->latest()
-                ->get();
-        } else {
-            $applyRestructs = ApplyRestructModel::with(['project', 'addedBy'])
-                ->latest()
-                ->get();
-        }
-
-        return Inertia::render('Restructures/RestructureList', [
-            'applyRestructs' => $applyRestructs,
-            'auth' => [
-                'user' => $user,
-            ],
-        ]);
+        $query->whereIn('project_id', $projectIds);
     }
+    
+    // Search filter
+    if (!empty($search)) {
+        $query->where(function($q) use ($search) {
+            $q->whereHas('project', function($projectQuery) use ($search) {
+                $projectQuery->where('project_title', 'like', "%{$search}%")
+                    ->orWhereHas('company', function($companyQuery) use ($search) {
+                        $companyQuery->where('company_name', 'like', "%{$search}%");
+                    });
+            });
+        });
+    }
+    
+    // Office filter - only filter if a specific office is selected
+    if (!empty($officeFilter)) {
+        $query->whereHas('project.company', function($q) use ($officeFilter) {
+            $q->where('office_id', $officeFilter);
+        });
+    }
+    
+    // Status filter - check the related restructure
+    if (!empty($statusFilter)) {
+        if ($statusFilter === 'pending') {
+            // For pending, either no restructure exists or restructure exists with pending status
+            $query->where(function($q) {
+                $q->doesntHave('restructure')
+                  ->orWhereHas('restructure', function($subQ) {
+                      $subQ->where('status', 'pending');
+                  });
+            });
+        } else {
+            $query->whereHas('restructure', function($q) use ($statusFilter) {
+                $q->where('status', $statusFilter);
+            });
+        }
+    }
+    
+    // Sort by created_at
+    if ($sortBy === 'asc') {
+        $query->oldest();
+    } else {
+        $query->latest();
+    }
+    
+    // Paginate results with withQueryString() to preserve query params
+    $applyRestructs = $query->paginate($perPage)->withQueryString();
+    
+    // Get all offices for filter dropdown (not filtered by user's office)
+    $offices = OfficeModel::orderBy('office_name')->get();
+
+    return Inertia::render('Restructures/RestructureList', [
+        'applyRestructs' => $applyRestructs,
+        'offices' => $offices,
+        'filters' => [
+            'search' => $search,
+            'perPage' => $perPage,
+            'officeFilter' => $officeFilter,
+            'statusFilter' => $statusFilter,
+            'sortBy' => $sortBy,
+        ],
+        'auth' => [
+            'user' => $user,
+        ],
+    ]);
+}
 
     public function verifyShow($apply_id)
     {

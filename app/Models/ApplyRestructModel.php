@@ -39,7 +39,15 @@ class ApplyRestructModel extends Model
     }
 
     /**
-     * Relationship: Get restructures related to this apply restruct via apply_id
+     * Relationship: Get the latest restructure (singular - for direct access)
+     */
+    public function restructure()
+    {
+        return $this->hasOne(RestructureModel::class, 'apply_id', 'apply_id')->latest();
+    }
+
+    /**
+     * Relationship: Get all restructures related to this apply restruct via apply_id
      */
     public function restructures()
     {
@@ -51,14 +59,14 @@ class ApplyRestructModel extends Model
      */
     public function getStatusAttribute()
     {
-        // Check if restructures relationship is loaded
-        if ($this->relationLoaded('restructures')) {
-            $latestRestructure = $this->restructures->first();
+        // Check if restructure relationship is loaded
+        if ($this->relationLoaded('restructure')) {
+            $latestRestructure = $this->restructure;
             return $latestRestructure ? $latestRestructure->status : 'pending';
         }
         
         // If not loaded, query it
-        $latestRestructure = $this->restructures()->latest()->first();
+        $latestRestructure = $this->restructure()->first();
         return $latestRestructure ? $latestRestructure->status : 'pending';
     }
 }
