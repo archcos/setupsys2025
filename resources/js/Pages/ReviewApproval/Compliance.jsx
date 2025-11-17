@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Head, useForm, router } from "@inertiajs/react";
-import { CheckCircle, Calendar, User, ArrowLeft, AlertTriangle, AlertCircle, X } from "lucide-react";
+import { Head, useForm, router, Link } from "@inertiajs/react";
+import { CheckCircle, Calendar, User, ArrowLeft, AlertTriangle, AlertCircle, X, ChevronLeft } from "lucide-react";
 
 export default function Compliance({ project, checklist, errors, userRole }) {
   const { data, setData, post, processing } = useForm({
@@ -101,6 +101,7 @@ export default function Compliance({ project, checklist, errors, userRole }) {
 
   const filledCount = Object.values(data.links).filter(link => link.trim()).length;
   const isCompleted = filledCount === 4;
+  const isAlreadyApproved = checklist?.status === 'raised' || checklist?.status === 'approved';
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -119,13 +120,13 @@ export default function Compliance({ project, checklist, errors, userRole }) {
         <Head title={`Review - ${project.project_title}`} />
         
         <div className="mb-8">
-          <button
-            onClick={() => window.history.back()}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium mb-4 transition-colors"
+          <Link
+            href="/checklists"
+            className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-4 group"
           >
-            <ArrowLeft className="w-5 h-5" />
-            Back
-          </button>
+            <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+            Back to List
+          </Link>
           
           <div className="flex items-start justify-between mb-2">
             <div>
@@ -285,15 +286,20 @@ export default function Compliance({ project, checklist, errors, userRole }) {
                   <>
                     <button
                       onClick={() => setShowDenyModal(true)}
-                      className="px-6 py-3 rounded-lg font-medium transition-all duration-200 border-2 border-red-600 text-red-600 hover:bg-red-50"
+                      disabled={isAlreadyApproved}
+                      className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 border-2 ${
+                        isAlreadyApproved
+                          ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                          : 'border-red-600 text-red-600 hover:bg-red-50'
+                      }`}
                     >
                       Deny
                     </button>
                     <button
                       onClick={handleApprove}
-                      disabled={!isCompleted || approveProcessing}
+                      disabled={!isCompleted || approveProcessing || isAlreadyApproved}
                       className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 transform ${
-                        !isCompleted || approveProcessing
+                        !isCompleted || approveProcessing || isAlreadyApproved
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white hover:shadow-lg hover:scale-105'
                       }`}
