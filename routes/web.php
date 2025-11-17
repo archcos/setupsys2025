@@ -12,7 +12,7 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\Admin\BlockedIpController;
 use App\Http\Controllers\Admin\DirectorController;
 use App\Http\Controllers\ApplyRestructController;
-use App\Http\Controllers\ChecklistController;
+use App\Http\Controllers\ComplianceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FrequencyController;
 use App\Http\Controllers\HomeController;
@@ -109,11 +109,11 @@ Route::post('/approved/{project_id}/download', [ApprovalController::class, 'down
 
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/checklists', [ChecklistController::class, 'list'])->name('checklist.list');
-    Route::get('/checklists/{id}', [ChecklistController::class, 'index'])->name('checklist.index');
-    Route::post('/checklists/store', [ChecklistController::class, 'store'])->name('checklist.store');
-  Route::post('/checklists/approve', [ChecklistController::class, 'approve'])->name('checklist.approve');
-    Route::post('/checklists/deny', [ChecklistController::class, 'deny'])->name('checklist.deny');
+    Route::get('/compliance', [ComplianceController::class, 'list'])->name('compliance.list');
+    Route::get('/compliance/{id}', [ComplianceController::class, 'index'])->name('compliance.index');
+    Route::post('/compliance/store', [ComplianceController::class, 'store'])->name('compliance.store');
+    Route::post('/compliance/approve', [ComplianceController::class, 'approve'])->name('compliance.approve');
+    Route::post('/compliance/deny', [ComplianceController::class, 'deny'])->name('compliance.deny');
 });
 
 Route::middleware(['auth'])->group(function () {

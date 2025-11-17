@@ -6,7 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class ChecklistDenyMail extends Mailable
+class ComplianceDenyMail extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -96,7 +96,7 @@ class ChecklistDenyMail extends Mailable
                                 ✗ This project compliance has been denied.
                             </p>
                             <p style='margin: 0; color: #666; font-size: 13px;'>
-                                Please review the project details and contact the RPMO for further clarification or to submit a revised checklist.
+                                Please review the project details and contact the RPMO for further clarification or to submit a revised compliance.
                             </p>
                         </div>
 

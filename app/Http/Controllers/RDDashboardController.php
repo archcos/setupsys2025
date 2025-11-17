@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\ProjectModel;
-use App\Models\ChecklistModel;
+use App\Models\ComplianceModel;
 use App\Models\UserModel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -17,8 +17,8 @@ class RDDashboardController extends Controller
 {
     public function index()
     {
-        // Get projects with complete checklists (4/4 links)
-        $projects = ProjectModel::with(['checklist', 'company'])
+        // Get projects with complete compliances (4/4 links)
+        $projects = ProjectModel::with(['compliance', 'company'])
             ->select(
                 'project_id',
                 'project_title',
@@ -29,13 +29,13 @@ class RDDashboardController extends Controller
             ->get()
             ->filter(function ($project) {
                 // Only show projects where all 4 links are filled
-                $checklist = $project->checklist;
-                if (!$checklist) return false;
+                $compliance = $project->compliance;
+                if (!$compliance) return false;
                 
-                return $checklist->link_1 && 
-                       $checklist->link_2 && 
-                       $checklist->link_3 && 
-                       $checklist->link_4;
+                return $compliance->link_1 && 
+                       $compliance->link_2 && 
+                       $compliance->link_3 && 
+                       $compliance->link_4;
             })
             ->values();
 
@@ -69,19 +69,19 @@ class RDDashboardController extends Controller
         // Get the current user (Regional Director)
         $user = Auth::user();
 
-        // Update checklist status
-        $checklist = ChecklistModel::where('project_id', $projectId)->first();
-        if ($checklist) {
+        // Update compliance status
+        $compliance = ComplianceModel::where('project_id', $projectId)->first();
+        if ($compliance) {
             if ($request->status === 'Approved') {
-                $checklist->status = 'approved';
-                $checklist->save();
+                $compliance->status = 'approved';
+                $compliance->save();
 
                 // Send approval email
                 $this->sendApprovalEmail($project, $user);
 
             } elseif ($request->status === 'Disapproved') {
-                $checklist->status = 'pending';
-                $checklist->save();
+                $compliance->status = 'pending';
+                $compliance->save();
 
                 // Send disapproval email with remarks
                 $remark = $request->input('remark', 'No remarks provided.');
@@ -202,17 +202,17 @@ class RDDashboardController extends Controller
 
     public function show($projectId)
     {
-        $project = ProjectModel::with(['checklist', 'company'])->findOrFail($projectId);
-        $checklist = $project->checklist;
+        $project = ProjectModel::with(['compliance', 'company'])->findOrFail($projectId);
+        $compliance = $project->compliance;
 
         // Check if all links are filled
-        if (!$checklist || !($checklist->link_1 && $checklist->link_2 && $checklist->link_3 && $checklist->link_4)) {
-            return redirect()->route('rd-dashboard.index')->with('error', 'This project does not have all checklist items completed');
+        if (!$compliance || !($compliance->link_1 && $compliance->link_2 && $compliance->link_3 && $compliance->link_4)) {
+            return redirect()->route('rd-dashboard.index')->with('error', 'This project does not have all compliance items completed');
         }
 
         return Inertia::render('RDDashboard/Show', [
             'project' => $project,
-            'checklist' => $checklist,
+            'compliance' => $compliance,
         ]);
     }
 }

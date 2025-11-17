@@ -24,7 +24,7 @@ export default function ReviewList({ projects, filters, years }) {
 
   useEffect(() => {
     const delaySearch = setTimeout(() => {
-      router.get(route('checklist.list'), {
+      router.get(route('compliance.list'), {
         search,
         year,
         sortBy,
@@ -38,7 +38,7 @@ export default function ReviewList({ projects, filters, years }) {
     const newSortOrder = sortBy === column && sortOrder === 'asc' ? 'desc' : 'asc';
     setSortBy(column);
     setSortOrder(newSortOrder);
-    router.get('/checklists', {
+    router.get('/compliance', {
       search,
       year,
       sortBy: column,
@@ -49,13 +49,13 @@ export default function ReviewList({ projects, filters, years }) {
     });
   };
 
-  const countFilledLinks = (checklist) => {
-    if (!checklist) return 0;
-    return [1, 2, 3, 4].filter(i => checklist[`link_${i}`]).length;
+  const countFilledLinks = (compliance) => {
+    if (!compliance) return 0;
+    return [1, 2, 3, 4].filter(i => compliance[`link_${i}`]).length;
   };
 
-  const isCompleted = (checklist) => {
-    return checklist && countFilledLinks(checklist) === 4;
+  const isCompleted = (compliance) => {
+    return compliance && countFilledLinks(compliance) === 4;
   };
 
   const getSortIcon = (column) => {
@@ -67,8 +67,8 @@ export default function ReviewList({ projects, filters, years }) {
       : <ArrowUpDown className="w-3 h-3 text-blue-600 rotate-180" />;
   };
 
-  const getStatusBadge = (checklist) => {
-    const checklistStatus = checklist?.status || 'pending';
+  const getStatusBadge = (compliance) => {
+    const complianceStatus = compliance?.status || 'pending';
     
     const statusConfig = {
       pending: {
@@ -91,7 +91,7 @@ export default function ReviewList({ projects, filters, years }) {
       },
     };
 
-    const config = statusConfig[checklistStatus] || statusConfig.pending;
+    const config = statusConfig[complianceStatus] || statusConfig.pending;
     const IconComponent = config.icon;
 
     return (
@@ -102,28 +102,28 @@ export default function ReviewList({ projects, filters, years }) {
     );
   };
 
-  // Calculate stats based on checklist status
-  const pendingCount = projects.filter(p => (p.checklist?.status || 'pending') === 'pending').length;
-  const raisedCount = projects.filter(p => p.checklist?.status === 'raised').length;
-  const approvedCount = projects.filter(p => p.checklist?.status === 'approved').length;
+  // Calculate stats based on compliance status
+  const pendingCount = projects.filter(p => (p.compliance?.status || 'pending') === 'pending').length;
+  const raisedCount = projects.filter(p => p.compliance?.status === 'raised').length;
+  const approvedCount = projects.filter(p => p.compliance?.status === 'approved').length;
 
   // Filter projects based on status filter
   const filteredProjects = useMemo(() => {
     if (statusFilter === 'all') {
       return projects;
     } else if (statusFilter === 'pending') {
-      return projects.filter(p => (p.checklist?.status || 'pending') === 'pending');
+      return projects.filter(p => (p.compliance?.status || 'pending') === 'pending');
     } else if (statusFilter === 'raised') {
-      return projects.filter(p => p.checklist?.status === 'raised');
+      return projects.filter(p => p.compliance?.status === 'raised');
     } else if (statusFilter === 'approved') {
-      return projects.filter(p => p.checklist?.status === 'approved');
+      return projects.filter(p => p.compliance?.status === 'approved');
     }
     return projects;
   }, [projects, statusFilter]);
 
   return (
     <main className="flex-1 p-6 overflow-y-auto">
-      <Head title="Checklist Review" />
+      <Head title="compliance Review" />
 
       <div className="max-w-7xl mx-auto">
         {/* Flash Messages */}
@@ -343,8 +343,8 @@ export default function ReviewList({ projects, filters, years }) {
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {filteredProjects.map((project) => {
-                  const checklist = project.checklist;
-                  const filledLinks = countFilledLinks(checklist);
+                  const compliance = project.compliance;
+                  const filledLinks = countFilledLinks(compliance);
 
                   return (
                     <tr key={project.project_id} className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group">
@@ -373,13 +373,13 @@ export default function ReviewList({ projects, filters, years }) {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-center">
-                          {getStatusBadge(checklist)}
+                          {getStatusBadge(compliance)}
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-center">
                           <a
-                            href={route('checklist.index', project.project_id)}
+                            href={route('compliance.index', project.project_id)}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
                           >
                             View Details

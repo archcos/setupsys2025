@@ -105,9 +105,9 @@ class ProjectModel extends Model
     {
         return $this->hasMany(RtecModel::class, 'project_id', 'project_id');
     }
-    public function checklist()
+    public function compliance()
     {
-        return $this->hasOne(\App\Models\ChecklistModel::class, 'project_id');
+        return $this->hasOne(ComplianceModel::class, 'project_id');
     }
 
         public function applyRestructs()
