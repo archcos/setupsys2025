@@ -19,6 +19,14 @@ return new class extends Migration
                 ->onDelete('cascade')
                 ->onUpdate('cascade');
 
+            // Foreign key to tbl_apply_restruct
+            $table->unsignedBigInteger('apply_id')->nullable();
+            $table->foreign('apply_id')
+                ->references('apply_id')
+                ->on('tbl_apply_restruct')
+                ->onDelete('cascade')
+                ->onUpdate('cascade');
+
             // Added by (user who created it)
             $table->unsignedBigInteger('added_by')->nullable();
             $table->foreign('added_by')
@@ -30,6 +38,7 @@ return new class extends Migration
             $table->string('type', 50)->nullable(); 
             $table->enum('status', ['approved','raised','pending']);
             $table->text('remarks')->nullable();
+            
             // Start and end dates (date type includes year, month, and day)
             $table->date('restruct_start')->nullable();
             $table->date('restruct_end')->nullable();

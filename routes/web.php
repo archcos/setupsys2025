@@ -177,17 +177,23 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/refunds/project/{projectId}', [RefundController::class, 'projectRefunds'])->name('refunds.project.details');
     Route::post('/refunds/bulk-update', [RefundController::class, 'bulkUpdate'])->name('refunds.bulk.update');
     Route::get('/user/refunds/{projectId}', [RefundController::class, 'userProjectRefunds'])
-    ->name('user.refunds.details');
+    ->name('user.refunds.details'); 
 });
 
 
 
-Route::middleware(['auth'])->group(function () {
-    Route::get('/apply-restructuring', [ApplyRestructController::class, 'index'])->name('apply_restruct.index');
-    Route::post('/apply-restruct/store', [ApplyRestructController::class, 'store'])->name('apply_restruct.store');
-    Route::put('/apply-restruct/{apply_id}', [ApplyRestructController::class, 'update'])->name('apply_restruct.update');
-    Route::delete('/apply-restruct/{apply_id}', [ApplyRestructController::class, 'destroy'])->name('apply_restruct.destroy');
+Route::middleware(['auth', 'role:staff'])->group(function () {
+    // Only staff
+        Route::get('/apply-restructuring', [ApplyRestructController::class, 'index'])
+            ->name('apply_restruct.index');
+        Route::post('/apply-restruct/store', [ApplyRestructController::class, 'store'])
+            ->name('apply_restruct.store');
+        Route::put('/apply-restruct/{apply_id}', [ApplyRestructController::class, 'update'])
+            ->name('apply_restruct.update');
+        Route::delete('/apply-restruct/{apply_id}', [ApplyRestructController::class, 'destroy'])
+            ->name('apply_restruct.destroy');
 });
+
 // Route::put('/companies/{id}/update-added-by', [CompanyController::class, 'updateAddedBy']);
 
 // Add this to your web.php routes file

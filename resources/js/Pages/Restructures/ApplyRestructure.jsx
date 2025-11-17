@@ -26,6 +26,37 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
     return googleDriveRegex.test(url) || oneDriveRegex.test(url);
   };
 
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      pending: {
+        bg: 'bg-yellow-100',
+        text: 'text-yellow-800',
+        border: 'border-yellow-200',
+        label: 'Pending'
+      },
+      approved: {
+        bg: 'bg-green-100',
+        text: 'text-green-800',
+        border: 'border-green-200',
+        label: 'Approved'
+      },
+      raised: {
+        bg: 'bg-blue-100',
+        text: 'text-blue-800',
+        border: 'border-blue-200',
+        label: 'Raised to Regional Director'
+      },
+    };
+
+    const config = statusConfig[status?.toLowerCase()] || statusConfig.pending;
+    
+    return (
+      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${config.bg} ${config.text} ${config.border}`}>
+        {config.label}
+      </span>
+    );
+  };
+
   const handleSubmit = () => {
     setValidationErrors({});
     
@@ -179,6 +210,7 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
                 <tr className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">#</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Project</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Proponent</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">PSTO</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Annex C</th>
@@ -196,6 +228,9 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
                       <td className="px-6 py-4 text-sm text-slate-600">{index + 1}</td>
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-slate-900">{item.project?.project_title || '-'}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {getStatusBadge(item.status || 'pending')}
                       </td>
                       <td className="px-6 py-4">
                         {item.proponent ? (
@@ -308,7 +343,7 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="10" className="px-6 py-12 text-center">
+                    <td colSpan="11" className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <svg className="w-16 h-16 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
