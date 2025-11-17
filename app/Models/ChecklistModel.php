@@ -14,6 +14,7 @@ class ChecklistModel extends Model
         'link_2', 'link_2_date', 'link_2_added_by',
         'link_3', 'link_3_date', 'link_3_added_by',
         'link_4', 'link_4_date', 'link_4_added_by',
+        'status',
     ];
 
     public function project()

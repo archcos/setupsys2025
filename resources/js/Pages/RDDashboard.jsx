@@ -6,15 +6,22 @@ import {
   Clock,
   FileText,
   ExternalLink,
-  CheckIcon,
+  Check,
   AlertCircle,
-  List
+  List,
+  X,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function RDDashboardIndex({ projects, stats }) {
   const { flash } = usePage().props;
   const [expandedProject, setExpandedProject] = useState(null);
   const [activeFilter, setActiveFilter] = useState('total');
+  const [showDisapprovalModal, setShowDisapprovalModal] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [disapprovalRemark, setDisapprovalRemark] = useState('');
+  const [isSubmittingDisapproval, setIsSubmittingDisapproval] = useState(false);
+  const [isApprovingProjectId, setIsApprovingProjectId] = useState(null);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -52,18 +59,51 @@ export default function RDDashboardIndex({ projects, stats }) {
   }, [projects, activeFilter]);
 
   const handleApprove = (projectId) => {
+    setIsApprovingProjectId(projectId);
     router.post(route('rd-dashboard.update-status', projectId), {
       status: 'Approved'
     }, {
-      preserveScroll: true
+      preserveScroll: true,
+      onFinish: () => {
+        setIsApprovingProjectId(null);
+      }
     });
   };
 
-  const handleDisapprove = (projectId) => {
-    router.post(route('rd-dashboard.update-status', projectId), {
-      status: 'Disapproved'
+  const openDisapprovalModal = (projectId) => {
+    setSelectedProjectId(projectId);
+    setDisapprovalRemark('');
+    setShowDisapprovalModal(true);
+  };
+
+  const closeDisapprovalModal = () => {
+    setShowDisapprovalModal(false);
+    setSelectedProjectId(null);
+    setDisapprovalRemark('');
+    setIsSubmittingDisapproval(false);
+  };
+
+  const handleDisapprovalSubmit = () => {
+    if (!disapprovalRemark.trim()) {
+      alert('Please provide a remark for disapproval');
+      return;
+    }
+
+    if (disapprovalRemark.trim().length < 5) {
+      alert('Remark must be at least 5 characters');
+      return;
+    }
+
+    setIsSubmittingDisapproval(true);
+    router.post(route('rd-dashboard.update-status', selectedProjectId), {
+      status: 'Disapproved',
+      remark: disapprovalRemark
     }, {
-      preserveScroll: true
+      preserveScroll: true,
+      onFinish: () => {
+        setIsSubmittingDisapproval(false);
+        closeDisapprovalModal();
+      }
     });
   };
 
@@ -261,18 +301,27 @@ export default function RDDashboardIndex({ projects, stats }) {
                       <div className="flex gap-3 pt-4 border-t border-gray-200">
                         <button
                           onClick={() => handleApprove(project.project_id)}
-                          disabled={project.progress === 'Approved'}
+                          disabled={project.progress === 'Approved' || isApprovingProjectId === project.project_id}
                           className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                            project.progress === 'Approved'
+                            project.progress === 'Approved' || isApprovingProjectId === project.project_id
                               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                               : 'bg-green-600 hover:bg-green-700 text-white hover:shadow-lg'
                           }`}
                         >
-                          <CheckIcon className="w-4 h-4" />
-                          Approve
+                          {isApprovingProjectId === project.project_id ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-4 h-4" />
+                              Approve
+                            </>
+                          )}
                         </button>
                         <button
-                          onClick={() => handleDisapprove(project.project_id)}
+                          onClick={() => openDisapprovalModal(project.project_id)}
                           disabled={project.progress === 'Disapproved'}
                           className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
                             project.progress === 'Disapproved'
@@ -311,6 +360,75 @@ export default function RDDashboardIndex({ projects, stats }) {
           )}
         </div>
       </div>
+
+      {/* Disapproval Modal */}
+      {showDisapprovalModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-red-50 to-white">
+              <h3 className="text-lg font-semibold text-gray-900">Disapprove Project</h3>
+              <button
+                onClick={closeDisapprovalModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                  <span>Please provide a detailed remark explaining why this project is being disapproved.</span>
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Remarks <span className="text-red-600">*</span>
+                </label>
+                <textarea
+                  value={disapprovalRemark}
+                  onChange={(e) => setDisapprovalRemark(e.target.value)}
+                  placeholder="Enter your remarks for disapproval (minimum 5 characters)..."
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:ring-2 focus:ring-red-200 focus:outline-none transition-all duration-200 resize-none text-sm"
+                  rows="4"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {disapprovalRemark.length}/500 characters
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={closeDisapprovalModal}
+                  className="flex-1 px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDisapprovalSubmit}
+                  disabled={isSubmittingDisapproval || !disapprovalRemark.trim() || disapprovalRemark.trim().length < 5}
+                  className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    isSubmittingDisapproval || !disapprovalRemark.trim() || disapprovalRemark.trim().length < 5
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-red-600 text-white hover:bg-red-700'
+                  }`}
+                >
+                  {isSubmittingDisapproval ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Submitting...
+                    </span>
+                  ) : (
+                    'Confirm Disapproval'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
