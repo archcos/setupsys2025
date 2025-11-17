@@ -109,4 +109,9 @@ class ProjectModel extends Model
     {
         return $this->hasOne(\App\Models\ChecklistModel::class, 'project_id');
     }
+
+        public function applyRestructs()
+    {
+        return $this->hasMany(ApplyRestructModel::class, 'project_id', 'project_id');
+    }
 }

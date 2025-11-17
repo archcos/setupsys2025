@@ -111,18 +111,19 @@ class RestructureController extends Controller
         Log::info('Restructure Store Request:', $request->all());
 
         try {
-            $validated = $request->validate([
-                'project_id' => 'required|exists:tbl_projects,project_id',
-                'type' => 'required|string|max:50',
-                'restruct_start' => 'required|string',
-                'restruct_end' => 'required|string',
-                'status' => 'required|in:approved,raised,pending',
-                'remarks' => 'required|string',
-                'updates' => 'nullable|array',
-                'updates.*.update_start' => 'required_with:updates|string',
-                'updates.*.update_end' => 'required_with:updates|string',
-                'updates.*.update_amount' => 'required_with:updates|numeric|min:0',
-            ]);
+        $validated = $request->validate([
+            'project_id' => 'required|exists:tbl_projects,project_id',
+            'apply_id' => 'required|exists:tbl_apply_restruct,apply_id', // Add this line
+            'type' => 'required|string|max:50',
+            'restruct_start' => 'required|string',
+            'restruct_end' => 'required|string',
+            'status' => 'required|in:approved,raised,pending',
+            'remarks' => 'required|string',
+            'updates' => 'nullable|array',
+            'updates.*.update_start' => 'required_with:updates|string',
+            'updates.*.update_end' => 'required_with:updates|string',
+            'updates.*.update_amount' => 'required_with:updates|numeric|min:0',
+        ]);
 
             Log::info('Validation passed:', $validated);
 
@@ -206,6 +207,7 @@ class RestructureController extends Controller
 
             $restructure = RestructureModel::create([
                 'project_id' => $request->project_id,
+                'apply_id' => $request->apply_id, // Add this line
                 'added_by' => Auth::id(),
                 'type' => $request->type,
                 'status' => $request->status,
@@ -286,6 +288,7 @@ class RestructureController extends Controller
 
         try {
             $validated = $request->validate([
+                'apply_id' => 'required|exists:tbl_apply_restruct,apply_id', // Add this line
                 'type' => 'required|string|max:50',
                 'restruct_start' => 'required|string',
                 'restruct_end' => 'required|string',
@@ -372,7 +375,8 @@ class RestructureController extends Controller
                 }
             }
 
-            $restructure->update([
+             $restructure->update([
+                'apply_id' => $request->apply_id, // Add this line
                 'type' => $request->type,
                 'restruct_start' => $restructStart,
                 'restruct_end' => $restructEnd,

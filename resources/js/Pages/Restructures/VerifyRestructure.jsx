@@ -16,6 +16,10 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
   const [dateRangeError, setDateRangeError] = useState('');
   const [updateAmounts, setUpdateAmounts] = useState([]);
   
+  // Add local loading states for better UX
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitAction, setSubmitAction] = useState(null); // 'raise' or 'deny'
+  
   const userRole = auth?.user?.role;
   
   const { data: refundEndData, setData: setRefundEndData, put: putRefundEnd, processing: processingRefundEnd, errors: refundEndErrors } = useForm({
@@ -23,6 +27,8 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
   });
 
   const { data, setData, post, put, reset, errors, processing } = useForm({
+    project_id: project.project_id,
+    apply_id: applyRestruct.apply_id,
     type: '',
     restruct_start: '',
     restruct_end: '',
@@ -131,10 +137,21 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
 
   const handleAddRestructure = () => {
     setEditingItem(null);
-    reset();
+    setData({
+      project_id: project.project_id,
+      apply_id: applyRestruct.apply_id,
+      type: '',
+      restruct_start: '',
+      restruct_end: '',
+      status: 'pending',
+      remarks: '',
+      updates: [],
+    });
     setCustomType('');
     setDateRangeError('');
     setUpdateAmounts([]);
+    setIsSubmitting(false);
+    setSubmitAction(null);
     setShowAddForm(true);
   };
 
@@ -142,6 +159,8 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
     setEditingItem(item);
     const isCustomType = !typeOptions.slice(0, 3).includes(item.type);
     setData({
+      project_id: project.project_id,
+      apply_id: applyRestruct.apply_id,
       type: isCustomType ? 'Custom' : item.type,
       restruct_start: item.restruct_start ? item.restruct_start.substring(0, 7) : '',
       restruct_end: item.restruct_end ? item.restruct_end.substring(0, 7) : '',
@@ -162,6 +181,8 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
     }
     
     setDateRangeError('');
+    setIsSubmitting(false);
+    setSubmitAction(null);
     setShowAddForm(true);
   };
 
@@ -226,13 +247,11 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
         return;
       }
 
-      // Check update start is AFTER restructure end
       if (updateStart.getTime() <= restructEndTime) {
         alert(`Update period must start AFTER the restructuring end date (${formatDate(data.restruct_end + '-01')}). Updates should begin in ${getNextMonth(data.restruct_end)} or later.`);
         return;
       }
 
-      // Check update doesn't exceed refund end
       const refundEnd = new Date(project.refund_end);
       if (updateEnd > refundEnd) {
         alert(`Update period cannot exceed the refund end date (${formatDate(project.refund_end)})`);
@@ -240,9 +259,14 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
       }
     }
 
+    // Set loading state
+    setIsSubmitting(true);
+    setSubmitAction(status === 'raised' ? 'raise' : 'deny');
+
     const submitData = {
       type: finalType,
       project_id: project.project_id,
+      apply_id: applyRestruct.apply_id,
       restruct_start: data.restruct_start,
       restruct_end: data.restruct_end,
       status: status,
@@ -259,9 +283,13 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
           setCustomType('');
           setDateRangeError('');
           setUpdateAmounts([]);
+          setIsSubmitting(false);
+          setSubmitAction(null);
         },
         onError: (errors) => {
           console.error('Update errors:', errors);
+          setIsSubmitting(false);
+          setSubmitAction(null);
         },
       });
     } else {
@@ -272,9 +300,13 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
           setCustomType('');
           setDateRangeError('');
           setUpdateAmounts([]);
+          setIsSubmitting(false);
+          setSubmitAction(null);
         },
         onError: (errors) => {
           console.error('Store errors:', errors);
+          setIsSubmitting(false);
+          setSubmitAction(null);
         },
       });
     }
@@ -311,7 +343,7 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
     setShowStatusModal(true);
   };
 
-const handleStatusSubmit = () => {
+  const handleStatusSubmit = () => {
     if (!statusData.remarks || statusData.remarks.trim() === '') {
       alert('Please provide remarks for this action');
       return;
@@ -319,19 +351,17 @@ const handleStatusSubmit = () => {
 
     const status = statusAction === 'approve' ? 'approved' : 'pending';
     
-    // Show processing state and prevent automatic redirect
     router.put(route('restructure.update-status', itemToUpdate.restruct_id), {
       status: status,
       remarks: statusData.remarks,
     }, {
-      preserveState: false,  // Changed to false to allow full page reload after emails sent
+      preserveState: false,
       preserveScroll: false,
       onBefore: () => {
         console.log('Starting status update and email sending...');
       },
       onSuccess: (page) => {
         console.log('Status update and emails completed successfully');
-        // Modal will close and page will refresh automatically
       },
       onError: (errors) => {
         console.error('Status update errors:', errors);
@@ -369,6 +399,8 @@ const handleStatusSubmit = () => {
       currency: 'PHP',
     }).format(amount);
   };
+
+  const isLoading = processing || isSubmitting;
 
   return (
     <div className="max-w-7xl mx-auto p-6 lg:p-8">
@@ -648,9 +680,11 @@ const handleStatusSubmit = () => {
                     setCustomType('');
                     setDateRangeError('');
                     setUpdateAmounts([]);
+                    setIsSubmitting(false);
+                    setSubmitAction(null);
                   }}
-                  disabled={processing}
-                  className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                  disabled={isLoading}
+                  className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors disabled:opacity-50"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -673,7 +707,7 @@ const handleStatusSubmit = () => {
                 <select
                   value={data.type}
                   onChange={(e) => setData('type', e.target.value)}
-                  disabled={processing}
+                  disabled={isLoading}
                   className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
                 >
                   <option value="">Select type...</option>
@@ -693,7 +727,7 @@ const handleStatusSubmit = () => {
                     type="text"
                     value={customType}
                     onChange={(e) => setCustomType(e.target.value)}
-                    disabled={processing}
+                    disabled={isLoading}
                     placeholder="Enter custom restructuring type..."
                     className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
                   />
@@ -711,7 +745,7 @@ const handleStatusSubmit = () => {
                   onChange={(e) => setData('restruct_start', e.target.value)}
                   min={getMinDate()}
                   max={getMaxDate()}
-                  disabled={processing}
+                  disabled={isLoading}
                   className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
                 />
               </div>
@@ -727,7 +761,7 @@ const handleStatusSubmit = () => {
                   onChange={(e) => setData('restruct_end', e.target.value)}
                   min={getMinDate()}
                   max={getMaxDate()}
-                  disabled={processing}
+                  disabled={isLoading}
                   className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
                 />
               </div>
@@ -756,7 +790,7 @@ const handleStatusSubmit = () => {
                   <button
                     type="button"
                     onClick={handleAddUpdateAmount}
-                    disabled={processing || !data.restruct_end}
+                    disabled={isLoading || !data.restruct_end}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50"
                   >
                     <Plus className="w-4 h-4" />
@@ -805,7 +839,7 @@ const handleStatusSubmit = () => {
                           <button
                             type="button"
                             onClick={() => handleRemoveUpdateAmount(index)}
-                            disabled={processing}
+                            disabled={isLoading}
                             className="text-red-600 hover:text-red-700 p-1 rounded transition-colors disabled:opacity-50"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -823,7 +857,7 @@ const handleStatusSubmit = () => {
                               onChange={(e) => handleUpdateAmountChange(index, 'update_start', e.target.value)}
                               min={getMinUpdateDate()}
                               max={getMaxDate()}
-                              disabled={processing}
+                              disabled={isLoading}
                               className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
                             />
                             <p className="text-xs text-slate-500 mt-1">Min: {getNextMonth(data.restruct_end)}</p>
@@ -839,7 +873,7 @@ const handleStatusSubmit = () => {
                               onChange={(e) => handleUpdateAmountChange(index, 'update_end', e.target.value)}
                               min={getMinUpdateDate()}
                               max={getMaxDate()}
-                              disabled={processing}
+                              disabled={isLoading}
                               className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
                             />
                             <p className="text-xs text-slate-500 mt-1">Max: {formatDate(project.refund_end)}</p>
@@ -859,7 +893,7 @@ const handleStatusSubmit = () => {
                                 min="0"
                                 value={update.update_amount}
                                 onChange={(e) => handleUpdateAmountChange(index, 'update_amount', e.target.value)}
-                                disabled={processing}
+                                disabled={isLoading}
                                 placeholder="0.00"
                                 className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
                               />
@@ -888,7 +922,7 @@ const handleStatusSubmit = () => {
                   onChange={(e) => setData('remarks', e.target.value)}
                   placeholder="Enter remarks for this restructuring..."
                   rows="4"
-                  disabled={processing}
+                  disabled={isLoading}
                   className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none disabled:opacity-50"
                 />
                 <p className="mt-1 text-xs text-slate-500">
@@ -902,28 +936,39 @@ const handleStatusSubmit = () => {
                   onClick={() => {
                     setShowAddForm(false);
                     setEditingItem(null);
-                    reset();
+                    setData({
+                      project_id: project.project_id,
+                      apply_id: applyRestruct.apply_id,
+                      type: '',
+                      restruct_start: '',
+                      restruct_end: '',
+                      status: 'pending',
+                      remarks: '',
+                      updates: [],
+                    });
                     setCustomType('');
                     setDateRangeError('');
                     setUpdateAmounts([]);
+                    setIsSubmitting(false);
+                    setSubmitAction(null);
                   }}
-                  disabled={processing}
+                  disabled={isLoading}
                   className="px-5 py-2.5 text-slate-700 font-medium rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => handleSubmitWithStatus('pending')}
-                  disabled={processing || !!dateRangeError}
+                  disabled={isLoading || !!dateRangeError}
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {processing ? (
+                  {isLoading && submitAction === 'deny' ? (
                     <>
                       <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Processing...
+                      Denying...
                     </>
                   ) : (
                     <>
@@ -934,16 +979,16 @@ const handleStatusSubmit = () => {
                 </button>
                 <button
                   onClick={() => handleSubmitWithStatus('raised')}
-                  disabled={processing || !!dateRangeError}
+                  disabled={isLoading || !!dateRangeError}
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {processing ? (
+                  {isLoading && submitAction === 'raise' ? (
                     <>
                       <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Processing...
+                      Raising...
                     </>
                   ) : (
                     <>
@@ -1037,7 +1082,7 @@ const handleStatusSubmit = () => {
                     <>
                       <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                       Updating...
                     </>
@@ -1196,9 +1241,9 @@ const handleStatusSubmit = () => {
                     <>
                       <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Processing...
+                      {statusAction === 'approve' ? 'Approving...' : 'Denying...'}
                     </>
                   ) : (
                     <>

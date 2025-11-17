@@ -138,24 +138,35 @@ export default function Sidebar({ isOpen }) {
           />
         )}
 
-        {(role === 'rpmo' || role === 'rd') && (
-        <Dropdown
-          title="Implementation"
-          icon={<PencilRuler size={18} />}
-          isOpen={dropdowns.implementation}
-          onToggle={() => toggleDropdown('implementation')}
-          links={[
-            ...(role === 'rpmo'
-              ? [
-                  { label: 'Phase One', href: '/implementation', icon: <ListTodo size={16} /> },
-                  { label: 'Phase Two', href: '/refunds', icon: <HandCoins size={16} /> },
-                  { label: 'Apply for Restructuring', href: '/apply-restructuring', icon: <HandCoins size={16} /> },
-                ]
-              : []),
-            { label: 'Verify Restructure', href: '/verify-restructure', icon: <HandCoins size={16} /> },
-          ]}
-        />
-      )}
+        {(role === 'staff' || role === 'rpmo' || role === 'rd') && (
+          <Dropdown
+            title="Implementation"
+            icon={<PencilRuler size={18} />}
+            isOpen={dropdowns.implementation}
+            onToggle={() => toggleDropdown('implementation')}
+            links={[
+              ...(role === 'rpmo'
+                ? [
+                    { label: 'Phase One', href: '/implementation', icon: <ListTodo size={16} /> },
+                    { label: 'Phase Two', href: '/refunds', icon: <HandCoins size={16} /> },
+                  ]
+                : []),
+
+              ...(role === 'staff'
+                ? [
+                    { label: 'Apply for Restructuring', href: '/apply-restructuring', icon: <HandCoins size={16} /> },
+                  ]
+                : []),
+
+              ...(role === 'rpmo' || role === 'rd'
+                ? [
+                    { label: 'Verify Restructure', href: '/verify-restructure', icon: <HandCoins size={16} /> },
+                  ]
+                : []),
+            ]}
+          />
+        )}
+
 
 
         {(role === 'staff' || role === 'rpmo')  && (
