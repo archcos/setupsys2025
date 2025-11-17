@@ -8,12 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('tbl_checklist', function (Blueprint $table) {
-            $table->id('checklist_id');
+        Schema::create('tbl_compliance', function (Blueprint $table) {
+            $table->id('compliance_id');
             $table->unsignedBigInteger('project_id');
 
             // Four links, each with date and added_by
-            for ($i = 1; $i <= 4; $i++) {
+        for ($i = 1; $i <= 4; $i++) {
                 $table->text("link_$i")->nullable();
                 $table->dateTime("link_{$i}_date")->nullable();
                 $table->string("link_{$i}_added_by")->nullable();
@@ -32,6 +32,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('tbl_checklist');
+        Schema::dropIfExists('tbl_compliance');
     }
 };

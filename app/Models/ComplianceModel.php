@@ -4,10 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class ChecklistModel extends Model
+class ComplianceModel extends Model
 {
-    protected $table = 'tbl_checklist';
-    protected $primaryKey = 'checklist_id';
+    protected $table = 'tbl_compliance';
+    protected $primaryKey = 'compliance_id';
     protected $fillable = [
         'project_id',
         'link_1', 'link_1_date', 'link_1_added_by',

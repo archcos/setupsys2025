@@ -422,7 +422,9 @@ export default function Index({ projects, filters, offices }) {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+
+                    <td className="px-6 py-4">
+                      {role === 'rpmo' ? (
                         <select
                           value={project.progress}
                           onChange={(e) => handleStatusChange(project.project_id, e.target.value)}
@@ -452,7 +454,13 @@ export default function Index({ projects, filters, offices }) {
                             </option>
                           ))}
                         </select>
-                      </td>
+                      ) : (
+                        // Display read-only status badge for non-RPMO users
+                        <div title="Only RPMO can change status">
+                          {getStatusBadge(project.progress)}
+                        </div>
+                      )}
+                    </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">

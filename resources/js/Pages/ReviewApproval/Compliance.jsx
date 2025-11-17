@@ -2,19 +2,20 @@ import React, { useState } from "react";
 import { Head, useForm, router, Link } from "@inertiajs/react";
 import { CheckCircle, Calendar, User, ArrowLeft, AlertTriangle, AlertCircle, X, ChevronLeft } from "lucide-react";
 
-export default function Compliance({ project, checklist, errors, userRole }) {
+export default function Compliance({ project, compliance, errors, userRole }) {
   const { data, setData, post, processing } = useForm({
     project_id: project.project_id,
     links: {
-      link_1: checklist?.link_1 || "",
-      link_2: checklist?.link_2 || "",
-      link_3: checklist?.link_3 || "",
-      link_4: checklist?.link_4 || "",
+      link_1: compliance?.link_1 || "",
+      link_2: compliance?.link_2 || "",
+      link_3: compliance?.link_3 || "",
+      link_4: compliance?.link_4 || "",
     },
   });
 
   const [linkErrors, setLinkErrors] = useState({});
   const [showDenyModal, setShowDenyModal] = useState(false);
+  const [showApproveConfirmModal, setShowApproveConfirmModal] = useState(false);
   const [denyRemark, setDenyRemark] = useState("");
   const [denyProcessing, setDenyProcessing] = useState(false);
   const [approveProcessing, setApproveProcessing] = useState(false);
@@ -61,16 +62,21 @@ export default function Compliance({ project, checklist, errors, userRole }) {
       return;
     }
 
-    post(route("checklist.store"));
+    post(route("compliance.store"));
   };
 
-  const handleApprove = () => {
+  const handleApproveClick = () => {
+    setShowApproveConfirmModal(true);
+  };
+
+  const handleApproveConfirm = () => {
     setApproveProcessing(true);
-    router.post(route("checklist.approve"), {
+    router.post(route("compliance.approve"), {
       project_id: project.project_id
     }, {
       onFinish: () => {
         setApproveProcessing(false);
+        setShowApproveConfirmModal(false);
       }
     });
   };
@@ -87,7 +93,7 @@ export default function Compliance({ project, checklist, errors, userRole }) {
     }
 
     setDenyProcessing(true);
-    router.post(route("checklist.deny"), {
+    router.post(route("compliance.deny"), {
       project_id: project.project_id,
       remark: denyRemark
     }, {
@@ -101,7 +107,7 @@ export default function Compliance({ project, checklist, errors, userRole }) {
 
   const filledCount = Object.values(data.links).filter(link => link.trim()).length;
   const isCompleted = filledCount === 4;
-  const isAlreadyApproved = checklist?.status === 'raised' || checklist?.status === 'approved';
+  const isAlreadyApproved = compliance?.status === 'raised' || compliance?.status === 'approved';
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -121,7 +127,7 @@ export default function Compliance({ project, checklist, errors, userRole }) {
         
         <div className="mb-8">
           <Link
-            href="/checklists"
+            href="/compliance"
             className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-4 group"
           >
             <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
@@ -131,7 +137,7 @@ export default function Compliance({ project, checklist, errors, userRole }) {
           <div className="flex items-start justify-between mb-2">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                Project Checklist
+                Project compliance
               </h1>
               <p className="text-gray-600 mt-2">
                 {project.project_title}
@@ -175,7 +181,7 @@ export default function Compliance({ project, checklist, errors, userRole }) {
                 const dateKey = `link_${i}_date`;
                 const addedByKey = `link_${i}_added_by`;
                 const hasValue = data.links[linkKey]?.trim();
-                const hasHistory = checklist?.[linkKey];
+                const hasHistory = compliance?.[linkKey];
                 const hasError = linkErrors[linkKey] || errors?.[`links.${linkKey}`];
 
                 return (
@@ -224,9 +230,9 @@ export default function Compliance({ project, checklist, errors, userRole }) {
                         value={data.links[linkKey]}
                         onChange={(e) => handleLinkChange(linkKey, e.target.value)}
                         placeholder="Enter Google Drive or OneDrive URL"
-                        disabled={userRole === 'rpmo'}
+                        disabled={userRole === 'rpmo' || isAlreadyApproved}
                         className={`w-full border-2 rounded-lg px-4 py-3 focus:outline-none transition-all duration-200 text-sm ${
-                          userRole === 'rpmo' 
+                          userRole === 'rpmo' || isAlreadyApproved
                             ? 'bg-gray-50 cursor-not-allowed text-gray-600 border-gray-200'
                             : hasError
                             ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-200'
@@ -260,12 +266,12 @@ export default function Compliance({ project, checklist, errors, userRole }) {
                           <div className="flex items-center gap-2 text-xs text-gray-600">
                             <User className="w-4 h-4" />
                             <span className="font-medium">Added by:</span>
-                            <span>{checklist[addedByKey] || 'N/A'}</span>
+                            <span>{compliance[addedByKey] || 'N/A'}</span>
                           </div>
                           <div className="flex items-center gap-2 text-xs text-gray-600">
                             <Calendar className="w-4 h-4" />
                             <span className="font-medium">Date:</span>
-                            <span>{formatDate(checklist[dateKey])}</span>
+                            <span>{formatDate(compliance[dateKey])}</span>
                           </div>
                         </div>
                       </div>
@@ -296,7 +302,7 @@ export default function Compliance({ project, checklist, errors, userRole }) {
                       Deny
                     </button>
                     <button
-                      onClick={handleApprove}
+                      onClick={handleApproveClick}
                       disabled={!isCompleted || approveProcessing || isAlreadyApproved}
                       className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 transform ${
                         !isCompleted || approveProcessing || isAlreadyApproved
@@ -319,9 +325,9 @@ export default function Compliance({ project, checklist, errors, userRole }) {
                 {userRole !== 'rpmo' && (
                   <button
                     onClick={handleSubmit}
-                    disabled={processing || Object.keys(linkErrors).length > 0}
+                    disabled={processing || Object.keys(linkErrors).length > 0 || isAlreadyApproved}
                     className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 transform ${
-                      processing || Object.keys(linkErrors).length > 0
+                      processing || Object.keys(linkErrors).length > 0 || isAlreadyApproved
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white hover:shadow-lg hover:scale-105'
                     }`}
@@ -332,7 +338,7 @@ export default function Compliance({ project, checklist, errors, userRole }) {
                         Saving...
                       </span>
                     ) : (
-                      'Save Checklist'
+                      'Save Compliance'
                     )}
                   </button>
                 )}
@@ -363,7 +369,7 @@ export default function Compliance({ project, checklist, errors, userRole }) {
               <div className="mb-4">
                 <p className="text-sm text-gray-600 flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-                  <span>Please provide a reason for denying this project checklist.</span>
+                  <span>Please provide a reason for denying this project compliance.</span>
                 </p>
               </div>
 
@@ -409,6 +415,62 @@ export default function Compliance({ project, checklist, errors, userRole }) {
                     </span>
                   ) : (
                     'Confirm Denial'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Confirmation Modal */}
+      {showApproveConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-green-50 to-white">
+              <h3 className="text-lg font-semibold text-gray-900">Raise to Regional Director</h3>
+              <button
+                onClick={() => setShowApproveConfirmModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-6">
+                <p className="text-sm text-gray-700 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <span>
+                    Are you sure you want to raise this project to the Regional Director for approval? 
+                    Once submitted, you will not be able to make further changes.
+                  </span>
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowApproveConfirmModal(false)}
+                  className="flex-1 px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleApproveConfirm}
+                  disabled={approveProcessing}
+                  className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    approveProcessing
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
+                  }`}
+                >
+                  {approveProcessing ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Raising...
+                    </span>
+                  ) : (
+                    'Confirm Raise'
                   )}
                 </button>
               </div>

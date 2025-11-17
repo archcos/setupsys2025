@@ -129,7 +129,7 @@ export default function RDDashboardIndex({ projects, stats }) {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">RD Dashboard</h1>
-          <p className="text-gray-600 mt-2">Review and approve completed project checklists</p>
+          <p className="text-gray-600 mt-2">Review and approve completed project compliance</p>
         </div>
 
         {/* Stats Cards with Filters */}
@@ -269,12 +269,12 @@ export default function RDDashboardIndex({ projects, stats }) {
                       <div className="mb-6">
                         <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                           <FileText className="w-5 h-5 text-blue-600" />
-                          Checklist Links (4/4)
+                          Compliance Links (4/4)
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           {[1, 2, 3, 4].map((i) => {
                             const linkKey = `link_${i}`;
-                            const link = project.checklist[linkKey];
+                            const link = project.compliance[linkKey];
                             return (
                               <a
                                 key={i}
@@ -350,7 +350,7 @@ export default function RDDashboardIndex({ projects, stats }) {
                   </h3>
                   <p className="text-gray-500 text-sm">
                     {activeFilter === 'total' 
-                      ? 'Projects with all 4 checklist links will appear here'
+                      ? 'Projects with all 4 compliance file links will appear here'
                       : `No projects match the ${activeFilter} filter`
                     }
                   </p>

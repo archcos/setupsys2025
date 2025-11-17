@@ -7,7 +7,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use App\Models\ProjectModel;
 
-class ChecklistCompletedMail extends Mailable
+class ComplianceCompletedMail extends Mailable
 {
     use Queueable, SerializesModels;
 

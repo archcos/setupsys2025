@@ -4,18 +4,18 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Models\ChecklistModel;
+use App\Models\ComplianceModel;
 use App\Models\ProjectModel;
 use App\Models\DirectorModel;
 use App\Models\UserModel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
-use App\Mail\ChecklistApprovalMail;
-use App\Mail\ChecklistDenyMail;
-use App\Mail\ChecklistCompletedMail;
+use App\Mail\ComplianceApprovalMail;
+use App\Mail\ComplianceDenyMail;
+use App\Mail\ComplianceCompletedMail;
 
-class ChecklistController extends Controller
+class ComplianceController extends Controller
 {
     public function list(Request $request)
     {
@@ -33,7 +33,7 @@ class ChecklistController extends Controller
         $sortOrder = strtoupper($sortOrder) === 'DESC' ? 'desc' : 'asc';
 
         // Build query
-        $query = ProjectModel::with(['checklist', 'company'])
+        $query = ProjectModel::with(['compliance', 'company'])
             ->select(
                 'project_id',
                 'project_title',
@@ -118,7 +118,7 @@ class ChecklistController extends Controller
     public function index($projectId)
     {
         $project = ProjectModel::findOrFail($projectId);
-        $checklist = ChecklistModel::where('project_id', $projectId)->first();
+        $compliance = ComplianceModel::where('project_id', $projectId)->first();
 
         // Check authorization
         $user = Auth::user();
@@ -135,7 +135,7 @@ class ChecklistController extends Controller
 
         return Inertia::render('ReviewApproval/Compliance', [
             'project' => $project,
-            'checklist' => $checklist,
+            'compliance' => $compliance,
             'userRole' => $user->role ?? null,
         ]);
     }
@@ -176,8 +176,8 @@ class ChecklistController extends Controller
             }
         }
 
-        // Get existing checklist or create new instance
-        $checklist = ChecklistModel::firstOrNew(['project_id' => $request->project_id]);
+        // Get existing compliance or create new instance
+        $compliance = ComplianceModel::firstOrNew(['project_id' => $request->project_id]);
 
         $currentUser = Auth::user()->name ?? 'System';
 
@@ -191,35 +191,35 @@ class ChecklistController extends Controller
                 $link = $request->links[$linkKey];
                 
                 // If the link is changed or empty before, update it
-                if ($checklist->$linkKey !== $link) {
-                    $checklist->$linkKey = $link;
-                    $checklist->$dateKey = now();
-                    $checklist->$addedByKey = $currentUser;
+                if ($compliance->$linkKey !== $link) {
+                    $compliance->$linkKey = $link;
+                    $compliance->$dateKey = now();
+                    $compliance->$addedByKey = $currentUser;
                 }
             }
         }
 
         // Set status to pending when staff saves
-        $checklist->status = 'pending';
-        $checklist->save();
+        $compliance->status = 'pending';
+        $compliance->save();
 
         // Check if all 4 links are filled
         $filledLinks = collect([1, 2, 3, 4])
-            ->filter(fn($i) => !empty($checklist->{"link_$i"}))
+            ->filter(fn($i) => !empty($compliance->{"link_$i"}))
             ->count();
 
-        // If staff and checklist is complete (4/4), send email to RPMO users
+        // If staff and compliance is complete (4/4), send email to RPMO users
         if ($user->role === 'staff' && $filledLinks === 4) {
             $rpmoUsers = UserModel::where('role', 'rpmo')->get();
             
             if ($rpmoUsers->count() > 0) {
                 foreach ($rpmoUsers as $rpmoUser) {
-                    Mail::to($rpmoUser->email)->send(new ChecklistCompletedMail($request->project_id, $user));
+                    Mail::to($rpmoUser->email)->send(new ComplianceCompletedMail($request->project_id, $user));
                 }
             }
         }
 
-        return redirect()->back()->with('success', 'Checklist updated successfully.');
+        return redirect()->back()->with('success', 'compliance updated successfully.');
     }
 
     public function approve(Request $request)
@@ -236,11 +236,11 @@ class ChecklistController extends Controller
 
         $project = ProjectModel::findOrFail($request->project_id);
 
-        // Update checklist status to 'raised'
-        $checklist = ChecklistModel::where('project_id', $request->project_id)->first();
-        if ($checklist) {
-            $checklist->status = 'raised';
-            $checklist->save();
+        // Update compliance status to 'raised'
+        $compliance = ComplianceModel::where('project_id', $request->project_id)->first();
+        if ($compliance) {
+            $compliance->status = 'raised';
+            $compliance->save();
         }
 
         // Update project progress to 'approval'
@@ -251,7 +251,7 @@ class ChecklistController extends Controller
         $director = DirectorModel::where('office_id', 1)->first();
 
         if ($director && $director->email) {
-            Mail::to($director->email)->send(new ChecklistApprovalMail($project, $user));
+            Mail::to($director->email)->send(new ComplianceApprovalMail($project, $user));
         }
 
         return redirect()->back()->with('success', 'Project approved and raised to Regional Director.');
@@ -273,18 +273,18 @@ class ChecklistController extends Controller
         $project = ProjectModel::findOrFail($request->project_id);
         $remark = $request->input('remark');
 
-        // Keep checklist status as 'pending' when denied
-        $checklist = ChecklistModel::where('project_id', $request->project_id)->first();
-        if ($checklist) {
-            $checklist->status = 'pending';
-            $checklist->save();
+        // Keep compliance status as 'pending' when denied
+        $compliance = ComplianceModel::where('project_id', $request->project_id)->first();
+        if ($compliance) {
+            $compliance->status = 'pending';
+            $compliance->save();
         }
 
         // Get director with office_id = 1
         $director = DirectorModel::where('office_id', 1)->first();
 
         if ($director && $director->email) {
-            Mail::to($director->email)->send(new ChecklistDenyMail($project, $user, $remark));
+            Mail::to($director->email)->send(new ComplianceDenyMail($project, $user, $remark));
         }
 
         return redirect()->back()->with('success', 'Project denied. Director has been notified with remarks.');
