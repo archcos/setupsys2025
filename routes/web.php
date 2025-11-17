@@ -103,10 +103,12 @@ Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
     Route::put('/projects/{id}/progress', [ProjectController::class, 'updateProgress'])->middleware('role:staff');
 });
 
-
-Route::get('/approved', [ApprovalController::class, 'index'])->name('approvals.index');
-Route::post('/approved/{project_id}/download', [ApprovalController::class, 'download'])->name('approvals.download');
-
+Route::middleware(['auth', 'role:staff,rpmo'])->group(function () {
+Route::get('/approved-projects', [ApprovalController::class, 'index'])->name('approvals.index');
+Route::post('/approvals/{project_id}/generate', [ApprovalController::class, 'generateDocument'])->name('approvals.generate');
+Route::get('/approvals/{project_id}/download/{fileName}', [ApprovalController::class, 'download'])->name('approvals.download');
+Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+});
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/compliance', [ComplianceController::class, 'list'])->name('compliance.list');

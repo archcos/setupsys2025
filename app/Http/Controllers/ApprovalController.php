@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use PhpOffice\PhpWord\TemplateProcessor;
@@ -12,55 +13,124 @@ use App\Models\ProjectModel;
 use App\Models\CompanyModel;
 use App\Models\OfficeModel;
 use App\Models\DirectorModel;
+use App\Models\ComplianceModel;
 
 class ApprovalController extends Controller
 {
     /**
-     * Show list of approved projects
+     * Show list of approved projects (with compliance status = approved)
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $projects = ProjectModel::with(['company.office'])
-                ->where('progress', 'Approved')
-                ->orderBy('project_title')
-                ->get()
-                ->map(function ($project) {
-                    return [
-                        'project_id' => $project->project_id,
-                        'project_title' => $project->project_title,
-                        'project_cost' => $project->project_cost,
-                        'company' => [
-                            'company_name' => $project->company->company_name ?? 'N/A',
-                            'owner_name' => $project->company->owner_name ?? 'N/A',
-                            'street' => $project->company->street ?? '',
-                            'barangay' => $project->company->barangay ?? '',
-                            'municipality' => $project->company->municipality ?? '',
-                            'office' => [
-                                'office_id' => $project->company->office->office_id ?? null,
-                                'office_name' => $project->company->office->office_name ?? 'N/A',
-                            ]
-                        ]
-                    ];
+            $user = Auth::user();
+
+            // Check if user role is staff or rpmo
+            if (!$user || !in_array($user->role, ['staff', 'rpmo'])) {
+                return Inertia::render('ReviewApproval/ApprovedProjects', [
+                    'projects' => [],
+                    'offices' => [],
+                    'filters' => [],
+                    'error' => 'You do not have permission to access this resource.'
+                ]);
+            }
+
+            $search = $request->input('search', '');
+            $perPage = $request->input('perPage', 10);
+            $officeFilter = $request->input('officeFilter', '');
+            $sortBy = $request->input('sortBy', 'desc');
+
+            // Build query
+            $query = ProjectModel::with(['company.office', 'compliance'])
+                ->whereHas('compliance', function ($q) {
+                    $q->where('status', 'approved');
                 });
 
-            return Inertia::render('ReviewApproval/Approved', [
+            // Filter by office based on user role
+            if ($user->role === 'staff') {
+                // Staff can only see projects from their office
+                if (!$user->office_id) {
+                    return Inertia::render('ReviewApproval/ApprovedProjects', [
+                        'projects' => [],
+                        'offices' => [],
+                        'filters' => [],
+                        'error' => 'No office assigned to your account.'
+                    ]);
+                }
+
+                $query->whereHas('company', function ($q) use ($user) {
+                    $q->where('office_id', $user->office_id);
+                });
+            }
+            // If role is 'rpmo', show all projects (no office filter)
+
+            // Search filter
+            if (!empty($search)) {
+                $query->where(function($q) use ($search) {
+                    $q->where('project_title', 'like', "%{$search}%")
+                      ->orWhereHas('company', function($companyQuery) use ($search) {
+                          $companyQuery->where('company_name', 'like', "%{$search}%")
+                                     ->orWhere('owner_name', 'like', "%{$search}%");
+                      });
+                });
+            }
+
+            // Office filter (only applies if user is rpmo)
+            if (!empty($officeFilter) && $user->role === 'rpmo') {
+                $query->whereHas('company', function($q) use ($officeFilter) {
+                    $q->where('office_id', $officeFilter);
+                });
+            }
+
+            // Sort by created_at or project_title
+            if ($sortBy === 'title') {
+                $query->orderBy('project_title', 'asc');
+            } elseif ($sortBy === 'recent') {
+                $query->latest();
+            } else {
+                $query->oldest();
+            }
+
+            // Paginate results with withQueryString
+            $projects = $query->paginate($perPage)->withQueryString();
+
+            // Get offices for filter dropdown
+            $offices = [];
+            if ($user->role === 'rpmo') {
+                // RPMO can see all offices
+                $offices = OfficeModel::orderBy('office_name')->get();
+            } elseif ($user->role === 'staff' && $user->office_id) {
+                // Staff only sees their own office
+                $offices = OfficeModel::where('office_id', $user->office_id)->get();
+            }
+
+            return Inertia::render('ReviewApproval/ApprovedProjects', [
                 'projects' => $projects,
+                'offices' => $offices,
+                'filters' => [
+                    'search' => $search,
+                    'perPage' => $perPage,
+                    'officeFilter' => $officeFilter,
+                    'sortBy' => $sortBy,
+                ],
+                'userRole' => $user->role,
             ]);
         } catch (\Exception $e) {
             Log::error('Error fetching approved projects: ' . $e->getMessage());
             
-            return Inertia::render('ReviewApproval/Approved', [
+            return Inertia::render('ReviewApproval/ApprovedProjects', [
                 'projects' => [],
+                'offices' => [],
+                'filters' => [],
                 'error' => 'Unable to load projects. Please try again later.'
             ]);
         }
     }
 
     /**
-     * Download approval document (Word)
+     * Generate approval document and return download URL
      */
-    public function download(Request $request, $project_id)
+    public function generateDocument(Request $request, $project_id)
     {
         try {
             // Validate input
@@ -74,13 +144,13 @@ class ApprovalController extends Controller
             $company = $project->company;
             
             if (!$company) {
-                return back()->withErrors(['error' => 'Company information not found for this project.']);
+                return response()->json(['error' => 'Company information not found for this project.'], 422);
             }
 
             $office = $company->office;
             
             if (!$office) {
-                return back()->withErrors(['error' => 'Office information not found for this company.']);
+                return response()->json(['error' => 'Office information not found for this company.'], 422);
             }
 
             // Get Director Info
@@ -90,7 +160,7 @@ class ApprovalController extends Controller
             $templatePath = public_path('templates/approval.docx');
             if (!file_exists($templatePath)) {
                 Log::error('Template file not found at: ' . $templatePath);
-                return back()->withErrors(['error' => 'Approval template not found. Please contact system administrator.']);
+                return response()->json(['error' => 'Approval template not found. Please contact system administrator.'], 500);
             }
 
             // Process template
@@ -169,25 +239,50 @@ class ApprovalController extends Controller
             // Save the document
             $template->saveAs($fullPath);
 
-            // Return the file as download and keep it stored
-            return response()->download($fullPath, $fileName, [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            // Return JSON with download URL
+            return response()->json([
+                'success' => true,
+                'downloadUrl' => route('approvals.download', ['project_id' => $project_id, 'fileName' => $fileName]),
             ]);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             Log::error('Project not found: ' . $project_id);
-            return back()->withErrors(['error' => 'Project not found.']);
+            return response()->json(['error' => 'Project not found.'], 404);
             
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return back()->withErrors($e->errors());
+            return response()->json(['error' => 'Validation failed', 'details' => $e->errors()], 422);
             
         } catch (\Exception $e) {
             Log::error('Error generating approval document: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
             
-            return back()->withErrors(['error' => 'Failed to generate approval document. Please try again or contact support.']);
+            return response()->json(['error' => 'Failed to generate approval document. Please try again or contact support.'], 500);
         }
     }
+
+    /**
+     * Download the generated approval document
+     */
+    public function download($project_id, $fileName)
+    {
+        try {
+            $filePath = storage_path('app/private/approval/' . $fileName);
+
+            if (!file_exists($filePath)) {
+                Log::error('Downloaded file not found: ' . $filePath);
+                return back()->withErrors(['error' => 'File not found.']);
+            }
+
+            return response()->download($filePath, $fileName, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error downloading approval document: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to download document.']);
+        }
+    }
+
 
     /**
      * Convert number to words

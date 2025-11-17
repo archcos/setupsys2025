@@ -135,7 +135,7 @@ export default function Sidebar({ isOpen }) {
               { label: 'Draft MOA', href: '/draft-moa', icon: <FileSignature size={16} /> },
               { label: 'MOA List', href: '/moa', icon: <FileText size={16} /> },
               { label: 'Project Compliance', href: '/compliance', icon: <FileSignature size={16} /> },
-              { label: 'Approved Project', href: `/approved`, icon: <Award size={16} /> },
+              { label: 'Approved Project', href: `/approved-projects`, icon: <Award size={16} /> },
             ]}
           />
         )}
