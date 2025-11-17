@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { Head, useForm } from "@inertiajs/react";
-import { CheckCircle, Calendar, User, ArrowLeft, AlertTriangle } from "lucide-react";
+import { Head, useForm, router } from "@inertiajs/react";
+import { CheckCircle, Calendar, User, ArrowLeft, AlertTriangle, AlertCircle, X } from "lucide-react";
 
-export default function Checklist({ project, checklist, errors }) {
+export default function Compliance({ project, checklist, errors, userRole }) {
   const { data, setData, post, processing } = useForm({
     project_id: project.project_id,
     links: {
@@ -14,9 +14,13 @@ export default function Checklist({ project, checklist, errors }) {
   });
 
   const [linkErrors, setLinkErrors] = useState({});
+  const [showDenyModal, setShowDenyModal] = useState(false);
+  const [denyRemark, setDenyRemark] = useState("");
+  const [denyProcessing, setDenyProcessing] = useState(false);
+  const [approveProcessing, setApproveProcessing] = useState(false);
 
   const isValidCloudLink = (url) => {
-    if (!url || url.trim() === "") return true; // Allow empty
+    if (!url || url.trim() === "") return true;
     
     const lower = url.toLowerCase().trim();
     return lower.includes('drive.google.com') || 
@@ -30,7 +34,6 @@ export default function Checklist({ project, checklist, errors }) {
       [linkKey]: value,
     });
 
-    // Validate on change
     if (value.trim() && !isValidCloudLink(value)) {
       setLinkErrors({
         ...linkErrors,
@@ -46,7 +49,6 @@ export default function Checklist({ project, checklist, errors }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Final validation before submit
     const newErrors = {};
     Object.entries(data.links).forEach(([key, value]) => {
       if (value.trim() && !isValidCloudLink(value)) {
@@ -60,6 +62,41 @@ export default function Checklist({ project, checklist, errors }) {
     }
 
     post(route("checklist.store"));
+  };
+
+  const handleApprove = () => {
+    setApproveProcessing(true);
+    router.post(route("checklist.approve"), {
+      project_id: project.project_id
+    }, {
+      onFinish: () => {
+        setApproveProcessing(false);
+      }
+    });
+  };
+
+  const handleDenySubmit = () => {
+    if (!denyRemark.trim()) {
+      alert("Please provide a remark for denial");
+      return;
+    }
+
+    if (denyRemark.trim().length < 5) {
+      alert("Remark must be at least 5 characters");
+      return;
+    }
+
+    setDenyProcessing(true);
+    router.post(route("checklist.deny"), {
+      project_id: project.project_id,
+      remark: denyRemark
+    }, {
+      onFinish: () => {
+        setDenyProcessing(false);
+        setShowDenyModal(false);
+        setDenyRemark("");
+      }
+    });
   };
 
   const filledCount = Object.values(data.links).filter(link => link.trim()).length;
@@ -77,9 +114,10 @@ export default function Checklist({ project, checklist, errors }) {
   };
 
   return (
+    <>
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-         <Head title={`Review - ${project.project_title}`} />
+        <Head title={`Review - ${project.project_title}`} />
+        
         <div className="mb-8">
           <button
             onClick={() => window.history.back()}
@@ -88,6 +126,7 @@ export default function Checklist({ project, checklist, errors }) {
             <ArrowLeft className="w-5 h-5" />
             Back
           </button>
+          
           <div className="flex items-start justify-between mb-2">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
@@ -110,7 +149,6 @@ export default function Checklist({ project, checklist, errors }) {
           </div>
         </div>
 
-                {/* Info Text */}
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-900 flex items-start gap-2">
             <span className="text-lg">💡</span>
@@ -121,9 +159,7 @@ export default function Checklist({ project, checklist, errors }) {
           </p>
         </div>
 
-        {/* Main Card */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-          {/* Progress Bar */}
           <div className="h-2 bg-gray-100">
             <div 
               className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-300"
@@ -152,7 +188,6 @@ export default function Checklist({ project, checklist, errors }) {
                         : 'border-gray-200 bg-white hover:border-blue-300'
                     }`}
                   >
-                    {/* Header */}
                     <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white">
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
@@ -182,20 +217,35 @@ export default function Checklist({ project, checklist, errors }) {
                       )}
                     </div>
 
-                    {/* Input Section */}
                     <div className="px-6 py-4">
                       <input
                         type="url"
                         value={data.links[linkKey]}
                         onChange={(e) => handleLinkChange(linkKey, e.target.value)}
                         placeholder="Enter Google Drive or OneDrive URL"
+                        disabled={userRole === 'rpmo'}
                         className={`w-full border-2 rounded-lg px-4 py-3 focus:outline-none transition-all duration-200 text-sm ${
-                          hasError
+                          userRole === 'rpmo' 
+                            ? 'bg-gray-50 cursor-not-allowed text-gray-600 border-gray-200'
+                            : hasError
                             ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-200'
                             : 'border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
                         }`}
                       />
-                      {hasError && (
+                      {userRole === 'rpmo' && data.links[linkKey] && (
+                        <a
+                          href={data.links[linkKey]}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.658 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
+                          Open Link
+                        </a>
+                      )}
+                      {hasError && !userRole === 'rpmo' && (
                         <div className="mt-2 flex items-center gap-2 text-red-600 text-sm">
                           <AlertTriangle className="w-4 h-4" />
                           <span>{hasError}</span>
@@ -203,7 +253,6 @@ export default function Checklist({ project, checklist, errors }) {
                       )}
                     </div>
 
-                    {/* History Section */}
                     {hasHistory && (
                       <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100">
                         <div className="space-y-2">
@@ -225,35 +274,142 @@ export default function Checklist({ project, checklist, errors }) {
               })}
             </div>
 
-            {/* Action Section */}
             <div className="mt-8 pt-8 border-t border-gray-100 flex items-center justify-between">
               <div className="text-sm text-gray-600">
                 <span className="font-medium text-gray-900">{filledCount}</span>
                 <span> of 4 links completed</span>
               </div>
-              <button
-                onClick={handleSubmit}
-                disabled={processing || Object.keys(linkErrors).length > 0}
-                className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 transform ${
-                  processing || Object.keys(linkErrors).length > 0
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white hover:shadow-lg hover:scale-105'
-                }`}
-              >
-                {processing ? (
-                  <span className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-gray-400 border-t-white rounded-full animate-spin" />
-                    Saving...
-                  </span>
-                ) : (
-                  'Save Checklist'
+              
+              <div className="flex items-center gap-3">
+                {userRole === 'rpmo' && (
+                  <>
+                    <button
+                      onClick={() => setShowDenyModal(true)}
+                      className="px-6 py-3 rounded-lg font-medium transition-all duration-200 border-2 border-red-600 text-red-600 hover:bg-red-50"
+                    >
+                      Deny
+                    </button>
+                    <button
+                      onClick={handleApprove}
+                      disabled={!isCompleted || approveProcessing}
+                      className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 transform ${
+                        !isCompleted || approveProcessing
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white hover:shadow-lg hover:scale-105'
+                      }`}
+                    >
+                      {approveProcessing ? (
+                        <span className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Raising...
+                        </span>
+                      ) : (
+                        'Raise'
+                      )}
+                    </button>
+                  </>
                 )}
-              </button>
+                
+                {userRole !== 'rpmo' && (
+                  <button
+                    onClick={handleSubmit}
+                    disabled={processing || Object.keys(linkErrors).length > 0}
+                    className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 transform ${
+                      processing || Object.keys(linkErrors).length > 0
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white hover:shadow-lg hover:scale-105'
+                    }`}
+                  >
+                    {processing ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-gray-400 border-t-white rounded-full animate-spin" />
+                        Saving...
+                      </span>
+                    ) : (
+                      'Save Checklist'
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
-
-
       </div>
+
+      {/* Deny Modal */}
+      {showDenyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-red-50 to-white">
+              <h3 className="text-lg font-semibold text-gray-900">Deny Project</h3>
+              <button
+                onClick={() => {
+                  setShowDenyModal(false);
+                  setDenyRemark("");
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                  <span>Please provide a reason for denying this project checklist.</span>
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Remark <span className="text-red-600">*</span>
+                </label>
+                <textarea
+                  value={denyRemark}
+                  onChange={(e) => setDenyRemark(e.target.value)}
+                  placeholder="Enter your reason for denial (minimum 5 characters)..."
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:ring-2 focus:ring-red-200 focus:outline-none transition-all duration-200 resize-none text-sm"
+                  rows="4"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {denyRemark.length}/500 characters
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDenyModal(false);
+                    setDenyRemark("");
+                  }}
+                  className="flex-1 px-4 py-2 border-2 border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDenySubmit}
+                  disabled={denyProcessing || !denyRemark.trim() || denyRemark.trim().length < 5}
+                  className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    denyProcessing || !denyRemark.trim() || denyRemark.trim().length < 5
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-red-600 text-white hover:bg-red-700'
+                  }`}
+                >
+                  {denyProcessing ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Denying...
+                    </span>
+                  ) : (
+                    'Confirm Denial'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

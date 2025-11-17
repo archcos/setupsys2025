@@ -19,6 +19,8 @@ return new class extends Migration
                 $table->string("link_{$i}_added_by")->nullable();
             }
 
+            $table->enum('status', ['pending', 'raised', 'approved'])->default('pending');
+
             $table->timestamps();
 
             $table->foreign('project_id')

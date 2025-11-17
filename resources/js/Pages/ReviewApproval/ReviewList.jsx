@@ -8,10 +8,12 @@ import {
   X,
   AlertCircle,
   CheckCircle,
-  List
+  List,
+  CheckCheck,
+  Send
 } from 'lucide-react';
 
-export default function ChecklistList({ projects, filters, years }) {
+export default function ReviewList({ projects, filters, years }) {
   const [search, setSearch] = useState(filters?.search || '');
   const [year, setYear] = useState(filters?.year || '');
   const [sortBy, setSortBy] = useState(filters?.sortBy || 'project_title');
@@ -65,18 +67,56 @@ export default function ChecklistList({ projects, filters, years }) {
       : <ArrowUpDown className="w-3 h-3 text-blue-600 rotate-180" />;
   };
 
-  // Calculate stats
-  const completedCount = projects.filter(p => isCompleted(p.checklist)).length;
-  const pendingCount = projects.length - completedCount;
+  const getStatusBadge = (checklist) => {
+    const checklistStatus = checklist?.status || 'pending';
+    
+    const statusConfig = {
+      pending: {
+        bg: 'bg-amber-100',
+        text: 'text-amber-800',
+        label: 'Pending',
+        icon: AlertCircle,
+      },
+      raised: {
+        bg: 'bg-blue-100',
+        text: 'text-blue-800',
+        label: 'Raised',
+        icon: Send,
+      },
+      approved: {
+        bg: 'bg-green-100',
+        text: 'text-green-800',
+        label: 'Approved',
+        icon: CheckCheck,
+      },
+    };
 
-  // Filter projects based on status
+    const config = statusConfig[checklistStatus] || statusConfig.pending;
+    const IconComponent = config.icon;
+
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+        <IconComponent className="w-3 h-3" />
+        {config.label}
+      </span>
+    );
+  };
+
+  // Calculate stats based on checklist status
+  const pendingCount = projects.filter(p => (p.checklist?.status || 'pending') === 'pending').length;
+  const raisedCount = projects.filter(p => p.checklist?.status === 'raised').length;
+  const approvedCount = projects.filter(p => p.checklist?.status === 'approved').length;
+
+  // Filter projects based on status filter
   const filteredProjects = useMemo(() => {
     if (statusFilter === 'all') {
       return projects;
-    } else if (statusFilter === 'completed') {
-      return projects.filter(p => isCompleted(p.checklist));
     } else if (statusFilter === 'pending') {
-      return projects.filter(p => !isCompleted(p.checklist));
+      return projects.filter(p => (p.checklist?.status || 'pending') === 'pending');
+    } else if (statusFilter === 'raised') {
+      return projects.filter(p => p.checklist?.status === 'raised');
+    } else if (statusFilter === 'approved') {
+      return projects.filter(p => p.checklist?.status === 'approved');
     }
     return projects;
   }, [projects, statusFilter]);
@@ -118,7 +158,7 @@ export default function ChecklistList({ projects, filters, years }) {
           </div>
 
           {/* Stats Cards with Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
             {/* Pending */}
             <button
               onClick={() => setStatusFilter('pending')}
@@ -138,21 +178,40 @@ export default function ChecklistList({ projects, filters, years }) {
               )}
             </button>
 
-            {/* Completed */}
+            {/* Raised */}
             <button
-              onClick={() => setStatusFilter('completed')}
+              onClick={() => setStatusFilter('raised')}
               className={`bg-white rounded-lg shadow-sm border-2 p-3 text-left transition-all hover:shadow-md ${
-                statusFilter === 'completed' 
+                statusFilter === 'raised' 
+                  ? 'border-blue-500 ring-2 ring-blue-200' 
+                  : 'border-gray-100 hover:border-blue-300'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-gray-600">Raised</p>
+                <Send className={`w-4 h-4 ${statusFilter === 'raised' ? 'text-blue-600' : 'text-gray-400'}`} />
+              </div>
+              <p className="text-2xl font-bold text-blue-600">{raisedCount}</p>
+              {statusFilter === 'raised' && (
+                <p className="text-xs text-blue-600 mt-2 font-medium">● Active Filter</p>
+              )}
+            </button>
+
+            {/* Approved */}
+            <button
+              onClick={() => setStatusFilter('approved')}
+              className={`bg-white rounded-lg shadow-sm border-2 p-3 text-left transition-all hover:shadow-md ${
+                statusFilter === 'approved' 
                   ? 'border-green-500 ring-2 ring-green-200' 
                   : 'border-gray-100 hover:border-green-300'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-gray-600">Completed</p>
-                <CheckCircle className={`w-4 h-4 ${statusFilter === 'completed' ? 'text-green-600' : 'text-gray-400'}`} />
+                <p className="text-xs font-medium text-gray-600">Approved</p>
+                <CheckCheck className={`w-4 h-4 ${statusFilter === 'approved' ? 'text-green-600' : 'text-gray-400'}`} />
               </div>
-              <p className="text-2xl font-bold text-green-600">{completedCount}</p>
-              {statusFilter === 'completed' && (
+              <p className="text-2xl font-bold text-green-600">{approvedCount}</p>
+              {statusFilter === 'approved' && (
                 <p className="text-xs text-green-600 mt-2 font-medium">● Active Filter</p>
               )}
             </button>
@@ -162,17 +221,17 @@ export default function ChecklistList({ projects, filters, years }) {
               onClick={() => setStatusFilter('all')}
               className={`bg-white rounded-lg shadow-sm border-2 p-3 text-left transition-all hover:shadow-md ${
                 statusFilter === 'all' 
-                  ? 'border-blue-500 ring-2 ring-blue-200' 
-                  : 'border-gray-100 hover:border-blue-300'
+                  ? 'border-slate-500 ring-2 ring-slate-200' 
+                  : 'border-gray-100 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-medium text-gray-600">Total Projects</p>
-                <List className={`w-4 h-4 ${statusFilter === 'all' ? 'text-blue-600' : 'text-gray-400'}`} />
+                <List className={`w-4 h-4 ${statusFilter === 'all' ? 'text-slate-600' : 'text-gray-400'}`} />
               </div>
-              <p className="text-2xl font-bold text-blue-600">{projects.length}</p>
+              <p className="text-2xl font-bold text-slate-600">{projects.length}</p>
               {statusFilter === 'all' && (
-                <p className="text-xs text-blue-600 mt-2 font-medium">● Active Filter</p>
+                <p className="text-xs text-slate-600 mt-2 font-medium">● Active Filter</p>
               )}
             </button>
           </div>
@@ -183,7 +242,7 @@ export default function ChecklistList({ projects, filters, years }) {
               Showing <span className="font-semibold text-gray-900">{filteredProjects.length}</span> project{filteredProjects.length !== 1 ? 's' : ''}
               {statusFilter !== 'all' && (
                 <span className="ml-1">
-                  ({statusFilter === 'pending' ? 'Pending' : 'Completed'})
+                  ({statusFilter === 'pending' ? 'Pending' : statusFilter === 'raised' ? 'Raised' : 'Approved'})
                 </span>
               )}
             </p>
@@ -285,7 +344,6 @@ export default function ChecklistList({ projects, filters, years }) {
               <tbody className="bg-white divide-y divide-gray-100">
                 {filteredProjects.map((project) => {
                   const checklist = project.checklist;
-                  const completed = isCompleted(checklist);
                   const filledLinks = countFilledLinks(checklist);
 
                   return (
@@ -315,23 +373,7 @@ export default function ChecklistList({ projects, filters, years }) {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-center">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                            completed
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {completed ? (
-                              <>
-                                <CheckCircle className="w-3 h-3" />
-                                Completed
-                              </>
-                            ) : (
-                              <>
-                                <AlertCircle className="w-3 h-3" />
-                                Pending
-                              </>
-                            )}
-                          </span>
+                          {getStatusBadge(checklist)}
                         </div>
                       </td>
                       <td className="px-6 py-4">
