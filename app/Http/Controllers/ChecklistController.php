@@ -114,6 +114,7 @@ class ChecklistController extends Controller
             ]
         ]);
     }
+    
     public function index($projectId)
     {
         $project = ProjectModel::findOrFail($projectId);
@@ -198,6 +199,8 @@ class ChecklistController extends Controller
             }
         }
 
+        // Set status to pending when staff saves
+        $checklist->status = 'pending';
         $checklist->save();
 
         // Check if all 4 links are filled
@@ -233,6 +236,13 @@ class ChecklistController extends Controller
 
         $project = ProjectModel::findOrFail($request->project_id);
 
+        // Update checklist status to 'raised'
+        $checklist = ChecklistModel::where('project_id', $request->project_id)->first();
+        if ($checklist) {
+            $checklist->status = 'raised';
+            $checklist->save();
+        }
+
         // Update project progress to 'approval'
         $project->progress = 'approval';
         $project->save();
@@ -262,6 +272,13 @@ class ChecklistController extends Controller
 
         $project = ProjectModel::findOrFail($request->project_id);
         $remark = $request->input('remark');
+
+        // Keep checklist status as 'pending' when denied
+        $checklist = ChecklistModel::where('project_id', $request->project_id)->first();
+        if ($checklist) {
+            $checklist->status = 'pending';
+            $checklist->save();
+        }
 
         // Get director with office_id = 1
         $director = DirectorModel::where('office_id', 1)->first();
