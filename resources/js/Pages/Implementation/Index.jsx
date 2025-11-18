@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link, router, Head } from '@inertiajs/react';
-import Sidebar from '../../components/Sidebar';
-import Header from '../../components/Header';
 import {
   Search,
   ClipboardList,

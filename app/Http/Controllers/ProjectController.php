@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\ProjectCreatedMail;
 use App\Models\ObjectiveModel;
 use App\Models\ProjectModel;
 use App\Models\CompanyModel;
@@ -17,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
 class ProjectController extends Controller
@@ -214,120 +216,139 @@ class ProjectController extends Controller
         return $prefix . $incrementStr;
     }
 
-    public function store(Request $request)
-    {
-        $userId = session('user_id');
-        $user = UserModel::find($userId);
+public function store(Request $request)
+{
+    $userId = session('user_id');
+    $user = UserModel::find($userId);
 
-        if ($request->has('release_initial')) {
-            $releaseInitial = $request->input('release_initial');
-            $request->merge(['release_initial' => $releaseInitial . '-01']);
-        }
+    if ($request->has('release_initial')) {
+        $releaseInitial = $request->input('release_initial');
+        $request->merge(['release_initial' => $releaseInitial . '-01']);
+    }
 
-        if ($request->has('release_end')) {
-            $releaseEnd = $request->input('release_end');
-            $request->merge(['release_end' => $releaseEnd . '-01']);
-        }
+    if ($request->has('release_end')) {
+        $releaseEnd = $request->input('release_end');
+        $request->merge(['release_end' => $releaseEnd . '-01']);
+    }
 
-        if ($request->has('refund_initial')) {
-            $refundInitial = $request->input('refund_initial');
-            $request->merge(['refund_initial' => $refundInitial . '-01']);
-        }
+    if ($request->has('refund_initial')) {
+        $refundInitial = $request->input('refund_initial');
+        $request->merge(['refund_initial' => $refundInitial . '-01']);
+    }
 
-        if ($request->has('refund_end')) {
-            $refundEnd = $request->input('refund_end');
-            $request->merge(['refund_end' => $refundEnd . '-01']);
-        }
+    if ($request->has('refund_end')) {
+        $refundEnd = $request->input('refund_end');
+        $request->merge(['refund_end' => $refundEnd . '-01']);
+    }
 
-        $validated = $request->validate([
-            'project_id'        => 'required|string|max:255|regex:/^\d{8}$/|unique:tbl_projects,project_id',
-            'project_title'     => 'required|string|max:255',
-            'company_id'        => 'required|exists:tbl_companies,company_id',
-            'project_cost'      => 'required|numeric',
-            'refund_amount'     => 'nullable|numeric',
-            'last_refund'       => 'nullable|numeric',
-            'progress'          => 'required|string',
-            'year_obligated'    => 'nullable|string',
-            'revenue'           => 'nullable|numeric',
-            'net_income'        => 'nullable|numeric',
-            'current_asset'     => 'nullable|numeric',
-            'noncurrent_asset'  => 'nullable|numeric',
-            'equity'            => 'nullable|numeric',
-            'liability'         => 'nullable|numeric',
-            'release_initial'   => 'nullable|date',
-            'release_end'       => 'nullable|date',
-            'refund_initial'    => 'nullable|date',
-            'refund_end'        => 'nullable|date',
-            'place_name'        => 'nullable|string',
-            'items'             => 'array',
-            'items.*.item_name' => 'required|string|max:100',
-            'items.*.specifications' => 'required|string|max:255',
-            'items.*.item_cost' => 'required|numeric|min:0',
-            'items.*.quantity'  => 'required|integer|min:1',
-            'items.*.type'      => 'required|string|max:10',
-            'objectives'        => 'array',
-            'objectives.*.details' => 'required|string|max:255',
-        ], [
-            'project_id.unique' => 'This Project Code already exists.',
-        ]);
+    $validated = $request->validate([
+        'project_id'        => 'required|string|max:255|regex:/^\d{8}$/|unique:tbl_projects,project_id',
+        'project_title'     => 'required|string|max:255',
+        'company_id'        => 'required|exists:tbl_companies,company_id',
+        'project_cost'      => 'required|numeric',
+        'refund_amount'     => 'nullable|numeric',
+        'last_refund'       => 'nullable|numeric',
+        'progress'          => 'required|string',
+        'year_obligated'    => 'nullable|string',
+        'revenue'           => 'nullable|numeric',
+        'net_income'        => 'nullable|numeric',
+        'current_asset'     => 'nullable|numeric',
+        'noncurrent_asset'  => 'nullable|numeric',
+        'equity'            => 'nullable|numeric',
+        'liability'         => 'nullable|numeric',
+        'release_initial'   => 'nullable|date',
+        'release_end'       => 'nullable|date',
+        'refund_initial'    => 'nullable|date',
+        'refund_end'        => 'nullable|date',
+        'place_name'        => 'nullable|string',
+        'items'             => 'array',
+        'items.*.item_name' => 'required|string|max:100',
+        'items.*.specifications' => 'required|string|max:255',
+        'items.*.item_cost' => 'required|numeric|min:0',
+        'items.*.quantity'  => 'required|integer|min:1',
+        'items.*.type'      => 'required|string|max:10',
+        'objectives'        => 'array',
+        'objectives.*.details' => 'required|string|max:255',
+    ], [
+        'project_id.unique' => 'This Project Code already exists.',
+    ]);
 
-        $project = ProjectModel::create([
-            'project_id'        => $validated['project_id'],
-            'project_title'     => $validated['project_title'],
-            'company_id'        => $validated['company_id'],
-            'project_cost'      => $validated['project_cost'] ?? null,
-            'refund_amount'     => $validated['refund_amount'] ?? null,
-            'last_refund'       => $validated['last_refund'] ?? null,
-            'progress'          => $validated['progress'] ?? null,
-            'year_obligated'    => $validated['year_obligated'] ?? null,
-            'revenue'           => $validated['revenue'] ?? null,
-            'net_income'        => $validated['net_income'] ?? null,
-            'current_asset'     => $validated['current_asset'] ?? null,
-            'noncurrent_asset'  => $validated['noncurrent_asset'] ?? null,
-            'equity'            => $validated['equity'] ?? null,
-            'liability'         => $validated['liability'] ?? null,
-            'release_initial'   => $validated['release_initial'] ?? null,
-            'release_end'       => $validated['release_end'] ?? null,
-            'refund_initial'    => $validated['refund_initial'] ?? null,
-            'refund_end'        => $validated['refund_end'] ?? null,
-            'added_by'          => $user->user_id,
-        ]);
+    $project = ProjectModel::create([
+        'project_id'        => $validated['project_id'],
+        'project_title'     => $validated['project_title'],
+        'company_id'        => $validated['company_id'],
+        'project_cost'      => $validated['project_cost'] ?? null,
+        'refund_amount'     => $validated['refund_amount'] ?? null,
+        'last_refund'       => $validated['last_refund'] ?? null,
+        'progress'          => $validated['progress'] ?? null,
+        'year_obligated'    => $validated['year_obligated'] ?? null,
+        'revenue'           => $validated['revenue'] ?? null,
+        'net_income'        => $validated['net_income'] ?? null,
+        'current_asset'     => $validated['current_asset'] ?? null,
+        'noncurrent_asset'  => $validated['noncurrent_asset'] ?? null,
+        'equity'            => $validated['equity'] ?? null,
+        'liability'         => $validated['liability'] ?? null,
+        'release_initial'   => $validated['release_initial'] ?? null,
+        'release_end'       => $validated['release_end'] ?? null,
+        'refund_initial'    => $validated['refund_initial'] ?? null,
+        'refund_end'        => $validated['refund_end'] ?? null,
+        'added_by'          => $user->user_id,
+    ]);
 
-        // Save items
-        if (!empty($validated['items'])) {
-            foreach ($validated['items'] as $item) {
-                ItemModel::create([
-                    'project_id'     => $validated['project_id'],
-                    'item_name'      => $item['item_name'],
-                    'specifications' => $item['specifications'] ?? null,
-                    'item_cost'      => $item['item_cost'],
-                    'quantity'       => $item['quantity'],
-                    'type'           => $item['type'],
-                    'report'         => 'approved',
-                ]);
-            }
-        }
-
-        // Save objectives
-        if (!empty($validated['objectives'])) {
-            foreach ($validated['objectives'] as $objective) {
-                ObjectiveModel::create([
-                    'project_id' => $validated['project_id'],
-                    'details'    => $objective['details'],
-                    'report'     => 'approved',
-                ]);
-            }
-        }
-
-        if (!empty($validated['place_name'])) {
-            MarketModel::create([
-                'project_id' => $validated['project_id'],
-                'place_name' => $validated['place_name'],
+    // Save items
+    if (!empty($validated['items'])) {
+        foreach ($validated['items'] as $item) {
+            ItemModel::create([
+                'project_id'     => $validated['project_id'],
+                'item_name'      => $item['item_name'],
+                'specifications' => $item['specifications'] ?? null,
+                'item_cost'      => $item['item_cost'],
+                'quantity'       => $item['quantity'],
+                'type'           => $item['type'],
+                'report'         => 'approved',
             ]);
         }
-
-        return redirect('/projects')->with('success', 'Project, items, and objectives created successfully.');
     }
+
+    // Save objectives
+    if (!empty($validated['objectives'])) {
+        foreach ($validated['objectives'] as $objective) {
+            ObjectiveModel::create([
+                'project_id' => $validated['project_id'],
+                'details'    => $objective['details'],
+                'report'     => 'approved',
+            ]);
+        }
+    }
+
+    if (!empty($validated['place_name'])) {
+        MarketModel::create([
+            'project_id' => $validated['project_id'],
+            'place_name' => $validated['place_name'],
+        ]);
+    }
+
+    // Get company and send email to office users
+    $company = CompanyModel::findOrFail($validated['company_id']);
+    
+    $officeUsers = UserModel::where('office_id', $company->office_id)
+        ->whereIn('role', ['rpmo', 'staff'])
+        ->get();
+
+    foreach ($officeUsers as $officeUser) {
+        try {
+            Mail::to($officeUser->email)->send(
+                new ProjectCreatedMail($project, $company, $user)
+            );
+            Log::info("Project creation email sent to {$officeUser->email}");
+        } catch (\Exception $e) {
+            Log::error("Failed to send project creation email to {$officeUser->email}: " . $e->getMessage());
+            // Don't fail the project creation if email fails
+        }
+    }
+
+    return redirect('/projects')->with('success', 'Project, items, and objectives created successfully.');
+}
     public function edit($id)
     {
         $project = ProjectModel::with([

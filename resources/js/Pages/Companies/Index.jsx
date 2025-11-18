@@ -254,48 +254,48 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
 
                 {/* Setup Industry Filter */}
                 <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm min-w-[200px]">
-                  <Factory className="w-4 h-4 text-gray-400" />
-                  <select
-                    value={setupIndustryFilter}
-                    onChange={handleSetupIndustryChange}
-                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1"
-                  >
-                    <option value="">All Industries</option>
-                    <optgroup label="Major Industry Sectors">
-                      <option value="Agriculture/Aquaculture/Forestry">Agriculture / Aquaculture / Forestry</option>
-                      <option value="Creative Industry">Creative Industry</option>
-                      <option value="Energy and Environment">Energy and Environment</option>
-                      <option value="Food Processing">Food Processing</option>
-                      <option value="Furniture">Furniture</option>
-                      <option value="Gifts, Decors, Handicrafts">Gifts, Decors, Handicrafts</option>
-                      <option value="Health and Wellness">Health and Wellness</option>
-                      <option value="Metals and Engineering">Metals and Engineering</option>
-                      <option value="Other Regional Priority Sectors">Other Regional Priority Sectors</option>
-                    </optgroup>
-                    <optgroup label="Sub-Industries / Manufacturing">
-                      <option value="Crop and animal production, hunting, and related service activities">Crop and animal production, hunting, and related service activities</option>
-                      <option value="Forestry and Logging">Forestry and Logging</option>
-                      <option value="Fishing and aquaculture">Fishing and aquaculture</option>
-                      <option value="Food processing">Food processing</option>
-                      <option value="Beverage manufacturing">Beverage manufacturing</option>
-                      <option value="Textile manufacturing">Textile manufacturing</option>
-                      <option value="Wearing apparel manufacturing">Wearing apparel manufacturing</option>
-                      <option value="Leather and related products manufacturing">Leather and related products manufacturing</option>
-                      <option value="Wood and products of wood and cork manufacturing">Wood and products of wood and cork manufacturing</option>
-                      <option value="Paper and paper products manufacturing">Paper and paper products manufacturing</option>
-                      <option value="Chemicals and chemical products manufacturing">Chemicals and chemical products manufacturing</option>
-                      <option value="Basic pharmaceutical products and pharmaceutical preparations manufacturing">Basic pharmaceutical products and pharmaceutical preparations manufacturing</option>
-                      <option value="Rubber and plastic products manufacturing">Rubber and plastic products manufacturing</option>
-                      <option value="Non-metallic mineral products manufacturing">Non-metallic mineral products manufacturing</option>
-                      <option value="Fabricated metal products manufacturing">Fabricated metal products manufacturing</option>
-                      <option value="Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing">Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing</option>
-                      <option value="Other transport equipment manufacturing">Other transport equipment manufacturing</option>
-                      <option value="Furniture manufacturing">Furniture manufacturing</option>
-                      <option value="Information and Communication">Information and Communication</option>
-                      <option value="Other regional priority industries approved by the Regional Development Council">Other regional priority industries approved by the Regional Development Council</option>
-                    </optgroup>
-                  </select>
-                </div>
+                <Factory className="w-4 h-4 text-gray-400" />
+                <select
+                  value={setupIndustryFilter}
+                  onChange={handleSetupIndustryChange}
+                  className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 truncate"
+                >
+                  <option value="">All Industries</option>
+                  <optgroup label="Major Industry Sectors">
+                    <option value="Agriculture/Aquaculture/Forestry">Agriculture / Aquaculture / Forestry</option>
+                    <option value="Creative Industry">Creative Industry</option>
+                    <option value="Energy and Environment">Energy and Environment</option>
+                    <option value="Food Processing">Food Processing</option>
+                    <option value="Furniture">Furniture</option>
+                    <option value="Gifts, Decors, Handicrafts">Gifts, Decors, Handicrafts</option>
+                    <option value="Health and Wellness">Health and Wellness</option>
+                    <option value="Metals and Engineering">Metals and Engineering</option>
+                    <option value="Other Regional Priority Sectors">Other Regional Priority Sectors</option>
+                  </optgroup>
+                  <optgroup label="Sub-Industries / Manufacturing">
+                    <option value="Crop and animal production, hunting, and related service activities">Crop & Animal Production</option>
+                    <option value="Forestry and Logging">Forestry & Logging</option>
+                    <option value="Fishing and aquaculture">Fishing & Aquaculture</option>
+                    <option value="Food processing">Food Processing</option>
+                    <option value="Beverage manufacturing">Beverage Manufacturing</option>
+                    <option value="Textile manufacturing">Textile Manufacturing</option>
+                    <option value="Wearing apparel manufacturing">Apparel Manufacturing</option>
+                    <option value="Leather and related products manufacturing">Leather Products Mfg</option>
+                    <option value="Wood and products of wood and cork manufacturing">Wood Products Mfg</option>
+                    <option value="Paper and paper products manufacturing">Paper Products Mfg</option>
+                    <option value="Chemicals and chemical products manufacturing">Chemicals Mfg</option>
+                    <option value="Basic pharmaceutical products and pharmaceutical preparations manufacturing">Pharma Mfg</option>
+                    <option value="Rubber and plastic products manufacturing">Rubber & Plastic Mfg</option>
+                    <option value="Non-metallic mineral products manufacturing">Non-Metallic Minerals Mfg</option>
+                    <option value="Fabricated metal products manufacturing">Fabricated Metals Mfg</option>
+                    <option value="Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing">Machinery & Equipment Mfg</option>
+                    <option value="Other transport equipment manufacturing">Transport Equipment Mfg</option>
+                    <option value="Furniture manufacturing">Furniture Manufacturing</option>
+                    <option value="Information and Communication">Information & Communication</option>
+                    <option value="Other regional priority industries approved by the Regional Development Council">Other RDC Industries</option>
+                  </optgroup>
+                </select>
+              </div>
 
                 {/* Clear Filters Button */}
                 {(search || officeFilter || setupIndustryFilter || industryTypeFilter) && (
