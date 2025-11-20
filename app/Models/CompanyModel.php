@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class CompanyModel extends Model
 {
+
+    use LogsActivity;
     protected $table = 'tbl_companies';
     protected $primaryKey = 'company_id';
     public $timestamps = true;

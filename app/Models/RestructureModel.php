@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class RestructureModel extends Model
 {
+    use LogsActivity;
     protected $table = 'tbl_restructures';
     protected $primaryKey = 'restruct_id';
     public $timestamps = true;

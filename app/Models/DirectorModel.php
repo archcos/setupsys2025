@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class DirectorModel extends Model
 {
+    use LogsActivity;
     protected $table = 'tbl_directors';
     protected $primaryKey = 'director_id';
     public $timestamps = false;

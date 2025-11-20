@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class OfficeModel extends Model
 {
+    use LogsActivity;
     protected $table = 'tbl_offices';
     protected $primaryKey = 'office_id';
     protected $fillable = ['office_name'];

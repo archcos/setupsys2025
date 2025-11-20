@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class ImplementationModel extends Model
 {
+    use LogsActivity;
     protected $table = 'tbl_implements';
     protected $primaryKey = 'implement_id';
     public $timestamps = false; // Since no created_at or updated_at

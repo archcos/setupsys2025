@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class RestructureUpdateModel extends Model
 {
     use HasFactory;
+    use LogsActivity;
 
     protected $table = 'tbl_restructure_update';
     protected $primaryKey = 'update_id';

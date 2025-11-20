@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class ComplianceModel extends Model
 {
+    use LogsActivity;
     protected $table = 'tbl_compliance';
     protected $primaryKey = 'compliance_id';
     protected $fillable = [

@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class BlockedIp extends Model
 {
+    use LogsActivity;
     protected $table = 'blocked_ips';
 
     protected $fillable = [

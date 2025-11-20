@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class ApplyRestructModel extends Model
 {
+    use LogsActivity;
     protected $table = 'tbl_apply_restruct';
     protected $primaryKey = 'apply_id';
     public $timestamps = true;

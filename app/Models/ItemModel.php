@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ItemModel extends Model
 {
     use HasFactory;
+    use LogsActivity;
 
     protected $table = 'tbl_items';
 

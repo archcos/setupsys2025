@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class MessageModel extends Model
 {
+    use LogsActivity;
     protected $table = 'tbl_messages'; // THIS IS FOR THE REMARKS IN REVIEW AND APPROVAL
     protected $primaryKey = 'message_id';
     

@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class ActivityModel extends Model
 {
+    use LogsActivity;
     protected $table = 'tbl_activities';
     protected $primaryKey = 'activity_id';
     public $timestamps = true;
