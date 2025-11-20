@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class ProjectModel extends Model
 {
+    use LogsActivity;
+
     protected $table = 'tbl_projects';
     protected $primaryKey = 'project_id';
 

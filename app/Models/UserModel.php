@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class UserModel extends Authenticatable
 {
     use HasApiTokens, Notifiable, SoftDeletes;
+    use LogsActivity;
 
     protected $table = 'tbl_users';
     protected $primaryKey = 'user_id';
@@ -47,5 +49,25 @@ class UserModel extends Authenticatable
     public function companies()
     {
         return $this->hasMany(CompanyModel::class, 'added_by', 'user_id');
+    }
+
+    /**
+     * Define which attributes should NOT be logged for users
+     */
+    protected function getExcludedAttributes(): array
+    {
+        return array_merge(parent::getExcludedAttributes(), [
+            'password',
+            'remember_token',
+            'deleted_at', // Don't log soft delete timestamp
+        ]);
+    }
+
+    /**
+     * Custom display name for logs
+     */
+    public function getDisplayName(): string
+    {
+        return $this->name; // Uses the computed 'name' attribute
     }
 }

@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class NotificationModel extends Model
 {
+    use LogsActivity;
     protected $table = 'tbl_notifications';
     protected $primaryKey = 'notification_id';
 

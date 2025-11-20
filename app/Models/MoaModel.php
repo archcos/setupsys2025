@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 
 class MoaModel extends Model
 {
+    use LogsActivity;
     protected $table = 'tbl_moa';
     protected $primaryKey = 'moa_id';
 
