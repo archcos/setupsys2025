@@ -44,10 +44,6 @@ class HandleInertiaRequests extends Middleware
                     ->get();
             }
             
-            Log::info('📬 Notifications fetched', [
-                'count' => $notifications->count(),
-                'role' => $user->role,
-            ]);
         }
 
         return array_merge(parent::share($request), [
