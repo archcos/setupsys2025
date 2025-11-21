@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         
     )
     ->withMiddleware(function (Middleware $middleware): void {
+
         $middleware->web(append: [
             \Illuminate\Session\Middleware\StartSession::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
@@ -28,7 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
             'redirectIfAuthenticated' => \App\Http\Middleware\RedirectIfAuthenticated::class,
-
+            'log-suspicious' => \App\Http\Middleware\LogSuspiciousRequests::class,
         ]);
 
         //
