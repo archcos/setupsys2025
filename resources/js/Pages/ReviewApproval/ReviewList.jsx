@@ -102,12 +102,12 @@ export default function ReviewList({ projects, filters, years }) {
     );
   };
 
-  // Calculate stats based on compliance status
+  // Calculate stats
   const pendingCount = projects.filter(p => (p.compliance?.status || 'pending') === 'pending').length;
   const raisedCount = projects.filter(p => p.compliance?.status === 'raised').length;
   const approvedCount = projects.filter(p => p.compliance?.status === 'approved').length;
 
-  // Filter projects based on status filter
+  // Filter projects
   const filteredProjects = useMemo(() => {
     if (statusFilter === 'all') {
       return projects;
@@ -122,43 +122,43 @@ export default function ReviewList({ projects, filters, years }) {
   }, [projects, statusFilter]);
 
   return (
-    <main className="flex-1 p-6 overflow-y-auto">
-      <Head title="compliance Review" />
+    <main className="flex-1 min-h-screen bg-gray-50 overflow-y-auto">
+      <Head title="Compliance Review" />
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto p-3 md:p-6">
         {/* Flash Messages */}
         {flash?.success && (
-          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-800">
-            <CheckCircle className="w-5 h-5" />
+          <div className="mb-3 md:mb-4 p-3 md:p-4 bg-green-50 border border-green-200 rounded-lg md:rounded-xl flex items-center gap-2 text-xs md:text-sm text-green-800">
+            <CheckCircle className="w-5 h-5 flex-shrink-0" />
             {flash.success}
           </div>
         )}
         {flash?.error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800">
-            <AlertCircle className="w-5 h-5" />
+          <div className="mb-3 md:mb-4 p-3 md:p-4 bg-red-50 border border-red-200 rounded-lg md:rounded-xl flex items-center gap-2 text-xs md:text-sm text-red-800">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
             {flash.error}
           </div>
         )}
 
         {/* Main Content Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
           {/* Card Header */}
-          <div className="bg-gradient-to-r from-gray-50 to-white p-6 border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <FileText className="w-5 h-5 text-blue-600" />
+          <div className="bg-gradient-to-r from-gray-50 to-white p-4 md:p-6 border-b border-gray-100">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                <FileText className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Project Compliance</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Manage and track project compliance status
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Project Compliance</h2>
+                <p className="text-xs md:text-sm text-gray-600 mt-0.5 md:mt-1">
+                  Manage and track compliance
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Stats Cards with Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
+          {/* Stats Cards - Desktop Grid */}
+          <div className="hidden md:grid md:grid-cols-4 gap-3 p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
             {/* Pending */}
             <button
               onClick={() => setStatusFilter('pending')}
@@ -174,7 +174,7 @@ export default function ReviewList({ projects, filters, years }) {
               </div>
               <p className="text-2xl font-bold text-amber-600">{pendingCount}</p>
               {statusFilter === 'pending' && (
-                <p className="text-xs text-amber-600 mt-2 font-medium">● Active Filter</p>
+                <p className="text-xs text-amber-600 mt-2 font-medium">● Active</p>
               )}
             </button>
 
@@ -193,7 +193,7 @@ export default function ReviewList({ projects, filters, years }) {
               </div>
               <p className="text-2xl font-bold text-blue-600">{raisedCount}</p>
               {statusFilter === 'raised' && (
-                <p className="text-xs text-blue-600 mt-2 font-medium">● Active Filter</p>
+                <p className="text-xs text-blue-600 mt-2 font-medium">● Active</p>
               )}
             </button>
 
@@ -212,7 +212,7 @@ export default function ReviewList({ projects, filters, years }) {
               </div>
               <p className="text-2xl font-bold text-green-600">{approvedCount}</p>
               {statusFilter === 'approved' && (
-                <p className="text-xs text-green-600 mt-2 font-medium">● Active Filter</p>
+                <p className="text-xs text-green-600 mt-2 font-medium">● Active</p>
               )}
             </button>
 
@@ -226,48 +226,97 @@ export default function ReviewList({ projects, filters, years }) {
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-gray-600">Total Projects</p>
+                <p className="text-xs font-medium text-gray-600">Total</p>
                 <List className={`w-4 h-4 ${statusFilter === 'all' ? 'text-slate-600' : 'text-gray-400'}`} />
               </div>
               <p className="text-2xl font-bold text-slate-600">{projects.length}</p>
               {statusFilter === 'all' && (
-                <p className="text-xs text-slate-600 mt-2 font-medium">● Active Filter</p>
+                <p className="text-xs text-slate-600 mt-2 font-medium">● Active</p>
               )}
             </button>
           </div>
 
+          {/* Stats Cards - Mobile */}
+          <div className="md:hidden grid grid-cols-2 gap-2 p-3 bg-gray-50 border-b border-gray-100">
+            <button
+              onClick={() => setStatusFilter('pending')}
+              className={`rounded-lg border-2 p-2 text-xs transition-all ${
+                statusFilter === 'pending' 
+                  ? 'border-amber-500 bg-amber-50' 
+                  : 'border-gray-100 bg-white'
+              }`}
+            >
+              <p className="text-gray-600 font-medium">Pending</p>
+              <p className={`text-lg font-bold mt-1 ${statusFilter === 'pending' ? 'text-amber-600' : 'text-gray-900'}`}>{pendingCount}</p>
+            </button>
+
+            <button
+              onClick={() => setStatusFilter('raised')}
+              className={`rounded-lg border-2 p-2 text-xs transition-all ${
+                statusFilter === 'raised' 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : 'border-gray-100 bg-white'
+              }`}
+            >
+              <p className="text-gray-600 font-medium">Raised</p>
+              <p className={`text-lg font-bold mt-1 ${statusFilter === 'raised' ? 'text-blue-600' : 'text-gray-900'}`}>{raisedCount}</p>
+            </button>
+
+            <button
+              onClick={() => setStatusFilter('approved')}
+              className={`rounded-lg border-2 p-2 text-xs transition-all ${
+                statusFilter === 'approved' 
+                  ? 'border-green-500 bg-green-50' 
+                  : 'border-gray-100 bg-white'
+              }`}
+            >
+              <p className="text-gray-600 font-medium">Approved</p>
+              <p className={`text-lg font-bold mt-1 ${statusFilter === 'approved' ? 'text-green-600' : 'text-gray-900'}`}>{approvedCount}</p>
+            </button>
+
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`rounded-lg border-2 p-2 text-xs transition-all ${
+                statusFilter === 'all' 
+                  ? 'border-slate-500 bg-slate-50' 
+                  : 'border-gray-100 bg-white'
+              }`}
+            >
+              <p className="text-gray-600 font-medium">Total</p>
+              <p className={`text-lg font-bold mt-1 ${statusFilter === 'all' ? 'text-slate-600' : 'text-gray-900'}`}>{projects.length}</p>
+            </button>
+          </div>
+
           {/* Filter Info Bar */}
-          <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              Showing <span className="font-semibold text-gray-900">{filteredProjects.length}</span> project{filteredProjects.length !== 1 ? 's' : ''}
+          <div className="px-3 md:px-6 py-2 md:py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs md:text-sm text-gray-600">
+              Showing <span className="font-semibold text-gray-900">{filteredProjects.length}</span>
               {statusFilter !== 'all' && (
-                <span className="ml-1">
-                  ({statusFilter === 'pending' ? 'Pending' : statusFilter === 'raised' ? 'Raised' : 'Approved'})
-                </span>
+                <span className="ml-1">({statusFilter})</span>
               )}
             </p>
             {statusFilter !== 'all' && (
               <button
                 onClick={() => setStatusFilter('all')}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className="text-xs md:text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
-                Clear Status Filter
+                Clear
               </button>
             )}
           </div>
 
           {/* Filters Section */}
-          <div className="p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
-            <div className="flex flex-col lg:flex-row gap-4">
+          <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
+            <div className="flex flex-col gap-2 md:gap-4">
               {/* Search Bar */}
-              <div className="flex-1 relative">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Search by project title or company ..."
+                  placeholder="Search project or company..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                  className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                 />
                 {search && (
                   <button
@@ -280,12 +329,12 @@ export default function ReviewList({ projects, filters, years }) {
               </div>
 
               {/* Year Filter */}
-              <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-300 shadow-sm">
-                <Calendar className="w-4 h-4 text-gray-400" />
+              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
+                <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 <select
                   value={year}
                   onChange={(e) => setYear(e.target.value)}
-                  className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer py-2"
+                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer py-2 md:py-2.5"
                 >
                   <option value="">All Years</option>
                   {years && years.map((y) => (
@@ -296,8 +345,8 @@ export default function ReviewList({ projects, filters, years }) {
             </div>
           </div>
 
-          {/* Table Section */}
-          <div className="overflow-x-auto">
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
@@ -307,18 +356,12 @@ export default function ReviewList({ projects, filters, years }) {
                       className="flex items-center gap-2 hover:text-blue-600 transition-colors"
                     >
                       <FileText className="w-4 h-4" />
-                      Project Title
+                      Project
                       {getSortIcon('project_title')}
                     </button>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <button 
-                      onClick={() => handleSort('company_id')}
-                      className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                    >
-                      Company
-                      {getSortIcon('company_id')}
-                    </button>
+                    Company
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <button 
@@ -347,27 +390,26 @@ export default function ReviewList({ projects, filters, years }) {
                   const filledLinks = countFilledLinks(compliance);
 
                   return (
-                    <tr key={project.project_id} className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group">
+                    <tr key={project.project_id} className="hover:bg-blue-50/30 transition-all duration-200">
                       <td className="px-6 py-4">
-                        <div className="text-sm font-semibold text-gray-900">
+                        <div className="text-sm font-semibold text-gray-900 line-clamp-1">
                           {project.project_title}
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-gray-600">
                           {project.company?.company_name || '—'}
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 font-medium">
+                        <div className="text-sm font-medium text-gray-900">
                           {project.year_obligated || '—'}
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-center">
-                          <div className="text-sm font-medium">
-                            <span className="text-gray-900">{filledLinks}</span>
-                            <span className="text-gray-500">/4</span>
+                          <div className="text-sm font-medium text-gray-900">
+                            <span>{filledLinks}</span><span className="text-gray-500">/4</span>
                           </div>
                         </div>
                       </td>
@@ -380,9 +422,9 @@ export default function ReviewList({ projects, filters, years }) {
                         <div className="flex justify-center">
                           <a
                             href={route('compliance.index', project.project_id)}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
                           >
-                            View Details
+                            View
                           </a>
                         </div>
                       </td>
@@ -391,39 +433,88 @@ export default function ReviewList({ projects, filters, years }) {
                 })}
               </tbody>
             </table>
-
-            {filteredProjects.length === 0 && (
-              <div className="text-center py-12">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                    <FileText className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-1">
-                      {statusFilter === 'all' ? 'No projects found' : `No ${statusFilter} projects found`}
-                    </h3>
-                    <p className="text-gray-500 text-sm">
-                      {search || year || statusFilter !== 'all' 
-                        ? 'Try adjusting your filters' 
-                        : 'No projects available'}
-                    </p>
-                  </div>
-                  {(search || year || statusFilter !== 'all') && (
-                    <button
-                      onClick={() => {
-                        setSearch('');
-                        setYear('');
-                        setStatusFilter('all');
-                      }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Clear All Filters
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-gray-100 bg-white">
+            {filteredProjects.map((project, index) => {
+              const compliance = project.compliance;
+              const filledLinks = countFilledLinks(compliance);
+
+              return (
+                <div key={project.project_id} className="p-3 space-y-2">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs text-gray-500 mb-1">#{index + 1}</div>
+                      <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{project.project_title}</h3>
+                      <p className="text-xs text-gray-600 mt-0.5">{project.company?.company_name || 'No company'}</p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      {getStatusBadge(compliance)}
+                    </div>
+                  </div>
+
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="bg-gray-50 rounded p-2">
+                      <span className="text-gray-500 text-xs block">Year</span>
+                      <p className="font-medium text-gray-900 mt-0.5">{project.year_obligated || '—'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2">
+                      <span className="text-gray-500 text-xs block">Progress</span>
+                      <p className="font-medium text-gray-900 mt-0.5">{filledLinks}<span className="text-gray-500">/4</span></p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2">
+                      <span className="text-gray-500 text-xs block">Status</span>
+                      <p className="font-medium text-gray-900 mt-0.5 capitalize">{compliance?.status || 'pending'}</p>
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <a
+                    href={route('compliance.index', project.project_id)}
+                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs font-medium rounded-lg transition-all duration-200 mt-2"
+                  >
+                    View Details
+                  </a>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Empty State */}
+          {filteredProjects.length === 0 && (
+            <div className="text-center py-8 md:py-12">
+              <div className="flex flex-col items-center gap-3 md:gap-4">
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                  <FileText className="w-6 h-6 md:w-8 md:h-8 text-gray-400" />
+                </div>
+                <div>
+                  <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">
+                    {statusFilter === 'all' ? 'No projects found' : `No ${statusFilter} projects`}
+                  </h3>
+                  <p className="text-gray-500 text-xs md:text-sm">
+                    {search || year || statusFilter !== 'all' 
+                      ? 'Try adjusting your filters' 
+                      : 'No projects available'}
+                  </p>
+                </div>
+                {(search || year || statusFilter !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setSearch('');
+                      setYear('');
+                      setStatusFilter('all');
+                    }}
+                    className="px-3 md:px-4 py-1.5 md:py-2 bg-blue-600 text-white text-xs md:text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </main>

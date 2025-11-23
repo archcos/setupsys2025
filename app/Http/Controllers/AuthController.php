@@ -65,7 +65,7 @@ public function signin(Request $request)
         );
 
         return back()->withErrors([
-            'message' => "Too many sign-in attempts. You are temporarily blocked for 1 hour.",
+            'message' => "Too many sign-in attempts. You are temporarily blocked for 10 years.",
         ]);
     }
 
@@ -133,8 +133,8 @@ public function signin(Request $request)
 
     Auth::login($user);
 
-    Session::put('user_id', $user->user_id);
-    Session::put('role', $user->role);
+    // Session::put('user_id', $user->user_id);
+    // Session::put('role', $user->role);
 
     // Track daily login frequency for regular users
     if ($user->role === 'user') {

@@ -23,203 +23,202 @@ use Inertia\Inertia;
 
 class ProjectController extends Controller
 {
-    public function index(Request $request)
-    {
-        $user = Auth::user();
-        if (!$user) {
-            return redirect()->route('login');
-        }
+public function index(Request $request)
+{
+    $user = Auth::user();
+    if (!$user) {
+        return redirect()->route('login');
+    }
 
-        $search = $request->input('search');
-        $perPage = $request->input('perPage', 10);
-        $sortField = $request->input('sortField', 'project_title');
-        $sortDirection = $request->input('sortDirection', 'asc');
-        $officeFilter = $request->input('officeFilter');
-        $progressFilter = $request->input('progressFilter');
+    $search = $request->input('search');
+    $perPage = $request->input('perPage', 10);
+    $sortField = $request->input('sortField', 'project_title');
+    $sortDirection = $request->input('sortDirection', 'asc');
+    $officeFilter = $request->input('officeFilter');
+    $progressFilter = $request->input('progressFilter');
 
-        $query = ProjectModel::with([
-            'company.office',
-            'items' => function ($q) {
-                $q->where('report', 'approved');
-            },
-            'messages' => function ($q) {
-                $q->orderBy('created_at', 'desc');
-            }
-        ]);
-
-        // Filter by user role
-        if ($user->role === 'user') {
-            $query->where('added_by', $user->user_id);
-        } elseif ($user->role === 'staff') {
-            $query->whereHas('company', function ($q) use ($user) {
-                $q->where('office_id', $user->office_id);
-            });
-        }
-
-        // Apply search
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('project_title', 'like', "%{$search}%")
-                  ->orWhere('project_cost', 'like', "%{$search}%")
-                  ->orWhere('progress', 'like', "%{$search}%")
-                  ->orWhereHas('company', function ($q) use ($search) {
-                      $q->where('company_name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('items', function ($q) use ($search) {
-                      $q->where('item_name', 'like', "%{$search}%")
-                        ->orWhere('specifications', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        // Apply office filter
-        if ($officeFilter) {
-            $query->whereHas('company', function ($q) use ($officeFilter) {
-                $q->where('office_id', $officeFilter);
-            });
-        }
-
-        // Apply progress filter
-        if ($progressFilter) {
-            $query->where('progress', $progressFilter);
-        }
-
-        // Only include projects that have approved items
-        $query->whereHas('items', function ($q) {
+    $query = ProjectModel::with([
+        'company.office',
+        'items' => function ($q) {
             $q->where('report', 'approved');
+        },
+        'messages' => function ($q) {
+            $q->orderBy('created_at', 'desc');
+        }
+    ]);
+
+    // Filter by user role
+    if ($user->role === 'user') {
+        $query->where('added_by', $user->user_id);
+    } elseif ($user->role === 'staff') {
+        $query->whereHas('company', function ($q) use ($user) {
+            $q->where('office_id', $user->office_id);
         });
-
-        // Apply sorting
-        if ($sortField === 'project_title') {
-            $query->orderBy('project_title', $sortDirection);
-        } elseif ($sortField === 'project_cost') {
-            $query->orderBy('project_cost', $sortDirection);
-        } elseif ($sortField === 'progress') {
-            $query->orderBy('progress', $sortDirection);
-        } elseif ($sortField === 'company_name') {
-            $query->join('tbl_companies', 'tbl_projects.company_id', '=', 'tbl_companies.company_id')
-                  ->orderBy('tbl_companies.company_name', $sortDirection)
-                  ->select('tbl_projects.*');
-        } else {
-            $query->orderBy('project_title', 'asc');
-        }
-
-        $projects = $query->paginate($perPage)->withQueryString();
-
-        // Get offices for filter dropdown
-        $offices = OfficeModel::orderBy('office_name')->get();
-
-        return Inertia::render('Projects/Index', [
-            'projects' => $projects,
-            'offices' => $offices,
-            'filters' => [
-                'search' => $search,
-                'perPage' => $perPage,
-                'sortField' => $sortField,
-                'sortDirection' => $sortDirection,
-                'officeFilter' => $officeFilter,
-                'progressFilter' => $progressFilter,
-            ],
-        ]);
     }
 
-    public function updateStatus(Request $request, $id)
-    {
-        $validated = $request->validate([
-            'progress' => 'required|string|in:Complete Details,internal_rtec,internal_compliance,external_rtec,external_compliance,approval,Approved,Draft MOA,Implementation,Disapproved,Refund,Completed',
-        ]);
-
-        $project = ProjectModel::findOrFail($id);
-        $oldProgress = $project->progress;
-        $project->progress = $validated['progress'];
-        $project->save();
-
-        // Handle Implementation status change
-        if ($validated['progress'] === 'Implementation') {
-            $exists = ImplementationModel::where('project_id', $project->project_id)->exists();
-
-            if (!$exists) {
-                ImplementationModel::create([
-                    'project_id' => $project->project_id,
-                    'tarp' => null,
-                    'pdc' => null,
-                    'liquidation' => null,
-                ]);
-            }
-
-            // Update acknowledge_date in tbl_moa
-            $moa = MoaModel::where('project_id', $project->project_id)->first();
-            if ($moa) {
-                $moa->acknowledge_date = Carbon::now();
-                $moa->save();
-            }
-        }
-
-        Log::info("Project status updated", [
-            'project_id' => $project->project_id,
-            'old_status' => $oldProgress,
-            'new_status' => $validated['progress'],
-            'updated_by' => Auth::id()
-        ]);
-
-        return back()->with('success', 'Project status updated successfully.');
+    // Apply search
+    if ($search) {
+        $query->where(function ($q) use ($search) {
+            $q->where('project_title', 'like', "%{$search}%")
+                ->orWhere('project_cost', 'like', "%{$search}%")
+                ->orWhere('progress', 'like', "%{$search}%")
+                ->orWhereHas('company', function ($q) use ($search) {
+                    $q->where('company_name', 'like', "%{$search}%");
+                })
+                ->orWhereHas('items', function ($q) use ($search) {
+                    $q->where('item_name', 'like', "%{$search}%")
+                    ->orWhere('specifications', 'like', "%{$search}%");
+                });
+        });
     }
 
-    public function create()
-    {
-        $userId = session('user_id');
-        $user = UserModel::find($userId);
-
-        $companies = CompanyModel::query();
-
-        if ($user->role === 'staff') {
-            $companies->where('office_id', $user->office_id);
-        } elseif ($user->role === 'user') {
-            $companies->where('added_by', $user->user_id);
-        }
-
-        // Generate the next project code
-        $nextProjectCode = $this->generateNextProjectCode();
-
-        return Inertia::render('Projects/Create', [
-            'companies' => $companies->orderBy('company_name')->get(),
-            'nextProjectCode' => $nextProjectCode
-        ]);
+    // Apply office filter
+    if ($officeFilter) {
+        $query->whereHas('company', function ($q) use ($officeFilter) {
+            $q->where('office_id', $officeFilter);
+        });
     }
 
-    /**
-     * Generate the next project code in format YYYYMM##
-     */
-    private function generateNextProjectCode()
-    {
-        $currentYear = date('Y');
-        $currentMonth = date('m');
-        $prefix = $currentYear . $currentMonth;
+    // Apply progress filter
+    if ($progressFilter) {
+        $query->where('progress', $progressFilter);
+    }
 
-        // Find the latest project code with the current year-month prefix
-        $latestProject = ProjectModel::where('project_id', 'like', $prefix . '%')
-            ->orderBy('project_id', 'desc')
-            ->first();
+    // Only include projects that have approved items
+    $query->whereHas('items', function ($q) {
+        $q->where('report', 'approved');
+    });
 
-        if ($latestProject) {
-            // Extract the incremental number from the latest project code
-            $lastIncrement = (int) substr($latestProject->project_id, -2);
-            $nextIncrement = $lastIncrement + 1;
-        } else {
-            // First project for this month
-            $nextIncrement = 1;
+    // Apply sorting
+    if ($sortField === 'project_title') {
+        $query->orderBy('project_title', $sortDirection);
+    } elseif ($sortField === 'project_cost') {
+        $query->orderBy('project_cost', $sortDirection);
+    } elseif ($sortField === 'progress') {
+        $query->orderBy('progress', $sortDirection);
+    } elseif ($sortField === 'company_name') {
+        $query->join('tbl_companies', 'tbl_projects.company_id', '=', 'tbl_companies.company_id')
+                ->orderBy('tbl_companies.company_name', $sortDirection)
+                ->select('tbl_projects.*');
+    } else {
+        $query->orderBy('project_title', 'asc');
+    }
+
+    $projects = $query->paginate($perPage)->withQueryString();
+
+    // Get offices for filter dropdown
+    $offices = OfficeModel::orderBy('office_name')->get();
+
+    return Inertia::render('Projects/Index', [
+        'projects' => $projects,
+        'offices' => $offices,
+        'filters' => [
+            'search' => $search,
+            'perPage' => $perPage,
+            'sortField' => $sortField,
+            'sortDirection' => $sortDirection,
+            'officeFilter' => $officeFilter,
+            'progressFilter' => $progressFilter,
+        ],
+    ]);
+}
+
+public function updateStatus(Request $request, $id)
+{
+    $validated = $request->validate([
+        'progress' => 'required|string|in:Complete Details,internal_rtec,internal_compliance,external_rtec,external_compliance,approval,Approved,Draft MOA,Implementation,Disapproved,Refund,Completed',
+    ]);
+
+    $project = ProjectModel::findOrFail($id);
+    $oldProgress = $project->progress;
+    $project->progress = $validated['progress'];
+    $project->save();
+
+    // Handle Implementation status change
+    if ($validated['progress'] === 'Implementation') {
+        $exists = ImplementationModel::where('project_id', $project->project_id)->exists();
+
+        if (!$exists) {
+            ImplementationModel::create([
+                'project_id' => $project->project_id,
+                'tarp' => null,
+                'pdc' => null,
+                'liquidation' => null,
+            ]);
         }
 
-        // Format the increment as 2 digits
-        $incrementStr = str_pad($nextIncrement, 2, '0', STR_PAD_LEFT);
-
-        return $prefix . $incrementStr;
+        // Update acknowledge_date in tbl_moa
+        $moa = MoaModel::where('project_id', $project->project_id)->first();
+        if ($moa) {
+            $moa->acknowledge_date = Carbon::now();
+            $moa->save();
+        }
     }
+
+    Log::info("Project status updated", [
+        'project_id' => $project->project_id,
+        'old_status' => $oldProgress,
+        'new_status' => $validated['progress'],
+        'updated_by' => Auth::id()
+    ]);
+
+    return back()->with('success', 'Project status updated successfully.');
+}
+
+public function create()
+{
+    $user = Auth::user();
+
+    $companies = CompanyModel::query();
+
+    if ($user->role === 'staff') {
+        $companies->where('office_id', $user->office_id);
+    } elseif ($user->role === 'user') {
+        $companies->where('added_by', $user->user_id);
+    }
+
+    // Generate the next project code
+    $nextProjectCode = $this->generateNextProjectCode();
+
+    return Inertia::render('Projects/Create', [
+        'companies' => $companies->orderBy('company_name')->get(),
+        'nextProjectCode' => $nextProjectCode
+    ]);
+}
+
+/**
+ * Generate the next project code in format YYYYMM##
+ */
+private function generateNextProjectCode()
+{
+    $currentYear = date('Y');
+    $currentMonth = date('m');
+    $prefix = $currentYear . $currentMonth;
+
+    // Find the latest project code with the current year-month prefix
+    $latestProject = ProjectModel::where('project_id', 'like', $prefix . '%')
+        ->orderBy('project_id', 'desc')
+        ->first();
+
+    if ($latestProject) {
+        // Extract the incremental number from the latest project code
+        $lastIncrement = (int) substr($latestProject->project_id, -2);
+        $nextIncrement = $lastIncrement + 1;
+    } else {
+        // First project for this month
+        $nextIncrement = 1;
+    }
+
+    // Format the increment as 2 digits
+    $incrementStr = str_pad($nextIncrement, 2, '0', STR_PAD_LEFT);
+
+    return $prefix . $incrementStr;
+}
 
 public function store(Request $request)
-{
-    $userId = session('user_id');
-    $user = UserModel::find($userId);
+    {
+        $user = Auth::user();
+
 
     if ($request->has('release_initial')) {
         $releaseInitial = $request->input('release_initial');
@@ -330,7 +329,7 @@ public function store(Request $request)
 
     // Get company and send email to office users
     $company = CompanyModel::findOrFail($validated['company_id']);
-    
+
     $officeUsers = UserModel::where('office_id', $company->office_id)
         ->whereIn('role', ['rpmo', 'staff'])
         ->get();
@@ -348,356 +347,356 @@ public function store(Request $request)
     }
 
     return redirect('/projects')->with('success', 'Project, items, and objectives created successfully.');
+    }
+public function edit($id)
+{
+    $project = ProjectModel::with([
+        'items' => function ($query) {
+            $query->where('report', 'approved'); 
+        },
+        'objectives' => function ($query) {
+            $query->where('report', 'approved'); 
+        },
+        'markets' => function ($query) {
+            $query->where('type', 'existing');
+        }
+    ])->findOrFail($id);
+    
+    $companies = CompanyModel::all();
+
+    return Inertia::render('Projects/Edit', [
+        'project' => $project,
+        'companies' => $companies,
+    ]);
 }
-    public function edit($id)
-    {
-        $project = ProjectModel::with([
-            'items' => function ($query) {
-                $query->where('report', 'approved'); 
-            },
-            'objectives' => function ($query) {
-                $query->where('report', 'approved'); 
-            },
-            'markets' => function ($query) {
-                $query->where('type', 'existing');
-            }
-        ])->findOrFail($id);
-        
-        $companies = CompanyModel::all();
 
-        return Inertia::render('Projects/Edit', [
-            'project' => $project,
-            'companies' => $companies,
-        ]);
-    }
+public function update(Request $request, $id)
+{
+    $project = ProjectModel::findOrFail($id);
 
-    public function update(Request $request, $id)
-    {
-        $project = ProjectModel::findOrFail($id);
+    Log::info("Updating project: {$project->project_id}");
 
-        Log::info("Updating project: {$project->project_id}");
+    $validated = $request->validate([
+        'project_title'     => 'required|string|max:255',
+        'company_id'        => 'required|exists:tbl_companies,company_id',
+        'project_cost'      => 'required|numeric',
+        'year_obligated'    => 'required|string',
+        'revenue'           => 'nullable|numeric',
+        'net_income'        => 'nullable|numeric',
+        'current_asset'     => 'nullable|numeric',
+        'noncurrent_asset'  => 'nullable|numeric',
+        'equity'            => 'nullable|numeric',
+        'liability'         => 'nullable|numeric',
+        'release_initial'   => 'required|regex:/^\d{4}-\d{2}$/',
+        'release_end'       => 'required|regex:/^\d{4}-\d{2}$/',
+        'refund_initial'    => 'required|regex:/^\d{4}-\d{2}$/',
+        'refund_end'        => 'required|regex:/^\d{4}-\d{2}$/',
+        'refund_amount'     => 'nullable|numeric|min:0',
+        'last_refund'       => 'nullable|numeric|min:0',
+        'place_name'        => 'required|string',
+        'items'             => 'nullable|array',
+        'items.*.item_name' => 'required_with:items|string|max:255',
+        'items.*.specifications' => 'nullable|string',
+        'items.*.item_cost' => 'required_with:items|numeric|min:0',
+        'items.*.quantity'  => 'required_with:items|integer|min:1',
+        'items.*.type'      => 'required|in:equipment,nonequip', 
+        'objectives'        => 'nullable|array',
+        'objectives.*.details' => 'required_with:objectives|string',
+    ]);
 
-        $validated = $request->validate([
-            'project_title'     => 'required|string|max:255',
-            'company_id'        => 'required|exists:tbl_companies,company_id',
-            'project_cost'      => 'required|numeric',
-            'year_obligated'    => 'required|string',
-            'revenue'           => 'nullable|numeric',
-            'net_income'        => 'nullable|numeric',
-            'current_asset'     => 'nullable|numeric',
-            'noncurrent_asset'  => 'nullable|numeric',
-            'equity'            => 'nullable|numeric',
-            'liability'         => 'nullable|numeric',
-            'release_initial'   => 'required|regex:/^\d{4}-\d{2}$/',
-            'release_end'       => 'required|regex:/^\d{4}-\d{2}$/',
-            'refund_initial'    => 'required|regex:/^\d{4}-\d{2}$/',
-            'refund_end'        => 'required|regex:/^\d{4}-\d{2}$/',
-            'refund_amount'     => 'nullable|numeric|min:0',
-            'last_refund'       => 'nullable|numeric|min:0',
-            'place_name'        => 'required|string',
-            'items'             => 'nullable|array',
-            'items.*.item_name' => 'required_with:items|string|max:255',
-            'items.*.specifications' => 'nullable|string',
-            'items.*.item_cost' => 'required_with:items|numeric|min:0',
-            'items.*.quantity'  => 'required_with:items|integer|min:1',
-            'items.*.type'      => 'required|in:equipment,nonequip', 
-            'objectives'        => 'nullable|array',
-            'objectives.*.details' => 'required_with:objectives|string',
-        ]);
+    Log::info('Validated data:', $validated);
 
-        Log::info('Validated data:', $validated);
+    $project->update([
+        'project_title'     => $validated['project_title'],
+        'company_id'        => $validated['company_id'],
+        'project_cost'      => $validated['project_cost'],
+        'year_obligated'    => $validated['year_obligated'],
+        'revenue'           => $validated['revenue'] ?? null,
+        'net_income'        => $validated['net_income'] ?? null,
+        'current_asset'     => $validated['current_asset'] ?? null,
+        'noncurrent_asset'  => $validated['noncurrent_asset'] ?? null,
+        'equity'            => $validated['equity'] ?? null,
+        'liability'         => $validated['liability'] ?? null,
+        'release_initial'   => $validated['release_initial'],
+        'release_end'       => $validated['release_end'],
+        'refund_amount'     => $validated['refund_amount'] ?? null,
+        'last_refund'       => $validated['last_refund'] ?? null,
+        'refund_initial'    => $validated['refund_initial'],
+        'refund_end'        => $validated['refund_end'],
+    ]);
 
-        $project->update([
-            'project_title'     => $validated['project_title'],
-            'company_id'        => $validated['company_id'],
-            'project_cost'      => $validated['project_cost'],
-            'year_obligated'    => $validated['year_obligated'],
-            'revenue'           => $validated['revenue'] ?? null,
-            'net_income'        => $validated['net_income'] ?? null,
-            'current_asset'     => $validated['current_asset'] ?? null,
-            'noncurrent_asset'  => $validated['noncurrent_asset'] ?? null,
-            'equity'            => $validated['equity'] ?? null,
-            'liability'         => $validated['liability'] ?? null,
-            'release_initial'   => $validated['release_initial'],
-            'release_end'       => $validated['release_end'],
-            'refund_amount'     => $validated['refund_amount'] ?? null,
-            'last_refund'       => $validated['last_refund'] ?? null,
-            'refund_initial'    => $validated['refund_initial'],
-            'refund_end'        => $validated['refund_end'],
-        ]);
+    Log::info("Project updated successfully.");
 
-        Log::info("Project updated successfully.");
+    $project->items()->where('report', 'approved')->delete();
+    Log::info("Deleted old items.");
 
-        $project->items()->where('report', 'approved')->delete();
-        Log::info("Deleted old items.");
-
-        if (!empty($validated['items'])) {
-            foreach ($validated['items'] as $item) {
-                $project->items()->create([
-                    'item_name'      => $item['item_name'],
-                    'specifications' => $item['specifications'] ?? null,
-                    'item_cost'      => $item['item_cost'],
-                    'quantity'       => $item['quantity'],
-                    'type'           => $item['type'],
-                    'report'         => 'approved',
-                ]);
-            }
-            Log::info("Items recreated.", $validated['items']);
-        }
-
-        $project->objectives()->where('report', 'approved')->delete();
-        Log::info("Deleted old objectives.");
-
-        if (!empty($validated['objectives'])) {
-            foreach ($validated['objectives'] as $objective) {
-                $project->objectives()->create([
-                    'details' => $objective['details'],
-                    'report'  => 'approved',
-                ]);
-            }
-            Log::info("Objectives recreated.", $validated['objectives']);
-        }
-
-        $market = $project->markets()
-            ->where('type', 'existing')
-            ->where('project_id', $project->project_id)
-            ->first();
-
-        if ($market) {
-            $market->place_name = $validated['place_name'];
-            $market->save();
-            Log::info('Market updated', ['id' => $market->id, 'place_name' => $market->place_name]);
-        } else {
-            $project->markets()->create([
-                'type' => 'existing',
-                'place_name' => $validated['place_name'],
+    if (!empty($validated['items'])) {
+        foreach ($validated['items'] as $item) {
+            $project->items()->create([
+                'item_name'      => $item['item_name'],
+                'specifications' => $item['specifications'] ?? null,
+                'item_cost'      => $item['item_cost'],
+                'quantity'       => $item['quantity'],
+                'type'           => $item['type'],
+                'report'         => 'approved',
             ]);
-            Log::info('Market created', ['place_name' => $validated['place_name']]);
         }
-
-        return redirect('/projects')->with('success', 'Project updated successfully.');
+        Log::info("Items recreated.", $validated['items']);
     }
 
-    public function syncProjectsFromCSV()
-    {
-        $csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTsjw8nNLTrJYI2fp0ZrKbXQvqHpiGLqpgYk82unky4g_WNf8xCcISaigp8VsllxE2dCwl-aY3wjd1W/pub?gid=84108771&single=true&output=csv';
+    $project->objectives()->where('report', 'approved')->delete();
+    Log::info("Deleted old objectives.");
 
-        try {
-            $response = Http::timeout(300)->get($csvUrl);
-            if (!$response->ok()) {
-                Log::error('Failed to fetch CSV: ' . $response->status());
-                return back()->with('error', 'Failed to fetch CSV data.');
-            }
-
-            $lines = explode("\n", trim($response->body()));
-            if (count($lines) < 2) {
-                Log::warning('CSV contains no data rows.');
-                return back()->with('error', 'CSV contains no data.');
-            }
-
-            $rawHeader = str_getcsv(array_shift($lines));
-            $header = [];
-            foreach ($rawHeader as $key => $col) {
-                if (trim($col) !== '') {
-                    $header[$key] = trim($col);
-                }
-            }
-
-            $csvData = array_map('str_getcsv', $lines);
-            $newRecords = 0;
-
-            foreach ($csvData as $rowIndex => $row) {
-                $row = array_map('trim', $row);
-                $row = array_slice($row, 0, count($header));
-                $row = array_pad($row, count($header), '');
-
-                if (count(array_filter($row)) === 0) {
-                    continue;
-                }
-
-                $data = array_combine(array_values($header), $row);
-                if (!$data) {
-                    Log::warning("Malformed row $rowIndex", ['row' => $row]);
-                    continue;
-                }
-
-                $yearObligated = $data['Year Obligated'] ?? null;
-                if (!in_array($yearObligated, ['2023', '2024', '2025'])) {
-                    continue;
-                }
-
-                $companyName = trim($data['Name of the Business'] ?? '');
-                if (!$companyName) {
-                    Log::warning("Skipping row $rowIndex: Missing business name");
-                    continue;
-                }
-
-                $company = CompanyModel::where('company_name', $companyName)->first();
-                if (!$company) {
-                    Log::warning("Skipping project: No matching company for {$companyName}");
-                    continue;
-                }
-
-                [$releaseInitial, $releaseEnd] = $this->splitMonthYear($data['Original Project Duration'] ?? '');
-                [$refundInitial, $refundEnd] = $this->splitMonthYear($data['Original Refund Schedule'] ?? '');
-
-                $projectCostRaw = $data['Amount of DOST Assistance'] ?? '0';
-                $projectCostRaw = str_replace([',', ' '], '', trim($projectCostRaw));
-
-                if (is_numeric($projectCostRaw)) {
-                    $projectCost = (int) round(floatval($projectCostRaw));
-                } else {
-                    $projectCost = 0;
-                    Log::warning("Row $rowIndex has invalid project_cost value: " . $projectCostRaw);
-                }
-
-                try {
-                    ProjectModel::updateOrCreate(
-                        [
-                            'project_id' => str_replace('-', '', $data['Project Code'] ?? '')
-                        ],
-                        [
-                            'project_title'   => $data['Name of Project'] ?? null,
-                            'company_id'      => $company->company_id,
-                            'release_initial' => $releaseInitial,
-                            'release_end'     => $releaseEnd,
-                            'refund_initial'  => $refundInitial,
-                            'refund_end'      => $refundEnd,
-                            'year_obligated'  => $yearObligated,
-                            'added_by'        => session('user_id') ?? 1,
-                            'project_cost'    => $projectCost ?? 0,
-                            'progress'        => 'Implementation',
-                            'revenue'         => $this->sanitizeNumeric($data['Revenue'] ?? null),
-                            'equity'          => $this->sanitizeNumeric($data['Equity'] ?? null),
-                            'liability'       => $this->sanitizeNumeric($data['Liability'] ?? null),
-                            'net_income'      => $this->sanitizeNumeric($data['Net Income (Before SETUP)'] ?? null),
-                            'current_asset'   => $this->sanitizeNumeric($data['Current Asset (Before SETUP)'] ?? null),
-                            'noncurrent_asset'=> $this->sanitizeNumeric($data['Non-Current Asset (Before SETUP)'] ?? null),
-                        ]
-                    );
-                    $newRecords++;
-                } catch (\Exception $e) {
-                    Log::error("Row $rowIndex failed: " . $e->getMessage(), ['row' => $data]);
-                    continue;
-                }
-            }
-
-            Log::info("Project CSV sync complete. Total new/updated: $newRecords");
-            return back()->with('success', "$newRecords projects synced.");
-        } catch (\Exception $e) {
-            Log::error('Project CSV Sync failed: ' . $e->getMessage());
-            return back()->with('error', 'Sync failed. Please try again.');
+    if (!empty($validated['objectives'])) {
+        foreach ($validated['objectives'] as $objective) {
+            $project->objectives()->create([
+                'details' => $objective['details'],
+                'report'  => 'approved',
+            ]);
         }
+        Log::info("Objectives recreated.", $validated['objectives']);
     }
 
-    private function parseMonthYear($part)
-    {
-        if (!$part) return null;
-        $part = strtoupper(trim($part));
+    $market = $project->markets()
+        ->where('type', 'existing')
+        ->where('project_id', $project->project_id)
+        ->first();
 
-        try {
-            return Carbon::createFromFormat('M Y', $part)->startOfMonth();
-        } catch (\Exception $e) {
+    if ($market) {
+        $market->place_name = $validated['place_name'];
+        $market->save();
+        Log::info('Market updated', ['id' => $market->id, 'place_name' => $market->place_name]);
+    } else {
+        $project->markets()->create([
+            'type' => 'existing',
+            'place_name' => $validated['place_name'],
+        ]);
+        Log::info('Market created', ['place_name' => $validated['place_name']]);
+    }
+
+    return redirect('/projects')->with('success', 'Project updated successfully.');
+}
+
+public function syncProjectsFromCSV()
+{
+    $csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTsjw8nNLTrJYI2fp0ZrKbXQvqHpiGLqpgYk82unky4g_WNf8xCcISaigp8VsllxE2dCwl-aY3wjd1W/pub?gid=84108771&single=true&output=csv';
+
+    try {
+        $response = Http::timeout(300)->get($csvUrl);
+        if (!$response->ok()) {
+            Log::error('Failed to fetch CSV: ' . $response->status());
+            return back()->with('error', 'Failed to fetch CSV data.');
+        }
+
+        $lines = explode("\n", trim($response->body()));
+        if (count($lines) < 2) {
+            Log::warning('CSV contains no data rows.');
+            return back()->with('error', 'CSV contains no data.');
+        }
+
+        $rawHeader = str_getcsv(array_shift($lines));
+        $header = [];
+        foreach ($rawHeader as $key => $col) {
+            if (trim($col) !== '') {
+                $header[$key] = trim($col);
+            }
+        }
+
+        $csvData = array_map('str_getcsv', $lines);
+        $newRecords = 0;
+
+        foreach ($csvData as $rowIndex => $row) {
+            $row = array_map('trim', $row);
+            $row = array_slice($row, 0, count($header));
+            $row = array_pad($row, count($header), '');
+
+            if (count(array_filter($row)) === 0) {
+                continue;
+            }
+
+            $data = array_combine(array_values($header), $row);
+            if (!$data) {
+                Log::warning("Malformed row $rowIndex", ['row' => $row]);
+                continue;
+            }
+
+            $yearObligated = $data['Year Obligated'] ?? null;
+            if (!in_array($yearObligated, ['2023', '2024', '2025'])) {
+                continue;
+            }
+
+            $companyName = trim($data['Name of the Business'] ?? '');
+            if (!$companyName) {
+                Log::warning("Skipping row $rowIndex: Missing business name");
+                continue;
+            }
+
+            $company = CompanyModel::where('company_name', $companyName)->first();
+            if (!$company) {
+                Log::warning("Skipping project: No matching company for {$companyName}");
+                continue;
+            }
+
+            [$releaseInitial, $releaseEnd] = $this->splitMonthYear($data['Original Project Duration'] ?? '');
+            [$refundInitial, $refundEnd] = $this->splitMonthYear($data['Original Refund Schedule'] ?? '');
+
+            $projectCostRaw = $data['Amount of DOST Assistance'] ?? '0';
+            $projectCostRaw = str_replace([',', ' '], '', trim($projectCostRaw));
+
+            if (is_numeric($projectCostRaw)) {
+                $projectCost = (int) round(floatval($projectCostRaw));
+            } else {
+                $projectCost = 0;
+                Log::warning("Row $rowIndex has invalid project_cost value: " . $projectCostRaw);
+            }
+
             try {
-                return Carbon::createFromFormat('F Y', ucwords(strtolower($part)))->startOfMonth();
+                ProjectModel::updateOrCreate(
+                    [
+                        'project_id' => str_replace('-', '', $data['Project Code'] ?? '')
+                    ],
+                    [
+                        'project_title'   => $data['Name of Project'] ?? null,
+                        'company_id'      => $company->company_id,
+                        'release_initial' => $releaseInitial,
+                        'release_end'     => $releaseEnd,
+                        'refund_initial'  => $refundInitial,
+                        'refund_end'      => $refundEnd,
+                        'year_obligated'  => $yearObligated,
+                        'added_by'        => session('user_id') ?? 1,
+                        'project_cost'    => $projectCost ?? 0,
+                        'progress'        => 'Implementation',
+                        'revenue'         => $this->sanitizeNumeric($data['Revenue'] ?? null),
+                        'equity'          => $this->sanitizeNumeric($data['Equity'] ?? null),
+                        'liability'       => $this->sanitizeNumeric($data['Liability'] ?? null),
+                        'net_income'      => $this->sanitizeNumeric($data['Net Income (Before SETUP)'] ?? null),
+                        'current_asset'   => $this->sanitizeNumeric($data['Current Asset (Before SETUP)'] ?? null),
+                        'noncurrent_asset'=> $this->sanitizeNumeric($data['Non-Current Asset (Before SETUP)'] ?? null),
+                    ]
+                );
+                $newRecords++;
             } catch (\Exception $e) {
-                return null;
+                Log::error("Row $rowIndex failed: " . $e->getMessage(), ['row' => $data]);
+                continue;
             }
         }
+
+        Log::info("Project CSV sync complete. Total new/updated: $newRecords");
+        return back()->with('success', "$newRecords projects synced.");
+    } catch (\Exception $e) {
+        Log::error('Project CSV Sync failed: ' . $e->getMessage());
+        return back()->with('error', 'Sync failed. Please try again.');
     }
+}
 
-    private function splitMonthYear($value)
-    {
-        if (!$value) return [null, null];
-        $parts = explode('-', $value);
-        $start = trim($parts[0] ?? '');
-        $end   = trim($parts[1] ?? '');
+private function parseMonthYear($part)
+{
+    if (!$part) return null;
+    $part = strtoupper(trim($part));
 
-        return [
-            $this->parseMonthYear($start),
-            $this->parseMonthYear($end),
-        ];
-    }
-
-    private function sanitizeNumeric($value)
-    {
-        if (is_null($value) || $value === '') {
+    try {
+        return Carbon::createFromFormat('M Y', $part)->startOfMonth();
+    } catch (\Exception $e) {
+        try {
+            return Carbon::createFromFormat('F Y', ucwords(strtolower($part)))->startOfMonth();
+        } catch (\Exception $e) {
             return null;
         }
+    }
+}
 
-        $clean = preg_replace('/[^\d.-]/', '', $value);
-        return is_numeric($clean) ? (float) $clean : null;
+private function splitMonthYear($value)
+{
+    if (!$value) return [null, null];
+    $parts = explode('-', $value);
+    $start = trim($parts[0] ?? '');
+    $end   = trim($parts[1] ?? '');
+
+    return [
+        $this->parseMonthYear($start),
+        $this->parseMonthYear($end),
+    ];
+}
+
+private function sanitizeNumeric($value)
+{
+    if (is_null($value) || $value === '') {
+        return null;
     }
 
-    public function readonly()
-    {
-        $user = Auth::user();
-        if (!$user) {
-            return Inertia::render('Projects/ProjectList', [
-                'projects' => collect(),
+    $clean = preg_replace('/[^\d.-]/', '', $value);
+    return is_numeric($clean) ? (float) $clean : null;
+}
+
+public function readonly()
+{
+    $user = Auth::user();
+    if (!$user) {
+        return Inertia::render('Projects/ProjectList', [
+            'projects' => collect(),
+        ]);
+    }
+
+    $query = ProjectModel::with([
+        'company',
+        'items' => function ($q) {
+            $q->where('report', 'approved');
+        }
+    ])->whereHas('items', function ($q) {
+        $q->where('report', 'approved');
+    });
+
+    if ($user->role === 'user') {
+        $companyIds = CompanyModel::where('added_by', $user->user_id)->pluck('company_id');
+        $query->whereIn('company_id', $companyIds);
+    } elseif ($user->role === 'staff') {
+        $query->whereHas('company', function ($q) use ($user) {
+            $q->where('office_id', $user->office_id);
+        });
+    }
+
+    $projects = $query->get();
+
+    return Inertia::render('Projects/ProjectList', [
+        'projects' => $projects,
+    ]);
+}
+
+public function updateProgress(Request $request, $id)
+{
+    $request->validate([
+        'progress' => 'required|in:Draft MOA,Implementation',
+    ]);
+
+    $project = ProjectModel::findOrFail($id);
+    $project->progress = $request->progress;
+    $project->save();
+
+    if ($request->progress === 'Implementation') {
+        $exists = ImplementationModel::where('project_id', $project->project_id)->exists();
+
+        if (!$exists) {
+            ImplementationModel::create([
+                'project_id' => $project->project_id,
+                'tarp' => null,
+                'pdc' => null,
+                'liquidation' => null,
             ]);
         }
 
-        $query = ProjectModel::with([
-            'company',
-            'items' => function ($q) {
-                $q->where('report', 'approved');
-            }
-        ])->whereHas('items', function ($q) {
-            $q->where('report', 'approved');
-        });
-
-        if ($user->role === 'user') {
-            $companyIds = CompanyModel::where('added_by', $user->user_id)->pluck('company_id');
-            $query->whereIn('company_id', $companyIds);
-        } elseif ($user->role === 'staff') {
-            $query->whereHas('company', function ($q) use ($user) {
-                $q->where('office_id', $user->office_id);
-            });
+        $moa = MoaModel::where('project_id', $project->project_id)->first();
+        if ($moa) {
+            $moa->acknowledge_date = Carbon::now();
+            $moa->save();
         }
-
-        $projects = $query->get();
-
-        return Inertia::render('Projects/ProjectList', [
-            'projects' => $projects,
-        ]);
     }
 
-    public function updateProgress(Request $request, $id)
-    {
-        $request->validate([
-            'progress' => 'required|in:Draft MOA,Implementation',
-        ]);
+    return back();
+}
 
-        $project = ProjectModel::findOrFail($id);
-        $project->progress = $request->progress;
-        $project->save();
-
-        if ($request->progress === 'Implementation') {
-            $exists = ImplementationModel::where('project_id', $project->project_id)->exists();
-
-            if (!$exists) {
-                ImplementationModel::create([
-                    'project_id' => $project->project_id,
-                    'tarp' => null,
-                    'pdc' => null,
-                    'liquidation' => null,
-                ]);
-            }
-
-            $moa = MoaModel::where('project_id', $project->project_id)->first();
-            if ($moa) {
-                $moa->acknowledge_date = Carbon::now();
-                $moa->save();
-            }
-        }
-
-        return back();
-    }
-
-    public function destroy($id)
-    {
-        ProjectModel::findOrFail($id)->delete();
-        return redirect('/projects')->with('success', 'Project deleted successfully.');
-    }
+public function destroy($id)
+{
+    ProjectModel::findOrFail($id)->delete();
+    return redirect('/projects')->with('success', 'Project deleted successfully.');
+}
 }

@@ -10,6 +10,7 @@ use App\Models\CompanyModel;
 use App\Models\DirectorModel;
 use App\Models\UserModel;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -32,8 +33,8 @@ public function index(Request $request)
     $perPage = $request->input('perPage', 10);
     $sortBy = $request->input('sortBy', 'created_at');
     $sortOrder = $request->input('sortOrder', 'desc');
-    $userId = session('user_id');
-    $user = UserModel::find($userId);
+    $user = Auth::user();
+
 
     // Eager load approved_by_user relationship
     $query = MoaModel::with(['project.company.office', 'approvedByUser']);
@@ -124,7 +125,7 @@ public function uploadApprovedFile(Request $request, $moa_id)
         $moa->update([
             'approved_file_path' => $path,
             'approved_file_uploaded_at' => now(),
-            'approved_by' => session('user_id'),
+            'approved_by' => Auth::id(),
         ]);
 
         // Send notification
@@ -537,8 +538,8 @@ public function showForm(Request $request)
 {
     $this->authorize('viewAny', MoaModel::class);
 
-    $userId = session('user_id');
-    $user = UserModel::find($userId);
+    $user = Auth::user();
+
 
     // Build company query based on user role
     $companiesQuery = CompanyModel::select('company_id', 'company_name')
