@@ -17,7 +17,7 @@ class UserManagementController extends Controller
 public function index(Request $request)
 {
     // Use Auth guard instead of Session
-    if (Auth::user()->role !== 'head' && Auth::user()->role !== 'admin') {
+    if (Auth::user()->role !== 'head') {
         abort(403, 'Unauthorized');
     }
 

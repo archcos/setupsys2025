@@ -78,33 +78,33 @@ export default function Index({ projects, filters }) {
   };
 
   return (
-    <main className="flex-1 p-6 overflow-y-auto">
+    <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
       <Head title="Reports" />
       <div className="max-w-7xl mx-auto">
         {/* Main Content Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
           {/* Card Header */}
-          <div className="bg-gray-50 p-6 border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Building2 className="w-5 h-5 text-blue-600" />
+          <div className="bg-gray-50 p-3 md:p-6 border-b border-gray-100">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
+                <Building2 className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-900">Reports</h2>
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900">Reports</h2>
             </div>
           </div>
 
           {/* Filters */}
-          <div className="p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
-            <div className="flex flex-col lg:flex-row gap-4">
+          <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
+            <div className="flex flex-col gap-3 md:gap-4">
               {/* Search Bar */}
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Search company name or project title..."
+                  placeholder="Search company or project..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-500 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                  className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                 />
                 {search && (
                   <button
@@ -117,37 +117,37 @@ export default function Index({ projects, filters }) {
               </div>
 
               {/* Per Page */}
-              <div className="flex items-center gap-3 bg-white rounded-xl px-4 border border-gray-500 shadow-sm">
+              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
                 <select
                   value={perPage}
                   onChange={(e) => setPerPage(e.target.value)}
-                  className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
+                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
                 >
                   {[10, 20, 50, 100].map((n) => (
                     <option key={n} value={n}>{n}</option>
                   ))}
                 </select>
-                <span className="text-sm text-gray-700">entries</span>
+                <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">entries</span>
               </div>
             </div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
+          {/* Table - Desktop */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Project Title</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Company</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Reports</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                  <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Project Title</th>
+                  <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Company</th>
+                  <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Reports</th>
+                  <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {projects.data.map((project) => (
                   <tr key={project.project_id} className="hover:bg-blue-50/30 transition-all duration-200 group">
                     {/* Project clickable */}
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900">
+                    <td className="px-4 md:px-6 py-3 md:py-4 text-sm font-semibold text-gray-900">
                       <button
                         onClick={() => setOpenDropdown(openDropdown === project.project_id ? null : project.project_id)}
                         className="flex items-center gap-2 text-blue-600 hover:underline"
@@ -208,59 +208,145 @@ export default function Index({ projects, filters }) {
                       )}
                     </td>
 
-                    <td className="px-6 py-4 text-sm text-gray-700">
+                    <td className="px-4 md:px-6 py-3 md:py-4 text-sm text-gray-700">
                       {project.company?.company_name || "No company"}
                     </td>
 
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-4 md:px-6 py-3 md:py-4 text-center">
                       {project.reports?.length || 0}
                     </td>
 
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-4 md:px-6 py-3 md:py-4 text-center">
                       <Link
                         href={route("reports.create", project.project_id)}
-                        className="inline-flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all duration-200 font-medium shadow"
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all duration-200 font-medium shadow text-xs md:text-sm"
                       >
                         <PlusCircle className="w-4 h-4" />
-                        Create Report
+                        <span className="hidden sm:inline">Create Report</span>
+                        <span className="sm:hidden">Create</span>
                       </Link>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-
-            {projects.data.length === 0 && (
-              <div className="text-center py-12">
-                <h3 className="text-lg font-medium text-gray-900 mb-1">No projects found</h3>
-                <p className="text-gray-500 text-sm">Nothing to display, try adjusting your filters</p>
-              </div>
-            )}
           </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-gray-100">
+            {projects.data.map((project) => (
+              <div key={project.project_id} className="p-3 space-y-3">
+                {/* Project Header */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1">{project.project_title}</h3>
+                    <p className="text-xs text-gray-600">{project.company?.company_name || "No company"}</p>
+                  </div>
+                  <button
+                    onClick={() => setOpenDropdown(openDropdown === project.project_id ? null : project.project_id)}
+                    className="flex-shrink-0 p-1 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  >
+                    {openDropdown === project.project_id ? (
+                      <ChevronUp className="w-5 h-5" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+
+                {/* Reports Count */}
+                <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2.5">
+                  <span className="text-xs text-gray-600">Total Reports</span>
+                  <span className="text-sm font-semibold text-gray-900">{project.reports?.length || 0}</span>
+                </div>
+
+                {/* Create Report Button */}
+                <Link
+                  href={route("reports.create", project.project_id)}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all duration-200 font-medium text-sm"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Create Report
+                </Link>
+
+                {/* Expanded Reports List */}
+                {openDropdown === project.project_id && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+                    {project.reports && project.reports.length > 0 ? (
+                      project.reports.map((report) => (
+                        <div key={report.report_id} className="bg-white rounded-lg p-2.5 space-y-2 border border-gray-100">
+                          <div className="text-xs text-gray-600">{formatReportDate(report.created_at)}</div>
+                          <div className="flex gap-1.5">
+                            {/* View */}
+                            <button
+                              onClick={() => {
+                                setLoading(true);
+                                setModalUrl(route("reports.view", report.report_id));
+                                setShowModal(true);
+                              }}
+                              className="flex-1 px-2 py-1.5 bg-green-500 text-white rounded text-xs font-medium hover:bg-green-600 transition"
+                            >
+                              View
+                            </button>
+
+                            {/* Download */}
+                            <a
+                              href={route("reports.download", report.report_id)}
+                              className="flex-1 px-2 py-1.5 bg-blue-500 text-white rounded text-xs font-medium hover:bg-blue-600 transition"
+                            >
+                              Download
+                            </a>
+
+                            {/* Delete */}
+                            <button
+                              onClick={() => handleDeleteClick(report.report_id)}
+                              className="flex-1 px-2 py-1.5 bg-red-500 text-white rounded text-xs font-medium hover:bg-red-600 transition"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-gray-500 text-center py-3">No reports submitted yet</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {projects.data.length === 0 && (
+            <div className="text-center py-8 md:py-12 px-4">
+              <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">No projects found</h3>
+              <p className="text-xs md:text-sm text-gray-500">Nothing to display, try adjusting your filters</p>
+            </div>
+          )}
 
           {/* Pagination */}
           {projects.links && projects.links.length > 1 && (
-            <div className="bg-gray-50/50 px-6 py-4 border-t border-gray-100">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">
+            <div className="bg-gray-50/50 px-3 md:px-6 py-3 md:py-4 border-t border-gray-100">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
+                <div className="text-xs md:text-sm text-gray-600">
                   Showing {projects.from || 1} to {projects.to || projects.data.length} of{" "}
                   {projects.total || projects.data.length} results
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 overflow-x-auto">
                   {projects.links.map((link, index) => (
                     <button
                       key={index}
                       disabled={!link.url}
                       onClick={() => link.url && router.visit(link.url)}
-                      className={`px-3 py-2 text-sm rounded-lg border transition-all duration-200 ${
+                      className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all duration-200 flex-shrink-0 ${
                         link.active
                           ? "bg-blue-500 text-white border-transparent shadow-md"
                           : link.url
                           ? "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
                           : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
                       }`}
-                      dangerouslySetInnerHTML={{ __html: link.label }}
-                    />
+                    >
+                      {link.label === "&laquo; Previous" ? "←" : link.label === "Next &raquo;" ? "→" : link.label}
+                    </button>
                   ))}
                 </div>
               </div>
@@ -272,32 +358,32 @@ export default function Index({ projects, filters }) {
       {/* View PDF Modal */}
       {showModal && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4"
           onClick={() => setShowModal(false)}
         >
           <div
-            className="bg-white rounded-xl w-[90%] h-[90%] shadow-2xl relative overflow-hidden animate-slideUp"
+            className="bg-white rounded-lg md:rounded-xl w-full h-[85vh] md:h-[90vh] shadow-2xl relative overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close Button */}
             <button
               onClick={() => setShowModal(false)}
-              className="absolute top-3 right-3 p-2 bg-gray-200 rounded-full hover:bg-gray-300 z-50"
+              className="absolute top-2 md:top-3 right-2 md:right-3 p-1.5 md:p-2 bg-gray-200 rounded-full hover:bg-gray-300 z-50 transition"
             >
-              <X className="w-5 h-5 text-gray-700" />
+              <X className="w-4 h-4 md:w-5 md:h-5 text-gray-700" />
             </button>
 
             {/* Loading Spinner */}
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-40">
-                <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-400 border-t-transparent"></div>
+                <div className="animate-spin rounded-full h-8 md:h-10 w-8 md:w-10 border-4 border-gray-400 border-t-transparent"></div>
               </div>
             )}
 
             {/* PDF */}
             <iframe
               src={modalUrl}
-              className="w-full h-full rounded-xl"
+              className="w-full h-full"
               frameBorder="0"
               onLoad={() => setLoading(false)}
             />
@@ -308,34 +394,34 @@ export default function Index({ projects, filters }) {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
+          <div className="bg-white rounded-lg md:rounded-2xl shadow-2xl max-w-md w-full p-4 md:p-6">
+            <div className="flex items-start gap-3 md:gap-4">
+              <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 md:w-6 md:h-6 text-red-600" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2">
                   Delete Report
                 </h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-xs md:text-sm text-gray-600 mb-3">
                   Are you sure you want to delete this report? This action will permanently remove it from the system.
                 </p>
-                <p className="text-sm text-red-600 font-medium">
+                <p className="text-xs md:text-sm text-red-600 font-medium">
                   This action cannot be undone.
                 </p>
               </div>
             </div>
             
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-2 md:gap-3 mt-4 md:mt-6">
               <button
                 onClick={cancelDelete}
-                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors"
+                className="flex-1 px-3 md:px-4 py-2 md:py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm md:text-base"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
+                className="flex-1 px-3 md:px-4 py-2 md:py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors text-sm md:text-base"
               >
                 Delete Report
               </button>
