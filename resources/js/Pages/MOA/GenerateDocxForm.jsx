@@ -39,7 +39,7 @@ export default function GenerateDocxForm({ companies, selectedCompany, projects,
   const isFormValid = data.company_id && data.project_id && data.witness.trim();
 
   return (
-    <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen bg-gray-50">
+    <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
           {/* Card Header */}

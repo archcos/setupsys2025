@@ -126,7 +126,7 @@ export default function MOAIndex({ moas, filters }) {
   };
 
   return (
-    <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen bg-gray-50">
+    <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen">
       <div className="max-w-7xl mx-auto">
         {/* Flash Messages */}
         {flash?.success && (

@@ -122,7 +122,7 @@ export default function ReviewList({ projects, filters, years }) {
   }, [projects, statusFilter]);
 
   return (
-    <main className="flex-1 min-h-screen bg-gray-50 overflow-y-auto">
+    <main className="flex-1 min-h-screen overflow-y-auto">
       <Head title="Compliance Review" />
 
       <div className="max-w-7xl mx-auto p-3 md:p-6">

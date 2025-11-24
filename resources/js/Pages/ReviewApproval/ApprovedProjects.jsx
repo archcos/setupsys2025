@@ -166,7 +166,7 @@ export default function ApprovedProjects({ projects, offices, filters, error: se
   const paginationData = projects?.data ? projects : null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="max-w-7xl mx-auto p-3 md:p-6">
         <div className="bg-white rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
           {/* Header */}
