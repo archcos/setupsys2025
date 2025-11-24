@@ -42,6 +42,7 @@ return new class extends Migration
             // Start and end dates (date type includes year, month, and day)
             $table->date('restruct_start')->nullable();
             $table->date('restruct_end')->nullable();
+            $table->date('new_refund_end')->nullable();
 
             // Optional timestamps
             $table->timestamps();

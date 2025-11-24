@@ -21,6 +21,7 @@ class RestructureModel extends Model
         'remarks',
         'restruct_start',
         'restruct_end',
+        'new_refund_end'
     ];
 
     protected $casts = [

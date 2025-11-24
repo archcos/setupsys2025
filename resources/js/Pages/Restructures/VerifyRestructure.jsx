@@ -15,7 +15,7 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
   const [customType, setCustomType] = useState('');
   const [dateRangeError, setDateRangeError] = useState('');
   const [updateAmounts, setUpdateAmounts] = useState([]);
-  
+  const [newRefundEnd, setNewRefundEnd] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitAction, setSubmitAction] = useState(null);
   
@@ -54,9 +54,19 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
   };
 
   const getMaxDate = () => {
+    // If newRefundEnd is set, use it as the max date
+    if (newRefundEnd) {
+      return newRefundEnd;
+    }
+    // Otherwise use the project's refund_end
     if (!project.refund_end) return '';
     return project.refund_end.substring(0, 7);
   };
+
+  const getEffectiveRefundEnd = () => {
+    return newRefundEnd || (project.refund_end ? project.refund_end.substring(0, 7) : '');
+  };
+
 
   const getMinUpdateDate = () => {
     if (!data.restruct_end) return '';
@@ -90,41 +100,56 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
     return null;
   };
 
-  useEffect(() => {
-    setDateRangeError('');
+useEffect(() => {
+  setDateRangeError('');
 
-    if (!data.restruct_start || !data.restruct_end) return;
+  if (!data.restruct_start || !data.restruct_end) return;
 
-    const startDate = new Date(data.restruct_start + '-01');
-    const endDate = new Date(data.restruct_end + '-01');
-    const refundInitial = new Date(project.refund_initial);
-    const refundEnd = new Date(project.refund_end);
+  const startDate = new Date(data.restruct_start + '-01');
+  const endDate = new Date(data.restruct_end + '-01');
+  const refundInitial = new Date(project.refund_initial);
+  
+  // Use newRefundEnd if set, otherwise use project.refund_end
+  const effectiveRefundEnd = newRefundEnd 
+    ? new Date(newRefundEnd + '-01') 
+    : new Date(project.refund_end);
 
-    if (endDate <= startDate) {
-      setDateRangeError('End date must be after start date');
-      return;
-    }
+  if (endDate <= startDate) {
+    setDateRangeError('End date must be after start date');
+    return;
+  }
 
-    if (startDate < refundInitial || startDate > refundEnd) {
-      setDateRangeError(`Start date must be within refund period (${formatDate(project.refund_initial)} to ${formatDate(project.refund_end)})`);
-      return;
-    }
+  if (startDate < refundInitial) {
+    setDateRangeError(`Start date must be within refund period (${formatDate(project.refund_initial)} to ${formatDate(effectiveRefundEnd)})`);
+    return;
+  }
 
-    if (endDate < refundInitial || endDate > refundEnd) {
-      setDateRangeError(`End date must be within refund period (${formatDate(project.refund_initial)} to ${formatDate(project.refund_end)})`);
-      return;
-    }
+  if (startDate > effectiveRefundEnd) {
+    setDateRangeError(`Start date must be within refund period (${formatDate(project.refund_initial)} to ${formatDate(effectiveRefundEnd)})`);
+    return;
+  }
 
-    const overlap = checkDateOverlap(
-      data.restruct_start, 
-      data.restruct_end, 
-      editingItem?.restruct_id
-    );
+  if (endDate < refundInitial) {
+    setDateRangeError(`End date must be within refund period (${formatDate(project.refund_initial)} to ${formatDate(effectiveRefundEnd)})`);
+    return;
+  }
 
-    if (overlap) {
-      setDateRangeError(`Date range overlaps with existing "${overlap.type}" (${formatDate(overlap.start + '-01')} to ${formatDate(overlap.end + '-01')})`);
-    }
-  }, [data.restruct_start, data.restruct_end, editingItem]);
+  if (endDate > effectiveRefundEnd) {
+    setDateRangeError(`End date must be within refund period (${formatDate(project.refund_initial)} to ${formatDate(effectiveRefundEnd)})`);
+    return;
+  }
+
+  const overlap = checkDateOverlap(
+    data.restruct_start, 
+    data.restruct_end, 
+    editingItem?.restruct_id
+  );
+
+  if (overlap) {
+    setDateRangeError(`Date range overlaps with existing "${overlap.type}" (${formatDate(overlap.start + '-01')} to ${formatDate(overlap.end + '-01')})`);
+  }
+}, [data.restruct_start, data.restruct_end, editingItem, newRefundEnd]); // Add newRefundEnd to dependencies
+
 
   const handleUpdateRefundEnd = () => {
     putRefundEnd(route('project.update-refund-end', project.project_id), {
@@ -152,6 +177,7 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
     setIsSubmitting(false);
     setSubmitAction(null);
     setShowAddForm(true);
+    setNewRefundEnd(project.refund_end ? project.refund_end.substring(0, 7) : '');
   };
 
   const handleEdit = (item) => {
@@ -178,7 +204,7 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
     } else {
       setUpdateAmounts([]);
     }
-    
+    setNewRefundEnd(project.refund_end ? project.refund_end.substring(0, 7) : '');
     setDateRangeError('');
     setIsSubmitting(false);
     setSubmitAction(null);
@@ -250,12 +276,6 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
         alert(`Update period must start AFTER the restructuring end date (${formatDate(data.restruct_end + '-01')}). Updates should begin in ${getNextMonth(data.restruct_end)} or later.`);
         return;
       }
-
-      const refundEnd = new Date(project.refund_end);
-      if (updateEnd > refundEnd) {
-        alert(`Update period cannot exceed the refund end date (${formatDate(project.refund_end)})`);
-        return;
-      }
     }
 
     setIsSubmitting(true);
@@ -269,6 +289,7 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
       restruct_end: data.restruct_end,
       status: status,
       remarks: data.remarks,
+      new_refund_end: newRefundEnd, 
       updates: validUpdates,
     };
 
@@ -450,13 +471,6 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
         <div className="mb-4 md:mb-6 bg-white rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-slate-200/60 overflow-hidden">
           <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-4 md:px-6 py-3 md:py-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
             <h2 className="text-lg md:text-xl font-semibold text-slate-900">Current Refund Period</h2>
-            <button
-              onClick={() => setShowUpdateRefundEnd(true)}
-              className="inline-flex items-center gap-2 px-3 md:px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium text-xs md:text-sm rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 w-fit"
-            >
-              <Calendar className="w-4 h-4" />
-              Update End Date
-            </button>
           </div>
           <div className="p-3 md:p-6 overflow-x-auto">
             <table className="w-full text-xs md:text-sm">
@@ -720,11 +734,32 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
             </div>
 
             <div className="p-4 md:p-6 space-y-4 md:space-y-5">
-              {/* Date Range Info */}
-              <div className="bg-blue-50 border border-blue-200 rounded p-3 md:p-4 text-xs md:text-sm">
-                <p className="text-blue-800">
-                  <strong>Valid Range:</strong> {formatDate(project.refund_initial)} to {formatDate(project.refund_end)}
+            {/* Date Range Info */}
+            <div className="bg-blue-50 border border-blue-200 rounded p-3 md:p-4 text-xs md:text-sm">
+              <p className="text-blue-800">
+                <strong>Valid Range:</strong> {formatDate(project.refund_initial)} to {formatDate(getEffectiveRefundEnd())}
+              </p>
+              {newRefundEnd && newRefundEnd !== (project.refund_end ? project.refund_end.substring(0, 7) : '') && (
+                <p className="text-blue-800 mt-1">
+                  <strong>Note:</strong> End date will be updated to {formatDate(newRefundEnd + '-01')} when approved
                 </p>
+              )}
+            </div>
+
+              {/* New Refund End Date */}
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-slate-700 mb-2">
+                  New Refund End Date (Optional)
+                </label>
+                <input
+                  type="month"
+                  value={newRefundEnd}
+                  onChange={(e) => setNewRefundEnd(e.target.value)}
+                  min={getMinDate()}
+                  disabled={isLoading}
+                  className="w-full px-3 md:px-4 py-2 md:py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
+                />
+                <p className="text-xs text-slate-500 mt-1">Current refund end: {formatDate(project.refund_end)}</p>
               </div>
 
               {/* Type Selection */}
@@ -965,74 +1000,7 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
         </div>
       )}
 
-      {/* Update Refund End Modal */}
-      {showUpdateRefundEnd && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 z-50">
-          <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-4 md:px-6 py-3 md:py-4 rounded-t-xl md:rounded-t-2xl flex items-center justify-between">
-              <h3 className="text-base md:text-xl font-bold text-white">Update Refund End Date</h3>
-              <button
-                onClick={() => setShowUpdateRefundEnd(false)}
-                disabled={processingRefundEnd}
-                className="text-white hover:bg-white/20 p-1.5 rounded transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="p-4 md:p-6 space-y-4 md:space-y-5">
-              <div className="bg-blue-50 border border-blue-200 rounded p-3 md:p-4 text-xs md:text-sm">
-                <p className="text-blue-800">This updates the refund end date only.</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 md:gap-4 text-xs md:text-sm">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Current Start</label>
-                  <div className="px-3 py-2 bg-slate-100 border border-slate-300 rounded text-slate-700">
-                    {formatDate(project.refund_initial)}
-                  </div>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Current End</label>
-                  <div className="px-3 py-2 bg-slate-100 border border-slate-300 rounded text-slate-700">
-                    {formatDate(project.refund_end)}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-slate-700 mb-2">
-                  New End Date <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="month"
-                  value={refundEndData.refund_end}
-                  onChange={(e) => setRefundEndData('refund_end', e.target.value)}
-                  disabled={processingRefundEnd}
-                  className="w-full px-3 md:px-4 py-2 md:py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all disabled:opacity-50"
-                />
-              </div>
-
-              <div className="flex gap-2 md:gap-3 pt-3 border-t">
-                <button
-                  onClick={() => setShowUpdateRefundEnd(false)}
-                  disabled={processingRefundEnd}
-                  className="flex-1 px-3 md:px-5 py-2 md:py-2.5 text-xs md:text-sm text-slate-700 font-medium rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUpdateRefundEnd}
-                  disabled={processingRefundEnd}
-                  className="flex-1 px-3 md:px-5 py-2 md:py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs md:text-sm font-medium rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  Update
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Delete Modal */}
       {showDeleteModal && itemToDelete && (

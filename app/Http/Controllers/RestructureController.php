@@ -173,110 +173,129 @@ public function verifyList(Request $request)
         Log::info('Restructure Store Request:', $request->all());
 
         try {
-        $validated = $request->validate([
-            'project_id' => 'required|exists:tbl_projects,project_id',
-            'apply_id' => 'required|exists:tbl_apply_restruct,apply_id', // Add this line
-            'type' => 'required|string|max:50',
-            'restruct_start' => 'required|string',
-            'restruct_end' => 'required|string',
-            'status' => 'required|in:approved,raised,pending',
-            'remarks' => 'required|string',
-            'updates' => 'nullable|array',
-            'updates.*.update_start' => 'required_with:updates|string',
-            'updates.*.update_end' => 'required_with:updates|string',
-            'updates.*.update_amount' => 'required_with:updates|numeric|min:0',
-        ]);
+$validated = $request->validate([
+    'project_id' => 'required|exists:tbl_projects,project_id',
+    'apply_id' => 'required|exists:tbl_apply_restruct,apply_id',
+    'type' => 'required|string|max:50',
+    'restruct_start' => 'required|string',
+    'restruct_end' => 'required|string',
+    'status' => 'required|in:approved,raised,pending',
+    'remarks' => 'required|string',
+    'new_refund_end' => 'nullable|string',
+    'updates' => 'nullable|array',
+    'updates.*.update_start' => 'required_with:updates|string',
+    'updates.*.update_end' => 'required_with:updates|string',
+    'updates.*.update_amount' => 'required_with:updates|numeric|min:0',
+]);
 
-            Log::info('Validation passed:', $validated);
+$project = ProjectModel::findOrFail($request->project_id);
 
-            $project = ProjectModel::findOrFail($request->project_id);
+$restructStart = $request->restruct_start . '-01';
+$restructEnd = $request->restruct_end . '-01';
 
-            $restructStart = $request->restruct_start . '-01';
-            $restructEnd = $request->restruct_end . '-01';
+if (strtotime($restructEnd) <= strtotime($restructStart)) {
+    return redirect()->back()->withErrors([
+        'restruct_end' => 'End date must be after start date'
+    ])->withInput();
+}
 
-            if (strtotime($restructEnd) <= strtotime($restructStart)) {
-                return redirect()->back()->withErrors([
-                    'restruct_end' => 'End date must be after start date'
-                ])->withInput();
-            }
+$refundInitial = strtotime($project->refund_initial);
 
-            $refundInitial = strtotime($project->refund_initial);
-            $refundEnd = strtotime($project->refund_end);
-            $startTime = strtotime($restructStart);
-            $endTime = strtotime($restructEnd);
+// Determine the effective refund end (use new_refund_end if provided, otherwise use project refund_end)
+$effectiveRefundEnd = $request->new_refund_end 
+    ? strtotime($request->new_refund_end . '-01')
+    : strtotime($project->refund_end);
 
-            if ($startTime < $refundInitial || $startTime > $refundEnd) {
-                return redirect()->back()->withErrors([
-                    'restruct_start' => 'Start date must be within the project refund period (' . 
-                        date('M Y', $refundInitial) . ' to ' . date('M Y', $refundEnd) . ')'
-                ])->withInput();
-            }
+$startTime = strtotime($restructStart);
+$endTime = strtotime($restructEnd);
 
-            if ($endTime < $refundInitial || $endTime > $refundEnd) {
-                return redirect()->back()->withErrors([
-                    'restruct_end' => 'End date must be within the project refund period (' . 
-                        date('M Y', $refundInitial) . ' to ' . date('M Y', $refundEnd) . ')'
-                ])->withInput();
-            }
+if ($startTime < $refundInitial || $startTime > $effectiveRefundEnd) {
+    return redirect()->back()->withErrors([
+        'restruct_start' => 'Start date must be within the project refund period (' . 
+            date('M Y', $refundInitial) . ' to ' . date('M Y', $effectiveRefundEnd) . ')'
+    ])->withInput();
+}
 
-            $overlapCheck = $this->hasDateOverlap($request->project_id, $restructStart, $restructEnd);
-            
-            if ($overlapCheck['overlap']) {
-                $existing = $overlapCheck['existing'];
-                return redirect()->back()->withErrors([
-                    'restruct_start' => 'The selected date range overlaps with an existing restructuring (' . 
-                        $existing->type . ': ' . 
-                        date('M Y', strtotime($existing->restruct_start)) . ' to ' . 
-                        date('M Y', strtotime($existing->restruct_end)) . ')'
-                ])->withInput();
-            }
+if ($endTime < $refundInitial || $endTime > $effectiveRefundEnd) {
+    return redirect()->back()->withErrors([
+        'restruct_end' => 'End date must be within the project refund period (' . 
+            date('M Y', $refundInitial) . ' to ' . date('M Y', $effectiveRefundEnd) . ')'
+    ])->withInput();
+}
 
-            if ($request->has('updates') && is_array($request->updates)) {
-                $restructEndTime = strtotime($restructEnd);
-                
-                foreach ($request->updates as $update) {
-                    $updateStart = $update['update_start'] . '-01';
-                    $updateEnd = $update['update_end'] . '-01';
-                    $updateStartTime = strtotime($updateStart);
-                    $updateEndTime = strtotime($updateEnd);
+// Validate new_refund_end if provided
+if ($request->new_refund_end) {
+    $newRefundEndTime = strtotime($request->new_refund_end . '-01');
+    
+    if ($newRefundEndTime < $refundInitial) {
+        return redirect()->back()->withErrors([
+            'new_refund_end' => 'New refund end date must be after the refund start date (' . 
+                date('M Y', $refundInitial) . ')'
+        ])->withInput();
+    }
+    
+    if ($newRefundEndTime < $endTime) {
+        return redirect()->back()->withErrors([
+            'new_refund_end' => 'New refund end date must be after the restructuring end date (' . 
+                date('M Y', $endTime) . ')'
+        ])->withInput();
+    }
+}
 
-                    if ($updateEndTime <= $updateStartTime) {
-                        return redirect()->back()->withErrors([
-                            'updates' => 'Update end date must be after start date'
-                        ])->withInput();
-                    }
+$overlapCheck = $this->hasDateOverlap($request->project_id, $restructStart, $restructEnd);
 
-                    if ($updateStartTime <= $restructEndTime) {
-                        return redirect()->back()->withErrors([
-                            'updates' => 'Update start date must be after the restructuring end date (' . 
-                                date('M Y', $restructEndTime) . ')'
-                        ])->withInput();
-                    }
+if ($overlapCheck['overlap']) {
+    $existing = $overlapCheck['existing'];
+    return redirect()->back()->withErrors([
+        'restruct_start' => 'The selected date range overlaps with an existing restructuring (' . 
+            $existing->type . ': ' . 
+            date('M Y', strtotime($existing->restruct_start)) . ' to ' . 
+            date('M Y', strtotime($existing->restruct_end)) . ')'
+    ])->withInput();
+}
 
-                    if ($updateEndTime > $refundEnd) {
-                        return redirect()->back()->withErrors([
-                            'updates' => 'Update end date cannot exceed the project refund end date (' . 
-                                date('M Y', $refundEnd) . ')'
-                        ])->withInput();
-                    }
-                }
-            }
+if ($request->has('updates') && is_array($request->updates)) {
+    $restructEndTime = strtotime($restructEnd);
+    
+    foreach ($request->updates as $update) {
+        $updateStart = $update['update_start'] . '-01';
+        $updateEnd = $update['update_end'] . '-01';
+        $updateStartTime = strtotime($updateStart);
+        $updateEndTime = strtotime($updateEnd);
 
-            Log::info('Formatted dates:', [
-                'start' => $restructStart,
-                'end' => $restructEnd
-            ]);
+        if ($updateEndTime <= $updateStartTime) {
+            return redirect()->back()->withErrors([
+                'updates' => 'Update end date must be after start date'
+            ])->withInput();
+        }
 
-            $restructure = RestructureModel::create([
-                'project_id' => $request->project_id,
-                'apply_id' => $request->apply_id, // Add this line
-                'added_by' => Auth::id(),
-                'type' => $request->type,
-                'status' => $request->status,
-                'remarks' => $request->remarks,
-                'restruct_start' => $restructStart,
-                'restruct_end' => $restructEnd,
-            ]);
+        if ($updateStartTime <= $restructEndTime) {
+            return redirect()->back()->withErrors([
+                'updates' => 'Update start date must be after the restructuring end date (' . 
+                    date('M Y', $restructEndTime) . ')'
+            ])->withInput();
+        }
+
+        if ($updateEndTime > $effectiveRefundEnd) {
+            return redirect()->back()->withErrors([
+                'updates' => 'Update end date cannot exceed the project refund end date (' . 
+                    date('M Y', $effectiveRefundEnd) . ')'
+            ])->withInput();
+        }
+    }
+}
+
+$restructure = RestructureModel::create([
+    'project_id' => $request->project_id,
+    'apply_id' => $request->apply_id,
+    'added_by' => Auth::id(),
+    'type' => $request->type,
+    'status' => $request->status,
+    'remarks' => $request->remarks,
+    'restruct_start' => $restructStart,
+    'restruct_end' => $restructEnd,
+    'new_refund_end' => $request->new_refund_end ? $request->new_refund_end . '-01' : null,
+]);
 
             if ($request->has('updates') && is_array($request->updates)) {
                 foreach ($request->updates as $update) {
@@ -349,102 +368,127 @@ public function verifyList(Request $request)
         ]);
 
         try {
-            $validated = $request->validate([
-                'apply_id' => 'required|exists:tbl_apply_restruct,apply_id', // Add this line
-                'type' => 'required|string|max:50',
-                'restruct_start' => 'required|string',
-                'restruct_end' => 'required|string',
-                'status' => 'required|in:approved,raised,pending',
-                'remarks' => 'required|string',
-                'updates' => 'nullable|array',
-                'updates.*.update_start' => 'required_with:updates|string',
-                'updates.*.update_end' => 'required_with:updates|string',
-                'updates.*.update_amount' => 'required_with:updates|numeric|min:0',
-            ]);
+           $validated = $request->validate([
+    'apply_id' => 'required|exists:tbl_apply_restruct,apply_id',
+    'type' => 'required|string|max:50',
+    'restruct_start' => 'required|string',
+    'restruct_end' => 'required|string',
+    'status' => 'required|in:approved,raised,pending',
+    'remarks' => 'required|string',
+    'new_refund_end' => 'nullable|string',
+    'updates' => 'nullable|array',
+    'updates.*.update_start' => 'required_with:updates|string',
+    'updates.*.update_end' => 'required_with:updates|string',
+    'updates.*.update_amount' => 'required_with:updates|numeric|min:0',
+]);
 
-            $restructure = RestructureModel::findOrFail($restruct_id);
-            
-            $project = ProjectModel::findOrFail($restructure->project_id);
+$restructure = RestructureModel::findOrFail($restruct_id);
+$project = ProjectModel::findOrFail($restructure->project_id);
 
-            $restructStart = $request->restruct_start . '-01';
-            $restructEnd = $request->restruct_end . '-01';
+$restructStart = $request->restruct_start . '-01';
+$restructEnd = $request->restruct_end . '-01';
 
-            if (strtotime($restructEnd) <= strtotime($restructStart)) {
-                return redirect()->back()->withErrors([
-                    'restruct_end' => 'End date must be after start date'
-                ])->withInput();
-            }
+if (strtotime($restructEnd) <= strtotime($restructStart)) {
+    return redirect()->back()->withErrors([
+        'restruct_end' => 'End date must be after start date'
+    ])->withInput();
+}
 
-            $refundInitial = strtotime($project->refund_initial);
-            $refundEnd = strtotime($project->refund_end);
-            $startTime = strtotime($restructStart);
-            $endTime = strtotime($restructEnd);
+$refundInitial = strtotime($project->refund_initial);
 
-            if ($startTime < $refundInitial || $startTime > $refundEnd) {
-                return redirect()->back()->withErrors([
-                    'restruct_start' => 'Start date must be within the project refund period (' . 
-                        date('M Y', $refundInitial) . ' to ' . date('M Y', $refundEnd) . ')'
-                ])->withInput();
-            }
+// Determine the effective refund end (use new_refund_end if provided, otherwise use project refund_end)
+$effectiveRefundEnd = $request->new_refund_end 
+    ? strtotime($request->new_refund_end . '-01')
+    : strtotime($project->refund_end);
 
-            if ($endTime < $refundInitial || $endTime > $refundEnd) {
-                return redirect()->back()->withErrors([
-                    'restruct_end' => 'End date must be within the project refund period (' . 
-                        date('M Y', $refundInitial) . ' to ' . date('M Y', $refundEnd) . ')'
-                ])->withInput();
-            }
+$startTime = strtotime($restructStart);
+$endTime = strtotime($restructEnd);
 
-            $overlapCheck = $this->hasDateOverlap($restructure->project_id, $restructStart, $restructEnd, $restruct_id);
-            
-            if ($overlapCheck['overlap']) {
-                $existing = $overlapCheck['existing'];
-                return redirect()->back()->withErrors([
-                    'restruct_start' => 'The selected date range overlaps with an existing restructuring (' . 
-                        $existing->type . ': ' . 
-                        date('M Y', strtotime($existing->restruct_start)) . ' to ' . 
-                        date('M Y', strtotime($existing->restruct_end)) . ')'
-                ])->withInput();
-            }
+if ($startTime < $refundInitial || $startTime > $effectiveRefundEnd) {
+    return redirect()->back()->withErrors([
+        'restruct_start' => 'Start date must be within the project refund period (' . 
+            date('M Y', $refundInitial) . ' to ' . date('M Y', $effectiveRefundEnd) . ')'
+    ])->withInput();
+}
 
-            if ($request->has('updates') && is_array($request->updates)) {
-                $restructEndTime = strtotime($restructEnd);
-                
-                foreach ($request->updates as $update) {
-                    $updateStart = $update['update_start'] . '-01';
-                    $updateEnd = $update['update_end'] . '-01';
-                    $updateStartTime = strtotime($updateStart);
-                    $updateEndTime = strtotime($updateEnd);
+if ($endTime < $refundInitial || $endTime > $effectiveRefundEnd) {
+    return redirect()->back()->withErrors([
+        'restruct_end' => 'End date must be within the project refund period (' . 
+            date('M Y', $refundInitial) . ' to ' . date('M Y', $effectiveRefundEnd) . ')'
+    ])->withInput();
+}
 
-                    if ($updateEndTime <= $updateStartTime) {
-                        return redirect()->back()->withErrors([
-                            'updates' => 'Update end date must be after start date'
-                        ])->withInput();
-                    }
+// Validate new_refund_end if provided
+if ($request->new_refund_end) {
+    $newRefundEndTime = strtotime($request->new_refund_end . '-01');
+    
+    if ($newRefundEndTime < $refundInitial) {
+        return redirect()->back()->withErrors([
+            'new_refund_end' => 'New refund end date must be after the refund start date (' . 
+                date('M Y', $refundInitial) . ')'
+        ])->withInput();
+    }
+    
+    if ($newRefundEndTime < $endTime) {
+        return redirect()->back()->withErrors([
+            'new_refund_end' => 'New refund end date must be after the restructuring end date (' . 
+                date('M Y', $endTime) . ')'
+        ])->withInput();
+    }
+}
 
-                    if ($updateStartTime <= $restructEndTime) {
-                        return redirect()->back()->withErrors([
-                            'updates' => 'Update start date must be after the restructuring end date (' . 
-                                date('M Y', $restructEndTime) . ')'
-                        ])->withInput();
-                    }
+$overlapCheck = $this->hasDateOverlap($restructure->project_id, $restructStart, $restructEnd, $restruct_id);
 
-                    if ($updateEndTime > $refundEnd) {
-                        return redirect()->back()->withErrors([
-                            'updates' => 'Update end date cannot exceed the project refund end date (' . 
-                                date('M Y', $refundEnd) . ')'
-                        ])->withInput();
-                    }
-                }
-            }
+if ($overlapCheck['overlap']) {
+    $existing = $overlapCheck['existing'];
+    return redirect()->back()->withErrors([
+        'restruct_start' => 'The selected date range overlaps with an existing restructuring (' . 
+            $existing->type . ': ' . 
+            date('M Y', strtotime($existing->restruct_start)) . ' to ' . 
+            date('M Y', strtotime($existing->restruct_end)) . ')'
+    ])->withInput();
+}
 
-             $restructure->update([
-                'apply_id' => $request->apply_id, // Add this line
-                'type' => $request->type,
-                'restruct_start' => $restructStart,
-                'restruct_end' => $restructEnd,
-                'status' => $request->status,
-                'remarks' => $request->remarks,
-            ]);
+if ($request->has('updates') && is_array($request->updates)) {
+    $restructEndTime = strtotime($restructEnd);
+    
+    foreach ($request->updates as $update) {
+        $updateStart = $update['update_start'] . '-01';
+        $updateEnd = $update['update_end'] . '-01';
+        $updateStartTime = strtotime($updateStart);
+        $updateEndTime = strtotime($updateEnd);
+
+        if ($updateEndTime <= $updateStartTime) {
+            return redirect()->back()->withErrors([
+                'updates' => 'Update end date must be after start date'
+            ])->withInput();
+        }
+
+        if ($updateStartTime <= $restructEndTime) {
+            return redirect()->back()->withErrors([
+                'updates' => 'Update start date must be after the restructuring end date (' . 
+                    date('M Y', $restructEndTime) . ')'
+            ])->withInput();
+        }
+
+        if ($updateEndTime > $effectiveRefundEnd) {
+            return redirect()->back()->withErrors([
+                'updates' => 'Update end date cannot exceed the project refund end date (' . 
+                    date('M Y', $effectiveRefundEnd) . ')'
+            ])->withInput();
+        }
+    }
+}
+
+$restructure->update([
+    'apply_id' => $request->apply_id,
+    'type' => $request->type,
+    'restruct_start' => $restructStart,
+    'restruct_end' => $restructEnd,
+    'status' => $request->status,
+    'remarks' => $request->remarks,
+    'new_refund_end' => $request->new_refund_end ? $request->new_refund_end . '-01' : null,
+]);
 
             RestructureUpdateModel::where('restruct_id', $restruct_id)->delete();
             
@@ -599,6 +643,21 @@ public function verifyList(Request $request)
                 Log::info('Status is approved, creating refund entries...');
                 $this->createRestructuredRefundEntries($restructure);
                 Log::info('Refund entries created successfully');
+            }
+
+            // Update project refund_end if restructure is approved and has new_refund_end
+            if ($validated['status'] === 'approved' && $restructure->new_refund_end) {
+                $oldRefundEnd = $restructure->project->refund_end;
+                
+                $restructure->project->update([
+                    'refund_end' => $restructure->new_refund_end,
+                ]);
+                
+                Log::info('Project refund_end updated from restructure', [
+                    'project_id' => $restructure->project_id,
+                    'old_refund_end' => $oldRefundEnd,
+                    'new_refund_end' => $restructure->new_refund_end,
+                ]);
             }
 
             // Send emails SYNCHRONOUSLY
