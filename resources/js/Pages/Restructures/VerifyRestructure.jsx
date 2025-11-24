@@ -401,7 +401,7 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
   const isLoading = processing || isSubmitting;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <Head title={`Verify - ${project.project_title}`} />
 
       <div className="max-w-7xl mx-auto p-3 md:p-6 lg:p-8">

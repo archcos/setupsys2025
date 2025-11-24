@@ -154,7 +154,7 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <Head title="Apply for Restructuring" />
 
       <div className="max-w-7xl mx-auto p-3 md:p-6 lg:p-8">

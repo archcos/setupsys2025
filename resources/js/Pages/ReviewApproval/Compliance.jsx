@@ -122,7 +122,7 @@ export default function Compliance({ project, compliance, errors, userRole }) {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen">
         <Head title={`Review - ${project.project_title}`} />
         
         <div className="max-w-4xl mx-auto p-3 md:p-6 lg:p-8">
