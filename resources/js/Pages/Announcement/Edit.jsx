@@ -15,7 +15,7 @@ export default function Edit({ announcement }) {
   };
 
   return (
-    <main className="flex-1 min-h-screen bg-gray-50 overflow-y-auto">
+    <main className="flex-1 min-h-screen overflow-y-auto">
       <Head title="Edit Announcement" />
       <div className="max-w-3xl mx-auto p-3 md:p-6">
         {/* Header Section */}
