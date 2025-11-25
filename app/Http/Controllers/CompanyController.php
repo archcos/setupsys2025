@@ -129,7 +129,7 @@ public function store(Request $request)
         'current_market'   => 'nullable|string|max:100',
     ]);
 
-    $user = UserModel::where('user_id', session('user_id'))->first();
+    $user = Auth::user();
     $validated['added_by']  = $user->user_id;
     $validated['office_id'] = $user->office_id;
 

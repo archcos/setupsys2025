@@ -76,13 +76,7 @@ export default function SettingsPage({ user, offices }) {
           </div>
         </div>
 
-        {/* Success Message */}
-        {flash?.success && (
-          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
-            <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
-            {flash.success}
-          </div>
-        )}
+ 
 
         {/* Error Summary (if multiple errors) */}
         {Object.keys(errors).length > 0 && (
@@ -343,6 +337,13 @@ export default function SettingsPage({ user, offices }) {
                 )}
               </button>
             </div>
+                   {/* Success Message */}
+        {flash?.success && (
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
+            <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
+            {flash.success}
+          </div>
+        )}
           </form>
         </div>
       </div>
