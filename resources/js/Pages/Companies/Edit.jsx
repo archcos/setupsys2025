@@ -166,32 +166,46 @@ export default function Edit({ company }) {
 
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">SETUP Industry</label>
-                <select
+               <select
                   className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
                   value={data.setup_industry}
                   onChange={(e) => setData('setup_industry', e.target.value)}
                   required
                 >
                   <option value="">Select Sector</option>
-                  <option value="Crop and animal production, hunting, and related service activities">Crop & animal production</option>
-                  <option value="Forestry and logging">Forestry & logging</option>
-                  <option value="Fishing and aquaculture">Fishing & aquaculture</option>
-                  <option value="Food processing">Food processing</option>
-                  <option value="Beverage manufacturing">Beverage manufacturing</option>
-                  <option value="Textile manufacturing">Textile manufacturing</option>
-                  <option value="Wearing apparel manufacturing">Apparel manufacturing</option>
-                  <option value="Leather and related products manufacturing">Leather products</option>
-                  <option value="Wood and products of wood and cork manufacturing">Wood products</option>
-                  <option value="Paper and paper products manufacturing">Paper products</option>
-                  <option value="Chemicals and chemical products manufacturing">Chemicals</option>
-                  <option value="Basic pharmaceutical products and pharmaceutical preparations manufacturing">Pharmaceuticals</option>
-                  <option value="Rubber and plastic products manufacturing">Rubber & plastic</option>
-                  <option value="Non-metallic mineral products manufacturing">Non-metallic minerals</option>
-                  <option value="Machinery and equipment, NEC (Not Elsewhere Classified)">Machinery & equipment</option>
-                  <option value="Other transport equipment manufacturing">Transport equipment</option>
-                  <option value="Furniture manufacturing">Furniture manufacturing</option>
-                  <option value="Information and Communication">Information & Communication</option>
-                  <option value="Other regional priority industries approved by the Regional Development Council">Other RDC industries</option>
+                  <optgroup label="Major Industry Sectors">
+                    <option value="Agriculture/Aquaculture/Forestry">Agriculture / Aquaculture / Forestry</option>
+                    <option value="Creative Industry">Creative Industry</option>
+                    <option value="Energy and Environment">Energy and Environment</option>
+                    <option value="Food Processing">Food Processing</option>
+                    <option value="Furniture">Furniture</option>
+                    <option value="Gifts, Decors, Handicrafts">Gifts, Decors, Handicrafts</option>
+                    <option value="Health and Wellness">Health and Wellness</option>
+                    <option value="Metals and Engineering">Metals and Engineering</option>
+                    <option value="Other Regional Priority Sectors">Other Regional Priority Sectors</option>
+                  </optgroup>
+                  <optgroup label="Sub-Industries / Manufacturing">
+                    <option value="Crop and animal production, hunting, and related service activities">Crop & Animal Production</option>
+                    <option value="Forestry and Logging">Forestry & Logging</option>
+                    <option value="Fishing and aquaculture">Fishing & Aquaculture</option>
+                    <option value="Food processing">Food Processing</option>
+                    <option value="Beverage manufacturing">Beverage Manufacturing</option>
+                    <option value="Textile manufacturing">Textile Manufacturing</option>
+                    <option value="Wearing apparel manufacturing">Wearing Apparel</option>
+                    <option value="Leather and related products manufacturing">Leather Products</option>
+                    <option value="Wood and products of wood and cork manufacturing">Wood & Cork Products</option>
+                    <option value="Paper and paper products manufacturing">Paper & Paper Products</option>
+                    <option value="Chemicals and chemical products manufacturing">Chemicals & Chemical Products</option>
+                    <option value="Basic pharmaceutical products and pharmaceutical preparations manufacturing">Pharmaceutical Products</option>
+                    <option value="Rubber and plastic products manufacturing">Rubber & Plastic Products</option>
+                    <option value="Non-metallic mineral products manufacturing">Non-metallic Minerals</option>
+                    <option value="Fabricated metal products manufacturing">Fabricated Metal Products</option>
+                    <option value="Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing">Machinery & Equipment (NEC)</option>
+                    <option value="Other transport equipment manufacturing">Transport Equipment</option>
+                    <option value="Furniture manufacturing">Furniture Manufacturing</option>
+                    <option value="Information and Communication">Information & Communication</option>
+                    <option value="Other regional priority industries approved by the Regional Development Council">Regional Priority Industries</option>
+                  </optgroup>
                 </select>
                 {errors.setup_industry && (
                   <div className="text-red-500 text-xs md:text-sm mt-1 flex items-center gap-1">
