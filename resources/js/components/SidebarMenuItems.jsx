@@ -24,6 +24,8 @@ import {
   BookOpen,
   FilePlus2,
   Hammer,
+  ShieldAlert,
+  AudioLines,
 } from "lucide-react";
 import Dropdown from "./Dropdown";
 
@@ -46,14 +48,14 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
       {role === 'head' && (
         <Dropdown
           title="Admin Panel"
-          icon={<AlertCircle size={18} />}
+          icon={<ShieldAlert size={18} />}
           isOpen={dropdowns.adminpanel}
           onToggle={() => toggleDropdown('adminpanel')}
           links={[
             { label: 'User Management', href: `/admin/users`, icon: <Users size={16} /> },
             { label: 'Director Management', href: `/admin/directors`, icon: <Settings size={16} /> },
             { label: 'Blocking Management', href: `/blocked-ips`, icon: <AlertCircle size={16} /> },
-            { label: 'Login Frequency Table', href: `/login-frequency`, icon: <LayoutDashboard size={16} /> },
+            { label: 'Login Frequency Table', href: `/login-frequency`, icon: <AudioLines size={16} /> },
           ]}
           onClose={onClose}
         />

@@ -100,7 +100,7 @@ export default function Index({ activities, filters }) {
   }, {});
 
   return (
-    <div className="p-3 md:p-6 overflow-y-auto bg-gray-50 w-full">
+    <div className="p-3 md:p-6 overflow-y-auto w-full">
       <Head title="Activities" />
       <div className="max-w-7xl mx-auto">
         {/* Main Content Card */}

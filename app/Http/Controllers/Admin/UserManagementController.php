@@ -21,6 +21,13 @@ public function index(Request $request)
         abort(403, 'Unauthorized');
     }
 
+    // Get online users first
+    $onlineUserIds = DB::table('sessions')
+        ->pluck('user_id')
+        ->filter()
+        ->unique()
+        ->toArray();
+
     // Include soft deleted users
     $query = UserModel::withTrashed()->with('office');
 
@@ -43,20 +50,23 @@ public function index(Request $request)
         $query->where('office_id', $request->office_id);
     }
 
-    // Status Filter
+    // Access Filter (active/inactive login status)
+    if ($request->filled('access')) {
+        $query->where('status', $request->access);
+    }
+
+    // Online/Offline Status Filter - apply BEFORE pagination
     if ($request->filled('status')) {
-        $query->where('status', $request->status);
+        if ($request->status === 'online') {
+            $query->whereIn('user_id', $onlineUserIds);
+        } elseif ($request->status === 'offline') {
+            $query->whereNotIn('user_id', $onlineUserIds);
+        }
     }
 
     $users = $query->paginate(10)->appends($request->all());
 
-    // Identify online users
-    $onlineUserIds = DB::table('sessions')
-        ->pluck('user_id')
-        ->filter()
-        ->unique()
-        ->toArray();
-
+    // Add is_online flag to each user
     $users->getCollection()->transform(function ($user) use ($onlineUserIds) {
         $user->is_online = in_array($user->user_id, $onlineUserIds);
         return $user;
@@ -71,7 +81,7 @@ public function index(Request $request)
     return inertia('Admin/UserManagement', [
         'users' => $users,
         'offices' => OfficeModel::all(),
-        'filters' => $request->only(['search', 'role', 'office_id', 'status']),
+        'filters' => $request->only(['search', 'role', 'office_id', 'status', 'access']),
         'stats' => [
             'total' => $totalUsers,
             'active' => $activeUsers,

@@ -36,7 +36,7 @@ export default function Edit({ activity, projects }) {
   };
 
   return (
-    <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen bg-gray-50">
+    <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen">
       <Head title="Edit Activity" />
       <div className="max-w-5xl mx-auto">
         {/* Header Section */}
