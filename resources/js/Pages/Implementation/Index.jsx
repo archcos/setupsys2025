@@ -19,21 +19,22 @@ export default function ImplementationIndex({ implementations, filters }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [search, setSearch] = useState(filters?.search || '');
   const [perPage, setPerPage] = useState(filters?.perPage || 10);
+  const [statusFilter, setStatusFilter] = useState(filters?.statusFilter || null);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
-      router.get('/implementation', { search, perPage }, { preserveState: true, replace: true });
+      router.get('/implementation', { search, perPage, statusFilter }, { preserveState: true, replace: true });
     }, 400);
 
     return () => clearTimeout(delayDebounce);
-  }, [search]);
+  }, [search, statusFilter]);
 
   const handlePerPageChange = (e) => {
     const newPerPage = Number(e.target.value);
     setPerPage(newPerPage);
-    router.get('/implementation', { search, perPage: newPerPage }, { preserveState: true, replace: true });
+    router.get('/implementation', { search, perPage: newPerPage, statusFilter }, { preserveState: true, replace: true });
   };
 
   const handlePageChange = (url) => {
@@ -44,8 +45,13 @@ export default function ImplementationIndex({ implementations, filters }) {
       data: {
         search,
         perPage,
+        statusFilter,
       },
     });
+  };
+
+  const handleStatClick = (status) => {
+    setStatusFilter(statusFilter === status ? null : status);
   };
 
   const getCompletionStatus = (impl) => {
@@ -113,6 +119,10 @@ export default function ImplementationIndex({ implementations, filters }) {
 
   const stats = getStats();
 
+  const filteredData = statusFilter
+    ? implementations.data.filter(impl => getCompletionStatus(impl).status === statusFilter)
+    : implementations.data;
+
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
       <Head title="Implementation Checklists" />
@@ -135,22 +145,50 @@ export default function ImplementationIndex({ implementations, filters }) {
           {/* Stats Summary */}
           <div className="p-3 md:p-6 bg-gradient-to-r from-green-50/30 to-blue-50/30 border-b border-gray-100">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-              <div className="text-center">
+              <button
+                onClick={() => handleStatClick(null)}
+                className={`text-center p-3 md:p-4 rounded-lg transition-all duration-200 ${
+                  statusFilter === null
+                    ? 'bg-gray-100 ring-2 ring-offset-2 ring-gray-500 shadow-md'
+                    : 'hover:shadow-md hover:bg-gray-50 cursor-pointer'
+                }`}
+              >
                 <div className="text-xl md:text-2xl font-bold text-gray-900">{stats.total}</div>
                 <div className="text-xs md:text-sm text-gray-600">Total Projects</div>
-              </div>
-              <div className="text-center">
+              </button>
+              <button
+                onClick={() => handleStatClick('complete')}
+                className={`text-center p-3 md:p-4 rounded-lg transition-all duration-200 ${
+                  statusFilter === 'complete'
+                    ? 'bg-green-100 ring-2 ring-offset-2 ring-green-500 shadow-md'
+                    : 'hover:shadow-md hover:bg-green-50 cursor-pointer'
+                }`}
+              >
                 <div className="text-xl md:text-2xl font-bold text-green-600">{stats.complete}</div>
                 <div className="text-xs md:text-sm text-gray-600">Complete</div>
-              </div>
-              <div className="text-center">
+              </button>
+              <button
+                onClick={() => handleStatClick('in-progress')}
+                className={`text-center p-3 md:p-4 rounded-lg transition-all duration-200 ${
+                  statusFilter === 'in-progress'
+                    ? 'bg-blue-100 ring-2 ring-offset-2 ring-blue-500 shadow-md'
+                    : 'hover:shadow-md hover:bg-blue-50 cursor-pointer'
+                }`}
+              >
                 <div className="text-xl md:text-2xl font-bold text-blue-600">{stats.inProgress}</div>
                 <div className="text-xs md:text-sm text-gray-600">In Progress</div>
-              </div>
-              <div className="text-center">
+              </button>
+              <button
+                onClick={() => handleStatClick('pending')}
+                className={`text-center p-3 md:p-4 rounded-lg transition-all duration-200 ${
+                  statusFilter === 'pending'
+                    ? 'bg-amber-100 ring-2 ring-offset-2 ring-amber-500 shadow-md'
+                    : 'hover:shadow-md hover:bg-amber-50 cursor-pointer'
+                }`}
+              >
                 <div className="text-xl md:text-2xl font-bold text-amber-600">{stats.pending}</div>
                 <div className="text-xs md:text-sm text-gray-600">Pending</div>
-              </div>
+              </button>
             </div>
           </div>
 
@@ -194,7 +232,7 @@ export default function ImplementationIndex({ implementations, filters }) {
           </div>
 
           {/* Content Section - Desktop Table */}
-          {implementations.data.length === 0 ? (
+          {filteredData.length === 0 ? (
             <div className="text-center py-8 md:py-12 px-4">
               <div className="flex flex-col items-center gap-3 md:gap-4">
                 <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-100 rounded-full flex items-center justify-center">
@@ -203,15 +241,18 @@ export default function ImplementationIndex({ implementations, filters }) {
                 <div>
                   <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">No implementations found</h3>
                   <p className="text-xs md:text-sm text-gray-500">
-                    {search ? `No implementations match your search "${search}"` : 'No implementation checklists have been created yet'}
+                    {search ? `No implementations match your search "${search}"` : statusFilter ? `No ${statusFilter} implementations found` : 'No implementation checklists have been created yet'}
                   </p>
                 </div>
-                {search && (
+                {(search || statusFilter) && (
                   <button
-                    onClick={() => setSearch('')}
+                    onClick={() => {
+                      setSearch('');
+                      setStatusFilter(null);
+                    }}
                     className="px-3 md:px-4 py-1.5 md:py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
                   >
-                    Clear Search
+                    Clear Filters
                   </button>
                 )}
               </div>
@@ -234,7 +275,7 @@ export default function ImplementationIndex({ implementations, filters }) {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {implementations.data.map((impl) => {
+                    {filteredData.map((impl) => {
                       const untaggingStatus = getUntaggingStatus(impl);
                       
                       return (
@@ -312,7 +353,7 @@ export default function ImplementationIndex({ implementations, filters }) {
 
               {/* Mobile Card View */}
               <div className="md:hidden divide-y divide-gray-100">
-                {implementations.data.map((impl) => {
+                {filteredData.map((impl) => {
                   const untaggingStatus = getUntaggingStatus(impl);
                   
                   return (
@@ -402,7 +443,7 @@ export default function ImplementationIndex({ implementations, filters }) {
             <div className="bg-gradient-to-r from-gray-50/50 to-white px-3 md:px-6 py-3 md:py-4 border-t border-gray-100">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
                 <div className="text-xs md:text-sm text-gray-600">
-                  Showing {implementations.from || 1} to {implementations.to || implementations.data.length} of {implementations.total || implementations.data.length} results
+                  Showing {implementations.from || 1} to {implementations.to || filteredData.length} of {implementations.total || filteredData.length} results
                 </div>
                 <div className="flex gap-1 overflow-x-auto">
                   {implementations.links.map((link, index) => (

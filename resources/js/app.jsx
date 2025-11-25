@@ -14,7 +14,7 @@ createInertiaApp({
             import.meta.glob('./Pages/**/*.jsx'),
         );
 
-        // ✅ Only wrap pages if layout is undefined
+        // Only wrap pages if layout is undefined
         if (page.default.layout === undefined) {
             page.default.layout = (page) => <AppLayout>{page}</AppLayout>;
         }

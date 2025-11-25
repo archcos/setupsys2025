@@ -18,7 +18,8 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
   const [newRefundEnd, setNewRefundEnd] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitAction, setSubmitAction] = useState(null);
-  
+  const [isStatusSubmitting, setIsStatusSubmitting] = useState(false);
+
   const userRole = auth?.user?.role;
   
   const { data: refundEndData, setData: setRefundEndData, put: putRefundEnd, processing: processingRefundEnd, errors: refundEndErrors } = useForm({
@@ -204,7 +205,7 @@ useEffect(() => {
     } else {
       setUpdateAmounts([]);
     }
-    setNewRefundEnd(project.refund_end ? project.refund_end.substring(0, 7) : '');
+    setNewRefundEnd(item.new_refund_end ? item.new_refund_end.substring(0, 7) : (project.refund_end ? project.refund_end.substring(0, 7) : ''));
     setDateRangeError('');
     setIsSubmitting(false);
     setSubmitAction(null);
@@ -370,6 +371,8 @@ useEffect(() => {
 
     const status = statusAction === 'approve' ? 'approved' : 'pending';
     
+    setIsStatusSubmitting(true);
+    
     router.put(route('restructure.update-status', itemToUpdate.restruct_id), {
       status: status,
       remarks: statusData.remarks,
@@ -381,13 +384,16 @@ useEffect(() => {
       },
       onSuccess: (page) => {
         console.log('Status update and emails completed successfully');
+        setIsStatusSubmitting(false);
       },
       onError: (errors) => {
         console.error('Status update errors:', errors);
         alert('Failed to update status: ' + (errors.error || 'Please try again.'));
+        setIsStatusSubmitting(false);
       },
       onFinish: () => {
         console.log('Request finished');
+        setIsStatusSubmitting(false);
       }
     });
   };
@@ -396,6 +402,7 @@ useEffect(() => {
     setShowStatusModal(false);
     setItemToUpdate(null);
     setStatusAction(null);
+    setIsStatusSubmitting(false);
     resetStatus();
   };
 
@@ -532,80 +539,90 @@ useEffect(() => {
                       <div className="p-3 md:p-4 space-y-3 md:space-y-0">
                         {/* Mobile View - Stacked */}
                         <div className="md:hidden space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="text-xs text-slate-500 font-semibold uppercase">Type</p>
-                              <p className="font-medium text-slate-900 text-sm">{item.type}</p>
-                            </div>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                              item.status === 'raised' 
-                                ? 'bg-green-100 text-green-800' 
-                                : item.status === 'approved'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {item.status || 'pending'}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2 text-xs">
-                            <div>
-                              <p className="text-slate-500 font-semibold uppercase">Start</p>
-                              <p className="text-slate-900 mt-1">{formatDate(item.restruct_start)}</p>
-                            </div>
-                            <div>
-                              <p className="text-slate-500 font-semibold uppercase">End</p>
-                              <p className="text-slate-900 mt-1">{formatDate(item.restruct_end)}</p>
-                            </div>
-                            <div>
-                              <p className="text-slate-500 font-semibold uppercase">Updates</p>
-                              <p className="font-semibold text-indigo-600 mt-1">
-                                {item.updates?.length || 0}
-                              </p>
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-xs text-slate-500 font-semibold uppercase">Remarks</p>
-                            <p className="text-slate-600 text-xs mt-1 line-clamp-2">{item.remarks || '-'}</p>
-                          </div>
-                        </div>
-
-                        {/* Desktop View - Grid */}
-                        <div className="hidden md:grid md:grid-cols-6 md:gap-4 md:text-sm">
+                        <div className="flex items-start justify-between gap-2">
                           <div>
                             <p className="text-xs text-slate-500 font-semibold uppercase">Type</p>
-                            <p className="font-medium text-slate-900 mt-1">{item.type}</p>
+                            <p className="font-medium text-slate-900 text-sm">{item.type}</p>
                           </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                            item.status === 'raised' 
+                              ? 'bg-green-100 text-green-800' 
+                              : item.status === 'approved'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {item.status || 'pending'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
                           <div>
-                            <p className="text-xs text-slate-500 font-semibold uppercase">Start</p>
+                            <p className="text-slate-500 font-semibold uppercase">Start</p>
                             <p className="text-slate-900 mt-1">{formatDate(item.restruct_start)}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-500 font-semibold uppercase">End</p>
+                            <p className="text-slate-500 font-semibold uppercase">End</p>
                             <p className="text-slate-900 mt-1">{formatDate(item.restruct_end)}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-500 font-semibold uppercase">Status</p>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${
-                              item.status === 'raised' 
-                                ? 'bg-green-100 text-green-800' 
-                                : item.status === 'approved'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {item.status || 'pending'}
-                            </span>
+                            <p className="text-slate-500 font-semibold uppercase">New End</p>
+                            <p className="text-slate-900 mt-1">{item.new_refund_end ? formatDate(item.new_refund_end) : '-'}</p>
                           </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>
-                            <p className="text-xs text-slate-500 font-semibold uppercase">Updates</p>
+                            <p className="text-slate-500 font-semibold uppercase">Updates</p>
                             <p className="font-semibold text-indigo-600 mt-1">
                               {item.updates?.length || 0}
                             </p>
                           </div>
-                          <div>
-                            <p className="text-xs text-slate-500 font-semibold uppercase">Remarks</p>
-                            <p className="text-slate-600 truncate mt-1 max-w-xs">{item.remarks || '-'}</p>
-                          </div>
                         </div>
+                        <div>
+                          <p className="text-xs text-slate-500 font-semibold uppercase">Remarks</p>
+                          <p className="text-slate-600 text-xs mt-1 line-clamp-2">{item.remarks || '-'}</p>
+                        </div>
+                      </div>
+
+                        {/* Desktop View - Grid */}
+                        <div className="hidden md:grid md:grid-cols-7 md:gap-4 md:text-sm">
+  <div>
+    <p className="text-xs text-slate-500 font-semibold uppercase">Type</p>
+    <p className="font-medium text-slate-900 mt-1">{item.type}</p>
+  </div>
+  <div>
+    <p className="text-xs text-slate-500 font-semibold uppercase">Start</p>
+    <p className="text-slate-900 mt-1">{formatDate(item.restruct_start)}</p>
+  </div>
+  <div>
+    <p className="text-xs text-slate-500 font-semibold uppercase">End</p>
+    <p className="text-slate-900 mt-1">{formatDate(item.restruct_end)}</p>
+  </div>
+  <div>
+    <p className="text-xs text-slate-500 font-semibold uppercase">Refund End</p>
+    <p className="text-slate-900 mt-1">{item.new_refund_end ? formatDate(item.new_refund_end) : '-'}</p>
+  </div>
+  <div>
+    <p className="text-xs text-slate-500 font-semibold uppercase">Status</p>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${
+      item.status === 'raised' 
+        ? 'bg-green-100 text-green-800' 
+        : item.status === 'approved'
+        ? 'bg-blue-100 text-blue-800'
+        : 'bg-yellow-100 text-yellow-800'
+    }`}>
+      {item.status || 'pending'}
+    </span>
+  </div>
+  <div>
+    <p className="text-xs text-slate-500 font-semibold uppercase">Updates</p>
+    <p className="font-semibold text-indigo-600 mt-1">
+      {item.updates?.length || 0}
+    </p>
+  </div>
+  <div>
+    <p className="text-xs text-slate-500 font-semibold uppercase">Remarks</p>
+    <p className="text-slate-600 truncate mt-1 max-w-xs">{item.remarks || '-'}</p>
+  </div>
+</div>
                       </div>
 
                       {/* Action Buttons */}
@@ -1098,14 +1115,24 @@ useEffect(() => {
                 </button>
                 <button
                   onClick={handleStatusSubmit}
-                  disabled={processingStatus}
+                  disabled={isStatusSubmitting}
                   className={`flex-1 inline-flex items-center justify-center gap-2 px-3 md:px-5 py-2 md:py-2.5 text-white text-xs md:text-sm font-medium rounded-lg transition-all disabled:opacity-50 ${
                     statusAction === 'approve'
                       ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
                       : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700'
                   }`}
                 >
-                  {statusAction === 'approve' ? 'Approve' : 'Deny'}
+                  {isStatusSubmitting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {statusAction === 'approve' ? 'Approving...' : 'Denying...'}
+                    </>
+                  ) : (
+                    statusAction === 'approve' ? 'Approve' : 'Deny'
+                  )}
                 </button>
               </div>
             </div>

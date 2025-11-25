@@ -84,10 +84,8 @@ public function index(Request $request)
         $query->where('progress', $progressFilter);
     }
 
-    // Only include projects that have approved items
-    $query->whereHas('items', function ($q) {
-        $q->where('report', 'approved');
-    });
+    // REMOVED: Only include projects that have approved items
+    // Now projects display even without items
 
     // Apply sorting
     if ($sortField === 'project_title') {
@@ -642,9 +640,9 @@ public function readonly()
         'items' => function ($q) {
             $q->where('report', 'approved');
         }
-    ])->whereHas('items', function ($q) {
-        $q->where('report', 'approved');
-    });
+    ]);
+    
+    // REMOVED: No longer requires items to display projects
 
     if ($user->role === 'user') {
         $companyIds = CompanyModel::where('added_by', $user->user_id)->pluck('company_id');

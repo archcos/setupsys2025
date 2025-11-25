@@ -25,7 +25,7 @@ class LogSuspiciousRequests
     protected $xssPatterns = [
         '/<script[^>]*>.*?<\/script>/i',
         '/javascript:/i',
-        '/on\w+\s*=/i',
+        '/\bon(?:error|click|load|mouseover|change|focus|blur|submit|input|key(?:down|up|press))\s*=/i',
         '/<iframe/i',
         '/<object/i',
     ];

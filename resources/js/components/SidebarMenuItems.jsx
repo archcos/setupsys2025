@@ -23,6 +23,7 @@ import {
   Award,
   BookOpen,
   FilePlus2,
+  Hammer,
 } from "lucide-react";
 import Dropdown from "./Dropdown";
 
@@ -37,7 +38,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
       >
         <LayoutDashboard size={18} />
         {role === 'user' ? 'Dashboard' : 
-         ['irtec', 'ertec', 'rd', 'au'].includes(role) ? 'RD Dashboard' : 
+         ['rd', 'au'].includes(role) ? 'Dashboard' : 
          'Overview'}
       </Link>
 
@@ -101,7 +102,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
           links={[
             ...(role === 'rpmo'
               ? [
-                  { label: 'Phase One', href: '/implementation', icon: <CheckCircle size={16} /> },
+                  { label: 'Phase One', href: '/implementation', icon: <Hammer size={16} /> },
                   { label: 'Phase Two', href: '/refunds', icon: <HandCoins size={16} /> },
                 ]
               : []),
