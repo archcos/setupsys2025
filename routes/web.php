@@ -27,6 +27,7 @@ use App\Http\Controllers\RestructureController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\RtecController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\LogController;
     use App\Mail\SecurityAlertMail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -51,6 +52,12 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/registration', [RegisterController::class, 'register'])->name('registration');
     });
 
+    Route::middleware(['auth'])->group(function () {
+        // Logs page with optional filters via query string
+        Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
+        Route::get('/logs/export', [LogController::class, 'export'])->name('logs.export');
+
+    });
 
     Route::middleware(['auth'])->group(function () {
     // Protected Home Page
