@@ -164,151 +164,137 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
             </div>
           </div>
 
-          {/* Filters Section */}
-          <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
-            <div className="flex flex-col gap-3 md:gap-4">
-              {/* Search Bar and Per Page - Mobile Stack */}
-              <div className="flex flex-col md:flex-row gap-3 md:gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type="text"
-                    placeholder="Search companies..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 md:py-3 text-sm md:text-base border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
-                  />
-                  {search && (
-                    <button
-                      onClick={() => setSearch('')}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Per Page Selector */}
-                <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm">
-                  <select
-                    value={perPage}
-                    onChange={handlePerPageChange}
-                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
-                  >
-                    {[10, 20, 50, 100].map((n) => (
-                      <option key={n} value={n}>{n}</option>
-                    ))}
-                  </select>
-                  <span className="text-xs md:text-sm text-gray-700">items</span>
-                </div>
-              </div>
-
-              {/* Mobile Filter Toggle Button */}
-              <button
-                onClick={() => setFilterOpen(!filterOpen)}
-                className="md:hidden flex items-center justify-between px-3 py-2 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-gray-200"
-              >
-                <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-semibold text-gray-900">Filters</span>
-                </div>
-                {(officeFilter || setupIndustryFilter || industryTypeFilter) && (
-                  <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-xs font-bold">
-                    {(officeFilter ? 1 : 0) + (setupIndustryFilter ? 1 : 0) + (industryTypeFilter ? 1 : 0)}
-                  </span>
-                )}
-              </button>
-
-              {/* Filter Row - Responsive */}
-              <div className={`grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 ${filterOpen ? 'block' : 'hidden md:grid'}`}>
-                {/* Office Filter */}
-                <div className="flex items-center gap-2 bg-white rounded-lg px-3 border border-gray-300 shadow-sm">
-                  <Building className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <select
-                    value={officeFilter}
-                    onChange={handleOfficeChange}
-                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 w-full"
-                  >
-                    <option value="">All Offices</option>
-                    {allOffices.map((office) => (
-                      <option key={office.office_id} value={office.office_id}>
-                        {office.office_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Industry Type Filter */}
-                <div className="flex items-center gap-2 bg-white rounded-lg px-3 border border-gray-300 shadow-sm">
-                  <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <select
-                    value={industryTypeFilter}
-                    onChange={handleIndustryTypeChange}
-                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 w-full"
-                  >
-                    <option value="">All Types</option>
-                    <option value="MICRO">MICRO</option>
-                    <option value="SMALL">SMALL</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                  </select>
-                </div>
-
-                {/* Setup Industry Filter */}
-                <div className="flex items-center gap-2 bg-white rounded-lg px-3 border border-gray-300 shadow-sm">
-                  <Factory className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <select
-                    value={setupIndustryFilter}
-                    onChange={handleSetupIndustryChange}
-                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 w-full"
-                  >
-                    <option value="">All Industries</option>
-                    <optgroup label="Major Sectors">
-                      <option value="Agriculture/Aquaculture/Forestry">Agriculture</option>
-                      <option value="Creative Industry">Creative Industry</option>
-                      <option value="Energy and Environment">Energy</option>
-                      <option value="Food Processing">Food Processing</option>
-                      <option value="Furniture">Furniture</option>
-                      <option value="Gifts, Decors, Handicrafts">Gifts & Handicrafts</option>
-                      <option value="Health and Wellness">Health & Wellness</option>
-                      <option value="Metals and Engineering">Metals & Engineering</option>
-                    </optgroup>
-                  </select>
-                </div>
-              </div>
-
-              {/* Active Filters and Clear Button */}
-              {(search || officeFilter || setupIndustryFilter || industryTypeFilter) && (
-                <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-medium text-gray-600">Active:</span>
-                    {officeFilter && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                        <Building className="w-3 h-3" />
-                        <span className="hidden sm:inline">Office</span>
-                      </span>
-                    )}
-                    {industryTypeFilter && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
-                        Type
-                      </span>
-                    )}
-                    {setupIndustryFilter && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium truncate">
-                        <span className="truncate max-w-[100px]">{setupIndustryFilter.substring(0, 10)}...</span>
-                      </span>
-                    )}
-                  </div>
+        {/* Filters Section */}
+        <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
+          <div className="flex flex-col gap-3 md:gap-4">
+            {/* Search Bar and Per Page */}
+            <div className="flex flex-col gap-2 md:gap-4 md:flex-row">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search companies..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                />
+                {search && (
                   <button
-                    onClick={clearFilters}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100 transition-colors flex-shrink-0"
+                    onClick={() => setSearch('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    <X className="w-3 h-3" />
-                    <span className="hidden sm:inline">Clear</span>
+                    <X className="w-4 h-4" />
                   </button>
-                </div>
+                )}
+              </div>
+
+              {/* Per Page Selector */}
+              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
+                <select
+                  value={perPage}
+                  onChange={handlePerPageChange}
+                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
+                >
+                  {[10, 20, 50, 100].map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+                <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">items</span>
+              </div>
+            </div>
+
+            {/* Filter Row */}
+            <div className="flex flex-col gap-2 md:gap-4 md:flex-row md:items-center flex-wrap">
+              {/* Office Filter */}
+              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
+                <Building className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <select
+                  value={officeFilter}
+                  onChange={handleOfficeChange}
+                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
+                >
+                  <option value="">All Offices</option>
+                  {allOffices.map((office) => (
+                    <option key={office.office_id} value={office.office_id}>
+                      {office.office_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Industry Type Filter */}
+              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
+                <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <select
+                  value={industryTypeFilter}
+                  onChange={handleIndustryTypeChange}
+                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
+                >
+                  <option value="">All Types</option>
+                  <option value="MICRO">MICRO</option>
+                  <option value="SMALL">SMALL</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                </select>
+              </div>
+
+  {/* Setup Industry Filter */}
+      <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
+        <Factory className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        <select
+          value={setupIndustryFilter}
+          onChange={handleSetupIndustryChange}
+          className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
+        >
+          <option value="">All Industries</option>
+          <optgroup label="Major Industry Sectors">
+            <option value="Agriculture/Aquaculture/Forestry">Agriculture / Aquaculture / Forestry</option>
+            <option value="Creative Industry">Creative Industry</option>
+            <option value="Energy and Environment">Energy and Environment</option>
+            <option value="Food Processing">Food Processing</option>
+            <option value="Furniture">Furniture</option>
+            <option value="Gifts, Decors, Handicrafts">Gifts, Decors, Handicrafts</option>
+            <option value="Health and Wellness">Health and Wellness</option>
+            <option value="Metals and Engineering">Metals and Engineering</option>
+            <option value="Other Regional Priority Sectors">Other Regional Priority Sectors</option>
+          </optgroup>
+          <optgroup label="Sub-Industries / Manufacturing">
+            <option value="Crop and animal production, hunting, and related service activities">Crop & Animal Production</option>
+            <option value="Forestry and Logging">Forestry & Logging</option>
+            <option value="Fishing and aquaculture">Fishing & Aquaculture</option>
+            <option value="Food processing">Food Processing</option>
+            <option value="Beverage manufacturing">Beverage Manufacturing</option>
+            <option value="Textile manufacturing">Textile Manufacturing</option>
+            <option value="Wearing apparel manufacturing">Wearing Apparel</option>
+            <option value="Leather and related products manufacturing">Leather Products</option>
+            <option value="Wood and products of wood and cork manufacturing">Wood & Cork Products</option>
+            <option value="Paper and paper products manufacturing">Paper & Paper Products</option>
+            <option value="Chemicals and chemical products manufacturing">Chemicals & Chemical Products</option>
+            <option value="Basic pharmaceutical products and pharmaceutical preparations manufacturing">Pharmaceutical Products</option>
+            <option value="Rubber and plastic products manufacturing">Rubber & Plastic Products</option>
+            <option value="Non-metallic mineral products manufacturing">Non-metallic Minerals</option>
+            <option value="Fabricated metal products manufacturing">Fabricated Metal Products</option>
+            <option value="Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing">Machinery & Equipment (NEC)</option>
+            <option value="Other transport equipment manufacturing">Transport Equipment</option>
+            <option value="Furniture manufacturing">Furniture Manufacturing</option>
+            <option value="Information and Communication">Information & Communication</option>
+            <option value="Other regional priority industries approved by the Regional Development Council">Regional Priority Industries</option>
+          </optgroup>
+        </select>
+      </div>
+
+              {/* Clear Filters Button */}
+              {(search || officeFilter || setupIndustryFilter || industryTypeFilter) && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors shadow-sm text-xs md:text-sm font-medium"
+                >
+                  <X className="w-4 h-4" />
+                  <span className="hidden md:inline">Clear Filters</span>
+                </button>
               )}
             </div>
           </div>
+        </div>
 
           {/* Table Section - Responsive */}
           <div>

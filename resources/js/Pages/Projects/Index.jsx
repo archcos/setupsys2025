@@ -248,110 +248,94 @@ export default function Index({ projects, filters, offices }) {
             </div>
           </div>
 
-          {/* Filters Section */}
-          <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
-            <div className="flex flex-col gap-3 md:gap-4">
-              {/* Search Bar and Per Page */}
-              <div className="flex flex-col md:flex-row gap-3 md:gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 md:w-4 md:h-4" />
-                  <input
-                    type="text"
-                    placeholder="Search projects..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-9 md:pl-10 pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
-                  />
-                  {search && (
-                    <button
-                      onClick={() => setSearch('')}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-3 h-3 md:w-4 md:h-4" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Per Page Selector */}
-                <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm">
-                  <select
-                    value={perPage}
-                    onChange={handlePerPageChange}
-                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
+        {/* Filters Section */}
+        <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
+          <div className="flex flex-col gap-3 md:gap-4">
+            {/* Search Bar and Per Page */}
+            <div className="flex flex-col gap-2 md:gap-4 md:flex-row">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search projects..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    {[10, 20, 50, 100].map((n) => (
-                      <option key={n} value={n}>{n}</option>
-                    ))}
-                  </select>
-                  <span className="text-xs md:text-sm text-gray-700 flex-shrink-0">items</span>
-                </div>
-              </div>
-
-              {/* Mobile Filter Toggle */}
-              <button
-                onClick={() => setFilterOpen(!filterOpen)}
-                className="md:hidden flex items-center justify-between px-3 py-2 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-gray-200"
-              >
-                <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-semibold text-gray-900">Filters</span>
-                </div>
-                {(officeFilter || progressFilter) && (
-                  <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-xs font-bold">
-                    {(officeFilter ? 1 : 0) + (progressFilter ? 1 : 0)}
-                  </span>
+                    <X className="w-4 h-4" />
+                  </button>
                 )}
-              </button>
-
-              {/* Filter Row */}
-              <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 ${filterOpen ? 'block' : 'hidden md:grid'}`}>
-                {/* Office Filter */}
-                <div className="flex items-center gap-2 bg-white rounded-lg px-3 border border-gray-300 shadow-sm">
-                  <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <select
-                    value={officeFilter}
-                    onChange={handleOfficeFilterChange}
-                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 w-full"
-                  >
-                    <option value="">All Offices</option>
-                    {offices && offices.map((office) => (
-                      <option key={office.office_id} value={office.office_id}>
-                        {office.office_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Status Filter */}
-                <div className="flex items-center gap-2 bg-white rounded-lg px-3 border border-gray-300 shadow-sm">
-                  <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <select
-                    value={progressFilter}
-                    onChange={handleProgressFilterChange}
-                    className="border-0 bg-transparent text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 w-full"
-                  >
-                    <option value="">All Status</option>
-                    {progressOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
-              {/* Clear Filters */}
+              {/* Per Page Selector */}
+              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
+                <select
+                  value={perPage}
+                  onChange={handlePerPageChange}
+                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
+                >
+                  {[10, 20, 50, 100].map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+                <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">items</span>
+              </div>
+            </div>
+
+            {/* Filter Row */}
+            <div className="flex flex-col gap-2 md:gap-4 md:flex-row md:items-center flex-wrap">
+              {/* Office Filter */}
+              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
+                <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <select
+                  value={officeFilter}
+                  onChange={handleOfficeFilterChange}
+                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
+                >
+                  <option value="">All Offices</option>
+                  {offices && offices.map((office) => (
+                    <option key={office.office_id} value={office.office_id}>
+                      {office.office_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Status Filter */}
+              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
+                <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <select
+                  value={progressFilter}
+                  onChange={handleProgressFilterChange}
+                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
+                >
+                  <option value="">All Status</option>
+                  {progressOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Clear Filters Button */}
               {(search || officeFilter || progressFilter) && (
                 <button
                   onClick={clearFilters}
-                  className="text-sm font-medium text-red-600 hover:text-red-700 flex items-center gap-2"
+                  className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors shadow-sm text-xs md:text-sm font-medium"
                 >
-                  <X className="w-3 h-3 md:w-4 md:h-4" />
-                  Clear All Filters
+                  <X className="w-4 h-4" />
+                  <span className="hidden md:inline">Clear Filters</span>
                 </button>
               )}
             </div>
           </div>
+        </div>
 
           {/* Desktop Table View */}
           <div className="hidden md:block overflow-x-auto">
