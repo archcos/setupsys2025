@@ -14,49 +14,78 @@ use Inertia\Inertia;
 
 class ImplementationController extends Controller
 {
-public function index(Request $request)
-{
-    $search = $request->input('search');
-    $perPage = $request->input('perPage', 10);
+    public function index(Request $request)
+    {
+        $search = $request->input('search');
+        $perPage = $request->input('perPage', 10);
+        $statusFilter = $request->input('statusFilter');
 
-    $implementations = ImplementationModel::with(['project.company', 'tags'])
-        ->when($search, function ($query, $search) {
-            $query->whereHas('project', function ($q) use ($search) {
-                $q->where('project_title', 'like', "%{$search}%")
-                ->orWhereHas('company', function ($qc) use ($search) {
-                    $qc->where('company_name', 'like', "%{$search}%");
+        $implementations = ImplementationModel::with(['project.company', 'tags'])
+            ->when($search, function ($query, $search) {
+                $query->whereHas('project', function ($q) use ($search) {
+                    $q->where('project_title', 'like', "%{$search}%")
+                    ->orWhereHas('company', function ($qc) use ($search) {
+                        $qc->where('company_name', 'like', "%{$search}%");
+                    });
                 });
+            })
+            ->get();
+
+        // Transform data to add untagging status
+        $implementations = $implementations->map(function ($implementation) {
+            $projectCost = floatval($implementation->project->project_cost ?? 0);
+            
+            $totalTagged = $implementation->tags->sum(function ($tag) {
+                return floatval($tag->tag_amount);
             });
-        })
-        ->paginate($perPage)
-        ->appends($request->only('search', 'perPage'));
-
-    // Calculate untagging status through implementation->tags relationship
-    $implementations->getCollection()->transform(function ($implementation) {
-        $projectCost = floatval($implementation->project->project_cost ?? 0);
-        
-        // Sum tag amounts through the implementation's tags relationship
-        $totalTagged = $implementation->tags->sum(function ($tag) {
-            return floatval($tag->tag_amount);
+            
+            $firstUntaggingThreshold = $projectCost * 0.5;
+            $percentage = $projectCost > 0 ? ($totalTagged / $projectCost) * 100 : 0;
+            
+            $implementation->first_untagged = $totalTagged >= $firstUntaggingThreshold;
+            $implementation->final_untagged = $totalTagged >= $projectCost;
+            $implementation->untagging_percentage = min($percentage, 100);
+            $implementation->total_tagged = $totalTagged;
+            
+            return $implementation;
         });
-        
-        $firstUntaggingThreshold = $projectCost * 0.5;
-        $percentage = $projectCost > 0 ? ($totalTagged / $projectCost) * 100 : 0;
-        
-        $implementation->first_untagged = $totalTagged >= $firstUntaggingThreshold;
-        $implementation->final_untagged = $totalTagged >= $projectCost;
-        $implementation->untagging_percentage = min($percentage, 100);
-        $implementation->total_tagged = $totalTagged;
-        
-        return $implementation;
-    });
 
-    return Inertia::render('Implementation/Index', [
-        'implementations' => $implementations,
-        'filters' => $request->only('search', 'perPage'),
-    ]);
-}
+        // Filter by status if provided
+        if ($statusFilter) {
+            $implementations = $implementations->filter(function ($implementation) use ($statusFilter) {
+                $hasFiles = !!($implementation->tarp && $implementation->pdc && $implementation->liquidation);
+                $hasUntagging = !!($implementation->first_untagged && $implementation->final_untagged);
+                
+                if ($statusFilter === 'complete') {
+                    return $hasFiles && $hasUntagging;
+                } elseif ($statusFilter === 'in-progress') {
+                    return $implementation->tarp || $implementation->pdc || $implementation->liquidation;
+                } elseif ($statusFilter === 'pending') {
+                    return !$implementation->tarp && !$implementation->pdc && !$implementation->liquidation;
+                }
+                return true;
+            });
+        }
 
+        // Paginate the filtered results
+        $page = request('page', 1);
+        $total = $implementations->count();
+        $items = $implementations->forPage($page, $perPage);
+        $implementations = new \Illuminate\Pagination\Paginator(
+            $items,
+            $perPage,
+            $page,
+            [
+                'path' => route('implementation.index'),
+                'query' => $request->query(),
+            ]
+        );
+
+        return Inertia::render('Implementation/Index', [
+            'implementations' => $implementations,
+            'filters' => $request->only('search', 'perPage', 'statusFilter'),
+        ]);
+    }
 
     public function store(Request $request)
     {
@@ -70,44 +99,42 @@ public function index(Request $request)
         $implement = ImplementationModel::create($validated);
 
         return response()->json(['message' => 'Implement created', 'data' => $implement]);
-        }
+    }
             
-public function checklist($implementId)
-{
-    $implementation = ImplementationModel::with(['project.company', 'tags'])->findOrFail($implementId);
+    public function checklist($implementId)
+    {
+        $implementation = ImplementationModel::with(['project.company', 'tags'])->findOrFail($implementId);
 
-    $projectCost = floatval($implementation->project->project_cost);
-    $totalTagAmount = $implementation->tags->sum(function ($tag) {
-        return floatval($tag->tag_amount);
-    });
+        $projectCost = floatval($implementation->project->project_cost);
+        $totalTagAmount = $implementation->tags->sum(function ($tag) {
+            return floatval($tag->tag_amount);
+        });
 
-    $implementation->first_untagged = $totalTagAmount >= ($projectCost * 0.5);
-    $implementation->final_untagged = $totalTagAmount >= $projectCost;
+        $implementation->first_untagged = $totalTagAmount >= ($projectCost * 0.5);
+        $implementation->final_untagged = $totalTagAmount >= $projectCost;
 
-    // Fetch approved items for this project
-    $approvedItems = ItemModel::where('project_id', $implementation->project_id)
-        ->where('report', 'approved')
-        ->get(['item_id', 'item_name', 'item_cost', 'quantity', 'specifications']);
+        // Fetch approved items for this project
+        $approvedItems = ItemModel::where('project_id', $implementation->project_id)
+            ->where('report', 'approved')
+            ->get(['item_id', 'item_name', 'item_cost', 'quantity', 'specifications']);
 
-    // Clean data to ensure valid UTF-8
-    $cleaned = $implementation->toArray();
-    array_walk_recursive($cleaned, function (&$item) {
-        if (is_string($item)) {
-            $item = mb_convert_encoding($item, 'UTF-8', 'UTF-8');
-        }
-    });
+        // Clean data to ensure valid UTF-8
+        $cleaned = $implementation->toArray();
+        array_walk_recursive($cleaned, function (&$item) {
+            if (is_string($item)) {
+                $item = mb_convert_encoding($item, 'UTF-8', 'UTF-8');
+            }
+        });
 
-    return inertia('Implementation/Checklist', [
-        'implementation' => [
-            ...$cleaned,
-            'project_title' => $implementation->project->project_title,
-            'company_name' => $implementation->project->company->company_name,
-        ],
-        'approvedItems' => $approvedItems,
-    ]);
-}
-
-
+        return inertia('Implementation/Checklist', [
+            'implementation' => [
+                ...$cleaned,
+                'project_title' => $implementation->project->project_title,
+                'company_name' => $implementation->project->company->company_name,
+            ],
+            'approvedItems' => $approvedItems,
+        ]);
+    }
 
     public function uploadToSupabase(Request $request, $field)
     {
@@ -189,9 +216,6 @@ public function checklist($implementId)
         }
     }
 
-
-
-
     public function deleteFromSupabase(Request $request, $field)
     {
         $validFields = ['tarp', 'pdc', 'liquidation'];
@@ -259,8 +283,6 @@ public function checklist($implementId)
             return abort(500, 'Error downloading file');
         }
     }
-
-
 
     public function show($id)
     {

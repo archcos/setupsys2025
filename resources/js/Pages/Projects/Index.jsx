@@ -149,12 +149,7 @@ export default function Index({ projects, filters, offices }) {
   };
 
   const getSortIcon = (field) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />;
-    }
-    return sortDirection === 'asc' 
-      ? <ArrowUp className="w-3 h-3 md:w-4 md:h-4 text-blue-600" />
-      : <ArrowDown className="w-3 h-3 md:w-4 md:h-4 text-blue-600" />;
+    return <ArrowUpDown className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />;
   };
 
   const handleStatusChange = (projectId, newStatus) => {

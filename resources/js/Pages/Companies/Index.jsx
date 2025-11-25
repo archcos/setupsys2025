@@ -322,7 +322,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           <button
                             onClick={handleSortToggle}
-                            className="flex items-center gap-2 hover:text-gray-900 transition-colors"
+                            className="flex items-center gap-2 hover:text-blue-600 transition-colors"
                           >
                             <Building className="w-4 h-4" />
                             Company

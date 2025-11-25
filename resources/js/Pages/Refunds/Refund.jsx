@@ -612,21 +612,31 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
                   Showing {projects.from || 1} to {projects.to || projects.data.length} of {projects.total || projects.data.length} results
                 </div>
                 <div className="flex gap-1 overflow-x-auto">
-                  {projects.links.map((link, index) => (
-                    <button
-                      key={index}
-                      disabled={!link.url}
-                      onClick={() => link.url && router.visit(link.url)}
-                      className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all duration-200 flex-shrink-0 ${
-                        link.active
-                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-transparent shadow-md'
-                          : link.url
-                          ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-                          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                      }`}
-                      dangerouslySetInnerHTML={{ __html: link.label }}
-                    />
-                  ))}
+                  {projects.links.map((link, index) => {
+        // Safely parse pagination labels
+        const getLabel = (label) => {
+          if (label === "&laquo; Previous") return "←";
+          if (label === "Next &raquo;") return "→";
+          return label;
+        };
+
+        return (
+          <button
+            key={index}
+            disabled={!link.url}
+            onClick={() => link.url && router.visit(link.url)}
+            className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all duration-200 flex-shrink-0 ${
+              link.active
+                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-transparent shadow-md'
+                : link.url
+                ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+            }`}
+          >
+            {getLabel(link.label)}
+          </button>
+        );
+      })}
                 </div>
               </div>
             </div>
