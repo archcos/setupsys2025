@@ -544,7 +544,7 @@ public function showForm(Request $request)
     // Build company query based on user role
     $companiesQuery = CompanyModel::select('company_id', 'company_name')
         ->whereHas('projects', function($query) {
-            $query->whereIn('progress', ['Project Created', 'Draft MOA', 'Complete Details']);
+            $query->whereIn('progress', ['internal_rtec', 'internal_compliance', 'external_rtec', 'external_compliance', 'Awaiting Approval', 'Project Review']);
         });
     
     if ($user->role === 'staff') {
@@ -570,7 +570,7 @@ public function showForm(Request $request)
 
             // Only show projects with Approved or Draft MOA status
             $projects = ProjectModel::where('company_id', $companyId)
-                ->whereIn('progress', ['Project Created', 'Awaiting Approval', 'Project Review', 'Complete Details'])
+                ->whereIn('progress', ['Awaiting Approval', 'Project Review', 'internal_rtec', 'internal_compliance', 'external_rtec', 'external_compliance',])
                 ->with(['activities', 'items'])
                 ->select('project_id', 'project_title', 'company_id')
                 ->get();
