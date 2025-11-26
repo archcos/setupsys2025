@@ -7,6 +7,7 @@ use Inertia\Inertia;
 use App\Models\ProjectModel;
 use App\Models\ComplianceModel;
 use App\Models\UserModel;
+use App\Models\ImplementationModel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\RDApprovalMail;
@@ -76,6 +77,9 @@ class RDDashboardController extends Controller
                 $compliance->status = 'approved';
                 $compliance->save();
 
+                // Create implementation record when approved
+                $this->createImplementation($projectId);
+
                 // Send approval email
                 $this->sendApprovalEmail($project, $user);
 
@@ -90,6 +94,33 @@ class RDDashboardController extends Controller
         }
 
         return redirect()->back()->with('success', "Project marked as {$request->status}");
+    }
+
+    /**
+     * Create implementation record for approved project
+     */
+    private function createImplementation($projectId)
+    {
+        try {
+            // Check if implementation already exists for this project
+            $existingImplementation = ImplementationModel::where('project_id', $projectId)->first();
+            
+            if (!$existingImplementation) {
+                // Create new implementation record
+                ImplementationModel::create([
+                    'project_id' => $projectId,
+                    'tarp' => null,
+                    'pdc' => null,
+                    'liquidation' => null,
+                ]);
+
+                Log::info("Implementation record created for project ID: $projectId");
+            } else {
+                Log::info("Implementation record already exists for project ID: $projectId");
+            }
+        } catch (\Exception $e) {
+            Log::error('Error creating implementation record: ' . $e->getMessage());
+        }
     }
 
     /**

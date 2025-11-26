@@ -6,10 +6,8 @@ use App\Models\ImplementationModel;
 use App\Models\ItemModel;
 use App\Models\ProjectModel;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use GuzzleHttp\Psr7\Utils;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class ImplementationController extends Controller
@@ -136,9 +134,8 @@ class ImplementationController extends Controller
         ]);
     }
 
-    public function uploadToSupabase(Request $request, $field)
+    public function uploadToLocal(Request $request, $field)
     {
-
         $validFields = ['tarp', 'pdc', 'liquidation'];
         if (!in_array($field, $validFields)) {
             abort(400, 'Invalid field');
@@ -157,66 +154,43 @@ class ImplementationController extends Controller
         $file = $request->file($field);
         $implementation = ImplementationModel::findOrFail($request->implement_id);
 
-        // Add field name prefix to filename
-        $originalName = $file->getClientOriginalName();
-        $extension = $file->getClientOriginalExtension();
-        $nameWithoutExt = pathinfo($originalName, PATHINFO_FILENAME);
-        $filename = "{$field}_{$nameWithoutExt}." . $extension;
-
-        $folder = "implementation/{$implementation->project_id}";
-        $path = "{$folder}/{$filename}";
-
-        // Supabase config
-        $bucket = env('SUPABASE_BUCKET');
-        $supabaseUrl = env('SUPABASE_URL');
-        $supabaseKey = env('SUPABASE_KEY');
-
-        $uploadUrl = "{$supabaseUrl}/storage/v1/object/{$bucket}/{$path}";
-
         try {
-            Log::info("Uploading to Supabase: $uploadUrl");
+            // Create folder structure: storage/private/implementation/{project_id}
+            $folderPath = "implementation/{$implementation->project_id}";
+            
+            // Generate filename with field prefix
+            $originalName = $file->getClientOriginalName();
+            $extension = $file->getClientOriginalExtension();
+            $nameWithoutExt = pathinfo($originalName, PATHINFO_FILENAME);
+            $filename = "{$field}_{$nameWithoutExt}." . $extension;
 
-            $fileSize = filesize($file->getRealPath());
+            // Store file in private disk
+            $storedPath = Storage::disk('private')->putFileAs($folderPath, $file, $filename);
 
-            $response = Http::withHeaders([
-                'apikey' => $supabaseKey,
-                'Authorization' => "Bearer {$supabaseKey}",
-                'Content-Type' => $file->getMimeType(),
-                'Content-Length' => $fileSize,
-            ])
-            ->withBody(Utils::streamFor(fopen($file->getRealPath(), 'r')), $file->getMimeType())
-            ->put($uploadUrl);
+            Log::info("✅ File uploaded locally: $storedPath");
 
-            if (!$response->successful()) {
-                Log::error('❌ Supabase upload failed', [
-                    'status' => $response->status(),
-                    'body' => mb_convert_encoding($response->body(), 'UTF-8', 'UTF-8'),
-                ]);
-                return redirect()->back()->withErrors(['upload' => 'Upload to Supabase failed.']);
-            }
+            // Save file path and upload timestamp to database
+            $implementation->update([
+                $field => $storedPath,
+                $field . '_upload' => now('Asia/Manila'),
+            ]);
 
-            $publicUrl = "{$supabaseUrl}/storage/v1/object/public/{$bucket}/{$path}";
-
-            // Save URL and upload timestamp
-            $implementation->$field = $publicUrl;
-            $implementation->{$field . '_upload'} = now('Asia/Manila');
-            $implementation->save();
-
+            // Update project progress if liquidation file is uploaded
             if ($field === 'liquidation') {
-            ProjectModel::where('project_id', $implementation->project_id)
-                ->update(['progress' => 'Refund']);
-        }
-
+                ProjectModel::where('project_id', $implementation->project_id)
+                    ->update(['progress' => 'Refund']);
+            }
 
             return redirect()->back()->with('success', ucfirst($field) . ' uploaded successfully.');
 
         } catch (\Exception $e) {
-            Log::error('Exception during upload: ' . $e->getMessage());
-            return redirect()->back()->withErrors(['upload' => 'Upload failed. Please try again.']);
+            Log::error('❌ Exception during upload: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return redirect()->back()->withErrors(['upload' => 'Upload failed: ' . $e->getMessage()]);
         }
     }
 
-    public function deleteFromSupabase(Request $request, $field)
+    public function deleteFromLocal(Request $request, $field)
     {
         $validFields = ['tarp', 'pdc', 'liquidation'];
         if (!in_array($field, $validFields)) {
@@ -228,58 +202,93 @@ class ImplementationController extends Controller
         ]);
 
         $implementation = ImplementationModel::findOrFail($request->implement_id);
-        $fileUrl = $implementation->$field;
+        $filePath = $implementation->$field;
 
-        if (!$fileUrl) {
+        if (!$filePath) {
             return back()->withErrors(['delete' => 'No file found to delete.']);
         }
 
-        // Parse object path from URL
-        $bucket = env('SUPABASE_BUCKET');
-        $supabaseUrl = env('SUPABASE_URL');
-        $supabaseKey = env('SUPABASE_KEY');
-        $baseUrl = "{$supabaseUrl}/storage/v1/object/public/{$bucket}/";
-        $objectPath = Str::replaceFirst($baseUrl, '', $fileUrl);
-        $relativePath = Str::replaceFirst($baseUrl, '', $fileUrl);
+        try {
+            // Delete file from private storage
+            if (Storage::disk('private')->exists($filePath)) {
+                Storage::disk('private')->delete($filePath);
+                Log::info("🗑 File deleted from storage: $filePath");
+            }
 
-        Log::info("🗑 Attempting to delete from Supabase: $objectPath");
-
-        // Correct endpoint: /storage/v1/object/{bucket}/remove
-        $response = Http::withHeaders([
-            'apikey' => $supabaseKey,
-            'Authorization' => 'Bearer ' . $supabaseKey,
-        ])->delete("{$supabaseUrl}/storage/v1/object/{$bucket}/{$relativePath}");
-        if (!$response->successful()) {
-            Log::error('❌ Supabase file deletion failed', [
-                'status' => $response->status(),
-                'body' => $response->body(),
+            // Clear database fields (file path and upload timestamp)
+            $implementation->update([
+                $field => null,
+                $field . '_upload' => null,
             ]);
-            return back()->withErrors(['delete' => 'Failed to delete file from Supabase.']);
+
+            return back()->with('success', ucfirst($field) . ' file deleted successfully.');
+
+        } catch (\Exception $e) {
+            Log::error('❌ Exception during deletion: ' . $e->getMessage());
+            return back()->withErrors(['delete' => 'Failed to delete file.']);
         }
+    }
 
-        // Clear DB field
-        $implementation->$field = null;
-        $implementation->save();
+    public function view($field, Request $request)
+    {
+        $filePath = $request->query('url');
 
-        return back()->with('success', ucfirst($field) . ' file deleted and field cleared.');
+        try {
+            if (!$filePath) {
+                Log::error("❌ No file path provided");
+                return abort(400, 'No file path provided');
+            }
+
+            if (!Storage::disk('private')->exists($filePath)) {
+                Log::error("❌ File not found: $filePath");
+                return abort(404, 'File not found');
+            }
+
+            $filename = basename($filePath);
+            $fileContent = Storage::disk('private')->get($filePath);
+            $mimeType = mime_content_type(Storage::disk('private')->path($filePath)) ?: 'application/octet-stream';
+
+            Log::info("✅ Viewing file: $filePath");
+
+            return response($fileContent, 200, [
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('❌ Error viewing file: ' . $e->getMessage());
+            return abort(500, 'Error viewing file');
+        }
     }
 
     public function download($field, Request $request)
     {
-        $fileUrl = $request->query('url');
-        $filename = basename($fileUrl);
+        $filePath = $request->query('url');
 
         try {
-            $response = Http::get($fileUrl);
-            if (!$response->successful()) {
+            if (!$filePath) {
+                Log::error("❌ No file path provided");
+                return abort(400, 'No file path provided');
+            }
+
+            if (!Storage::disk('private')->exists($filePath)) {
+                Log::error("❌ File not found: $filePath");
                 return abort(404, 'File not found');
             }
 
-            return response($response->body(), 200, [
-                'Content-Type' => $response->header('Content-Type'),
-                'Content-Disposition' => "attachment; filename=\"$filename\"",
+            $filename = basename($filePath);
+            $fileContent = Storage::disk('private')->get($filePath);
+            $mimeType = mime_content_type(Storage::disk('private')->path($filePath)) ?: 'application/octet-stream';
+
+            Log::info("✅ Downloading file: $filePath");
+
+            return response($fileContent, 200, [
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
             ]);
+
         } catch (\Exception $e) {
+            Log::error('❌ Error downloading file: ' . $e->getMessage());
             return abort(500, 'Error downloading file');
         }
     }

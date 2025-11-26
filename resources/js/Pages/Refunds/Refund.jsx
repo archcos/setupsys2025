@@ -3,11 +3,12 @@ import { useForm, Head, router, usePage, Link } from '@inertiajs/react';
 import { Save, Search, Filter, Calendar, Building2, CheckCircle, AlertCircle, X, Check, Eye } from 'lucide-react';
 
 export default function Refund({ projects, selectedMonth, selectedYear, search, selectedStatus }) {
-  const { flash } = usePage().props;
+  const { flash, userRole } = usePage().props;
   const [savingProject, setSavingProject] = useState(null);
   const [savedProjects, setSavedProjects] = useState(new Set());
   const [searchInput, setSearchInput] = useState(search || '');
   const [statusFilter, setStatusFilter] = useState(selectedStatus || ''); 
+  const isRPMO = userRole === 'rpmo';
 
   const { data, setData, post, processing } = useForm({
     project_id: '',
@@ -128,40 +129,45 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
     return 'default';
   };
 
-  const renderSaveButton = (projectId) => {
-    const buttonState = getButtonState(projectId);
-    
-    const buttonConfig = {
-      loading: {
-        className: 'bg-gray-400 text-white cursor-not-allowed',
-        content: <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>,
-        disabled: true
-      },
-      success: {
-        className: 'bg-green-500 text-white',
-        content: <Check className="w-4 h-4" />,
-        disabled: false
-      },
-      default: {
-        className: 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-sm hover:shadow-lg',
-        content: <Save className="w-4 h-4" />,
-        disabled: false
-      }
-    };
+const renderSaveButton = (projectId) => {
+  // Only RPMO can see the save button
+  if (!isRPMO) {
+    return null;
+  }
 
-    const config = buttonConfig[buttonState];
-
-    return (
-      <button
-        onClick={() => handleSave(projectId)}
-        disabled={config.disabled}
-        className={`p-2 rounded-lg font-medium transition-all duration-200 ${config.className}`}
-        title={buttonState === 'success' ? 'Saved Successfully' : 'Save Changes'}
-      >
-        {config.content}
-      </button>
-    );
+  const buttonState = getButtonState(projectId);
+  
+  const buttonConfig = {
+    loading: {
+      className: 'bg-gray-400 text-white cursor-not-allowed',
+      content: <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>,
+      disabled: true
+    },
+    success: {
+      className: 'bg-green-500 text-white',
+      content: <Check className="w-4 h-4" />,
+      disabled: false
+    },
+    default: {
+      className: 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-sm hover:shadow-lg',
+      content: <Save className="w-4 h-4" />,
+      disabled: false
+    }
   };
+
+  const config = buttonConfig[buttonState];
+
+  return (
+    <button
+      onClick={() => handleSave(projectId)}
+      disabled={config.disabled}
+      className={`p-2 rounded-lg font-medium transition-all duration-200 ${config.className}`}
+      title={buttonState === 'success' ? 'Saved Successfully' : 'Save Changes'}
+    >
+      {config.content}
+    </button>
+  );
+};
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
@@ -373,7 +379,7 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
                               }`}
                               placeholder="0.00"
                               maxLength="10"
-                              disabled={isRestructured}
+                              disabled={isRestructured || !isRPMO}
                             />
                           </div>
                         </td>
@@ -389,6 +395,7 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
                             placeholder="Check No."
                             maxLength="10"
                             pattern="\d{10}"
+                            disabled={!isRPMO}
                           />
                         </td>
                         <td className="px-4 md:px-6 py-3 md:py-4">
@@ -403,6 +410,7 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
                             placeholder="Receipt No."
                             maxLength="10"
                             pattern="\d{10}"
+                            disabled={!isRPMO}
                           />
                         </td>
                         <td className="px-4 md:px-6 py-3 md:py-4 text-center">
@@ -415,6 +423,7 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
                                 : currentStatus === 'restructured'
                                 ? 'bg-blue-100 text-blue-800 border border-blue-300'
                                 : 'bg-red-100 text-red-800 border border-red-300'}`}
+                                disabled={!isRPMO}
                           >
                             <option value="paid" className="text-green-700">Paid</option>
                             <option value="unpaid" className="text-red-700">Unpaid</option>
@@ -564,6 +573,8 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
                             : currentStatus === 'restructured'
                             ? 'bg-blue-100 text-blue-800 border border-blue-300'
                             : 'bg-red-100 text-red-800 border border-red-300'}`}
+                            disabled={!isRPMO}
+
                       >
                         <option value="paid" className="text-green-700">Paid</option>
                         <option value="unpaid" className="text-red-700">Unpaid</option>

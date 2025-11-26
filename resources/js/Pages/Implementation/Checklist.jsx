@@ -22,7 +22,8 @@ import {
   Calendar,
   BarChart3,
   Sparkles,
-  PhilippinePeso
+  PhilippinePeso,
+  AlertCircle
 } from 'lucide-react';
 
 const fieldLabels = {
@@ -53,6 +54,10 @@ export default function Checklist({ implementation, approvedItems }) {
   const [previewType, setPreviewType] = useState(null);
   const [editingTag, setEditingTag] = useState(null);
   const [editedTag, setEditedTag] = useState({ name: '', amount: '' });
+  const [deleteModal, setDeleteModal] = useState({ show: false, field: null, uploadTime: null });
+  const isRPMO = page.auth?.user?.role === 'rpmo';
+
+  
 
   const handleItemSelect = (e) => {
     const itemId = e.target.value;
@@ -96,12 +101,28 @@ export default function Checklist({ implementation, approvedItems }) {
   };
 
   const deleteFile = (field) => {
-    if (!confirm(`Are you sure you want to delete the ${fieldLabels[field]}?`)) return;
-    setLoadingField(field);
-    router.delete(`/implementation/delete/${field}`, {
+    setDeleteModal({
+      show: true,
+      field: field,
+      uploadTime: implementation[`${field}_upload`]
+    });
+  };
+
+  const cancelDelete = () => {
+    setDeleteModal({ show: false, field: null, uploadTime: null });
+  };
+
+  const confirmDelete = () => {
+  const field = deleteModal.field;
+  setLoadingField(field);
+  
+  router.delete(`/implementation/delete/${field}`, {
       data: { implement_id: implementation.implement_id },
       preserveScroll: true,
-      onFinish: () => setLoadingField(null),
+      onFinish: () => {
+        setLoadingField(null);
+        setDeleteModal({ show: false, field: null, uploadTime: null });
+      },
     });
   };
 
@@ -166,19 +187,20 @@ export default function Checklist({ implementation, approvedItems }) {
     );
 
   const previewFile = (url) => {
-    const extension = url.split('.').pop().toLowerCase();
-    const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-    const pdfTypes = ['pdf'];
+      const extension = url.split('.').pop().toLowerCase();
+      const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+      const pdfTypes = ['pdf'];
 
-    if (imageTypes.includes(extension)) {
-      setPreviewType('image');
-    } else if (pdfTypes.includes(extension)) {
-      setPreviewType('pdf');
-    } else {
-      setPreviewType('other');
-    }
+      if (imageTypes.includes(extension)) {
+        setPreviewType('image');
+      } else if (pdfTypes.includes(extension)) {
+        setPreviewType('pdf');
+      } else {
+        setPreviewType('other');
+      }
 
-    setPreviewUrl(url);
+      // Use /view endpoint instead of direct path
+      setPreviewUrl(`/implementation/view/document?url=${encodeURIComponent(url)}`);
   };
 
   useEffect(() => {
@@ -212,7 +234,7 @@ export default function Checklist({ implementation, approvedItems }) {
             <h3 className="text-base md:text-lg font-semibold text-gray-900">{fieldLabels[field]}</h3>
             {implementation[uploadDateField] && (
               <p className="text-xs text-gray-500">
-                Uploaded: {new Date(implementation[uploadDateField]).toLocaleDateString()}
+                Uploaded: {new Date(implementation[uploadDateField]).toLocaleString()}
               </p>
             )}
           </div>
@@ -248,6 +270,7 @@ export default function Checklist({ implementation, approvedItems }) {
                 >
                   {isLoading ? <Loader2 className="animate-spin w-3 h-3 md:w-4 md:h-4" /> : <Trash2 className="w-3 h-3 md:w-4 md:h-4" />}
                 </button>
+
               </div>
             </div>
           )}
@@ -352,16 +375,17 @@ export default function Checklist({ implementation, approvedItems }) {
             {['tarp', 'pdc'].map((field) => renderFileUploadSection(field))}
           </div>
 
-          {/* Tagging Section */}
-          <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100 mb-4 md:mb-8">
-            <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-              <div className="p-1.5 md:p-2 bg-purple-100 rounded-lg flex-shrink-0">
-                <Package className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
-              </div>
-              <h2 className="text-lg md:text-xl font-semibold text-gray-900">Equipment Tagging</h2>
+        {/* Tagging Section */}
+        <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100 mb-4 md:mb-8">
+          <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+            <div className="p-1.5 md:p-2 bg-purple-100 rounded-lg flex-shrink-0">
+              <Package className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
             </div>
+            <h2 className="text-lg md:text-xl font-semibold text-gray-900">Equipment Tagging</h2>
+          </div>
 
-            {/* Add Tag Form */}
+          {/* Add Tag Form - RPMO Only */}
+          {isRPMO && (
             <div className="mb-4 md:mb-6 p-3 md:p-4 bg-gray-50 rounded-lg md:rounded-xl border border-gray-200">
               <div className="flex flex-col gap-2 md:gap-3">
                 {/* Item Dropdown */}
@@ -410,66 +434,68 @@ export default function Checklist({ implementation, approvedItems }) {
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Progress Section */}
-            <div className="mb-4 md:mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs md:text-sm font-medium text-gray-700">Project Completion</span>
-                <span className="text-xs md:text-sm font-bold text-purple-600">{percentage.toFixed(1)}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3 md:h-4 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-purple-500 to-purple-600 h-full transition-all duration-500 ease-out"
-                  style={{ width: `${Math.min(percentage, 100)}%` }}
-                ></div>
-              </div>
-              <div className="flex items-center gap-1 md:gap-2 mt-2">
-                <Target className="w-3 h-3 md:w-4 md:h-4 text-purple-500 flex-shrink-0" />
-                <span className="text-xs md:text-sm text-gray-600">
-                  Tag Total: <strong>₱{totalAmount?.toLocaleString()}</strong> / ₱{projectCost.toLocaleString()}
-                </span>
-              </div>
+          {/* Progress Section */}
+          <div className="mb-4 md:mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs md:text-sm font-medium text-gray-700">Project Completion</span>
+              <span className="text-xs md:text-sm font-bold text-purple-600">{percentage.toFixed(1)}%</span>
             </div>
+            <div className="w-full bg-gray-200 rounded-full h-3 md:h-4 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-purple-500 to-purple-600 h-full transition-all duration-500 ease-out"
+                style={{ width: `${Math.min(percentage, 100)}%` }}
+              ></div>
+            </div>
+            <div className="flex items-center gap-1 md:gap-2 mt-2">
+              <Target className="w-3 h-3 md:w-4 md:h-4 text-purple-500 flex-shrink-0" />
+              <span className="text-xs md:text-sm text-gray-600">
+                Tag Total: <strong>₱{totalAmount?.toLocaleString()}</strong> / ₱{projectCost.toLocaleString()}
+              </span>
+            </div>
+          </div>
 
-            {/* Tags List */}
-            <div className="space-y-2 md:space-y-3">
-              {implementation.tags?.map((tag) => (
-                <div
-                  key={tag.tag_id}
-                  className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 p-2 md:p-4 bg-gradient-to-r from-gray-50 to-gray-50/30 rounded-lg md:rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200"
-                >
-                  {editingTag === tag.tag_id ? (
-                    <>
-                      <input
-                        value={editedTag.name}
-                        onChange={(e) =>
-                          setEditedTag((prev) => ({ ...prev, name: e.target.value }))
-                        }
-                        className="flex-1 px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      />
-                      <input
-                        type="number"
-                        value={editedTag.amount}
-                        onChange={(e) =>
-                          setEditedTag((prev) => ({ ...prev, amount: e.target.value }))
-                        }
-                        className="w-20 md:w-32 px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      />
-                      <button
-                        onClick={() => saveEditTag(tag.tag_id)}
-                        className="p-1.5 md:p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors flex-shrink-0"
-                      >
-                        <Save className="w-4 h-4" />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-xs md:text-sm font-medium text-gray-900">{tag.tag_name}</span>
-                        <span className="text-purple-600 font-semibold text-xs md:text-sm ml-2">
-                          ₱{parseFloat(tag.tag_amount).toLocaleString()}
-                        </span>
-                      </div>
+          {/* Tags List */}
+          <div className="space-y-2 md:space-y-3">
+            {implementation.tags?.map((tag) => (
+              <div
+                key={tag.tag_id}
+                className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 p-2 md:p-4 bg-gradient-to-r from-gray-50 to-gray-50/30 rounded-lg md:rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200"
+              >
+                {editingTag === tag.tag_id && isRPMO ? (
+                  <>
+                    <input
+                      value={editedTag.name}
+                      onChange={(e) =>
+                        setEditedTag((prev) => ({ ...prev, name: e.target.value }))
+                      }
+                      className="flex-1 px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                    <input
+                      type="number"
+                      value={editedTag.amount}
+                      onChange={(e) =>
+                        setEditedTag((prev) => ({ ...prev, amount: e.target.value }))
+                      }
+                      className="w-20 md:w-32 px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                    <button
+                      onClick={() => saveEditTag(tag.tag_id)}
+                      className="p-1.5 md:p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors flex-shrink-0"
+                    >
+                      <Save className="w-4 h-4" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs md:text-sm font-medium text-gray-900">{tag.tag_name}</span>
+                      <span className="text-purple-600 font-semibold text-xs md:text-sm ml-2">
+                        ₱{parseFloat(tag.tag_amount).toLocaleString()}
+                      </span>
+                    </div>
+                    {isRPMO && (
                       <div className="flex gap-1 flex-shrink-0">
                         <button
                           onClick={() => startEditTag(tag)}
@@ -484,12 +510,13 @@ export default function Checklist({ implementation, approvedItems }) {
                           <X className="w-3 h-3 md:w-4 md:h-4" />
                         </button>
                       </div>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
           </div>
+        </div>
 
           {/* Untagging Status */}
           <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100 mb-4 md:mb-8">
@@ -571,12 +598,12 @@ export default function Checklist({ implementation, approvedItems }) {
                     <Download className="w-3 h-3 md:w-4 md:h-4" /> DL
                   </a>
                   <button
-                    onClick={() => deleteFile('liquidation')}
-                    className="inline-flex items-center gap-1 px-2 md:px-3 py-1 text-xs md:text-sm bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:opacity-50"
-                    disabled={loadingField === 'liquidation'}
-                  >
-                    {loadingField === 'liquidation' ? <Loader2 className="animate-spin w-3 h-3 md:w-4 md:h-4" /> : <Trash2 className="w-3 h-3 md:w-4 md:h-4" />}
-                  </button>
+                  onClick={() => deleteFile('liquidation')}
+                  className="inline-flex items-center gap-1 px-2 md:px-3 py-1 text-xs md:text-sm bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:opacity-50"
+                  disabled={loadingField === 'liquidation'}
+                >
+                  {loadingField === 'liquidation' ? <Loader2 className="animate-spin w-3 h-3 md:w-4 md:h-4" /> : <Trash2 className="w-3 h-3 md:w-4 md:h-4" />}
+                </button>
                 </div>
               </div>
             )}
@@ -646,6 +673,51 @@ export default function Checklist({ implementation, approvedItems }) {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg md:rounded-2xl shadow-2xl max-w-md w-full p-4 md:p-6">
+            <div className="flex items-start gap-3 md:gap-4">
+              <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-red-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2">
+                  Delete {fieldLabels[deleteModal.field]}
+                </h3>
+                <p className="text-xs md:text-sm text-gray-600 mb-3">
+                  Are you sure you want to delete this file?
+                </p>
+                {deleteModal.uploadTime && (
+                  <p className="text-xs md:text-sm text-gray-500 mb-3">
+                    <Calendar className="w-3 h-3 md:w-4 md:h-4 inline mr-1" />
+                    Uploaded: {new Date(deleteModal.uploadTime).toLocaleString()}
+                  </p>
+                )}
+                <p className="text-xs md:text-sm text-red-600 font-medium">
+                  This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 md:gap-3 mt-4 md:mt-6">
+              <button
+                onClick={cancelDelete}
+                className="flex-1 px-3 md:px-4 py-2 md:py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm md:text-base transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 px-3 md:px-4 py-2 md:py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm md:text-base transition-colors"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
