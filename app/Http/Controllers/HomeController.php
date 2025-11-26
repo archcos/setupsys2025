@@ -48,6 +48,7 @@ class HomeController extends Controller
             'projectsPerOffice' => $projectsPerOffice,
             'projectDetails' => $projects->map(function ($project) {
                 return [
+                    'project_id' => $project->project_id,
                     'project_title' => $project->project_title,
                     'company_name' => $project->company->company_name ?? '',
                     'office_name' => $project->company->office->office_name ?? '',

@@ -27,7 +27,7 @@ export default function Dashboard() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const stages = ['Company Profile', 'Project Created', 'Project Review', 'Awaiting Approval', 'Approved', 'Project Implementation', 'Liquidation', 'Refund', 'Completed'];
+  const stages = ['Company Profile', 'Project Created', 'Project Review', 'Awaiting Approval', 'Approved', 'Implementation', 'Liquidation', 'Refund', 'Completed'];
   
   const reviewApprovalStages = [
     'internal_rtec',
