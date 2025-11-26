@@ -148,16 +148,15 @@ class ComplianceController extends Controller
             'links' => 'array',
         ]);
 
-        // Authorization check
         $user = Auth::user();
+        $project = ProjectModel::findOrFail($request->project_id);  // Add this line
+
         if ($user) {
             if ($user->role === 'staff' && $user->office_id) {
-                $project = ProjectModel::findOrFail($request->project_id);
                 if ($project->company->office_id !== $user->office_id) {
                     abort(403, 'Unauthorized to update this project.');
                 }
             } elseif ($user->role !== 'rpmo') {
-                // Non-RPMO and non-staff roles cannot update
                 abort(403, 'Unauthorized to update this project.');
             }
         }
@@ -210,6 +209,9 @@ class ComplianceController extends Controller
 
         // If staff and compliance is complete (4/4), send email to RPMO users
         if ($user->role === 'staff' && $filledLinks === 4) {
+
+            $project->progress = 'Project Review';
+            $project->save();
             $rpmoUsers = UserModel::where('role', 'rpmo')->get();
             
             if ($rpmoUsers->count() > 0) {
@@ -244,7 +246,7 @@ class ComplianceController extends Controller
         }
 
         // Update project progress to 'approval'
-        $project->progress = 'approval';
+        $project->progress = 'Awaiting Approval';
         $project->save();
 
         // Get director with office_id = 1
