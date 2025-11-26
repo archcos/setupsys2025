@@ -27,25 +27,24 @@ export default function Dashboard() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const stages = ['Complete Details', 'Review & Approval', 'Draft MOA', 'Implementation', 'Liquidation', 'Refund', 'Completed'];
+  const stages = ['Company Profile', 'Project Created', 'Project Review', 'Awaiting Approval', 'Approved', 'Project Implementation', 'Liquidation', 'Refund', 'Completed'];
   
   const reviewApprovalStages = [
     'internal_rtec',
     'internal_compliance',
     'external_rtec',
     'external_compliance',
-    'approval',
-    'Approved'
   ];
 
+  const isTerminatedOrWithdrawn = (progress) => {
+    return progress === 'Terminated' || progress === 'Withdrawn';
+  };
   const getReviewApprovalLabel = (progress) => {
     const labels = {
       'internal_rtec': 'Internal RTEC',
       'internal_compliance': 'Internal Compliance',
       'external_rtec': 'External RTEC',
       'external_compliance': 'External Compliance',
-      'approval': 'Approval',
-      'Approved': 'Approved'
     };
     return labels[progress] || progress;
   };
@@ -92,9 +91,12 @@ export default function Dashboard() {
   });
 
   const getProjectProgress = (project) => {
+    if (isTerminatedOrWithdrawn(project.progress)) {
+      return 0;
+    }
     let currentStageIndex;
     if (isReviewApprovalStage(project.progress)) {
-      currentStageIndex = 1; // Review & Approval is index 1
+      currentStageIndex = 2; // Project Review is index 2
     } else {
       currentStageIndex = stages.indexOf(project.progress);
     }
@@ -102,6 +104,9 @@ export default function Dashboard() {
   };
 
   const getProjectStatus = (project) => {
+    if (isTerminatedOrWithdrawn(project.progress)) {
+      return { status: 'terminated', color: 'red', message: project.progress };
+    }
     const impl = project.implementation || {};
     const tags = impl.tags || [];
     const projectCost = parseFloat(project?.project_cost || 0);
@@ -273,14 +278,16 @@ export default function Dashboard() {
                     completed: 'bg-green-50 border-green-200',
                     'in-progress': 'bg-blue-50 border-blue-200',
                     'in-review': 'bg-indigo-50 border-indigo-200',
-                    'needs-attention': 'bg-orange-50 border-orange-200'
+                    'needs-attention': 'bg-orange-50 border-orange-200',
+                    'terminated': 'bg-red-50 border-red-200'
                   };
 
                   const statusTextColors = {
                     completed: 'text-green-700',
                     'in-progress': 'text-blue-700',
                     'in-review': 'text-indigo-700',
-                    'needs-attention': 'text-orange-700'
+                    'needs-attention': 'text-orange-700',
+                    'terminated': 'text-red-700'
                   };
 
                   return (
@@ -434,6 +441,7 @@ export default function Dashboard() {
 
 
 {/* Project Details Modal */}
+
 {isModalOpen && selectedProject && (
   <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
@@ -458,10 +466,12 @@ export default function Dashboard() {
       <div className="flex-1 overflow-y-auto p-6">
         {(() => {
           const isInReview = isReviewApprovalStage(selectedProject.progress);
-          const currentStageIndex = isInReview ? 1 : stages.indexOf(selectedProject.progress);
+          const isTerminated = isTerminatedOrWithdrawn(selectedProject.progress);
+          const currentStageIndex = isTerminated ? -1 : (isInReview ? 2 : stages.indexOf(selectedProject.progress));
           const hasReached = (stage) => {
+            if (isTerminated) return false;
             const stageIdx = stages.indexOf(stage);
-            if (isInReview && stageIdx === 1) return true;
+            if (isInReview && stageIdx === 2) return true;
             return currentStageIndex >= stageIdx;
           };
           const implementation = selectedProject.implementation || {};
@@ -469,15 +479,28 @@ export default function Dashboard() {
           const projectCost = parseFloat(selectedProject?.project_cost || 0);
           const totalTagged = tags.reduce((sum, t) => sum + parseFloat(t.tag_amount || 0), 0);
           const percentage = projectCost > 0 ? (totalTagged / projectCost) * 100 : 0;
-          const progressPercent = Math.round((currentStageIndex / (stages.length - 1)) * 100);
+          const progressPercent = isTerminated ? 0 : Math.round((currentStageIndex / (stages.length - 1)) * 100);
 
           return (
             <div className="space-y-5">
+              {/* Terminated/Withdrawn Alert */}
+              {isTerminated && (
+                <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="w-6 h-6 text-red-600" />
+                    <div>
+                      <h3 className="font-bold text-red-700">Project {selectedProject.progress}</h3>
+                      <p className="text-sm text-red-600">This project is no longer active</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Overview Cards */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
                   <div className="flex items-center gap-2 text-blue-600 mb-1">
-                    <PhilippinePeso className="w-4 h-4" />
+                    <Target className="w-4 h-4" />
                     <p className="text-xs font-semibold uppercase tracking-wide">Project Cost</p>
                   </div>
                   <p className="text-2xl font-bold text-blue-700">₱{projectCost.toLocaleString()}</p>
@@ -487,7 +510,9 @@ export default function Dashboard() {
                     <Target className="w-4 h-4" />
                     <p className="text-xs font-semibold uppercase tracking-wide">Current Stage</p>
                   </div>
-                  <p className="text-lg font-bold text-green-700 leading-tight">{isInReview ? 'Review & Approval' : selectedProject.progress}</p>
+                  <p className="text-lg font-bold text-green-700 leading-tight">
+                    {isTerminated ? selectedProject.progress : (isInReview ? 'Project Review' : selectedProject.progress)}
+                  </p>
                 </div>
                 <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
                   <div className="flex items-center gap-2 text-purple-600 mb-1">
@@ -505,39 +530,52 @@ export default function Dashboard() {
 
               {/* Timeline */}
               <div className="space-y-3">
-                {/* Complete Details */}
+                {/* Company Profile */}
                 <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-blue-200 transition-colors">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="p-2 rounded-lg bg-blue-100">
                       <FileText className="w-4 h-4 text-blue-600" />
                     </div>
-                    <h3 className="font-bold text-gray-800">Complete Details</h3>
+                    <h3 className="font-bold text-gray-800">Company Profile</h3>
                   </div>
-                  <div className="ml-11 space-y-2">
+                  <div className="ml-11">
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
                         {renderStatus(Boolean(selectedProject.company?.created_at))}
-                        <span className="text-gray-700">Company Profile</span>
+                        <span className="text-gray-700">Company Details</span>
                       </div>
                       {selectedProject.company?.created_at && <span className="text-xs text-gray-500">{fmtDate(selectedProject.company.created_at)}</span>}
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        {renderStatus(hasReached("Complete Details"))}
-                        <span className="text-gray-700">Project Details</span>
-                      </div>
-                      {selectedProject.last_activity_date && <span className="text-xs text-gray-500">{fmtDate(selectedProject.last_activity_date)}</span>}
                     </div>
                   </div>
                 </div>
 
-                {/* Review & Approval */}
+                {/* Project Created */}
+                <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-blue-200 transition-colors">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-blue-100">
+                      <FileText className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-800">Project Created</h3>
+                  </div>
+                  <div className="ml-11">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        {renderStatus(hasReached("Project Created"))}
+                        <span className="text-gray-700">Project Details</span>
+                      </div>
+                      {hasReached("Project Created") && <span className="text-xs text-gray-500">{fmtDate(selectedProject.created_at)}</span>}
+                    </div>
+                  </div>
+                </div>
+
+
+                {/* Project Review */}
                 <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-indigo-200 transition-colors">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="p-2 rounded-lg bg-indigo-100">
                       <FileCheck className="w-4 h-4 text-indigo-600" />
                     </div>
-                    <h3 className="font-bold text-gray-800">Review & Approval</h3>
+                    <h3 className="font-bold text-gray-800">Project Review</h3>
                   </div>
                   <div className="ml-11">
                     {isInReview ? (
@@ -545,10 +583,17 @@ export default function Dashboard() {
                         <Clock className="w-4 h-4 text-indigo-600" />
                         <span className="text-sm font-medium text-indigo-700">{getReviewApprovalLabel(selectedProject.progress)}</span>
                       </div>
-                    ) : hasReached("Review & Approval") ? (
-                      <div className="flex items-center gap-2 text-sm text-green-600">
-                        <CheckCircle className="w-5 h-5" />
-                        <span className="font-medium">Completed</span>
+                    ) : hasReached("Project Review") ? (
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-5 h-5 text-green-500" />
+                          <span className="text-gray-700">Completed</span>
+                        </div>
+                        {selectedProject.progressDates?.project_review && (
+                          <span className="font-medium text-xs text-green-700">
+                            {`Completed on ${new Date(selectedProject.progressDates.project_review).toLocaleDateString()}`}
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -559,39 +604,74 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Draft MOA */}
-                <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-green-200 transition-colors">
+                {/* Awaiting Approval */}
+                <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-yellow-200 transition-colors">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 rounded-lg bg-green-100">
-                      <FileText className="w-4 h-4 text-green-600" />
+                    <div className="p-2 rounded-lg bg-yellow-100">
+                      <Clock className="w-4 h-4 text-yellow-600" />
                     </div>
-                    <h3 className="font-bold text-gray-800">Draft MOA</h3>
+                    <h3 className="font-bold text-gray-800">Awaiting Approval</h3>
                   </div>
-                  <div className="ml-11 space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        {renderStatus(hasReached("Draft MOA"))}
-                        <span className="text-gray-700">Generated MOA</span>
+                  <div className="ml-11">
+                    {hasReached("Awaiting Approval") ? (
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-5 h-5 text-green-500" />
+                          <span className="text-gray-700">Raised to Regional Director</span>
+                        </div>
+                        {selectedProject.progressDates?.awaiting_approval && (
+                          <span className="font-medium text-xs text-green-700">
+                            {`Completed on ${new Date(selectedProject.progressDates.awaiting_approval).toLocaleDateString()}`}
+                          </span>
+                        )}
                       </div>
-                      {selectedProject.moa?.updated_at && <span className="text-xs text-gray-500">{fmtDate(selectedProject.moa.updated_at)}</span>}
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        {renderStatus(hasReached("Implementation"))}
-                        <span className="text-gray-700">Verified MOA</span>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Circle className="w-5 h-5" />
+                        <span>Pending</span>
                       </div>
-                      {selectedProject.moa?.acknowledge_date && <span className="text-xs text-gray-500">{fmtDate(selectedProject.moa.acknowledge_date)}</span>}
-                    </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Implementation */}
+                {/* Approved */}
+                <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-green-200 transition-colors">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-green-100">
+                      <FileCheck className="w-4 h-4 text-green-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-800">Approved</h3>
+                  </div>
+                  <div className="ml-11">
+                    {hasReached("Approved") ? (
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-5 h-5 text-green-500" />
+                          <span className="text-gray-700">Approval Granted</span>
+                        </div>
+                        {selectedProject.progressDates?.approved && (
+                          <span className="font-medium text-xs text-green-700">
+                            {`Completed on ${new Date(selectedProject.progressDates.approved).toLocaleDateString()}`}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Circle className="w-5 h-5" />
+                        <span>Pending</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+
+                {/* Project Implementation */}
                 <div className="bg-white rounded-lg border-2 border-gray-100 p-4 hover:border-orange-200 transition-colors">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="p-2 rounded-lg bg-orange-100">
                       <Target className="w-4 h-4 text-orange-600" />
                     </div>
-                    <h3 className="font-bold text-gray-800">Implementation</h3>
+                    <h3 className="font-bold text-gray-800">Project Implementation</h3>
                   </div>
                   <div className="ml-11 space-y-2">
                     <div className="flex items-center justify-between text-sm">
@@ -701,9 +781,16 @@ export default function Dashboard() {
                     <h3 className="font-bold text-gray-800">Completed</h3>
                   </div>
                   <div className="ml-11">
-                    <div className="flex items-center gap-2 text-sm">
-                      {renderStatus(selectedProject.progress === "Completed")}
-                      <span className="text-gray-700">{selectedProject.progress === "Completed" ? "Project Completed" : "Not Yet Completed"}</span>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        {renderStatus(selectedProject.progress === "Completed")}
+                        <span className="text-gray-700">{selectedProject.progress === "Completed" ? "Project Completed" : "Not Yet Completed"}</span>
+                      </div>
+                      {selectedProject.progressDates?.completed && selectedProject.progress === "Completed" && (
+                        <span className="font-medium text-green-700">
+                          {`Completed on ${new Date(selectedProject.progressDates.completed).toLocaleDateString()}`}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

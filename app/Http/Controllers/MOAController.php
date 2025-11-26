@@ -664,9 +664,6 @@ public function generateDocx(Request $request)
             ]
         );
 
-        // Update project progress
-        $project->progress = 'Draft MOA';
-        $project->save();
 
         return redirect()->route('moa.index')
             ->with('success', 'MOA draft saved successfully. You can now generate the document from the MOA list.');

@@ -6,6 +6,7 @@ use App\Models\ProjectModel;
 use App\Models\ActivityModel;
 use App\Models\MoaModel;
 use App\Models\RtecModel;
+use App\Models\LogModel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -46,8 +47,14 @@ class DashboardController extends Controller
             ->get()
             ->keyBy('project_id');
 
+        // Fetch progress logs for all projects - only where project_id is not null
+        $progressLogs = LogModel::whereIn('project_id', $projectIds)
+            ->whereNotNull('project_id')
+            ->get()
+            ->groupBy('project_id');
+
         return Inertia::render('Dashboard', [
-            'projectDetails' => $projects->map(function ($project) use ($lastActivities, $moas) {
+            'projectDetails' => $projects->map(function ($project) use ($lastActivities, $moas, $progressLogs) {
                 $projectCost = $project->project_cost ?? 0;
                 $implementation = $project->implementation;
                 $tags = $implementation?->tags ?? collect();
@@ -98,12 +105,20 @@ class DashboardController extends Controller
                     }
                 }
 
+                // Get timestamps for progress transitions
+                $projectLogs = $progressLogs->get($project->project_id, collect());
+                
+                $projectReviewDate = $this->getProgressTransitionDate($projectLogs, 'Project Review');
+                $awaitingApprovalDate = $this->getProgressTransitionDate($projectLogs, 'Awaiting Approval');
+                $approvedDate = $this->getProgressTransitionDate($projectLogs, 'Approved');
+                $completedDate = $this->getProgressTransitionDate($projectLogs, 'Completed');
+
                 return [
                     'project_id' => $project->project_id,
                     'project_title' => $project->project_title,
                     'progress' => $project->progress ?? '',
                     'project_cost' => $projectCost,
-
+                    'created_at' => $project->created_at,
                     'company' => [
                         'created_at' => $project->company->created_at ?? null,
                     ],
@@ -133,6 +148,14 @@ class DashboardController extends Controller
                     ] : null,
                     'last_tag_date' => $lastTagDate,
 
+                    // Add progress dates
+                    'progressDates' => [
+                        'project_review' => $projectReviewDate,
+                        'awaiting_approval' => $awaitingApprovalDate,
+                        'approved' => $approvedDate,
+                        'completed' => $completedDate,
+                    ],
+
                     'refund' => [
                         'initial' => $refundInitial ? $refundInitial->format('Y-m') : null,
                         'initial_formatted' => $refundInitial ? $refundInitial->format('F, Y') : null,
@@ -155,5 +178,29 @@ class DashboardController extends Controller
         ]);
     }
 
+    /**
+     * Get the date when a project transitioned to a specific progress status
+     * Looks for log entries where the "after" progress matches the target progress
+     * 
+     * @param \Illuminate\Support\Collection $logs
+     * @param string $targetProgress
+     * @return \Carbon\Carbon|null
+     */
+    private function getProgressTransitionDate($logs, $targetProgress)
+    {
+        if ($logs->isEmpty()) {
+            return null;
+        }
 
+        $log = $logs->first(function ($log) use ($targetProgress) {
+            try {
+                $after = is_array($log->after) ? $log->after : json_decode($log->after ?? '{}', true);
+                return ($after['progress'] ?? null) === $targetProgress;
+            } catch (\Exception $e) {
+                return false;
+            }
+        });
+
+        return $log ? $log->created_at : null;
+    }
 }

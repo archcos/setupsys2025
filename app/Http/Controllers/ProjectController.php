@@ -292,6 +292,10 @@ public function store(Request $request)
         'added_by'          => $user->user_id,
     ]);
 
+    // Update Progress
+    $project->progress = 'Project Created';
+    $project->save();
+
     // Save items
     if (!empty($validated['items'])) {
         foreach ($validated['items'] as $item) {
