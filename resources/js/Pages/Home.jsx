@@ -6,17 +6,13 @@ import {
   Calendar,
   Filter,
   TrendingUp,
-  Users,
   Briefcase,
   CheckCircle,
   Clock,
   AlertTriangle,
   Target,
   Activity,
-  ChevronRight,
-  Award,
   MapPin,
-  FileCheck,
   X
 } from 'lucide-react';
 
@@ -25,7 +21,6 @@ export default function Home() {
     projectsPerOffice,
     selectedYear,
     availableYears,
-    userOfficeId,
     userOfficeName,
     projectDetails = [],
     userRole,
@@ -40,25 +35,25 @@ export default function Home() {
     window.location.href = `?year=${e.target.value}`;
   };
 
-  const stages = ['Complete Details', 'Review/Approval', 'Draft MOA', 'Implementation', 'Liquidation', 'Refund', 'Completed'];
+const stages = ['Company Profile', 'Project Created', 'Project Review', 'Awaiting Approval', 'Approved', 'Implementation', 'Liquidation', 'Refund', 'Completed'];
   
   const reviewApprovalStages = [
     'internal_rtec',
     'internal_compliance',
     'external_rtec',
     'external_compliance',
-    'approval',
-    'Approved'
   ];
 
-  const getReviewApprovalLabel = (progress) => {
+  const isTerminatedOrWithdrawn = (progress) => {
+    return progress === 'Terminated' || progress === 'Withdrawn';
+  };
+
+    const getReviewApprovalLabel = (progress) => {
     const labels = {
       'internal_rtec': 'Internal RTEC',
       'internal_compliance': 'Internal Compliance',
       'external_rtec': 'External RTEC',
       'external_compliance': 'External Compliance',
-      'approval': 'Approval',
-      'Approved': 'Approved'
     };
     return labels[progress] || progress;
   };
@@ -68,9 +63,18 @@ export default function Home() {
   };
 
   const getProgressConfig = (progress) => {
+    if (isTerminatedOrWithdrawn(progress)) {
+      return { 
+        width: 'w-0', 
+        color: 'bg-gradient-to-r from-red-500 to-red-600', 
+        textColor: 'text-red-700', 
+        bgColor: 'bg-red-50' 
+      };
+    }
+
     if (isReviewApprovalStage(progress)) {
       return { 
-        width: 'w-2/6', 
+        width: 'w-3/12', 
         color: 'bg-gradient-to-r from-indigo-500 to-indigo-600', 
         textColor: 'text-indigo-700', 
         bgColor: 'bg-indigo-50' 
@@ -79,35 +83,58 @@ export default function Home() {
 
     const stageIndex = stages.indexOf(progress);
     const configs = [
-      { width: 'w-1/6', color: 'bg-gradient-to-r from-yellow-500 to-yellow-600', textColor: 'text-yellow-700', bgColor: 'bg-yellow-50' },
-      { width: 'w-2/6', color: 'bg-gradient-to-r from-indigo-500 to-indigo-600', textColor: 'text-indigo-700', bgColor: 'bg-indigo-50' },
-      { width: 'w-3/6', color: 'bg-gradient-to-r from-orange-500 to-orange-600', textColor: 'text-orange-700', bgColor: 'bg-orange-50' },
-      { width: 'w-7/12', color: 'bg-gradient-to-r from-purple-500 to-purple-600', textColor: 'text-purple-700', bgColor: 'bg-purple-50' },
-      { width: 'w-2/3', color: 'bg-gradient-to-r from-blue-500 to-blue-600', textColor: 'text-blue-700', bgColor: 'bg-blue-50' },
+      { width: 'w-1/12', color: 'bg-gradient-to-r from-blue-500 to-blue-600', textColor: 'text-blue-700', bgColor: 'bg-blue-50' },
+      { width: 'w-2/12', color: 'bg-gradient-to-r from-cyan-500 to-cyan-600', textColor: 'text-cyan-700', bgColor: 'bg-cyan-50' },
+      { width: '[width:29.166%]', color: 'bg-gradient-to-r from-indigo-500 to-indigo-600', textColor: 'text-indigo-700', bgColor: 'bg-indigo-50' },
+      { width: 'w-5/12', color: 'bg-gradient-to-r from-purple-500 to-purple-600', textColor: 'text-purple-700', bgColor: 'bg-purple-50' },
+      { width: 'w-6/12', color: 'bg-gradient-to-r from-pink-500 to-pink-600', textColor: 'text-pink-700', bgColor: 'bg-pink-50' },
+      { width: 'w-[61.666%]', color: 'bg-gradient-to-r from-orange-500 to-orange-600', textColor: 'text-orange-700', bgColor: 'bg-orange-50' },
+      { width: 'w-9/12', color: 'bg-gradient-to-r from-yellow-500 to-yellow-600', textColor: 'text-yellow-700', bgColor: 'bg-yellow-50' },
       { width: 'w-5/6', color: 'bg-gradient-to-r from-teal-500 to-teal-600', textColor: 'text-teal-700', bgColor: 'bg-teal-50' },
       { width: 'w-full', color: 'bg-gradient-to-r from-green-500 to-green-600', textColor: 'text-green-700', bgColor: 'bg-green-50' },
     ];
     
     if (!progress) {
-      return { width: 'w-full', color: 'bg-gradient-to-r from-red-500 to-red-600', textColor: 'text-red-700', bgColor: 'bg-red-50' };
+      return { width: 'w-0', color: 'bg-gradient-to-r from-gray-400 to-gray-500', textColor: 'text-gray-700', bgColor: 'bg-gray-50' };
     }
     
     return configs[stageIndex] || configs[0];
   };
 
   const getStageIcon = (stage, currentProgress) => {
-    if (isReviewApprovalStage(currentProgress)) {
-      const stageIndex = stages.indexOf(stage);
-      if (stageIndex === 0) return <CheckCircle className="w-3 h-3 text-green-500" />;
-      if (stageIndex === 1) return <Clock className="w-3 h-3 text-blue-500" />;
+    if (isTerminatedOrWithdrawn(currentProgress)) {
       return <div className="w-3 h-3 rounded-full border border-gray-300" />;
     }
 
+    // For Review/Approval stages
+    if (isReviewApprovalStage(currentProgress)) {
+      const stageIndex = stages.indexOf(stage);
+      if (stageIndex === 0) return <CheckCircle className="w-3 h-3 text-green-500" />;
+      if (stageIndex === 1) return <CheckCircle className="w-3 h-3 text-green-500" />;
+      if (stageIndex === 2) return <Clock className="w-3 h-3 text-blue-500" />;
+      return <div className="w-3 h-3 rounded-full border border-gray-300" />;
+    }
+
+    // For regular stages
     const currentIndex = stages.indexOf(currentProgress);
     const stageIndex = stages.indexOf(stage);
     
-    if (stageIndex < currentIndex) return <CheckCircle className="w-3 h-3 text-green-500" />;
-    if (stageIndex === currentIndex) return <Clock className="w-3 h-3 text-blue-500" />;
+    // If stage index < current index = checked (completed earlier stages)
+    if (stageIndex < currentIndex) {
+      return <CheckCircle className="w-3 h-3 text-green-500" />;
+    }
+    
+    // If stage is the current progress = checked
+    if (stageIndex === currentIndex) {
+      return <CheckCircle className="w-3 h-3 text-green-500" />;
+    }
+    
+    // If stage is the next step = loading icon (clock)
+    if (stageIndex === currentIndex + 1) {
+      return <Clock className="w-3 h-3 text-blue-500" />;
+    }
+    
+    // Otherwise = not yet started (empty circle)
     return <div className="w-3 h-3 rounded-full border border-gray-300" />;
   };
 
@@ -134,6 +161,25 @@ export default function Home() {
     
     return officeMatch && stageMatch;
   });
+
+  // Update stage options in select to match Dashboard:
+  const stageOptions = ['Company Profile', 'Project Created', 'Project Review', 'Awaiting Approval', 'Approved', 'Implementation', 'Liquidation', 'Refund', 'Completed'];
+
+  // In the stage select, replace stages.map with stageOptions.map and update logic:
+  {stageOptions.map((stage) => {
+    let count;
+    if (stage === 'Project Review') {
+      count = projectDetails.filter(p => isReviewApprovalStage(p.progress)).length;
+    } else {
+      count = projectDetails.filter(p => p.progress === stage).length;
+    }
+    return (
+      <option key={stage} value={stage}>
+        {stage} ({count})
+      </option>
+    );
+  })}
+
 
   const clearFilters = () => {
     setSelectedOffice('all');
@@ -370,13 +416,13 @@ export default function Home() {
             </div>
           )}
 
-          {/* Projects List */}
+{/* Projects List */}
           <div className="space-y-3 md:space-y-4">
             {filteredProjects.length > 0 ? (
               filteredProjects.map((project) => {
                 const progressConfig = getProgressConfig(project.progress);
                 const isInReviewApproval = isReviewApprovalStage(project.progress);
-                const currentStageIndex = isInReviewApproval ? 1 : stages.indexOf(project.progress);
+                const currentStageIndex = isInReviewApproval ? 2 : stages.indexOf(project.progress);
 
                 return (
                   <div key={project.project_title} className="border border-gray-200 rounded-lg p-3 md:p-4 hover:shadow-md transition-shadow">
@@ -399,7 +445,7 @@ export default function Home() {
                     {/* Status Badge */}
                     <div className={`mb-3 inline-block px-2 md:px-3 py-1 rounded-full ${progressConfig.bgColor}`}>
                       <span className={`text-xs font-medium ${progressConfig.textColor}`}>
-                        {isInReviewApproval ? `R&A: ${getReviewApprovalLabel(project.progress)}` : (project.progress || 'Incomplete')}
+                        {isTerminatedOrWithdrawn(project.progress) ? project.progress : (isInReviewApproval ? `R&A: ${getReviewApprovalLabel(project.progress)}` : (project.progress || 'Incomplete'))}
                       </span>
                     </div>
 
@@ -410,12 +456,12 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Stage Indicators - Scrollable on Mobile */}
-                    {project.progress ? (
+                    {/* Stage Indicators */}
+                    {project.progress && !isTerminatedOrWithdrawn(project.progress) ? (
                       <div className="overflow-x-auto">
-                        <div className="grid grid-cols-7 gap-1 md:gap-2 min-w-max md:min-w-0">
+                        <div className="grid grid-cols-9 gap-1 md:gap-2 min-w-max md:min-w-0">
                           {stages.map((stage, index) => {
-                            const isCompleted = index < currentStageIndex;
+                            const isCompleted = index <= currentStageIndex;
                             const isCurrent = index === currentStageIndex;
 
                             return (
@@ -430,12 +476,12 @@ export default function Home() {
                                 <div className="mb-0.5">
                                   {getStageIcon(stage, project.progress)}
                                 </div>
-                                <span className={`text-xs font-medium ${
+                                <span className={`text-[10px] md:text-xs font-medium leading-tight line-clamp-2 ${
                                   isCompleted ? 'text-green-700' :
                                   isCurrent ? 'text-blue-700' :
                                   'text-gray-500'
                                 }`}>
-                                  {stage.split(' ').slice(0, 1).join(' ')}
+                                  {stage.split(' ').slice(0, 2).join('\n')}
                                 </span>
                               </div>
                             );
@@ -446,8 +492,8 @@ export default function Home() {
                       <div className="flex items-center gap-2 p-2 md:p-3 bg-red-50 border border-red-200 rounded-lg">
                         <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
                         <div className="min-w-0">
-                          <p className="font-medium text-red-700 text-xs md:text-sm">Incomplete Details</p>
-                          <p className="text-xs text-red-600">Profile needs completion</p>
+                          <p className="font-medium text-red-700 text-xs md:text-sm">{isTerminatedOrWithdrawn(project.progress) ? `Project ${project.progress}` : 'Incomplete Details'}</p>
+                          <p className="text-xs text-red-600">{isTerminatedOrWithdrawn(project.progress) ? 'This project is no longer active' : 'Profile needs completion'}</p>
                         </div>
                       </div>
                     )}
