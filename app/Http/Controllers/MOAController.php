@@ -570,7 +570,7 @@ public function showForm(Request $request)
 
             // Only show projects with Approved or Draft MOA status
             $projects = ProjectModel::where('company_id', $companyId)
-                ->whereIn('progress', ['Project Created', 'Draft MOA', 'Complete Details'])
+                ->whereIn('progress', ['Project Created', 'Awaiting Approval', 'Project Review', 'Complete Details'])
                 ->with(['activities', 'items'])
                 ->select('project_id', 'project_title', 'company_id')
                 ->get();
