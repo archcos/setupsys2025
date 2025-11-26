@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Building2, Calendar, CheckCircle2, XCircle, DollarSign, TrendingUp, Clock, FileText, RefreshCw, ChevronLeft } from 'lucide-react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Building2, Calendar, CheckCircle2, XCircle, DollarSign, TrendingUp, Clock, FileText, RefreshCw, ChevronLeft, Lock } from 'lucide-react';
 
 export default function ProjectRefundDetails({ project, months, summary }) {
+  const { userRole } = usePage().props;
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [bulkStatus, setBulkStatus] = useState('');
   const [monthDetails, setMonthDetails] = useState({});
   const [isUpdating, setIsUpdating] = useState(false);
+  const isRPMO = userRole === 'rpmo';
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-PH', {
@@ -16,6 +18,7 @@ export default function ProjectRefundDetails({ project, months, summary }) {
   };
 
   const handleSelectMonth = (monthDate) => {
+    if (!isRPMO) return;
     setSelectedMonths(prev => {
       if (prev.includes(monthDate)) {
         // Remove month and its details
@@ -35,6 +38,7 @@ export default function ProjectRefundDetails({ project, months, summary }) {
   };
 
   const handleSelectAll = () => {
+    if (!isRPMO) return;
     if (selectedMonths.length === months.length) {
       setSelectedMonths([]);
       setMonthDetails({});
@@ -50,6 +54,7 @@ export default function ProjectRefundDetails({ project, months, summary }) {
   };
 
   const updateMonthDetail = (monthDate, field, value) => {
+    if (!isRPMO) return;
     setMonthDetails(prev => ({
       ...prev,
       [monthDate]: {
@@ -60,6 +65,7 @@ export default function ProjectRefundDetails({ project, months, summary }) {
   };
 
   const handleBulkUpdate = () => {
+    if (!isRPMO) return;
     if (!bulkStatus || selectedMonths.length === 0) return;
 
     setIsUpdating(true);
@@ -135,6 +141,16 @@ export default function ProjectRefundDetails({ project, months, summary }) {
           <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
           Back to Projects
         </Link>
+
+          {!isRPMO && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg md:rounded-xl p-3 md:p-4 flex items-start gap-3">
+            <Lock className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-semibold text-yellow-900">View Only</h3>
+              <p className="text-xs text-yellow-700 mt-1">Only RPMU can update refund statuses and details.</p>
+            </div>
+          </div>
+        )}
 
         {/* Project Header Card */}
         <div className="bg-white rounded-lg md:rounded-xl shadow-lg border border-gray-100 overflow-hidden">
@@ -215,7 +231,7 @@ export default function ProjectRefundDetails({ project, months, summary }) {
         </div>
 
         {/* Bulk Update Actions */}
-        {selectedMonths.length > 0 && (
+        {isRPMO && selectedMonths.length > 0 && (
           <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 md:p-4">
             <div className="space-y-3">
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
@@ -322,9 +338,14 @@ export default function ProjectRefundDetails({ project, months, summary }) {
               </div>
               <button
                 onClick={handleSelectAll}
-                className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors whitespace-nowrap"
+                disabled={!isRPMO}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+                  isRPMO
+                    ? 'text-blue-600 hover:text-blue-700 border border-blue-200 hover:bg-blue-50'
+                    : 'text-gray-400 border border-gray-200 bg-gray-50 cursor-not-allowed'
+                }`}
               >
-                {selectedMonths.length === months.length ? 'Deselect All' : 'Select All'}
+                {isRPMO ? (selectedMonths.length === months.length ? 'Deselect All' : 'Select All') : 'Select All (RPMU Only)'}
               </button>
             </div>
           </div>
@@ -348,8 +369,11 @@ export default function ProjectRefundDetails({ project, months, summary }) {
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => handleSelectMonth(month.month_date)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                      />
+                        disabled={!isRPMO}
+                        className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 ${
+                            !isRPMO ? 'cursor-not-allowed opacity-50' : ''
+                          }`}      
+                        />
                       <div className={`flex-shrink-0 p-1.5 rounded-lg ${colors.icon}`}>
                         {getStatusIcon(month.status)}
                       </div>

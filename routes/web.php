@@ -141,13 +141,17 @@ Route::middleware(['log-suspicious'])->group(function () {
     });
 
     //IMPLEMENTATION
-    Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
+    Route::middleware(['auth', 'role:staff,rpmo'])->group(function () {
         Route::get('/implementation', [ImplementationController::class, 'index'])->name('implementation.index');
         Route::get('/implementation/checklist/{implementId}', [ImplementationController::class, 'checklist']);
-        Route::post('/implementation/upload/{field}', [ImplementationController::class, 'uploadToSupabase']);
-        Route::delete('/implementation/delete/{field}', [ImplementationController::class, 'deleteFromSupabase']);
+        Route::post('/implementation/upload/{field}', [ImplementationController::class, 'uploadToLocal']);
+        Route::delete('/implementation/delete/{field}', [ImplementationController::class, 'deleteFromLocal']);
+        Route::get('/implementation/view/{field}', [ImplementationController::class, 'view']);
         Route::get('/implementation/download/{field}', [ImplementationController::class, 'download']);
+    });
 
+    //  TAGS: RPMO ONLY 
+    Route::middleware(['auth', 'role:rpmo'])->group(function () {
         Route::post('/tags', [TagController::class, 'store']);
         Route::delete('/tags/{id}', [TagController::class, 'destroy']);
         Route::put('/tags/{tagId}', [TagController::class, 'update']);
@@ -186,17 +190,30 @@ Route::middleware(['log-suspicious'])->group(function () {
 
     });
 
-    //REFUNDS
-    Route::middleware(['auth'])->group(function () {
+    //  VIEWING (Accessible to staff, rpmo, and users) 
+    Route::middleware(['auth', 'role:staff,rpmo'])->group(function () {
         Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index');
-        Route::post('/refunds/save', [RefundController::class, 'save']);
-        Route::get('/my-refunds', [RefundController::class, 'userRefunds'])
-            ->name('refunds.user');
-        Route::get('/refunds/project/{projectId}', [RefundController::class, 'projectRefunds'])->name('refunds.project.details');
-        Route::post('/refunds/bulk-update', [RefundController::class, 'bulkUpdate'])->name('refunds.bulk.update');
-        Route::get('/user/refunds/{projectId}', [RefundController::class, 'userProjectRefunds'])
-        ->name('user.refunds.details'); 
+        Route::get('/refunds/project/{projectId}', [RefundController::class, 'projectRefunds'])
+            ->name('refunds.project.details');
     });
+
+
+    //  RPMO ONLY (Save + Bulk Update) 
+    Route::middleware(['auth', 'role:rpmo'])->group(function () {
+        Route::post('/refunds/save', [RefundController::class, 'save']);
+        Route::post('/refunds/bulk-update', [RefundController::class, 'bulkUpdate'])
+            ->name('refunds.bulk.update');
+    });
+
+
+    //  USER-ONLY ROUTES 
+    Route::middleware(['auth', 'role:user'])->group(function () {
+        Route::get('/my-refunds', [RefundController::class, 'userRefunds'])->name('refunds.user');
+        Route::get('/user/refunds/{projectId}', [RefundController::class, 'userProjectRefunds'])
+            ->name('user.refunds.details');
+    });
+
+
     //APPLY-RESTRUCT
     Route::middleware(['auth', 'role:staff'])->group(function () {
         // Only staff
@@ -211,7 +228,7 @@ Route::middleware(['log-suspicious'])->group(function () {
     });
 
     // RESTRUCT
-    Route::middleware(['auth'])->group(function () {
+    Route::middleware(['auth',  'role:rpmo,rd'])->group(function () {
         // List of applications to verify (accessible by RPMO and RD)
         Route::get('/verify-restructure', [RestructureController::class, 'verifyList'])
             ->name('verify_restruct.list');

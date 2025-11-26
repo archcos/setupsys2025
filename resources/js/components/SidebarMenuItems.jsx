@@ -96,34 +96,38 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
         />
       )}
 
-      {/* Implementation - Staff/RPMO/RD */}
-      {(role === 'staff' || role === 'rpmo' || role === 'rd') && (
-        <Dropdown
-          title="Implementation"
-          icon={<Pencil size={18} />}
-          isOpen={dropdowns.implementation}
-          onToggle={() => toggleDropdown('implementation')}
-          links={[
-            ...(role === 'rpmo'
-              ? [
-                  { label: 'Phase One', href: '/implementation', icon: <Hammer size={16} /> },
-                  { label: 'Phase Two', href: '/refunds', icon: <HandCoins size={16} /> },
-                ]
-              : []),
-            ...(role === 'staff'
-              ? [
-                  { label: 'Apply for Restructuring', href: '/apply-restructuring', icon: <BookOpen size={16} /> },
-                ]
-              : []),
-            ...(role === 'rpmo' || role === 'rd'
-              ? [
-                  { label: 'Verify Restructure', href: '/verify-restructure', icon: <Search size={16} /> },
-                ]
-              : []),
-          ]}
-          onClose={onClose}
-        />
-      )}
+    {/* Implementation - Staff/RPMO/RD */}
+    {(role === 'staff' || role === 'rpmo' || role === 'rd') && (
+      <Dropdown
+        title="Implementation"
+        icon={<Pencil size={18} />}
+        isOpen={dropdowns.implementation}
+        onToggle={() => toggleDropdown('implementation')}
+        links={[
+          // Phase One & Two visible to staff and rpmo (and rd if needed)
+          ...(role === 'staff' || role === 'rpmo'
+            ? [
+                { label: 'Phase One', href: '/implementation', icon: <Hammer size={16} /> },
+                { label: 'Phase Two', href: '/refunds', icon: <HandCoins size={16} /> },
+              ]
+            : []),
+
+          ...(role === 'staff'
+            ? [
+                { label: 'Apply for Restructuring', href: '/apply-restructuring', icon: <BookOpen size={16} /> },
+              ]
+            : []),
+
+          ...(role === 'rpmo' || role === 'rd'
+            ? [
+                { label: 'Verify Restructure', href: '/verify-restructure', icon: <Search size={16} /> },
+              ]
+            : []),
+        ]}
+        onClose={onClose}
+      />
+    )}
+
 
       {/* Reports - Staff/RPMO */}
       {(role === 'staff' || role === 'rpmo') && (

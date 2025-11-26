@@ -57,6 +57,9 @@ class RefundController extends Controller
 
     public function index()
     {
+
+        $user = Auth::user();
+
         $selectedMonth = request('month', now()->month);
         $selectedYear  = request('year', now()->year);
         $search        = request('search');
@@ -123,6 +126,7 @@ class RefundController extends Controller
             'selectedYear'   => $selectedYear,
             'search'         => $search,
             'selectedStatus' => $status,
+            'userRole' => $user->role,
         ]);
     }
 
@@ -131,6 +135,8 @@ class RefundController extends Controller
      */
     public function projectRefunds($projectId)
     {
+        $user = Auth::user();
+
         try {
             $project = ProjectModel::with([
                 'company',
@@ -192,6 +198,7 @@ class RefundController extends Controller
             }
 
             return Inertia::render('Refunds/RefundHistory', [
+                'userRole' => $user->role,
                 'project' => [
                     'project_id' => $project->project_id,
                     'project_title' => $project->project_title,
