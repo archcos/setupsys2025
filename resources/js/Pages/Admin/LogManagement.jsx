@@ -16,7 +16,6 @@ export default function LogManagement({ logs = [], filters: initialFilters = {},
     const newFilters = { ...filters, [name]: value };
     setFilters(newFilters);
 
-    // Debounce the API call
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     
     debounceTimer.current = setTimeout(() => {
@@ -25,11 +24,12 @@ export default function LogManagement({ logs = [], filters: initialFilters = {},
         per_page: perPage,
         page: 1
       }, { preserveState: true });
-    }, 100); // Wait 500ms after user stops typing
+    }, 100);
   };
 
   const handlePerPageChange = (e) => {
     const newPerPage = parseInt(e.target.value);
+    setPerPage(newPerPage);
     router.get(route('logs.index'), {
       ...filters,
       per_page: newPerPage,
@@ -37,17 +37,14 @@ export default function LogManagement({ logs = [], filters: initialFilters = {},
     }, { preserveState: true });
   };
 
-  // Ensure logs is an array
   const logsArray = Array.isArray(logs) ? logs : [];
 
-  // Sort by created_at on client side
   let displayLogs = [...logsArray].sort((a, b) => {
     const dateA = new Date(a.created_at).getTime();
     const dateB = new Date(b.created_at).getTime();
     return sortBy === 'asc' ? dateA - dateB : dateB - dateA;
   });
 
-  // Use server-side pagination data
   const totalItems = pagination?.total || 0;
   const totalPages = pagination?.last_page || 1;
   const startIndex = (currentPage - 1) * perPage;
@@ -55,6 +52,7 @@ export default function LogManagement({ logs = [], filters: initialFilters = {},
 
   const handlePreviousPage = () => {
     if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
       router.get(route('logs.index'), {
         ...filters,
         per_page: perPage,
@@ -65,6 +63,7 @@ export default function LogManagement({ logs = [], filters: initialFilters = {},
 
   const handleNextPage = () => {
     if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
       router.get(route('logs.index'), {
         ...filters,
         per_page: perPage,
@@ -192,103 +191,112 @@ export default function LogManagement({ logs = [], filters: initialFilters = {},
 
         {/* Logs Table */}
         <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden mb-6">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-100 border-b border-gray-200">
-              <tr>
-                <th className="w-8 px-4 py-2"></th>
-                <th className="px-4 py-2 text-left">IP Address</th>
-                <th className="px-4 py-2 text-left">User</th>
-                <th className="px-4 py-2 text-left">Project</th>
-                <th className="px-4 py-2 text-left">Action</th>
-                <th className="px-4 py-2 text-left">Model</th>
-                <th className="px-4 py-2 text-left">Description</th>
-                <th className="px-4 py-2 text-left cursor-pointer hover:bg-gray-200" onClick={() => setSortBy(sortBy === 'asc' ? 'desc' : 'asc')}>
-                  Created {sortBy === 'asc' ? '↑' : '↓'}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {paginatedLogs.length > 0 ? (
-                paginatedLogs.flatMap((log) => [
-                  <tr 
-                    key={`row-${log.id}`}
-                    className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() => setSelectedLogId(selectedLogId === log.id ? null : log.id)}
-                  >
-                    <td className="px-4 py-2 text-center">
-                      {selectedLogId === log.id ? (
-                        <ChevronUp className="w-4 h-4 inline" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 inline" />
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-xs font-mono">{log.ip_address}</td>
-                    <td className="px-4 py-2">{log.user?.name || 'System'}</td>
-                    <td className="px-4 py-2">{log.project_id || '-'}</td>
-                    <td className="px-4 py-2">
-                      <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                        {log.action}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-xs">{log.model_type}</td>
-                    <td className="px-4 py-2 text-xs text-gray-600">{log.description}</td>
-                    <td className="px-4 py-2 text-xs">{new Date(log.created_at).toLocaleString()}</td>
-                  </tr>,
-                  selectedLogId === log.id && (
-                    <tr key={`details-${log.id}`} className="bg-gray-50 border-t-2 border-gray-200">
-                      <td colSpan={8} className="px-4 py-4">
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                          <h4 className="font-semibold text-sm mb-3">Log Details</h4>
-                          
-                          <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                            <div>
-                              <p className="text-gray-600 font-semibold">Model ID:</p>
-                              <p className="font-mono bg-gray-100 p-2 rounded text-xs">{log.model_id}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-600 font-semibold">User Agent:</p>
-                              <p className="font-mono bg-gray-100 p-2 rounded text-xs break-words">{log.user_agent || 'N/A'}</p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <strong className="text-sm">Before:</strong>
-                              <pre className="bg-gray-100 p-3 rounded mt-2 overflow-auto max-h-48 text-xs">
-                                {log.before ? JSON.stringify(log.before, null, 2) : 'null'}
-                              </pre>
-                            </div>
-                            <div>
-                              <strong className="text-sm">After:</strong>
-                              <pre className="bg-gray-100 p-3 rounded mt-2 overflow-auto max-h-48 text-xs">
-                                {log.after ? JSON.stringify(log.after, null, 2) : 'null'}
-                              </pre>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                ])
-              ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-100 border-b border-gray-200">
                 <tr>
-                  <td colSpan={8} className="px-4 py-4 text-center text-gray-500">
-                    No logs found
-                  </td>
+                  <th className="w-8 px-4 py-2"></th>
+                  <th className="px-4 py-2 text-left">IP Address</th>
+                  <th className="px-4 py-2 text-left">User</th>
+                  <th className="px-4 py-2 text-left">Project</th>
+                  <th className="px-4 py-2 text-left">Action</th>
+                  <th className="px-4 py-2 text-left">Model</th>
+                  <th className="px-4 py-2 text-left min-w-32">Description</th>
+                  <th className="px-4 py-2 text-left cursor-pointer hover:bg-gray-200 whitespace-nowrap" onClick={() => setSortBy(sortBy === 'asc' ? 'desc' : 'asc')}>
+                    Created {sortBy === 'asc' ? '↑' : '↓'}
+                  </th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {paginatedLogs.length > 0 ? (
+                  paginatedLogs.flatMap((log) => [
+                    <tr 
+                      key={`row-${log.id}`}
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => setSelectedLogId(selectedLogId === log.id ? null : log.id)}
+                    >
+                      <td className="px-4 py-2 text-center">
+                        {selectedLogId === log.id ? (
+                          <ChevronUp className="w-4 h-4 inline" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 inline" />
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-xs font-mono whitespace-nowrap">{log.ip_address}</td>
+                      <td className="px-4 py-2 whitespace-nowrap">{log.user?.name || 'System'}</td>
+                      <td className="px-4 py-2 whitespace-nowrap">{log.project_id || '-'}</td>
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-xs whitespace-nowrap">{log.model_type}</td>
+                      <td className="px-4 py-2 text-xs text-gray-600 truncate max-w-32" title={log.description}>
+                        {log.description}
+                      </td>
+                      <td className="px-4 py-2 text-xs whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
+                    </tr>,
+                    selectedLogId === log.id && (
+                      <tr key={`details-${log.id}`} className="bg-gray-50 border-t-2 border-gray-200">
+                        <td colSpan={8} className="px-4 py-4">
+                          <div className="bg-white rounded-lg p-4 border border-gray-200">
+                            <h4 className="font-semibold text-sm mb-3">Log Details</h4>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-sm">
+                              <div>
+                                <p className="text-gray-600 font-semibold">Model ID:</p>
+                                <p className="font-mono bg-gray-100 p-2 rounded text-xs break-all">{log.model_id}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600 font-semibold">User Agent:</p>
+                                <p className="font-mono bg-gray-100 p-2 rounded text-xs break-words">{log.user_agent || 'N/A'}</p>
+                              </div>
+                            </div>
+
+                            <div>
+                              <p className="text-gray-600 font-semibold mb-2">Description:</p>
+                              <p className="font-mono bg-gray-100 p-2 rounded text-xs break-words whitespace-pre-wrap">{log.description || 'N/A'}</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                              <div>
+                                <strong className="text-sm">Before:</strong>
+                                <pre className="bg-gray-100 p-3 rounded mt-2 overflow-auto max-h-48 text-xs">
+                                  {log.before ? JSON.stringify(log.before, null, 2) : 'null'}
+                                </pre>
+                              </div>
+                              <div>
+                                <strong className="text-sm">After:</strong>
+                                <pre className="bg-gray-100 p-3 rounded mt-2 overflow-auto max-h-48 text-xs">
+                                  {log.after ? JSON.stringify(log.after, null, 2) : 'null'}
+                                </pre>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  ])
+                ) : (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-4 text-center text-gray-500">
+                      No logs found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Pagination Controls */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Entries per page:</label>
+            <label className="text-sm font-medium text-gray-700">Entries:</label>
             <select
               value={perPage}
               onChange={handlePerPageChange}
-              className="border rounded-lg px-3 py-2 text-sm"
+              className="border rounded-lg pr-6 py-2 text-sm"
             >
               <option value={10}>10</option>
               <option value={25}>25</option>

@@ -107,12 +107,15 @@ class RDDashboardController extends Controller
             
             if (!$existingImplementation) {
                 // Create new implementation record
-                ImplementationModel::create([
-                    'project_id' => $projectId,
-                    'tarp' => null,
-                    'pdc' => null,
-                    'liquidation' => null,
-                ]);
+            ImplementationModel::create([
+                'project_id' => $projectId,
+                'tarp' => null,
+                'pdc' => null,
+                'liquidation' => null,
+                'tarp_by' => null,
+                'pdc_by' => null,
+                'liquidation_by' => null,
+            ]);
 
                 Log::info("Implementation record created for project ID: $projectId");
             } else {
