@@ -9,7 +9,6 @@ use App\Models\CompanyModel;
 use App\Models\ImplementationModel;
 use App\Models\ItemModel;
 use App\Models\MarketModel;
-use App\Models\MessageModel;
 use App\Models\MoaModel;
 use App\Models\UserModel;
 use App\Models\OfficeModel;
@@ -23,6 +22,25 @@ use Inertia\Inertia;
 
 class ProjectController extends Controller
 {
+
+private const VALID_PROGRESS_STATUSES = [
+    'Company Details',
+    'Project Created',
+    'internal_rtec',
+    'internal_compliance',
+    'external_rtec',
+    'external_compliance',
+    'Project Review',
+    'Awaiting Approval',
+    'Approved',
+    'Implementation',
+    'Refund',
+    'Completed',
+    'Disapproved',
+    'Withdrawn',
+    'Terminated',
+];
+
 public function index(Request $request)
 {
     $user = Auth::user();
@@ -121,50 +139,48 @@ public function index(Request $request)
     ]);
 }
 
-public function updateStatus(Request $request, $id)
-{
-    $validated = $request->validate([
-        'progress' => 'required|string|in:Complete Details,internal_rtec,internal_compliance,external_rtec,external_compliance,approval,Approved,Draft MOA,Implementation,Disapproved,Refund,Completed',
-    ]);
+    public function updateStatus(Request $request, $id){
+        $validated = $request->validate([
+            'progress' => 'required|string|in:' . implode(',', self::VALID_PROGRESS_STATUSES),
+        ]);
 
-    $project = ProjectModel::findOrFail($id);
-    $oldProgress = $project->progress;
-    $project->progress = $validated['progress'];
-    $project->save();
+        $project = ProjectModel::findOrFail($id);
+        $oldProgress = $project->progress;
+        $project->progress = $validated['progress'];
+        $project->save();
 
-    // Handle Implementation status change
-    if ($validated['progress'] === 'Implementation') {
-        $exists = ImplementationModel::where('project_id', $project->project_id)->exists();
+        // Handle Implementation status change
+        if ($validated['progress'] === 'Implementation') {
+            $exists = ImplementationModel::where('project_id', $project->project_id)->exists();
 
-        if (!$exists) {
-            ImplementationModel::create([
-                'project_id' => $project->project_id,
-                'tarp' => null,
-                'pdc' => null,
-                'liquidation' => null,
-            ]);
+            if (!$exists) {
+                ImplementationModel::create([
+                    'project_id' => $project->project_id,
+                    'tarp' => null,
+                    'pdc' => null,
+                    'liquidation' => null,
+                ]);
+            }
+
+            // Update acknowledge_date in tbl_moa
+            $moa = MoaModel::where('project_id', $project->project_id)->first();
+            if ($moa) {
+                $moa->acknowledge_date = Carbon::now();
+                $moa->save();
+            }
         }
 
-        // Update acknowledge_date in tbl_moa
-        $moa = MoaModel::where('project_id', $project->project_id)->first();
-        if ($moa) {
-            $moa->acknowledge_date = Carbon::now();
-            $moa->save();
-        }
+        Log::info("Project status updated", [
+            'project_id' => $project->project_id,
+            'old_status' => $oldProgress,
+            'new_status' => $validated['progress'],
+            'updated_by' => Auth::id()
+        ]);
+
+        return back()->with('success', 'Project status updated successfully.');
     }
 
-    Log::info("Project status updated", [
-        'project_id' => $project->project_id,
-        'old_status' => $oldProgress,
-        'new_status' => $validated['progress'],
-        'updated_by' => Auth::id()
-    ]);
-
-    return back()->with('success', 'Project status updated successfully.');
-}
-
-public function create()
-{
+public function create(){
     $user = Auth::user();
 
     $companies = CompanyModel::query();
@@ -213,10 +229,8 @@ private function generateNextProjectCode()
     return $prefix . $incrementStr;
 }
 
-public function store(Request $request)
-    {
-        $user = Auth::user();
-
+public function store(Request $request){
+    $user = Auth::user();
 
     if ($request->has('release_initial')) {
         $releaseInitial = $request->input('release_initial');
@@ -245,7 +259,7 @@ public function store(Request $request)
         'project_cost'      => 'required|numeric',
         'refund_amount'     => 'nullable|numeric',
         'last_refund'       => 'nullable|numeric',
-        'progress'          => 'required|string',
+        'progress'          => 'required|string|in:' . implode(',', self::VALID_PROGRESS_STATUSES),
         'year_obligated'    => 'nullable|string',
         'revenue'           => 'nullable|numeric',
         'net_income'        => 'nullable|numeric',
@@ -277,7 +291,7 @@ public function store(Request $request)
         'project_cost'      => $validated['project_cost'] ?? null,
         'refund_amount'     => $validated['refund_amount'] ?? null,
         'last_refund'       => $validated['last_refund'] ?? null,
-        'progress'          => $validated['progress'] ?? null,
+        'progress'          => $validated['progress'] ?? 'Company Details',
         'year_obligated'    => $validated['year_obligated'] ?? null,
         'revenue'           => $validated['revenue'] ?? null,
         'net_income'        => $validated['net_income'] ?? null,
@@ -292,7 +306,7 @@ public function store(Request $request)
         'added_by'          => $user->user_id,
     ]);
 
-    // Update Progress
+    // Update Progress to 'Project Created'
     $project->progress = 'Project Created';
     $project->save();
 
@@ -344,12 +358,12 @@ public function store(Request $request)
             Log::info("Project creation email sent to {$officeUser->email}");
         } catch (\Exception $e) {
             Log::error("Failed to send project creation email to {$officeUser->email}: " . $e->getMessage());
-            // Don't fail the project creation if email fails
         }
     }
 
     return redirect('/projects')->with('success', 'Project, items, and objectives created successfully.');
-    }
+}
+
 public function edit($id)
 {
     $project = ProjectModel::with([
@@ -662,38 +676,6 @@ public function readonly()
     return Inertia::render('Projects/ProjectList', [
         'projects' => $projects,
     ]);
-}
-
-public function updateProgress(Request $request, $id)
-{
-    $request->validate([
-        'progress' => 'required|in:Draft MOA,Implementation',
-    ]);
-
-    $project = ProjectModel::findOrFail($id);
-    $project->progress = $request->progress;
-    $project->save();
-
-    if ($request->progress === 'Implementation') {
-        $exists = ImplementationModel::where('project_id', $project->project_id)->exists();
-
-        if (!$exists) {
-            ImplementationModel::create([
-                'project_id' => $project->project_id,
-                'tarp' => null,
-                'pdc' => null,
-                'liquidation' => null,
-            ]);
-        }
-
-        $moa = MoaModel::where('project_id', $project->project_id)->first();
-        if ($moa) {
-            $moa->acknowledge_date = Carbon::now();
-            $moa->save();
-        }
-    }
-
-    return back();
 }
 
 public function destroy($id)

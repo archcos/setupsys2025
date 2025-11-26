@@ -37,18 +37,22 @@ function formatMonthYear(dateStr) {
 
 // Progress status options for filter and dropdown
 const progressOptions = [
-  { value: 'Complete Details', label: 'Pending Review', icon: Clock, color: 'blue' },
+  { value: 'Company Details', label: 'Company Details', icon: Clock, color: 'blue' },
+  { value: 'Project Created', label: 'Project Created', icon: FileText, color: 'cyan' },
   { value: 'internal_rtec', label: 'Internal RTEC', icon: FileText, color: 'yellow' },
   { value: 'internal_compliance', label: 'Internal Compliance', icon: FileText, color: 'yellow' },
   { value: 'external_rtec', label: 'External RTEC', icon: FileText, color: 'purple' },
-  { value: 'external_compliance', label: 'External Compliance', icon: FileText, color: 'orange' },
-  { value: 'approval', label: 'Awaiting Approval', icon: Clock, color: 'indigo' },
+  { value: 'external_compliance', label: 'External Compliance', icon: FileText, color: 'purple' },
+  { value: 'Project Review', label: 'Project Review', icon: FileText, color: 'cyan' },
+  { value: 'Awaiting Approval', label: 'Awaiting Approval', icon: Clock, color: 'indigo' },
   { value: 'Approved', label: 'Approved', icon: CheckCircle, color: 'green' },
-  { value: 'Draft MOA', label: 'Draft MOA', icon: FileText, color: 'cyan' },
   { value: 'Implementation', label: 'Implementation', icon: Play, color: 'teal' },
-  { value: 'Disapproved', label: 'Disapproved', icon: XCircle, color: 'red' },
   { value: 'Refund', label: 'Refund', icon: HandCoins, color: 'green' },
   { value: 'Completed', label: 'Completed', icon: Award, color: 'green' },
+  { value: 'Disapproved', label: 'Disapproved', icon: XCircle, color: 'red' },
+  { value: 'Withdrawn', label: 'Withdrawn', icon: XCircle, color: 'red' },
+  { value: 'Terminated', label: 'Terminated', icon: XCircle, color: 'red' },
+
 ];
 
 // Helper to get status config
