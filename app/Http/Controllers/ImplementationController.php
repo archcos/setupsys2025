@@ -6,6 +6,7 @@ use App\Models\ImplementationModel;
 use App\Models\ItemModel;
 use App\Models\ProjectModel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -99,42 +100,53 @@ class ImplementationController extends Controller
         return response()->json(['message' => 'Implement created', 'data' => $implement]);
     }
             
-    public function checklist($implementId)
-    {
-        $implementation = ImplementationModel::with(['project.company', 'tags'])->findOrFail($implementId);
+public function checklist($implementId)
+{
+    $implementation = ImplementationModel::with([
+        'project.company', 
+        'tags',
+        'tarpUploadedBy',
+        'pdcUploadedBy',
+        'liquidationUploadedBy'
+    ])->findOrFail($implementId);
 
-        $projectCost = floatval($implementation->project->project_cost);
-        $totalTagAmount = $implementation->tags->sum(function ($tag) {
-            return floatval($tag->tag_amount);
-        });
+    $projectCost = floatval($implementation->project->project_cost);
+    $totalTagAmount = $implementation->tags->sum(function ($tag) {
+        return floatval($tag->tag_amount);
+    });
 
-        $implementation->first_untagged = $totalTagAmount >= ($projectCost * 0.5);
-        $implementation->final_untagged = $totalTagAmount >= $projectCost;
+    $implementation->first_untagged = $totalTagAmount >= ($projectCost * 0.5);
+    $implementation->final_untagged = $totalTagAmount >= $projectCost;
 
-        // Fetch approved items for this project
-        $approvedItems = ItemModel::where('project_id', $implementation->project_id)
-            ->where('report', 'approved')
-            ->get(['item_id', 'item_name', 'item_cost', 'quantity', 'specifications']);
+    // Fetch approved items for this project
+    $approvedItems = ItemModel::where('project_id', $implementation->project_id)
+        ->where('report', 'approved')
+        ->get(['item_id', 'item_name', 'item_cost', 'quantity', 'specifications']);
 
-        // Clean data to ensure valid UTF-8
-        $cleaned = $implementation->toArray();
-        array_walk_recursive($cleaned, function (&$item) {
-            if (is_string($item)) {
-                $item = mb_convert_encoding($item, 'UTF-8', 'UTF-8');
-            }
-        });
+    // Clean data to ensure valid UTF-8
+    $cleaned = $implementation->toArray();
+    array_walk_recursive($cleaned, function (&$item) {
+        if (is_string($item)) {
+            $item = mb_convert_encoding($item, 'UTF-8', 'UTF-8');
+        }
+    });
 
-        return inertia('Implementation/Checklist', [
-            'implementation' => [
-                ...$cleaned,
-                'project_title' => $implementation->project->project_title,
-                'company_name' => $implementation->project->company->company_name,
-            ],
-            'approvedItems' => $approvedItems,
-        ]);
-    }
+    // Ensure relationships are included in the response
+    return inertia('Implementation/Checklist', [
+        'implementation' => [
+            ...$cleaned,
+            'project_title' => $implementation->project->project_title,
+            'company_name' => $implementation->project->company->company_name,
+            // Add the user relationship data explicitly
+            'tarpUploadedBy' => $implementation->tarpUploadedBy ? $implementation->tarpUploadedBy->only(['user_id', 'first_name', 'middle_name', 'last_name', 'username', 'name']) : null,
+            'pdcUploadedBy' => $implementation->pdcUploadedBy ? $implementation->pdcUploadedBy->only(['user_id', 'first_name', 'middle_name', 'last_name', 'username', 'name']) : null,
+            'liquidationUploadedBy' => $implementation->liquidationUploadedBy ? $implementation->liquidationUploadedBy->only(['user_id', 'first_name', 'middle_name', 'last_name', 'username', 'name']) : null,
+        ],
+        'approvedItems' => $approvedItems,
+    ]);
+}
 
-    public function uploadToLocal(Request $request, $field)
+public function uploadToLocal(Request $request, $field)
     {
         $validFields = ['tarp', 'pdc', 'liquidation'];
         if (!in_array($field, $validFields)) {
@@ -169,10 +181,12 @@ class ImplementationController extends Controller
 
             Log::info("✅ File uploaded locally: $storedPath");
 
-            // Save file path and upload timestamp to database
+            // Save file path, upload timestamp, and uploader ID to database
+            $uploadByField = $field . '_by';
             $implementation->update([
                 $field => $storedPath,
                 $field . '_upload' => now('Asia/Manila'),
+                $uploadByField => Auth::id()
             ]);
 
             // Update project progress if liquidation file is uploaded
@@ -190,7 +204,7 @@ class ImplementationController extends Controller
         }
     }
 
-    public function deleteFromLocal(Request $request, $field)
+public function deleteFromLocal(Request $request, $field)
     {
         $validFields = ['tarp', 'pdc', 'liquidation'];
         if (!in_array($field, $validFields)) {
@@ -215,10 +229,12 @@ class ImplementationController extends Controller
                 Log::info("🗑 File deleted from storage: $filePath");
             }
 
-            // Clear database fields (file path and upload timestamp)
+            // Clear database fields (file path, upload timestamp, and uploader ID)
+            $uploadByField = $field . '_by';
             $implementation->update([
                 $field => null,
                 $field . '_upload' => null,
+                $uploadByField => null, // Also clear who uploaded it
             ]);
 
             return back()->with('success', ucfirst($field) . ' file deleted successfully.');

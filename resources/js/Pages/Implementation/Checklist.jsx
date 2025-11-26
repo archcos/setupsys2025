@@ -23,7 +23,8 @@ import {
   BarChart3,
   Sparkles,
   PhilippinePeso,
-  AlertCircle
+  AlertCircle,
+  User
 } from 'lucide-react';
 
 const fieldLabels = {
@@ -203,6 +204,24 @@ export default function Checklist({ implementation, approvedItems }) {
       setPreviewUrl(`/implementation/view/document?url=${encodeURIComponent(url)}`);
   };
 
+  const FileUploadInfo = ({ implementation, field }) => {
+  const uploadedByUser = implementation[`${field}UploadedBy`];
+  const uploadDate = implementation[`${field}_upload`];
+  
+    if (!uploadedByUser || !uploadDate) return null;
+
+    return (
+      <div className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
+        <User className="w-3 h-3" />
+        <span>
+          Uploaded by <strong>{uploadedByUser.name || uploadedByUser.username}</strong>
+        </span>
+        <span className="text-gray-400">•</span>
+        <span>{new Date(uploadDate).toLocaleString()}</span>
+      </div>
+    );
+  };
+
   useEffect(() => {
     if (page.errors.upload) alert(page.errors.upload);
     if (page.errors.delete) alert(page.errors.delete);
@@ -224,24 +243,24 @@ export default function Checklist({ implementation, approvedItems }) {
     const uploadDateField = `${field}_upload`;
     const Icon = fieldIcons[field];
     
-    return (
-      <div key={field} className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100">
-        <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-          <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
-            <Icon className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-base md:text-lg font-semibold text-gray-900">{fieldLabels[field]}</h3>
-            {implementation[uploadDateField] && (
-              <p className="text-xs text-gray-500">
-                Uploaded: {new Date(implementation[uploadDateField]).toLocaleString()}
-              </p>
-            )}
-          </div>
-          <div className="flex-shrink-0">
-            {renderStatus(fileExists)}
-          </div>
+  return (
+    <div key={field} className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100">
+      <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+        <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
+          <Icon className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
         </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base md:text-lg font-semibold text-gray-900">{fieldLabels[field]}</h3>
+            <>
+              {/* Show who uploaded it */}
+              <FileUploadInfo implementation={implementation} field={field} />
+            </>
+        </div>
+        <div className="flex-shrink-0">
+          {renderStatus(fileExists)}
+        </div>
+      </div>
+
 
         <div className="space-y-3 md:space-y-4">
           {fileExists && (
