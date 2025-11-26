@@ -52,12 +52,7 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/registration', [RegisterController::class, 'register'])->name('registration');
     });
 
-    Route::middleware(['auth'])->group(function () {
-        // Logs page with optional filters via query string
-        Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
-        Route::get('/logs/export', [LogController::class, 'export'])->name('logs.export');
 
-    });
 
     Route::middleware(['auth'])->group(function () {
     // Protected Home Page
@@ -171,6 +166,13 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::get('/admin/directors', [DirectorController::class, 'index'])->name('admin.directors.index');
         Route::put('/admin/directors/{id}', [DirectorController::class, 'update'])->name('admin.directors.update');
     });
+
+    //ADMIN-LOGS
+    Route::middleware(['auth', 'role:head'])->group(function () {
+        Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
+        Route::get('/logs/export', [LogController::class, 'export'])->name('logs.export');
+    });
+
     //BLOCKED-IPS
     Route::middleware(['auth', 'role:head'])->group(function () {
         Route::get('/blocked-ips', [BlockedIpController::class, 'index'])->name('blocked.ips.index');

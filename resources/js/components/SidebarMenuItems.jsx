@@ -26,6 +26,7 @@ import {
   Hammer,
   ShieldAlert,
   AudioLines,
+  Logs,
 } from "lucide-react";
 import Dropdown from "./Dropdown";
 
@@ -55,7 +56,8 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
             { label: 'User Management', href: `/admin/users`, icon: <Users size={16} /> },
             { label: 'Director Management', href: `/admin/directors`, icon: <Settings size={16} /> },
             { label: 'Blocking Management', href: `/blocked-ips`, icon: <AlertCircle size={16} /> },
-            { label: 'Login Frequency Table', href: `/login-frequency`, icon: <AudioLines size={16} /> },
+            { label: 'Login Frequency', href: `/login-frequency`, icon: <AudioLines size={16} /> },
+            { label: 'Logs Management', href: `/logs`, icon: <Logs size={16} /> },
           ]}
           onClose={onClose}
         />

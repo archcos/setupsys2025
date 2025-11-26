@@ -19,7 +19,7 @@ class LogController extends Controller
             Log::info('LogController.index called');
 
             // Get filter inputs
-            $filters = $request->only(['user_id', 'project_id', 'action', 'model_type', 'days']);
+            $filters = $request->only(['ip_address', 'user_id', 'project_id', 'action', 'model_type', 'days']);
             $days = $filters['days'] ?? 90;
 
             // Base query with eager loading
@@ -30,12 +30,16 @@ class LogController extends Controller
             $query->where('created_at', '>=', $startDate);
 
             // Apply other filters
+            if (!empty($filters['ip_address'])) {
+                $query->where('ip_address', 'like', '%' . $filters['ip_address'] . '%');
+            }
+
             if (!empty($filters['user_id'])) {
-                $query->where('user_id', '=', $filters['user_id']);
+                $query->where('user_id', 'like', '%' . $filters['user_id'] . '%');
             }
 
             if (!empty($filters['project_id'])) {
-                $query->where('project_id', '=', $filters['project_id']);
+                $query->where('project_id', 'like', '%' . $filters['project_id'] . '%');
             }
 
             if (!empty($filters['action'])) {
@@ -121,6 +125,7 @@ class LogController extends Controller
             Log::info('LogController.export called', $request->all());
 
             // Get filter inputs from query string
+            $ipAddress = $request->query('ip_address');
             $userId = $request->query('user_id');
             $projectId = $request->query('project_id');
             $action = $request->query('action');
@@ -137,12 +142,16 @@ class LogController extends Controller
             }
 
             // Apply other filters only if they are not empty
+            if (!empty($ipAddress)) {
+                $query->where('ip_address', 'like', '%' . $ipAddress . '%');
+            }
+
             if (!empty($userId)) {
-                $query->where('user_id', '=', $userId);
+                $query->where('user_id', 'like', '%' . $userId . '%');
             }
 
             if (!empty($projectId)) {
-                $query->where('project_id', '=', $projectId);
+                $query->where('project_id', 'like', '%' . $projectId . '%');
             }
 
             if (!empty($action)) {
@@ -158,6 +167,7 @@ class LogController extends Controller
 
             Log::info('Export query results', [
                 'count' => count($logs),
+                'ip_address' => $ipAddress,
                 'user_id' => $userId,
                 'project_id' => $projectId,
                 'action' => $action,

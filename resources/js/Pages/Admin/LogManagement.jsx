@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
-import { useState } from 'react';
-import { Activity, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Activity, ChevronDown, ChevronUp, Download, Search } from 'lucide-react';
 
 export default function LogManagement({ logs = [], filters: initialFilters = {}, actions = [], modelTypes = [], pagination = {} }) {
   const [selectedLogId, setSelectedLogId] = useState(null);
@@ -9,14 +9,23 @@ export default function LogManagement({ logs = [], filters: initialFilters = {},
   const [perPage, setPerPage] = useState(pagination.per_page || 10);
   const [currentPage, setCurrentPage] = useState(pagination.current_page || 1);
 
+  const debounceTimer = useRef(null);
+
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     const newFilters = { ...filters, [name]: value };
-    router.get(route('logs.index'), {
-      ...newFilters,
-      per_page: perPage,
-      page: 1
-    }, { preserveState: false });
+    setFilters(newFilters);
+
+    // Debounce the API call
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    
+    debounceTimer.current = setTimeout(() => {
+      router.get(route('logs.index'), {
+        ...newFilters,
+        per_page: perPage,
+        page: 1
+      }, { preserveState: true });
+    }, 100); // Wait 500ms after user stops typing
   };
 
   const handlePerPageChange = (e) => {
@@ -25,7 +34,7 @@ export default function LogManagement({ logs = [], filters: initialFilters = {},
       ...filters,
       per_page: newPerPage,
       page: 1
-    }, { preserveState: false });
+    }, { preserveState: true });
   };
 
   // Ensure logs is an array
@@ -50,7 +59,7 @@ export default function LogManagement({ logs = [], filters: initialFilters = {},
         ...filters,
         per_page: perPage,
         page: currentPage - 1
-      }, { preserveState: false });
+      }, { preserveState: true });
     }
   };
 
@@ -60,13 +69,14 @@ export default function LogManagement({ logs = [], filters: initialFilters = {},
         ...filters,
         per_page: perPage,
         page: currentPage + 1
-      }, { preserveState: false });
+      }, { preserveState: true });
     }
   };
 
   const handleDownloadExcel = () => {
     const params = new URLSearchParams();
     
+    if (filters.ip_address) params.append('ip_address', filters.ip_address);
     if (filters.user_id) params.append('user_id', filters.user_id);
     if (filters.project_id) params.append('project_id', filters.project_id);
     if (filters.action) params.append('action', filters.action);
@@ -97,7 +107,18 @@ export default function LogManagement({ logs = [], filters: initialFilters = {},
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+          <div>
+            <label className="block text-gray-700 text-xs font-semibold mb-1">IP Address</label>
+            <input
+              type="text"
+              name="ip_address"
+              value={filters.ip_address || ''}
+              onChange={handleFilterChange}
+              placeholder="Filter by IP..."
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
           <div>
             <label className="block text-gray-700 text-xs font-semibold mb-1">User ID</label>
             <input
