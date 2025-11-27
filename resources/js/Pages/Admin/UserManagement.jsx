@@ -1,25 +1,6 @@
 import { useState, useEffect } from 'react';
 import { router, Head, usePage } from '@inertiajs/react';
-import {
-  Users,
-  Search,
-  Edit,
-  LogOut,
-  Trash2,
-  Eye,
-  EyeOff,
-  CheckCircle,
-  XCircle,
-  Shield,
-  Building2,
-  User,
-  Loader2,
-  AlertTriangle,
-  UserCheck,
-  Menu,
-  X,
-  RotateCcw,
-} from 'lucide-react';
+import { Users, Search, Edit, LogOut, Trash2, Eye, EyeOff, CheckCircle, XCircle, Shield, Building2, Loader2, AlertTriangle, UserCheck, Menu, X, RotateCcw } from 'lucide-react';
 
 export default function UserManagement({ users, offices, filters, stats }) {
   const [isConfirming, setIsConfirming] = useState(false);

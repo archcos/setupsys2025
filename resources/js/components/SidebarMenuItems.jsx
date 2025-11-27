@@ -1,33 +1,7 @@
 // components/SidebarMenuItems.jsx
 import { Link } from "@inertiajs/react";
-import {
-  LayoutDashboard,
-  Building,
-  Users,
-  FileSignature,
-  FileText,
-  ClipboardList,
-  SquareKanban,
-  HandCoins,
-  ArrowLeftRight,
-  FileDiff,
-  Megaphone,
-  Eye,
-  AlertCircle,
-  Settings,
-  Zap,
-  CheckCircle,
-  Pencil,
-  Search,
-  ClipboardCheck,
-  Award,
-  BookOpen,
-  FilePlus2,
-  Hammer,
-  ShieldAlert,
-  AudioLines,
-  Logs,
-} from "lucide-react";
+import { LayoutDashboard, Building, Users, FileSignature, FileText, ClipboardList, SquareKanban, HandCoins, ArrowLeftRight, FileDiff, Megaphone, Eye, AlertCircle, Settings, Zap, CheckCircle, Pencil, Search, ClipboardCheck, Award, BookOpen, FilePlus2, Hammer, ShieldAlert, AudioLines, Logs } from "lucide-react";
+
 import Dropdown from "./Dropdown";
 
 export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onClose, getHomePage }) {

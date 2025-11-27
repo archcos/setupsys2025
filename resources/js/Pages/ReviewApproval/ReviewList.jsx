@@ -1,17 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
-import {
-  Search,
-  FileText,
-  Calendar,
-  ArrowUpDown,
-  X,
-  AlertCircle,
-  CheckCircle,
-  List,
-  CheckCheck,
-  Send
-} from 'lucide-react';
+import { Search, FileText, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, List, CheckCheck, Send } from 'lucide-react';
 
 export default function ReviewList({ projects, filters, years }) {
   const [search, setSearch] = useState(filters?.search || '');
@@ -22,6 +11,7 @@ export default function ReviewList({ projects, filters, years }) {
 
   const { flash } = usePage().props;
 
+  // Single debounce effect for search and year
   useEffect(() => {
     const delaySearch = setTimeout(() => {
       router.get(route('compliance.list'), {
@@ -49,6 +39,7 @@ export default function ReviewList({ projects, filters, years }) {
     });
   };
 
+  // Inline functions - no need for useMemo
   const countFilledLinks = (compliance) => {
     if (!compliance) return 0;
     return [1, 2, 3, 4].filter(i => compliance[`link_${i}`]).length;
@@ -102,24 +93,21 @@ export default function ReviewList({ projects, filters, years }) {
     );
   };
 
-  // Calculate stats
+  // Calculate stats - inline, no memoization needed
   const pendingCount = projects.filter(p => (p.compliance?.status || 'pending') === 'pending').length;
   const raisedCount = projects.filter(p => p.compliance?.status === 'raised').length;
   const approvedCount = projects.filter(p => p.compliance?.status === 'approved').length;
 
-  // Filter projects
-  const filteredProjects = useMemo(() => {
-    if (statusFilter === 'all') {
-      return projects;
-    } else if (statusFilter === 'pending') {
-      return projects.filter(p => (p.compliance?.status || 'pending') === 'pending');
-    } else if (statusFilter === 'raised') {
-      return projects.filter(p => p.compliance?.status === 'raised');
-    } else if (statusFilter === 'approved') {
-      return projects.filter(p => p.compliance?.status === 'approved');
-    }
-    return projects;
-  }, [projects, statusFilter]);
+  // Filter projects - inline, no memoization needed for simple filtering
+  const filteredProjects = statusFilter === 'all' 
+    ? projects 
+    : projects.filter(p => {
+        const status = p.compliance?.status || 'pending';
+        return statusFilter === 'pending' ? status === 'pending' :
+               statusFilter === 'raised' ? status === 'raised' :
+               statusFilter === 'approved' ? status === 'approved' :
+               true;
+      });
 
   return (
     <main className="flex-1 min-h-screen overflow-y-auto">
@@ -267,7 +255,7 @@ export default function ReviewList({ projects, filters, years }) {
               className={`rounded-lg border-2 p-2 text-xs transition-all ${
                 statusFilter === 'approved' 
                   ? 'border-green-500 bg-green-50' 
-                  : 'border-gray-100 bg-white'
+                  : 'border-green-100 bg-white'
               }`}
             >
               <p className="text-gray-600 font-medium">Approved</p>

@@ -54,6 +54,7 @@ export default function Create({ projects }) {
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen">
       <div className="max-w-5xl mx-auto">
+        <Head title="Create Activity" />
         {/* Header Section */}
         <div className="mb-6 md:mb-8">
           <Link

@@ -1,14 +1,6 @@
 import { Link, router, Head, usePage } from "@inertiajs/react";
 import { useState, useEffect } from "react";
-import {
-  Search,
-  PlusCircle,
-  Building2,
-  X,
-  ChevronDown,
-  ChevronUp,
-  AlertTriangle,
-} from "lucide-react";
+import { Search, PlusCircle, Building2, X, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 
 function formatReportDate(dateStr) {
   if (!dateStr) return "-";

@@ -1,17 +1,6 @@
 import { useForm, Link, Head } from '@inertiajs/react';
 import { useState } from 'react';
-import {
-  ChevronLeft,
-  Calendar,
-  Target,
-  Check,
-  Loader2,
-  AlertCircle,
-  FolderOpen,
-  Activity,
-  Edit2,
-  Sparkles
-} from 'lucide-react';
+import { ChevronLeft, Calendar, Target, Check, Loader2, AlertCircle, FolderOpen, Activity, Edit2, Sparkles } from 'lucide-react';
 
 export default function Edit({ activity, projects }) {
   const [isSubmitting, setIsSubmitting] = useState(false);

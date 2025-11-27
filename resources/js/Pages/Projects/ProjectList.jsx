@@ -1,15 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { useState } from 'react';
-import {
-  FolderOpen,
-  Building2,
-  Calendar,
-  ChevronDown,
-  ChevronUp,
-  Package,
-  Sparkles,
-  Activity
-} from 'lucide-react';
+import { FolderOpen, Building2, ChevronDown, ChevronUp, Package, Activity } from 'lucide-react';
 
 export default function ProjectList({ projects }) {
   const [openDropdowns, setOpenDropdowns] = useState({});

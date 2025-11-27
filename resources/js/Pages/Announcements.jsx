@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Head, Link } from "@inertiajs/react";
-import { Megaphone, Building2, Filter, Calendar, AlertCircle, ArrowLeft, Clock } from "lucide-react";
+import { Megaphone, Building2, ArrowLeft, Clock } from "lucide-react";
 import logo from '../../assets/logo.webp';
 import setupLogo from '../../assets/SETUP_logo.webp';
 
 export default function Announcements({ announcements = [], old_announcements = [], offices = [] }) {
   const [selectedOffice, setSelectedOffice] = useState("");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [showOld, setShowOld] = useState(false);
 
   // Filter based on office and whether we are showing old or current announcements

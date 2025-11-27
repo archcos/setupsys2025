@@ -1,19 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { 
-  CheckCircle, 
-  ExternalLink, 
-  FileText, 
-  Calendar, 
-  User, 
-  Search, 
-  X, 
-  Building2,
-  Clock,
-  Filter,
-  ArrowUp,
-  ArrowDown
-} from 'lucide-react';
+import { CheckCircle, ExternalLink, FileText, Calendar, User, Search, X, Building2, Clock, Filter, ArrowUp, ArrowDown } from 'lucide-react';
 
 // Status options for filter
 const statusOptions = [
@@ -52,74 +39,47 @@ function getStatusBadge(status) {
   );
 }
 
-export default function VerifyRestructureList({ applyRestructs, auth, offices, filters }) {
+export default function VerifyRestructureList({ applyRestructs, auth, offices, filters: initialFilters }) {
   const userRole = auth?.user?.role;
-  const [search, setSearch] = useState(filters?.search || '');
-  const [perPage, setPerPage] = useState(filters?.perPage || 10);
-  const [officeFilter, setOfficeFilter] = useState(filters?.officeFilter || '');
-  const [statusFilter, setStatusFilter] = useState(filters?.statusFilter || '');
-  const [sortBy, setSortBy] = useState(filters?.sortBy || 'desc');
+  
+  const [filters, setFilters] = useState({
+    search: initialFilters?.search || '',
+    perPage: initialFilters?.perPage || 10,
+    officeFilter: initialFilters?.officeFilter || '',
+    statusFilter: initialFilters?.statusFilter || '',
+    sortBy: initialFilters?.sortBy || 'desc',
+  });
 
-  // Debounced search, office filter, and status filter
+  // Debounced filter sync
   useEffect(() => {
     const delaySearch = setTimeout(() => {
-      router.get('/verify-restructure', { 
-        search, 
-        perPage,
-        officeFilter,
-        statusFilter,
-        sortBy
-      }, { 
+      router.get('/verify-restructure', filters, { 
         preserveState: true, 
         replace: true 
       });
     }, 500);
     return () => clearTimeout(delaySearch);
-  }, [search, officeFilter, statusFilter]);
+  }, [filters]);
 
-  const handlePerPageChange = (e) => {
-    const newPerPage = e.target.value;
-    setPerPage(newPerPage);
-    router.get('/verify-restructure', {
-      search,
-      perPage: newPerPage,
-      officeFilter,
-      statusFilter,
-      sortBy
-    }, {
-      preserveScroll: true,
-      preserveState: true,
-    });
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
   };
 
   const handleSortToggle = () => {
-    const newSort = sortBy === 'desc' ? 'asc' : 'desc';
-    setSortBy(newSort);
-    router.get('/verify-restructure', {
-      search,
-      perPage,
-      officeFilter,
-      statusFilter,
-      sortBy: newSort
-    }, {
-      preserveScroll: true,
-      preserveState: true,
-    });
+    handleFilterChange('sortBy', filters.sortBy === 'desc' ? 'asc' : 'desc');
   };
 
   const handleClearFilters = () => {
-    setSearch('');
-    setOfficeFilter('');
-    setStatusFilter('');
-    setSortBy('desc');
-    router.get('/verify-restructure', {
-      perPage
-    }, {
-      preserveState: true,
+    setFilters({
+      search: '',
+      perPage: filters.perPage,
+      officeFilter: '',
+      statusFilter: '',
+      sortBy: 'desc',
     });
   };
 
-  const hasActiveFilters = search || officeFilter || statusFilter;
+  const hasActiveFilters = filters.search || filters.officeFilter || filters.statusFilter;
 
   // Handle paginated data structure from Laravel
   const data = applyRestructs?.data || [];
@@ -156,13 +116,13 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                   <input
                     type="text"
                     placeholder="Search project or company..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    value={filters.search}
+                    onChange={(e) => handleFilterChange('search', e.target.value)}
                     className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                   />
-                  {search && (
+                  {filters.search && (
                     <button
-                      onClick={() => setSearch('')}
+                      onClick={() => handleFilterChange('search', '')}
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
                       <X className="w-4 h-4" />
@@ -173,8 +133,8 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                 {/* Per Page Selector */}
                 <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
                   <select
-                    value={perPage}
-                    onChange={handlePerPageChange}
+                    value={filters.perPage}
+                    onChange={(e) => handleFilterChange('perPage', e.target.value)}
                     className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
                   >
                     {[10, 20, 50, 100].map((n) => (
@@ -192,8 +152,8 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                   <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
                     <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <select
-                      value={officeFilter}
-                      onChange={(e) => setOfficeFilter(e.target.value)}
+                      value={filters.officeFilter}
+                      onChange={(e) => handleFilterChange('officeFilter', e.target.value)}
                       className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
                     >
                       <option value="">All Offices</option>
@@ -210,8 +170,8 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                 <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
                   <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                    value={filters.statusFilter}
+                    onChange={(e) => handleFilterChange('statusFilter', e.target.value)}
                     className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
                   >
                     <option value="">All Status</option>
@@ -227,15 +187,15 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                 <button
                   onClick={handleSortToggle}
                   className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-white border border-gray-300 rounded-lg md:rounded-xl hover:bg-gray-50 transition-colors shadow-sm text-xs md:text-sm"
-                  title={sortBy === 'desc' ? 'Newest first' : 'Oldest first'}
+                  title={filters.sortBy === 'desc' ? 'Newest first' : 'Oldest first'}
                 >
-                  {sortBy === 'desc' ? (
+                  {filters.sortBy === 'desc' ? (
                     <ArrowDown className="w-4 h-4 text-gray-600" />
                   ) : (
                     <ArrowUp className="w-4 h-4 text-gray-600" />
                   )}
                   <span className="hidden md:inline font-medium text-gray-700">
-                    {sortBy === 'desc' ? 'Newest' : 'Oldest'}
+                    {filters.sortBy === 'desc' ? 'Newest' : 'Oldest'}
                   </span>
                 </button>
 

@@ -1,27 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, router, Head } from '@inertiajs/react';
-import {
-  Search,
-  ClipboardList,
-  Building2,
-  Eye,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
-  BarChart3,
-  ArrowUpDown,
-  X,
-  FolderOpen,
-  ChevronRight
-} from 'lucide-react';
+import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, FolderOpen, ChevronRight } from 'lucide-react';
 
 export default function ImplementationIndex({ implementations, filters }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [search, setSearch] = useState(filters?.search || '');
   const [perPage, setPerPage] = useState(filters?.perPage || 10);
   const [statusFilter, setStatusFilter] = useState(filters?.statusFilter || null);
-
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
@@ -125,7 +109,7 @@ export default function ImplementationIndex({ implementations, filters }) {
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
-      <Head title="Implementation Checklists" />
+      <Head title="Implementation Checklist" />
       <div className="max-w-7xl mx-auto">
         {/* Main Content Card */}
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">

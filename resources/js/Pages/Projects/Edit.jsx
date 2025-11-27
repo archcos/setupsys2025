@@ -1,19 +1,5 @@
 import { useForm, Link, Head } from '@inertiajs/react';
-import { useState } from 'react';
-import { 
-  ChevronLeft, 
-  Plus, 
-  Info, 
-  Calendar, 
-  BarChart3, 
-  Package, 
-  Target, 
-  Check, 
-  Loader2, 
-  Trash2,
-  AlertCircle,
-  Edit3
-} from 'lucide-react';
+import { ChevronLeft, Plus, Info, Calendar, BarChart3, Package, Target, Check, Loader2, Trash2, AlertCircle, Edit3 } from 'lucide-react';
 
 export default function Edit({ project, companies }) {
 

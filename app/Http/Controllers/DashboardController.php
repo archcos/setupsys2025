@@ -53,7 +53,7 @@ class DashboardController extends Controller
             ->get()
             ->groupBy('project_id');
 
-        return Inertia::render('Dashboard', [
+        return Inertia::render('Dashboard/Index', [
             'projectDetails' => $projects->map(function ($project) use ($lastActivities, $moas, $progressLogs) {
                 $projectCost = $project->project_cost ?? 0;
                 $implementation = $project->implementation;

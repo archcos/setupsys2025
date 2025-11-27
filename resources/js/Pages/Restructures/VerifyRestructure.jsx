@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, useForm, router, Link } from '@inertiajs/react';
-import { ExternalLink, Plus, Edit3, Trash2, X, AlertCircle, Calendar, FileText, CheckCircle, XCircle, ChevronLeft, DollarSign, Info, ChevronDown } from 'lucide-react';
+import { ExternalLink, Plus, Edit3, Trash2, X, AlertCircle, FileText, CheckCircle, XCircle, ChevronLeft, ChevronDown } from 'lucide-react';
 
 export default function VerifyRestructure({ applyRestruct, project, restructures, auth }) {
   const [showUpdateRefundEnd, setShowUpdateRefundEnd] = useState(false);
@@ -26,7 +26,7 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
     refund_end: project.refund_end ? project.refund_end.substring(0, 7) : '',
   });
 
-  const { data, setData, post, put, reset, errors, processing } = useForm({
+  const { data, setData, reset, processing } = useForm({
     project_id: project.project_id,
     apply_id: applyRestruct.apply_id,
     type: '',

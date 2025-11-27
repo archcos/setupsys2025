@@ -1,17 +1,7 @@
 import { router, Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import {
-  Activity,
-  FolderOpen,
-  Calendar,
-  ChevronDown,
-  ChevronRight,
-  Search,
-  Clock,
-  Target,
-  PlayCircle,
-  X
-} from 'lucide-react';
+import { Activity, FolderOpen, Calendar, ChevronDown, ChevronRight, Search, Clock, Target, PlayCircle, X } from 'lucide-react';
+
 
 export default function ActivityList({ activities, filters }) {
   const [search, setSearch] = useState(filters?.search || '');

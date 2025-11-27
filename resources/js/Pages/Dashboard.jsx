@@ -17,7 +17,6 @@ import {
   Search,
   X,
   FileCheck,
-  PhilippinePeso
 } from 'lucide-react';
 
 export default function Dashboard() {
