@@ -1,43 +1,17 @@
-import { Link, router, Head, usePage } from '@inertiajs/react';
+import { Link, router, Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import {
-  Search,
-  Plus,
-  Eye,
-  Edit3,
-  Trash2,
-  Building,
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Factory,
-  Package,
-  Users,
-  X,
-  Filter,
-  ArrowUpDown,
-  AlertCircle,
-  ChevronDown
-} from 'lucide-react';
+import { Search, Plus, Eye, Edit3, Trash2, Building, User, Mail, Phone, MapPin, Factory, Package, Users, X, Filter, ArrowUpDown, AlertCircle } from 'lucide-react';
+
 
 export default function Index({ companies, filters, allUsers = [], allOffices = [] }) {
   const [search, setSearch] = useState(filters.search || '');
-  const [isSyncing, setIsSyncing] = useState(false);
   const [perPage, setPerPage] = useState(filters.perPage || 10);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [officeFilter, setOfficeFilter] = useState(filters.office || '');
   const [setupIndustryFilter, setSetupIndustryFilter] = useState(filters.setup_industry || '');
   const [industryTypeFilter, setIndustryTypeFilter] = useState(filters.industry_type_filter || '');
-  const [filterOpen, setFilterOpen] = useState(false);
-
-  const [openDropdownCompanyId, setOpenDropdownCompanyId] = useState(null);
-  const [dropdownSearchTerm, setDropdownSearchTerm] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState(null);
-
-  const { auth } = usePage().props;
-  const role = auth?.user?.role;
 
   useEffect(() => {
     const delaySearch = setTimeout(() => {

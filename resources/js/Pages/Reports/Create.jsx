@@ -1,24 +1,7 @@
 import { useForm, Link, Head } from "@inertiajs/react";
-import { useState } from "react";
-import {
-  Package,
-  Wrench,
-  Trash2,
-  Info,
-  BarChart3,
-  Users,
-  Store,
-  FileText,
-  AlertCircle,
-  ChevronLeft,
-  Save,
-  Plus,
-  FlaskConical,
-  PhilippinePeso,
-} from "lucide-react";
+import { Package, Trash2, Info, BarChart3, Users, Store, FileText, AlertCircle, ChevronLeft, Save, Plus, FlaskConical, PhilippinePeso } from 'lucide-react';
 
 export default function Create({ project, objects, equipments, nonequipments, refunds, markets }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Calculate totals for display
   const approvedItemsTotal = equipments
@@ -94,8 +77,6 @@ export default function Create({ project, objects, equipments, nonequipments, re
     e.preventDefault();
     post(route("reports.store"));
   };
-
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const handleEquipChange = (index, field, value, type) => {
     const updated = [...data[type]];

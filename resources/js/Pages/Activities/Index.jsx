@@ -1,17 +1,7 @@
 import { Link, router, Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import {
-  Plus,
-  Search,
-  Calendar,
-  Eye,
-  Edit3,
-  Trash2,
-  Activity,
-  Building2,
-  X,
-  AlertCircle
-} from 'lucide-react';
+import { Plus, Search, Calendar, Eye, Edit3, Trash2, Activity, Building2, X, AlertCircle } from 'lucide-react';
+
 
 export default function Index({ activities, filters }) {
   const [search, setSearch] = useState(filters?.search || '');

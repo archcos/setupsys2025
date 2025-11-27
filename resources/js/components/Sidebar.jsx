@@ -4,7 +4,6 @@ import { X } from "lucide-react";
 import { Link, usePage } from "@inertiajs/react";
 import logo from '../../assets/logo.webp';
 import setupLogo from '../../assets/SETUP_logo.webp';
-import Dropdown from "./Dropdown";
 import SidebarMenuItems from "./SidebarMenuItems";
 
 export default function Sidebar({ isOpen, onClose }) {

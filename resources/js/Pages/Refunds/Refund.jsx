@@ -10,7 +10,7 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
   const [statusFilter, setStatusFilter] = useState(selectedStatus || ''); 
   const isRPMO = userRole === 'rpmo';
 
-  const { data, setData, post, processing } = useForm({
+  const { data, setData } = useForm({
     project_id: '',
     refund_amount: '',
     status: 'unpaid',

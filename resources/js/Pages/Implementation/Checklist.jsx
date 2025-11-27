@@ -1,31 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useForm, usePage, router, Head, Link } from '@inertiajs/react';
-import {
-  CheckCircle,
-  Circle,
-  Loader2,
-  Eye,
-  Download,
-  X,
-  Plus,
-  Pencil,
-  Save,
-  ChevronLeft,
-  FileText,
-  Package,
-  ClipboardList,
-  Building2,
-  Target,
-  Activity,
-  Upload,
-  Trash2,
-  Calendar,
-  BarChart3,
-  Sparkles,
-  PhilippinePeso,
-  AlertCircle,
-  User
-} from 'lucide-react';
+import { CheckCircle, Circle, Loader2, Eye, Download, X, Plus, Pencil, Save, ChevronLeft, FileText, Package, ClipboardList, Building2, Target, Activity, Upload, Trash2, Calendar, BarChart3, Sparkles, PhilippinePeso, AlertCircle, User } from 'lucide-react';
 
 const fieldLabels = {
   tarp: 'Tarpaulin',
@@ -40,7 +15,7 @@ const fieldIcons = {
 };
 
 export default function Checklist({ implementation, approvedItems }) {
-  const { data, setData, post, processing, reset } = useForm({
+  const { data, setData, reset } = useForm({
     tarp: null,
     pdc: null,
     liquidation: null,
@@ -57,8 +32,6 @@ export default function Checklist({ implementation, approvedItems }) {
   const [editedTag, setEditedTag] = useState({ name: '', amount: '' });
   const [deleteModal, setDeleteModal] = useState({ show: false, field: null, uploadTime: null });
   const isRPMO = page.auth?.user?.role === 'rpmo';
-
-  
 
   const handleItemSelect = (e) => {
     const itemId = e.target.value;
@@ -240,7 +213,6 @@ export default function Checklist({ implementation, approvedItems }) {
   const renderFileUploadSection = (field) => {
     const fileExists = !!implementation[field];
     const isLoading = loadingField === field;
-    const uploadDateField = `${field}_upload`;
     const Icon = fieldIcons[field];
     
   return (

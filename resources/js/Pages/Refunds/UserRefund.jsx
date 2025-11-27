@@ -1,25 +1,8 @@
 import { Head, router, Link } from "@inertiajs/react";
 import { useState, useRef, useEffect } from "react";
-import { 
-    Calendar, 
-    TrendingUp, 
-    AlertCircle,
-    CheckCircle,
-    Clock,
-    CreditCard,
-    Building,
-    Target,
-    FileText,
-    Activity,
-    Wallet,
-    ChevronDown,
-    ChevronUp,
-    Banknote,
-    Eye
-} from "lucide-react";
+import { Calendar, TrendingUp, AlertCircle, CheckCircle, CreditCard, Building, FileText, Activity, Wallet, Eye } from 'lucide-react';
 
 export default function UserLoan({ projects, search, years, selectedYear }) {
-    const [sidebarOpen, setSidebarOpen] = useState(true);
     const [searchInput, setSearchInput] = useState(search || "");
     const [yearFilter, setYearFilter] = useState(selectedYear || "");
     const [expandedSections, setExpandedSections] = useState({});

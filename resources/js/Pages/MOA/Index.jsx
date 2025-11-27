@@ -1,20 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
-import {
-  Search,
-  FileText,
-  Download,
-  Building2,
-  User,
-  Calendar,
-  Users,
-  X,
-  ArrowUpDown,
-  Upload,
-  FileCheck,
-  AlertCircle,
-  Eye
-} from 'lucide-react';
+import { Search, FileText, Download, Building2, User, Calendar, Users, X, ArrowUpDown, Upload, FileCheck, AlertCircle, Eye } from 'lucide-react';
 
 export default function MOAIndex({ moas, filters }) {
   const [search, setSearch] = useState(filters?.search || '');
@@ -127,6 +113,7 @@ export default function MOAIndex({ moas, filters }) {
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen">
+      <Head title="MOA List" />
       <div className="max-w-7xl mx-auto">
         {/* Flash Messages */}
         {flash?.success && (

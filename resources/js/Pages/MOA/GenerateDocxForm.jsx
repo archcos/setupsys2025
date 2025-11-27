@@ -1,14 +1,6 @@
 import { useForm, router, Head } from '@inertiajs/react';
-import {
-  FileText,
-  Building2,
-  FolderOpen,
-  Users,
-  Download,
-  Loader2,
-  AlertCircle,
-  CheckCircle,
-} from 'lucide-react';
+import { FileText, Building2, FolderOpen, Users, Download, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+
 
 export default function GenerateDocxForm({ companies, selectedCompany, projects, filters }) {
   const { data, setData, post, reset, errors, processing } = useForm({
@@ -40,6 +32,7 @@ export default function GenerateDocxForm({ companies, selectedCompany, projects,
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen">
+      <Head title="Generate MOA" />
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
           {/* Card Header */}

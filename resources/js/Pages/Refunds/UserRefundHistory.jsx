@@ -1,4 +1,4 @@
-import { ArrowLeft, Building2, Calendar, CheckCircle2, XCircle, DollarSign, TrendingUp, Clock, FileText, RefreshCw, ChevronLeft } from 'lucide-react';
+import { Building2, Calendar, CheckCircle2, XCircle, DollarSign, TrendingUp, Clock, FileText, RefreshCw, ChevronLeft } from 'lucide-react';
 import {Link } from "@inertiajs/react";
 export default function ProjectRefundDetailsView({ project, months, summary }) {
 

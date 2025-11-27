@@ -1,31 +1,6 @@
 import { Link, router, Head, usePage } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import {
-  Search,
-  Plus,
-  Eye,
-  Edit3,
-  Trash2,
-  Building2,
-  Calendar,
-  Package,
-  X,
-  AlertCircle,
-  PhilippinePeso,
-  CheckCircle,
-  Clock,
-  XCircle,
-  FileText,
-  Play,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  HandCoins,
-  Filter,
-  Award,
-  ChevronDown,
-  ChevronUp
-} from 'lucide-react';
+import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award } from 'lucide-react';
 
 // Helper to format date string to "MMM YYYY"
 function formatMonthYear(dateStr) {

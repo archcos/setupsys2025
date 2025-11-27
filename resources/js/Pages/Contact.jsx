@@ -1,16 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useForm, Head, Link, usePage, router } from '@inertiajs/react';
-import { 
-  Send, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Clock, 
-  MessageCircle,
-  User,
-  CheckCircle,
-  BookMarked
-} from 'lucide-react';
+import { Send, MapPin, Phone, Mail, Clock, MessageCircle, User, CheckCircle, BookMarked } from 'lucide-react';
 import logo from '../../assets/logo.webp';
 import setupLogo from '../../assets/SETUP_logo.webp';
 
@@ -33,7 +23,6 @@ export default function ContactUs() {
     }
   }, [flash]);
 
-  // Countdown timer effect
   useEffect(() => {
     if (rateLimitTimer <= 0) return;
 
@@ -58,26 +47,25 @@ export default function ContactUs() {
     phone: ''
   });
 
-const handleSubmit = (e) => {
-  e.preventDefault();
+  const handleSubmit = (e) => {
+    e.preventDefault();
 
-  router.post('/contact', data, {
-    preserveScroll: true,
-    onSuccess: () => {
-      reset();
-    },
-    onError: (errors, response) => {
-      // ✅ Catch rate-limit (429)
-    if (response?.status === 429) {
-      const msg = response?.props?.flash?.rate_limit || 'Too many requests.';
-      const secs = response?.props?.flash?.rate_seconds || 60;
+    router.post('/contact', data, {
+      preserveScroll: true,
+      onSuccess: () => {
+        reset();
+      },
+      onError: (errors, response) => {
+        if (response?.status === 429) {
+          const msg = response?.props?.flash?.rate_limit || 'Too many requests.';
+          const secs = response?.props?.flash?.rate_seconds || 60;
 
-      setRateLimitMessage(msg);
-      setRateLimitTimer(secs);
-    }
-    },
-  });
-};
+          setRateLimitMessage(msg);
+          setRateLimitTimer(secs);
+        }
+      },
+    });
+  };
 
   const InputError = ({ error }) =>
     error ? (
@@ -128,14 +116,13 @@ const handleSubmit = (e) => {
       <Head title="Contact Us - DOST SETUP" />
 
       <div className="max-w-7xl mx-auto">
-        {/* Header Section */}
         <div className="text-center mb-12">
-         <Link href="/">
-        <div className="flex items-center justify-center gap-4 mb-6">
-            <img src={logo} alt="DOST Logo" className="w-12 h-12 object-contain" />
-            <img src={setupLogo} alt="SETUP Logo" className="h-12 object-contain" />
-        </div>
-        </Link>
+          <Link href="/">
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <img src={logo} alt="DOST Logo" className="w-12 h-12 object-contain" />
+              <img src={setupLogo} alt="SETUP Logo" className="h-12 object-contain" />
+            </div>
+          </Link>
           
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Get In Touch</h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
@@ -145,7 +132,6 @@ const handleSubmit = (e) => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Contact Information Cards */}
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <div className="flex items-center gap-3 mb-6">
@@ -173,7 +159,6 @@ const handleSubmit = (e) => {
               </div>
             </div>
 
-            {/* Quick Info Card */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-lg p-6 text-white">
               <h3 className="font-semibold text-lg mb-3">Need Immediate Help?</h3>
               <p className="text-blue-100 mb-4 text-sm">
@@ -186,7 +171,6 @@ const handleSubmit = (e) => {
             </div>
           </div>
 
-          {/* Contact Form */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
               <div className="flex items-center gap-3 mb-8">
@@ -194,7 +178,6 @@ const handleSubmit = (e) => {
                 <h2 className="text-2xl font-semibold text-gray-900">Send Us a Message</h2>
               </div>
 
-              {/* Rate Limit Message with Timer */}
               {rateLimitTimer > 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-3">
                   <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -210,7 +193,6 @@ const handleSubmit = (e) => {
                 </div>
               )}
 
-              {/* Success Message */}
               {successMessage && (
                 <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
                   <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
@@ -218,7 +200,6 @@ const handleSubmit = (e) => {
                 </div>
               )}
 
-              {/* Error Message */}
               {(pageErrors?.message || Object.keys(errors).length > 0) && (
                 <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6 flex items-start gap-2">
                   <div className="mt-0.5 flex-shrink-0">
@@ -236,7 +217,6 @@ const handleSubmit = (e) => {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Name and Email Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -277,7 +257,6 @@ const handleSubmit = (e) => {
                   </div>
                 </div>
 
-                {/* Phone and Subject Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -331,7 +310,6 @@ const handleSubmit = (e) => {
                   </label>
                 </div>
 
-                {/* Message */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Message <span className="text-red-500">*</span>
@@ -354,7 +332,6 @@ const handleSubmit = (e) => {
                   </p>
                 </div>
 
-                {/* Submit Button */}
                 <div className="flex justify-end">
                   <button
                     type="submit"
@@ -391,7 +368,6 @@ const handleSubmit = (e) => {
           </div>
         </div>
 
-        {/* Additional Info Section */}
         <div className="mt-12 bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
           <div className="text-center">
             <h3 className="text-2xl font-semibold text-gray-900 mb-4">
