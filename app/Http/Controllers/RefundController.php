@@ -238,8 +238,8 @@ public function save()
         'project_id'     => 'required|exists:tbl_projects,project_id',
         'refund_amount'  => 'required|numeric|min:0',
         'amount_due'     => 'nullable|numeric|min:0',
-        'check_num'      => 'nullable|numeric|min:0|max:11',
-        'receipt_num'    => 'nullable|numeric|min:0|max:11',
+        'check_num'      => 'nullable|string|max:10', 
+        'receipt_num'    => 'nullable|string|max:10',
         'status'         => 'required|in:paid,unpaid,restructured',
         'save_date'      => 'required|date_format:Y-m-d',
     ]);
