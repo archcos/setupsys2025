@@ -1,5 +1,5 @@
 import { Link, router, Head } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Eye, Edit3, Trash2, Building, User, Mail, Phone, MapPin, Factory, Package, Users, X, Filter, ArrowUpDown, AlertCircle } from 'lucide-react';
 
 
@@ -12,9 +12,21 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
   const [industryTypeFilter, setIndustryTypeFilter] = useState(filters.industry_type_filter || '');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState(null);
+  const filterTimeoutRef = useRef(null);
+  const isInitialRenderRef = useRef(true);
 
-  useEffect(() => {
-    const delaySearch = setTimeout(() => {
+    useEffect(() => {
+    // Skip on initial render
+    if (isInitialRenderRef.current) {
+      isInitialRenderRef.current = false;
+      return;
+    }
+
+    if (filterTimeoutRef.current) {
+      clearTimeout(filterTimeoutRef.current);
+    }
+
+    filterTimeoutRef.current = setTimeout(() => {
       router.get('/companies', { 
         search,
         office: officeFilter,
@@ -22,12 +34,19 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
         industry_type: industryTypeFilter,
         sort: filters.sort || 'company_name',
         direction: filters.direction || 'asc',
-        perPage 
-      }, { preserveState: true, replace: true });
+        perPage,
+        page: 1  // Reset to page 1 when filters change
+      }, { preserveState: true, replace: true, preserveScroll: true, only: ['companies'] });
     }, 400);
-    return () => clearTimeout(delaySearch);
+
+    return () => {
+      if (filterTimeoutRef.current) {
+        clearTimeout(filterTimeoutRef.current);
+      }
+    };
   }, [search, officeFilter, setupIndustryFilter, industryTypeFilter]);
 
+  // Handle Escape key
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === "Escape") {
@@ -38,7 +57,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
-
+  
   const handleDeleteClick = (company) => {
     setCompanyToDelete(company);
     setShowDeleteModal(true);
@@ -126,7 +145,15 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                 </div>
                 <h2 className="text-base md:text-xl font-semibold text-gray-900">Companies</h2>
               </div>
-              
+              <button
+                onClick={() => router.post('/companies/sync')}
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm md:text-base"
+                title="Sync from CSV"
+              >
+                <Package className="w-4 h-4" />
+                <span className="hidden sm:inline">Sync CSV</span>
+                <span className="sm:hidden">Sync</span>
+              </button>
               <Link
                 href="/companies/create"
                 className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm md:text-base"
@@ -620,6 +647,8 @@ function CompanyModal({ company, isOpen, onClose }) {
                       </span>
                     </div>
                   </div>
+
+                 
 
                   <div className="flex items-start gap-3">
                     <Package className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />

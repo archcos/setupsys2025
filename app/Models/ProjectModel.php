@@ -11,11 +11,14 @@ class ProjectModel extends Model
 
     protected $table = 'tbl_projects';
     protected $primaryKey = 'project_id';
-
+    public $timestamps = true; // Ensure this is true (default)
+    public $incrementing = false;  // Important!
+    protected $keyType = 'bigInteger';
     protected $fillable = [
         'project_id',
         'project_title',
         'company_id',
+        'fund_release',
         'release_initial',
         'release_end',
         'refund_initial',

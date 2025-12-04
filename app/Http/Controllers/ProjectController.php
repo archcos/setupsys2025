@@ -267,6 +267,7 @@ public function store(Request $request){
         'noncurrent_asset'  => 'nullable|numeric',
         'equity'            => 'nullable|numeric',
         'liability'         => 'nullable|numeric',
+        'fund_release'      => 'nullable|date',
         'release_initial'   => 'nullable|date',
         'release_end'       => 'nullable|date',
         'refund_initial'    => 'nullable|date',
@@ -299,6 +300,7 @@ public function store(Request $request){
         'noncurrent_asset'  => $validated['noncurrent_asset'] ?? null,
         'equity'            => $validated['equity'] ?? null,
         'liability'         => $validated['liability'] ?? null,
+        'fund_release'      => $validated['fund_release'] ?? null,
         'release_initial'   => $validated['release_initial'] ?? null,
         'release_end'       => $validated['release_end'] ?? null,
         'refund_initial'    => $validated['refund_initial'] ?? null,
@@ -403,6 +405,7 @@ public function update(Request $request, $id)
         'noncurrent_asset'  => 'nullable|numeric',
         'equity'            => 'nullable|numeric',
         'liability'         => 'nullable|numeric',
+        'fund_release'      => 'nullable|date',
         'release_initial'   => 'required|regex:/^\d{4}-\d{2}$/',
         'release_end'       => 'required|regex:/^\d{4}-\d{2}$/',
         'refund_initial'    => 'required|regex:/^\d{4}-\d{2}$/',
@@ -433,6 +436,7 @@ public function update(Request $request, $id)
         'noncurrent_asset'  => $validated['noncurrent_asset'] ?? null,
         'equity'            => $validated['equity'] ?? null,
         'liability'         => $validated['liability'] ?? null,
+        'fund_release'      => $validated['fund_release'] ?? null,
         'release_initial'   => $validated['release_initial'],
         'release_end'       => $validated['release_end'],
         'refund_amount'     => $validated['refund_amount'] ?? null,
@@ -493,9 +497,8 @@ public function update(Request $request, $id)
     return redirect('/projects')->with('success', 'Project updated successfully.');
 }
 
-public function syncProjectsFromCSV()
-{
-    $csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTsjw8nNLTrJYI2fp0ZrKbXQvqHpiGLqpgYk82unky4g_WNf8xCcISaigp8VsllxE2dCwl-aY3wjd1W/pub?gid=84108771&single=true&output=csv';
+public function syncProjectsFromCSV(){
+    $csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQoYM37FSpNPcliFztgpSVgglK0XyoDLSdhOftcdqmy2mV-83VVxuUf9EdcE57gFG36r06rwH66CZQO/pub?gid=0&single=true&output=csv';
 
     try {
         $response = Http::timeout(300)->get($csvUrl);
@@ -504,129 +507,238 @@ public function syncProjectsFromCSV()
             return back()->with('error', 'Failed to fetch CSV data.');
         }
 
-        $lines = explode("\n", trim($response->body()));
-        if (count($lines) < 2) {
-            Log::warning('CSV contains no data rows.');
-            return back()->with('error', 'CSV contains no data.');
+        // Use fgetcsv for more robust CSV parsing
+        $stream = fopen('php://memory', 'r+');
+        fwrite($stream, $response->body());
+        rewind($stream);
+
+        // Read header
+        $rawHeader = fgetcsv($stream);
+        if (!$rawHeader) {
+            Log::warning('CSV contains no header.');
+            return back()->with('error', 'CSV contains no header.');
         }
 
-        $rawHeader = str_getcsv(array_shift($lines));
         $header = [];
+        // Build header mapping with normalization
         foreach ($rawHeader as $key => $col) {
-            if (trim($col) !== '') {
-                $header[$key] = trim($col);
+            $trimmed = trim($col);
+            $normalized = preg_replace('/\s+/', ' ', $trimmed);
+            if ($normalized !== '') {
+                $header[$key] = $normalized;
             }
         }
 
-        $csvData = array_map('str_getcsv', $lines);
+        Log::info('CSV Header count: ' . count($header));
+        Log::info('CSV Headers:', $header);
+
         $newRecords = 0;
+        $errors = [];
+        $rowIndex = 1;
 
-        foreach ($csvData as $rowIndex => $row) {
-            $row = array_map('trim', $row);
-            $row = array_slice($row, 0, count($header));
-            $row = array_pad($row, count($header), '');
-
-            if (count(array_filter($row)) === 0) {
-                continue;
-            }
-
-            $data = array_combine(array_values($header), $row);
-            if (!$data) {
-                Log::warning("Malformed row $rowIndex", ['row' => $row]);
-                continue;
-            }
-
-            $yearObligated = $data['Year Obligated'] ?? null;
-            if (!in_array($yearObligated, ['2023', '2024', '2025'])) {
-                continue;
-            }
-
-            $companyName = trim($data['Name of the Business'] ?? '');
-            if (!$companyName) {
-                Log::warning("Skipping row $rowIndex: Missing business name");
-                continue;
-            }
-
-            $company = CompanyModel::where('company_name', $companyName)->first();
-            if (!$company) {
-                Log::warning("Skipping project: No matching company for {$companyName}");
-                continue;
-            }
-
-            [$releaseInitial, $releaseEnd] = $this->splitMonthYear($data['Original Project Duration'] ?? '');
-            [$refundInitial, $refundEnd] = $this->splitMonthYear($data['Original Refund Schedule'] ?? '');
-
-            $projectCostRaw = $data['Amount of DOST Assistance'] ?? '0';
-            $projectCostRaw = str_replace([',', ' '], '', trim($projectCostRaw));
-
-            if (is_numeric($projectCostRaw)) {
-                $projectCost = (int) round(floatval($projectCostRaw));
-            } else {
-                $projectCost = 0;
-                Log::warning("Row $rowIndex has invalid project_cost value: " . $projectCostRaw);
-            }
-
+        // Read data rows
+        while (($row = fgetcsv($stream)) !== false) {
+            $rowIndex++;
+            
             try {
-                ProjectModel::updateOrCreate(
+                $row = array_map('trim', $row);
+                $row = array_pad($row, count($header), '');
+
+                // Skip empty rows
+                if (count(array_filter($row)) === 0) {
+                    continue;
+                }
+
+                $data = array_combine(array_values($header), $row);
+                if (!$data) {
+                    Log::warning("Malformed row $rowIndex", ['row_count' => count($row), 'header_count' => count($header)]);
+                    continue;
+                }
+
+                Log::info("Processing row $rowIndex", $data);
+
+                // Validate year obligated
+                $yearObligated = $data['Year Obligated'] ?? null;
+                // if (!in_array($yearObligated, ['2007' ])) {
+                //     continue;
+                // }
+
+                // Get company
+                $companyName = trim($data['Name of the Business'] ?? '');
+                if (!$companyName) {
+                    Log::warning("Row $rowIndex: Missing business name");
+                    continue;
+                }
+
+                $company = CompanyModel::where('company_name', $companyName)->first();
+                if (!$company) {
+                    Log::warning("Row $rowIndex: No matching company for '{$companyName}'");
+                    continue;
+                }
+
+                // Generate numeric project_id
+                $projectCode = $data['Project Code'] ?? '';
+                $projectCode = preg_replace('/[^0-9]/', '', $projectCode);
+                
+                if (empty($projectCode)) {
+                    Log::warning("Row $rowIndex: Invalid project code");
+                    continue;
+                }
+
+                $projectId = (int) $projectCode;
+                if ($projectId === 0) {
+                    $projectId = (int) (time() . mt_rand(100, 999));
+                }
+
+                // Parse dates
+                [$releaseInitial, $releaseEnd] = $this->splitMonthYear($data['Original Project Duration'] ?? '');
+                [$refundInitial, $refundEnd] = $this->splitMonthYear($data['Original Refund Schedule'] ?? '');
+
+                // Parse fund release date
+                $fundRelease = $this->parseDateFormat($data['Date of Fund Release'] ?? '');
+
+                Log::info("Row $rowIndex: Parsed dates", [
+                    'release_initial' => $releaseInitial,
+                    'release_end' => $releaseEnd,
+                    'fund_release' => $fundRelease,
+                ]);
+
+                // Parse project cost
+                $projectCostRaw = $data['Amount of DOST Assistance'] ?? '0';
+                $projectCostRaw = str_replace([',', ' '], '', trim($projectCostRaw));
+                $projectCost = is_numeric($projectCostRaw) ? (float) $projectCostRaw : 0;
+
+                if ($projectCost === 0) {
+                    Log::warning("Row $rowIndex: Invalid or zero project_cost");
+                }
+
+                // Create or update project
+                $project = ProjectModel::updateOrCreate(
+                    ['project_id' => $projectId],
                     [
-                        'project_id' => str_replace('-', '', $data['Project Code'] ?? '')
-                    ],
-                    [
-                        'project_title'   => $data['Name of Project'] ?? null,
-                        'company_id'      => $company->company_id,
-                        'release_initial' => $releaseInitial,
-                        'release_end'     => $releaseEnd,
-                        'refund_initial'  => $refundInitial,
-                        'refund_end'      => $refundEnd,
-                        'year_obligated'  => $yearObligated,
-                        'added_by'        => session('user_id') ?? 1,
-                        'project_cost'    => $projectCost ?? 0,
-                        'progress'        => 'Implementation',
-                        'revenue'         => $this->sanitizeNumeric($data['Revenue'] ?? null),
-                        'equity'          => $this->sanitizeNumeric($data['Equity'] ?? null),
-                        'liability'       => $this->sanitizeNumeric($data['Liability'] ?? null),
-                        'net_income'      => $this->sanitizeNumeric($data['Net Income (Before SETUP)'] ?? null),
-                        'current_asset'   => $this->sanitizeNumeric($data['Current Asset (Before SETUP)'] ?? null),
-                        'noncurrent_asset'=> $this->sanitizeNumeric($data['Non-Current Asset (Before SETUP)'] ?? null),
+                        'project_title'    => $data['Name of Project'] ?? null,
+                        'company_id'       => $company->company_id,
+                        'release_initial'  => $releaseInitial,
+                        'release_end'      => $releaseEnd,
+                        'refund_initial'   => $refundInitial,
+                        'refund_end'       => $refundEnd,
+                        'fund_release'     => $fundRelease,
+                        'year_obligated'   => $yearObligated,
+                        'added_by'         => Auth::id() ?? 1,
+                        'project_cost'     => $projectCost,
+                        'progress'         => 'Implementation',
+                        'revenue'          => $this->sanitizeNumeric($data['Revenue (Before SETUP)'] ?? null),
+                        'equity'           => $this->sanitizeNumeric($data['Equity (Before SETUP)'] ?? null),
+                        'liability'        => $this->sanitizeNumeric($data['Liability (Before SETUP)'] ?? null),
+                        'net_income'       => $this->sanitizeNumeric($data['Net Income (Before SETUP)'] ?? null),
+                        'current_asset'    => $this->sanitizeNumeric($data['Current Asset (Before SETUP)'] ?? null),
+                        'noncurrent_asset' => $this->sanitizeNumeric($data['Non-Current Asset (Before SETUP)'] ?? null),
                     ]
                 );
+
                 $newRecords++;
+                Log::info("Row $rowIndex synced successfully. Project ID: $projectId");
+
             } catch (\Exception $e) {
-                Log::error("Row $rowIndex failed: " . $e->getMessage(), ['row' => $data]);
+                $errorMsg = "Row $rowIndex failed: " . $e->getMessage();
+                Log::error($errorMsg, ['row' => $data ?? []]);
+                $errors[] = $errorMsg;
                 continue;
             }
+        }
+
+        fclose($stream);
+
+        $message = "$newRecords projects synced successfully.";
+        if (!empty($errors)) {
+            $message .= " " . count($errors) . " rows had errors.";
+            Log::warning("Sync errors:", $errors);
         }
 
         Log::info("Project CSV sync complete. Total new/updated: $newRecords");
-        return back()->with('success', "$newRecords projects synced.");
+        return back()->with('success', $message);
+
     } catch (\Exception $e) {
         Log::error('Project CSV Sync failed: ' . $e->getMessage());
-        return back()->with('error', 'Sync failed. Please try again.');
+        return back()->with('error', 'Sync failed: ' . $e->getMessage());
     }
 }
+
 
 private function parseMonthYear($part)
 {
     if (!$part) return null;
+    
     $part = strtoupper(trim($part));
 
     try {
-        return Carbon::createFromFormat('M Y', $part)->startOfMonth();
+        // Handle "AUG 2003" format (space-separated)
+        if (strpos($part, ' ') !== false && strpos($part, ',') === false) {
+            return Carbon::createFromFormat('M Y', $part)->startOfMonth()->format('Y-m-d');
+        }
+        
+        // Handle "SEP,2001" format (comma-separated)
+        if (strpos($part, ',') !== false) {
+            $pieces = explode(',', $part);
+            $month = trim($pieces[0] ?? '');
+            $year = trim($pieces[1] ?? '');
+            return Carbon::createFromFormat('M Y', "$month $year")->startOfMonth()->format('Y-m-d');
+        }
+        
+        // Try "M Y" format
+        return Carbon::createFromFormat('M Y', $part)->startOfMonth()->format('Y-m-d');
     } catch (\Exception $e) {
         try {
-            return Carbon::createFromFormat('F Y', ucwords(strtolower($part)))->startOfMonth();
+            // Try full month name "F Y" format
+            return Carbon::createFromFormat('F Y', ucwords(strtolower($part)))->startOfMonth()->format('Y-m-d');
         } catch (\Exception $e) {
+            Log::warning("Failed to parse month-year: $part");
             return null;
         }
     }
 }
 
-private function splitMonthYear($value)
+private function parseDateFormat($value)
 {
+    if (!$value) return null;
+    
+    $value = trim($value);
+    
+    try {
+        // If it's a range like "SEP,2001 - SEP,2002", take the first date
+        if (strpos($value, '-') !== false) {
+            $parts = explode('-', $value);
+            $value = trim($parts[0] ?? '');
+        }
+        
+        // Handle "SEP,2001" format
+        if (strpos($value, ',') !== false) {
+            $pieces = explode(',', $value);
+            $month = trim($pieces[0] ?? '');
+            $year = trim($pieces[1] ?? '');
+            return Carbon::createFromFormat('M Y', "$month $year")->format('Y-m-d');
+        }
+        
+        // Try to parse "September 21, 2001" format
+        return Carbon::createFromFormat('F d, Y', $value)->format('Y-m-d');
+    } catch (\Exception $e) {
+        try {
+            // Try other common formats
+            return Carbon::parse($value)->format('Y-m-d');
+        } catch (\Exception $e) {
+            Log::warning("Failed to parse date: $value");
+            return null;
+        }
+    }
+}
+
+private function splitMonthYear($value){
     if (!$value) return [null, null];
-    $parts = explode('-', $value);
+    
+    // Handle ranges with "-" separator (e.g., "AUG 2003 - MAY 2006")
+    $parts = preg_split('/\s*-\s*/', trim($value));
     $start = trim($parts[0] ?? '');
-    $end   = trim($parts[1] ?? '');
+    $end = trim($parts[1] ?? '');
 
     return [
         $this->parseMonthYear($start),

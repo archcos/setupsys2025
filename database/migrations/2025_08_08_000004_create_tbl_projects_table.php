@@ -10,14 +10,11 @@ return new class extends Migration
     {
 
 Schema::create('tbl_projects', function (Blueprint $table) {
-            $table->id('project_id');
+            $table->unsignedBigInteger('project_id')->primary();
             
             $table->text('project_title')->nullable();
             $table->unsignedBigInteger('company_id')->nullable();
             $table->decimal('project_cost', 10, 2)->nullable();
-
-            $table->date('created_at')->nullable();
-            $table->dateTime('updated_at')->nullable();
 
             $table->unsignedBigInteger('added_by')->nullable();
             $table->string('progress', 45)->nullable();
@@ -30,12 +27,14 @@ Schema::create('tbl_projects', function (Blueprint $table) {
             $table->decimal('equity', 10, 2)->nullable();
             $table->decimal('liability', 10, 2)->nullable();
 
+            $table->date('fund_release')->nullable();
             $table->date('release_initial')->nullable();
             $table->date('release_end')->nullable();
             $table->date('refund_initial')->nullable();
             $table->date('refund_end')->nullable();
             $table->decimal('refund_amount', 10, 2)->nullable();
             $table->decimal('last_refund', 10, 2)->nullable();
+            $table->timestamps();
     $table->foreign('company_id')->references('company_id')->on('tbl_companies')->onDelete('cascade')->onUpdate('cascade');
     $table->foreign('added_by')->references('user_id')->on('tbl_users')->onDelete('set null');
 });

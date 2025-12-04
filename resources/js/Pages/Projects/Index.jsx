@@ -1,5 +1,5 @@
 import { Link, router, Head, usePage } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award } from 'lucide-react';
 
 // Helper to format date string to "MMM YYYY"
@@ -77,13 +77,46 @@ export default function Index({ projects, filters, offices }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(null);
-  const [filterOpen, setFilterOpen] = useState(false);
-
+  const prevFiltersRef = useRef(null);
+  const filterTimeoutRef = useRef(null);
   const { auth } = usePage().props;
   const role = auth?.user?.role;
 
+  // Initialize prevFiltersRef on mount
   useEffect(() => {
-    const delaySearch = setTimeout(() => {
+    prevFiltersRef.current = {
+      search: filters.search || '',
+      office: filters.officeFilter || '',
+      progress: filters.progressFilter || '',
+    };
+  }, []);
+
+  // Only trigger search when filters ACTUALLY change (not on pagination)
+  useEffect(() => {
+    const currentFilters = {
+      search,
+      office: officeFilter,
+      progress: progressFilter,
+    };
+
+    // Check if any filter actually changed
+    const filtersChanged =
+      currentFilters.search !== prevFiltersRef.current?.search ||
+      currentFilters.office !== prevFiltersRef.current?.office ||
+      currentFilters.progress !== prevFiltersRef.current?.progress;
+
+    if (!filtersChanged) {
+      return;
+    }
+
+    // Update previous filters
+    prevFiltersRef.current = currentFilters;
+
+    if (filterTimeoutRef.current) {
+      clearTimeout(filterTimeoutRef.current);
+    }
+
+    filterTimeoutRef.current = setTimeout(() => {
       router.get('/projects', { 
         search, 
         perPage,
@@ -96,7 +129,12 @@ export default function Index({ projects, filters, offices }) {
         replace: true 
       });
     }, 400);
-    return () => clearTimeout(delaySearch);
+
+    return () => {
+      if (filterTimeoutRef.current) {
+        clearTimeout(filterTimeoutRef.current);
+      }
+    };
   }, [search, officeFilter, progressFilter]);
 
   useEffect(() => {
@@ -108,6 +146,7 @@ export default function Index({ projects, filters, offices }) {
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
+
 
   const handleSort = (field) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
@@ -215,7 +254,15 @@ export default function Index({ projects, filters, offices }) {
                 </div>
                 <h2 className="text-base md:text-xl font-semibold text-gray-900">Projects</h2>
               </div>
-              
+              <button
+                onClick={() => router.post('/projects/sync')}
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm md:text-base"
+                title="Sync from CSV"
+              >
+                <Package className="w-4 h-4" />
+                <span className="hidden sm:inline">Sync CSV</span>
+                <span className="sm:hidden">Sync</span>
+              </button>
               <Link
                 href="/projects/create"
                 className="flex items-center justify-center gap-2 bg-blue-500 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:bg-blue-600 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
@@ -692,6 +739,23 @@ function ProjectModal({ project, isOpen, onClose }) {
                       <p className="text-xs md:text-sm font-medium text-gray-600">Project Cost</p>
                       <p className="text-sm md:text-base text-gray-900 font-semibold">
                         {project.project_cost ? `₱${parseFloat(project.project_cost).toLocaleString()}` : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Calendar className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs md:text-sm font-medium text-gray-600">Fund Release Date</p>
+                      <p className="text-xs md:text-sm text-gray-900">
+                        {project.fund_release 
+                          ? new Date(project.fund_release).toLocaleDateString('en-US', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            })
+                          : 'N/A'
+                        }
                       </p>
                     </div>
                   </div>
