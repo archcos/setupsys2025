@@ -16,7 +16,7 @@ return new class extends Migration
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
             
-            $table->foreign('implement_id')->references('implement_id')->on('tbl_implement')->onDelete('set null')->onUpdate('cascade');
+            $table->foreign('implement_id')->references('implement_id')->on('tbl_implements')->onDelete('set null')->onUpdate('cascade');
         });
     }
 

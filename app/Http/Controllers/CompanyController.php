@@ -112,7 +112,7 @@ public function store(Request $request)
         'company_name'     => 'nullable|string|max:254',
         'owner_name'       => 'nullable|string|max:254',
         'email'            => 'nullable|email|max:100',
-        'street'           => 'nullable|string|max:50',
+        'street'           => 'nullable|string|max:100',
         'barangay'         => 'nullable|string|max:50',
         'municipality'     => 'nullable|string|max:50',
         'province'         => 'nullable|string|max:30',
@@ -141,8 +141,8 @@ public function store(Request $request)
 
 public function syncFromCSV()
 {
-    $csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTsjw8nNLTrJYI2fp0ZrKbXQvqHpiGLqpgYk82unky4g_WNf8xCcISaigp8VsllxE2dCwl-aY3wjd1W/pub?gid=84108771&single=true&output=csv';
-
+    $csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQoYM37FSpNPcliFztgpSVgglK0XyoDLSdhOftcdqmy2mV-83VVxuUf9EdcE57gFG36r06rwH66CZQO/pub?gid=0&single=true&output=csv';
+    
     try {
         $response = Http::timeout(300)->get($csvUrl);
         if (!$response->ok()) {
@@ -150,34 +150,46 @@ public function syncFromCSV()
             return back()->with('error', 'Failed to fetch CSV data.');
         }
 
-        $lines = explode("\n", trim($response->body()));
-        if (count($lines) < 2) {
-            Log::warning('CSV contains no data rows.');
-            return back()->with('error', 'CSV contains no data.');
+        // Use fgetcsv for proper CSV parsing (handles commas in quoted fields)
+        $stream = fopen('php://memory', 'r+');
+        fwrite($stream, $response->body());
+        rewind($stream);
+
+        // Read header
+        $rawHeader = fgetcsv($stream);
+        if (!$rawHeader) {
+            Log::warning('CSV contains no header.');
+            return back()->with('error', 'CSV contains no header.');
         }
 
-        $rawHeader = str_getcsv(array_shift($lines));
         $header = [];
         foreach ($rawHeader as $key => $col) {
-            if (trim($col) !== '') {
-                $header[$key] = trim($col);
+            $trimmed = trim($col);
+            // Normalize whitespace (handle newlines in headers)
+            $normalized = preg_replace('/\s+/', ' ', $trimmed);
+            if ($normalized !== '') {
+                $header[$key] = $normalized;
             }
         }
 
-        $csvData = array_map('str_getcsv', $lines);
+        Log::info('CSV Headers loaded: ' . count($header) . ' columns');
+
         $newRecords = 0;
+        $rowIndex = 1;
 
         $officeMap = [
             'BUK'            => 2, // 2-BUK
             'CAM'            => 3, // 3-CAM
-            'LDN'     => 4, // 4-LDN
-            'MOC'  => 5, // 5-MOC
-            'MOR'    => 6, // 6-MOR
+            'LDN'            => 4, // 4-LDN
+            'MOC'            => 5, // 5-MOC
+            'MOR'            => 6, // 6-MOR
         ];
 
-        foreach ($csvData as $rowIndex => $row) {
+        // Read data rows
+        while (($row = fgetcsv($stream)) !== false) {
+            $rowIndex++;
+            
             $row = array_map('trim', $row);
-            $row = array_slice($row, 0, count($header));
             $row = array_pad($row, count($header), '');
 
             if (count(array_filter($row)) === 0) {
@@ -186,14 +198,14 @@ public function syncFromCSV()
 
             $data = array_combine(array_values($header), $row);
             if (!$data) {
-                Log::warning("Malformed row $rowIndex", ['row' => $row]);
+                Log::warning("Malformed row $rowIndex", ['row_count' => count($row), 'header_count' => count($header)]);
                 continue;
             }
 
-            $yearObligated = $data['Year Obligated'] ?? null;
-            if (!in_array($yearObligated, ['2023', '2024', '2025'])) {
-                continue;
-            }
+            // $yearObligated = $data['Year Obligated'] ?? null;
+            // if (!in_array($yearObligated, ['2007'])) {
+            //     continue;
+            // }
 
             $company_name = trim($data['Name of the Business'] ?? '');
             if (!$company_name) {
@@ -203,7 +215,7 @@ public function syncFromCSV()
 
             $exists = CompanyModel::where('company_name', $company_name)->first();
             if ($exists) {
-                Log::info("Skipped existing company: $company_name");
+                Log::info("Skipped row $rowIndex existing company: $company_name");
                 continue;
             }
 
@@ -221,7 +233,10 @@ public function syncFromCSV()
 
             $parsed = [];
             foreach ($intFields as $csvKey => $dbField) {
-                $parsed[$dbField] = isset($data[$csvKey]) && is_numeric($data[$csvKey]) ? (int) $data[$csvKey] : 0;
+                // Remove commas from numeric values
+                $value = $data[$csvKey] ?? '';
+                $value = str_replace(',', '', $value);
+                $parsed[$dbField] = (is_numeric($value) && $value !== '') ? (int) $value : 0;
             }
 
             try {
@@ -230,7 +245,7 @@ public function syncFromCSV()
                     'owner_name'       => $data['CEO'] ?? null,
                     'email'            => $data['Email'] ?? null,
                     'added_by'         => session('user_id') ?? 1,
-                    'office_id'        => $officeId, // <-- office_id based on province
+                    'office_id'        => $officeId,
                     'street'           => $data["Bldg. No/Street/Subd."] ?? null,
                     'barangay'         => $data['Barangay'] ?? null,
                     'municipality'     => $data['Municipality'] ?? null,
@@ -247,13 +262,14 @@ public function syncFromCSV()
                     'contact_number'   => $data['Contact number'] ?? null,
                 ]);
                 $newRecords++;
-                Log::info("Inserted: $company_name (office_id={$officeId})");
+                Log::info("Row $rowIndex: Inserted $company_name (office_id={$officeId})");
             } catch (\Exception $e) {
                 Log::error("Row $rowIndex failed: " . $e->getMessage(), ['row' => $data]);
                 continue;
             }
         }
 
+        fclose($stream);
 
         Log::info("Company CSV sync complete. Total new: $newRecords");
         return back()->with('success', "$newRecords companies synced.");
@@ -279,7 +295,7 @@ public function update(Request $request, $id)
         'company_name'     => 'nullable|string|max:254',
         'owner_name'       => 'nullable|string|max:254',
         'email'            => 'nullable|email|max:100',
-        'street'           => 'nullable|string|max:50',
+        'street'           => 'nullable|string|max:100',
         'barangay'         => 'nullable|string|max:50',
         'municipality'     => 'nullable|string|max:50',
         'province'         => 'nullable|string|max:30',

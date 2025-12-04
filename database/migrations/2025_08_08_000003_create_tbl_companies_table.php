@@ -17,12 +17,12 @@ return new class extends Migration
             $table->unsignedBigInteger('added_by')->nullable();
             $table->unsignedSmallInteger('office_id')->nullable();
 
-            $table->string('street', 50)->nullable();
+            $table->string('street', 100)->nullable();
             $table->string('barangay', 50)->nullable();
             $table->string('municipality', 50)->nullable();
             $table->string('province', 30)->nullable();
             $table->string('district', 45)->nullable();
-            $table->enum('sex', ['Male', 'Female'])->nullable();
+            $table->string('sex', 10)->nullable(); 
             $table->text('products')->nullable();
             $table->string('setup_industry', 150)->nullable();
             $table->string('industry_type', 10)->nullable();
@@ -32,7 +32,7 @@ return new class extends Migration
             $table->smallInteger('direct_male')->nullable();
             $table->smallInteger('direct_female')->nullable();
 
-            $table->string('contact_number', 13)->nullable();
+            $table->string('contact_number', 50)->nullable();
             $table->string('current_market', 100)->nullable();
 
             $table->timestamps();

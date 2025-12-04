@@ -87,6 +87,10 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly');
         Route::post('/companies/sync', [CompanyController::class, 'syncFromCSV'])->name('companies.sync');
         Route::get('/activity-list', [ActivityController::class, 'readonly'])->name('activities.readonly');
+
+        Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
+        ->middleware('role:rpmo')
+        ->name('projects.sync');
     });
 
 
@@ -257,9 +261,7 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::put('/project/{project_id}/refund-end', [RestructureController::class, 'updateRefundEnd'])
             ->name('project.update-refund-end');
     });
-    // Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
-    //     ->middleware('role:head')
-    //     ->name('projects.sync');
+
 
     // Route::get('/review-approval', [ReviewController::class, 'reviewApproval'])->name('review.approval');
     // Route::post('/projects/{id}/update-progress', [ReviewController::class, 'updateProgressReview'])->name('projects.updateProgress');
