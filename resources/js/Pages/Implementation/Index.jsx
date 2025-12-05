@@ -1,69 +1,63 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, router, Head } from '@inertiajs/react';
-import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, FolderOpen, ChevronRight } from 'lucide-react';
+import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, FolderOpen, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
-export default function ImplementationIndex({ implementations, filters }) {
+export default function ImplementationIndex({ implementations, filters, offices, userRole }) {
   const [search, setSearch] = useState(filters?.search || '');
   const [perPage, setPerPage] = useState(filters?.perPage || 10);
   const [statusFilter, setStatusFilter] = useState(filters?.statusFilter || null);
+  const [officeFilter, setOfficeFilter] = useState(filters?.officeFilter || '');
+  const [sortDirection, setSortDirection] = useState(filters?.direction || 'desc');
+  const [isSorted, setIsSorted] = useState(!!filters?.direction);
+  const debounceTimer = useRef(null);
 
+  // Debounce search and filters - use useCallback to prevent unnecessary recreations
   useEffect(() => {
-    const delayDebounce = setTimeout(() => {
-      router.get('/implementation', { search, perPage, statusFilter }, { preserveState: true, replace: true });
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    debounceTimer.current = setTimeout(() => {
+      router.get(
+        '/implementation',
+        { search, perPage, statusFilter, officeFilter, page: 1, sort: 'project_id', direction: sortDirection },
+        { preserveState: true, preserveScroll: true, replace: true }
+      );
     }, 400);
 
-    return () => clearTimeout(delayDebounce);
-  }, [search, statusFilter]);
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, [search, statusFilter, officeFilter, perPage, sortDirection]);
 
-  const handlePerPageChange = (e) => {
-    const newPerPage = Number(e.target.value);
-    setPerPage(newPerPage);
-    router.get('/implementation', { search, perPage: newPerPage, statusFilter }, { preserveState: true, replace: true });
-  };
+  const handlePageChange = useCallback((url) => {
+    if (url) {
+      router.visit(url, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+      });
+    }
+  }, []);
 
-  const handlePageChange = (url) => {
-    router.visit(url, {
-      preserveState: true,
-      replace: true,
-      only: ['implementations'],
-      data: {
-        search,
-        perPage,
-        statusFilter,
-      },
-    });
-  };
+  const handleStatClick = useCallback((status) => {
+    setStatusFilter(prev => prev === status ? null : status);
+  }, []);
 
-  const handleStatClick = (status) => {
-    setStatusFilter(statusFilter === status ? null : status);
-  };
+  const handleSortToggle = useCallback(() => {
+    setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc');
+    setIsSorted(true);
+  }, []);
 
-  const getCompletionStatus = (impl) => {
-    const hasFiles = !!(impl.tarp && impl.pdc && impl.liquidation);
-    const hasUntagging = !!(impl.first_untagged && impl.final_untagged);
-    
-    if (hasFiles && hasUntagging) {
+  const getCompletionStatus = useCallback((impl) => {
+    if (impl.liquidation) {
       return { status: 'complete', label: 'Complete', icon: CheckCircle };
-    } else if (impl.tarp || impl.pdc || impl.liquidation) {
-      return { status: 'in-progress', label: 'In Progress', icon: Clock };
     } else {
       return { status: 'pending', label: 'Pending', icon: AlertTriangle };
     }
-  };
+  }, []);
 
-  const getProjectCost = (impl) => {
-    const cost = parseFloat(impl.project?.project_cost || 0);
-    return cost.toLocaleString(undefined, { minimumFractionDigits: 2 });
-  };
-
-  const getTaggingProgress = (impl) => {
-    const totalTags = impl.tags?.reduce((sum, tag) => sum + parseFloat(tag.tag_amount || 0), 0) || 0;
-    const projectCost = parseFloat(impl.project?.project_cost || 0);
-    const percentage = projectCost > 0 ? (totalTags / projectCost) * 100 : 0;
-    return Math.min(percentage, 100);
-  };
-
-  const getStatusBadge = (impl) => {
+  const getStatusBadge = useCallback((impl) => {
     const status = getCompletionStatus(impl);
     const StatusIcon = status.icon;
     
@@ -79,9 +73,9 @@ export default function ImplementationIndex({ implementations, filters }) {
         {status.label}
       </span>
     );
-  };
+  }, [getCompletionStatus]);
 
-  const getUntaggingStatus = (impl) => {
+  const getUntaggingStatus = useCallback((impl) => {
     const totalTags = impl.tags?.reduce((sum, tag) => sum + parseFloat(tag.tag_amount || 0), 0) || 0;
     const projectCost = parseFloat(impl.project?.project_cost || 0);
     const firstUntaggedThreshold = projectCost * 0.5;
@@ -90,22 +84,19 @@ export default function ImplementationIndex({ implementations, filters }) {
     const finalUntagged = totalTags >= projectCost;
     
     return { firstUntagged, finalUntagged, totalTags, projectCost };
-  };
+  }, []);
 
-  const getStats = () => {
-    const total = implementations.total || 0;
-    const complete = implementations.data.filter(impl => getCompletionStatus(impl).status === 'complete').length;
-    const inProgress = implementations.data.filter(impl => getCompletionStatus(impl).status === 'in-progress').length;
-    const pending = implementations.data.filter(impl => getCompletionStatus(impl).status === 'pending').length;
-    
-    return { total, complete, inProgress, pending };
-  };
+  const getStats = useCallback(() => {
+      // Use the counts from backend that were calculated before pagination
+      const total = implementations.total || 0;
+      const complete = implementations.complete_count || 0;
+      const pending = implementations.pending_count || 0;
+      
+      return { total, complete, pending };
+  }, [implementations.total, implementations.complete_count, implementations.pending_count]);
+
 
   const stats = getStats();
-
-  const filteredData = statusFilter
-    ? implementations.data.filter(impl => getCompletionStatus(impl).status === statusFilter)
-    : implementations.data;
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
@@ -128,7 +119,7 @@ export default function ImplementationIndex({ implementations, filters }) {
 
           {/* Stats Summary */}
           <div className="p-3 md:p-6 bg-gradient-to-r from-green-50/30 to-blue-50/30 border-b border-gray-100">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
               <button
                 onClick={() => handleStatClick(null)}
                 className={`text-center p-3 md:p-4 rounded-lg transition-all duration-200 ${
@@ -150,17 +141,6 @@ export default function ImplementationIndex({ implementations, filters }) {
               >
                 <div className="text-xl md:text-2xl font-bold text-green-600">{stats.complete}</div>
                 <div className="text-xs md:text-sm text-gray-600">Complete</div>
-              </button>
-              <button
-                onClick={() => handleStatClick('in-progress')}
-                className={`text-center p-3 md:p-4 rounded-lg transition-all duration-200 ${
-                  statusFilter === 'in-progress'
-                    ? 'bg-blue-100 ring-2 ring-offset-2 ring-blue-500 shadow-md'
-                    : 'hover:shadow-md hover:bg-blue-50 cursor-pointer'
-                }`}
-              >
-                <div className="text-xl md:text-2xl font-bold text-blue-600">{stats.inProgress}</div>
-                <div className="text-xs md:text-sm text-gray-600">In Progress</div>
               </button>
               <button
                 onClick={() => handleStatClick('pending')}
@@ -199,24 +179,43 @@ export default function ImplementationIndex({ implementations, filters }) {
                 )}
               </div>
 
-              {/* Per Page Selector */}
-              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
-                <select
-                  value={perPage}
-                  onChange={handlePerPageChange}
-                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
-                >
-                  {[10, 20, 50, 100].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-                <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">entries</span>
+              {/* Filter Row */}
+              <div className="flex flex-col md:flex-row gap-2 md:gap-3">
+                {/* Office Filter - only show for RPMO */}
+                {userRole === 'rpmo' || userRole === 'RPMO' ? (
+                  <select
+                    value={officeFilter}
+                    onChange={(e) => setOfficeFilter(e.target.value)}
+                    className="px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white shadow-sm"
+                  >
+                    <option value="">All Offices</option>
+                    {offices?.map((office) => (
+                      <option key={office.office_id} value={office.office_id}>
+                        {office.office_name}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+
+                {/* Per Page Selector */}
+                <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
+                  <select
+                    value={perPage}
+                    onChange={(e) => setPerPage(Number(e.target.value))}
+                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
+                  >
+                    {[10, 20, 50, 100].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">entries</span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Content Section - Desktop Table */}
-          {filteredData.length === 0 ? (
+          {/* Content Section */}
+          {implementations.data.length === 0 ? (
             <div className="text-center py-8 md:py-12 px-4">
               <div className="flex flex-col items-center gap-3 md:gap-4">
                 <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-100 rounded-full flex items-center justify-center">
@@ -248,34 +247,43 @@ export default function ImplementationIndex({ implementations, filters }) {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-                      <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-4 md:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Signboard</th>
-                      <th className="px-4 md:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PDC</th>
-                      <th className="px-4 md:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">First Untagging</th>
-                      <th className="px-4 md:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Final Untagging</th>
-                      <th className="px-4 md:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Liquidation</th>
-                      <th className="px-4 md:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                      <th className="px-2 md:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button
+                          onClick={handleSortToggle}
+                          className="flex items-center gap-1 transition-colors"
+                        >
+                          <span className={isSorted ? 'text-green-600 font-semibold' : 'text-gray-500'}>Code</span>
+                          <ArrowUpDown className={`w-3 h-3 transition-colors ${isSorted ? 'text-green-600' : 'text-gray-500'}`} />
+                        </button>
+                      </th>
+                      <th className="px-2 md:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
+                      <th className="px-2 md:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Signboard</th>
+                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PDC</th>
+                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">1st Tag</th>
+                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Final Tag</th>
+                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Liquidation</th>
+                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredData.map((impl) => {
+                    {implementations.data.map((impl) => {
                       const untaggingStatus = getUntaggingStatus(impl);
                       
                       return (
                         <tr key={impl.implement_id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-gray-600">
+                            {impl.project_id}
+                          </td>
                           <td className="px-4 md:px-6 py-3 md:py-4">
                             <div className="flex items-start gap-2 md:gap-3">
-                              <div className="p-1.5 bg-indigo-100 rounded-lg mt-0.5 flex-shrink-0">
-                                <FolderOpen className="w-4 h-4 text-indigo-600" />
-                              </div>
                               <div className="min-w-0 flex-1">
                                 <h3 className="font-medium text-gray-900 text-xs md:text-sm mb-1 line-clamp-1">
                                   {impl.project?.project_title || 'No Title'}
                                 </h3>
-                                <div className="flex items-center gap-1 text-xs text-gray-600">
+                                <div className="flex items-center gap-1 text-xs text-gray-600 min-w-0">
                                   <Building2 className="w-3 h-3 flex-shrink-0" />
-                                  <span className="truncate">{impl.project?.company?.company_name || 'N/A'}</span>
+                                  <span className="line-clamp-1">{impl.project?.company?.company_name || 'N/A'}</span>
                                 </div>
                               </div>
                             </div>
@@ -337,16 +345,12 @@ export default function ImplementationIndex({ implementations, filters }) {
 
               {/* Mobile Card View */}
               <div className="md:hidden divide-y divide-gray-100">
-                {filteredData.map((impl) => {
+                {implementations.data.map((impl) => {
                   const untaggingStatus = getUntaggingStatus(impl);
                   
                   return (
                     <div key={impl.implement_id} className="p-3 space-y-3">
-                      {/* Project Info */}
                       <div className="flex items-start gap-2">
-                        <div className="p-1.5 bg-indigo-100 rounded-lg mt-0.5 flex-shrink-0">
-                          <FolderOpen className="w-4 h-4 text-indigo-600" />
-                        </div>
                         <div className="min-w-0 flex-1">
                           <h3 className="font-medium text-gray-900 text-sm mb-0.5 line-clamp-2">
                             {impl.project?.project_title || 'No Title'}
@@ -358,12 +362,10 @@ export default function ImplementationIndex({ implementations, filters }) {
                         </div>
                       </div>
 
-                      {/* Status Badge */}
                       <div>
                         {getStatusBadge(impl)}
                       </div>
 
-                      {/* Checklist Items */}
                       <div className="bg-gray-50 rounded-lg p-2.5 space-y-1.5">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-gray-600">Signboard</span>
@@ -407,7 +409,6 @@ export default function ImplementationIndex({ implementations, filters }) {
                         </div>
                       </div>
 
-                      {/* View Button */}
                       <Link
                         href={`/implementation/checklist/${impl.implement_id}`}
                         className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-xs font-medium rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm"
@@ -424,17 +425,17 @@ export default function ImplementationIndex({ implementations, filters }) {
 
           {/* Pagination */}
           {implementations.links && implementations.links.length > 1 && (
-            <div className="bg-gradient-to-r from-gray-50/50 to-white px-3 md:px-6 py-3 md:py-4 border-t border-gray-100">
+            <div className="bg-gradient-to-r from-gray-50/50 to-white px-3 md:px-6 py-3 md:py-4 border-t border-gray-100 sticky bottom-0 z-10">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
                 <div className="text-xs md:text-sm text-gray-600">
-                  Showing {implementations.from || 1} to {implementations.to || filteredData.length} of {implementations.total || filteredData.length} results
+                  Showing {implementations.from || 1} to {implementations.to || implementations.data.length} of {implementations.total || implementations.data.length} results
                 </div>
                 <div className="flex gap-1 overflow-x-auto">
                   {implementations.links.map((link, index) => (
                     <button
                       key={index}
                       disabled={!link.url}
-                      onClick={() => link.url && handlePageChange(link.url)}
+                      onClick={() => handlePageChange(link.url)}
                       className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all duration-200 flex-shrink-0 ${
                         link.active
                           ? 'bg-gradient-to-r from-green-500 to-green-600 text-white border-transparent shadow-md'

@@ -15,8 +15,12 @@ class HomeController extends Controller
         $year = $request->input('year') ?? date('Y');
         $user = Auth::user();
 
-        $query = ProjectModel::with('company.office')
-            ->whereYear('year_obligated', $year);
+        $query = ProjectModel::with('company.office');
+
+        // Only filter by year if not 'all'
+        if ($year !== 'all') {
+          $query->whereYear('year_obligated', $year);
+        }
 
         // Filter projects based on user role
         if ($user && $user->role === 'staff') {
@@ -44,7 +48,7 @@ class HomeController extends Controller
             ->orderByDesc('year')
             ->pluck('year');
 
-        return Inertia::render('Home', [
+        return Inertia::render('Home/Index', [
             'projectsPerOffice' => $projectsPerOffice,
             'projectDetails' => $projects->map(function ($project) {
                 return [
@@ -52,7 +56,7 @@ class HomeController extends Controller
                     'project_title' => $project->project_title,
                     'company_name' => $project->company->company_name ?? '',
                     'office_name' => $project->company->office->office_name ?? '',
-                    'progress' => $project->progress ?? '',
+                    'progress' => $project->progress ?? '', // Can be: internal_rtec, internal_compliance, external_rtec, external_compliance, or standard stages, or Terminated, Withdrawn, Disapproved
                 ];
             }),
             'selectedYear' => $year,

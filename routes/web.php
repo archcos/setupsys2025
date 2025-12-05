@@ -87,7 +87,7 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly');
         Route::post('/companies/sync', [CompanyController::class, 'syncFromCSV'])->name('companies.sync');
         Route::get('/activity-list', [ActivityController::class, 'readonly'])->name('activities.readonly');
-
+        Route::post('/companies/{id}/update-added-by', [CompanyController::class, 'updateAddedBy']);
         Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
         ->middleware('role:rpmo')
         ->name('projects.sync');

@@ -69,7 +69,7 @@ function formatCurrency(value) {
   return '₱' + parseFloat(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export default function Index({ projects, filters, offices }) {
+export default function Index({ projects, filters, offices, allYears }) {
   const [search, setSearch] = useState(filters.search || '');
   const [perPage, setPerPage] = useState(filters.perPage || 10);
   const [sortField, setSortField] = useState(filters.sortField || 'project_title');
@@ -88,7 +88,9 @@ export default function Index({ projects, filters, offices }) {
   const role = auth?.user?.role;
 
   // Extract unique years from projects for filter dropdown
-  const uniqueYears = Array.from(new Set(projects.data.map(p => p.year_obligated).filter(Boolean))).sort((a, b) => b - a);
+  const uniqueYears = allYears && allYears.length > 0 
+    ? allYears 
+    : Array.from(new Set(projects.data.map(p => p.year_obligated).filter(Boolean))).sort((a, b) => b - a);
 
   useEffect(() => {
     prevFiltersRef.current = {
@@ -402,7 +404,7 @@ export default function Index({ projects, filters, offices }) {
                 {projects.data.map((project) => (
                   <tr key={project.project_id} className="hover:bg-blue-50/30 transition-all duration-200">
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{project.year_obligated || '-'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-mono">{project.project_id}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{project.project_id}</td>
                     <td className="px-6 py-4">
                       <div>
                         <div className="text-sm font-semibold text-gray-900">{project.project_title}</div>
@@ -655,6 +657,34 @@ function ProjectModal({ project, isOpen, onClose }) {
               <div className="bg-white rounded p-3 border border-blue-100 md:col-span-2">
                 <p className="text-xs font-medium text-gray-600 mb-1">Fund Release Date</p>
                 <p className="text-sm text-gray-900">{formatDate(project.fund_release)}</p>
+              </div>
+            </div>
+          </div>
+          {/* Timeline Data */}
+          <div className="bg-amber-50 rounded-lg md:rounded-xl p-4 border border-amber-200">
+            <div className="flex items-center gap-2 md:gap-3 mb-4">
+              <div className="p-2 bg-amber-500 rounded-lg">
+                <Calendar className="w-5 h-5 text-white" />
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900">Timeline & Dates</h4>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-white rounded p-3 border border-amber-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Initial Project Fund Release</p>
+                <p className="text-sm font-semibold text-gray-900">{formatDate(project.release_initial)}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-amber-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">End of Fund Release</p>
+                <p className="text-sm font-semibold text-gray-900">{formatDate(project.release_end)}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-amber-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Initial Refund</p>
+                <p className="text-sm font-semibold text-gray-900">{formatDate(project.refund_initial)}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-amber-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">End of Refund</p>
+                <p className="text-sm font-semibold text-gray-900">{formatDate(project.refund_end)}</p>
               </div>
             </div>
           </div>

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Eye, Edit3, Trash2, Building, User, Mail, Phone, MapPin, Factory, Package, X, Filter, ArrowUpDown, AlertCircle } from 'lucide-react';
 
 
-export default function Index({ companies, filters, allUsers = [], allOffices = [] }) {
+export default function Index({ companies, filters, allUsers = [], allOffices = [], canEditAddedBy = false }) {
   const [search, setSearch] = useState(filters.search || '');
   const [perPage, setPerPage] = useState(filters.perPage || 10);
   const [selectedCompany, setSelectedCompany] = useState(null);
@@ -12,8 +12,12 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
   const [industryTypeFilter, setIndustryTypeFilter] = useState(filters.industry_type_filter || '');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState(null);
+  const [editingAddedBy, setEditingAddedBy] = useState(null);
+  const [userSearch, setUserSearch] = useState('');
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
   const filterTimeoutRef = useRef(null);
   const isInitialRenderRef = useRef(true);
+  const dropdownRef = useRef(null);
 
     useEffect(() => {
     // Skip on initial render
@@ -51,12 +55,29 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
     const handleEsc = (e) => {
       if (e.key === "Escape") {
         setShowDeleteModal(false);
+        setEditingAddedBy(null);
+        setShowUserDropdown(false);
       }
     };
 
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowUserDropdown(false);
+      }
+    };
+
+    if (showUserDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showUserDropdown]);
   
   const handleDeleteClick = (company) => {
     setCompanyToDelete(company);
@@ -126,9 +147,23 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
     setOfficeFilter('');
     setSetupIndustryFilter('');
     setIndustryTypeFilter('');
-    setFilterOpen(false);
     router.get('/companies', { perPage }, { preserveState: true });
   };
+
+  const handleUpdateAddedBy = (companyId, userId) => {
+    router.post(`/companies/${companyId}/update-added-by`, { added_by: userId }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setEditingAddedBy(null);
+        setUserSearch('');
+        setShowUserDropdown(false);
+      }
+    });
+  };
+
+  const filteredUsers = allUsers ? allUsers.filter(user =>
+    `${user.first_name} ${user.last_name}`.toLowerCase().includes(userSearch.toLowerCase())
+  ) : [];
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto">
@@ -238,7 +273,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                 </select>
               </div>
 
-  {/* Setup Industry Filter */}
+     {/* Setup Industry Filter */}
       <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
         <Factory className="w-4 h-4 text-gray-400 flex-shrink-0" />
         <select
@@ -340,6 +375,14 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                             Industry
                           </div>
                         </th>
+                        {canEditAddedBy && (
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            <div className="flex items-center gap-2">
+                              <User className="w-4 h-4" />
+                              User
+                            </div>
+                          </th>
+                        )}
                         <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           Actions
                         </th>
@@ -357,15 +400,15 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                           <td className="px-6 py-4">
                             <span className="text-sm text-gray-900 font-medium">{company.owner_name}</span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 max-w-[200px]">
                             <div className="space-y-1 text-sm">
-                              <div className="flex items-center gap-2 text-gray-900">
-                                <Mail className="w-3 h-3 text-gray-400" />
-                                {company.email}
+                              <div className="flex items-center gap-2 text-gray-900 overflow-hidden">
+                                <Mail className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                <span className="truncate">{company.email}</span>
                               </div>
-                              <div className="flex items-center gap-2 text-gray-600">
-                                <Phone className="w-3 h-3 text-gray-400" />
-                                {company.contact_number}
+                              <div className="flex items-center gap-2 text-gray-600 overflow-hidden">
+                                <Phone className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                <span className="truncate">{company.contact_number}</span>
                               </div>
                             </div>
                           </td>
@@ -373,11 +416,60 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                             <div>{company.street}, {company.barangay}</div>
                             <div className="text-gray-600">{company.municipality}, {company.province}</div>
                           </td>
-                          <td className="px-6 py-4">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {company.setup_industry || 'N/A'}
-                            </span>
-                          </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 truncate max-w-[120px]" title={company.setup_industry || 'N/A'}>
+                            {company.setup_industry || 'N/A'}
+                          </span>
+                        </td>
+                          {canEditAddedBy && (
+                            <td className="px-6 py-4">
+                              {editingAddedBy === company.company_id ? (
+                                <div ref={dropdownRef} className="relative">
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Search users..."
+                                      value={userSearch}
+                                      onChange={(e) => setUserSearch(e.target.value)}
+                                      onFocus={() => setShowUserDropdown(true)}
+                                      className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                      autoFocus
+                                    />
+                                  </div>
+                                  {showUserDropdown && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-40 overflow-y-auto">
+                                      {filteredUsers.length > 0 ? (
+                                        filteredUsers.map((user) => (
+                                          <button
+                                            key={user.user_id}
+                                            onClick={() => {
+                                              handleUpdateAddedBy(company.company_id, user.user_id);
+                                            }}
+                                            className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0"
+                                          >
+                                            {user.first_name} {user.last_name}
+                                          </button>
+                                        ))
+                                      ) : (
+                                        <div className="px-3 py-2 text-xs text-gray-500">No users found</div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setEditingAddedBy(company.company_id);
+                                    setUserSearch('');
+                                    setShowUserDropdown(true);
+                                  }}
+                                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer"
+                                >
+                                  {company.added_by_user?.name || 'Unassigned'}
+                                </button>
+                              )}
+                            </td>
+                          )}
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-center gap-2">
                               <button
@@ -418,6 +510,9 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-gray-900 text-sm truncate">{company.company_name}</h3>
                         <p className="text-xs text-gray-500 truncate mt-1">ID: {company.company_id}</p>
+                        {canEditAddedBy && (
+                          <p className="text-xs text-amber-600 font-medium mt-1">Added by: {company.added_by_user?.name || 'Unassigned'}</p>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-1 ml-2 flex-shrink-0">

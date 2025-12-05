@@ -68,12 +68,12 @@ public function index(Request $request)
     }
 
     // Sorting
-    $sortField = $request->input('sort', 'company_name');
-    $sortDirection = $request->input('direction', 'asc');
+    $sortField = $request->input('sort', 'company_id');
+    $sortDirection = $request->input('direction', 'desc');
 
-    $allowedSorts = ['company_name', 'owner_name', 'email', 'industry_type', 'setup_industry', 'created_at'];
+    $allowedSorts = ['company_id', 'company_name', 'owner_name', 'email', 'industry_type', 'setup_industry', 'created_at'];
     if (!in_array($sortField, $allowedSorts)) {
-        $sortField = 'company_name';
+        $sortField = 'company_id';
     }
 
     $sortDirection = in_array($sortDirection, ['asc', 'desc']) ? $sortDirection : 'asc';
@@ -85,21 +85,32 @@ public function index(Request $request)
     return Inertia::render('Companies/Index', [
         'companies' => $companies,
         'filters' => $request->only('search', 'perPage', 'office', 'industry_type', 'setup_industry', 'sort', 'direction'),
-        'allUsers' => $user->role === 'admin' ? $allUsers : null,
+        'allUsers' => $user->role === 'rpmo' ? $allUsers : null,
         'allOffices' => $allOffices,
+        'canEditAddedBy' => $user->role === 'rpmo', // Pass permission to frontend
     ]);
 }
 
 public function updateAddedBy(Request $request, $id)
 {
+    // Check authorization - only rpmo can change added_by
+    if (Auth::user()->role !== 'rpmo') {
+        return back()->with('error', 'Unauthorized to change Added By user.');
+    }
+
     $request->validate([
         'added_by' => 'required|exists:tbl_users,user_id',
     ]);
 
     $company = CompanyModel::findOrFail($id);
+    $oldUser = $company->addedByUser->name;
+    $newUser = UserModel::find($request->added_by)->name;
+    
     $company->update(['added_by' => $request->added_by]);
 
-    return back()->with('success', 'Added By updated successfully.');
+    Log::info("Company '{$company->company_name}' added_by changed from {$oldUser} to {$newUser}");
+
+    return back()->with('success', "Added By updated from {$oldUser} to {$newUser}.");
 }
 
 
