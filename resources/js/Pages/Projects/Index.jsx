@@ -1,16 +1,17 @@
+
 import { Link, router, Head, usePage } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award } from 'lucide-react';
+import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award, Users, TrendingUp, ChevronDown } from 'lucide-react';
 
-// Helper to format date string to "MMM YYYY"
-function formatMonthYear(dateStr) {
+// Helper to format date string
+function formatDate(dateStr) {
   if (!dateStr) return '-';
   const d = new Date(dateStr);
   if (isNaN(d)) return '-';
-  return d.toLocaleString('default', { month: 'short', year: 'numeric' });
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-// Progress status options for filter and dropdown
+// Progress status options
 const progressOptions = [
   { value: 'Company Details', label: 'Company Details', icon: Clock, color: 'blue' },
   { value: 'Project Created', label: 'Project Created', icon: FileText, color: 'cyan' },
@@ -27,10 +28,8 @@ const progressOptions = [
   { value: 'Disapproved', label: 'Disapproved', icon: XCircle, color: 'red' },
   { value: 'Withdrawn', label: 'Withdrawn', icon: XCircle, color: 'red' },
   { value: 'Terminated', label: 'Terminated', icon: XCircle, color: 'red' },
-
 ];
 
-// Helper to get status config
 function getStatusConfig(progress) {
   return progressOptions.find(opt => opt.value === progress) || {
     value: progress,
@@ -40,7 +39,6 @@ function getStatusConfig(progress) {
   };
 }
 
-// Helper to get status badge
 function getStatusBadge(progress) {
   const config = getStatusConfig(progress);
   const Icon = config.icon;
@@ -66,6 +64,11 @@ function getStatusBadge(progress) {
   );
 }
 
+function formatCurrency(value) {
+  if (!value) return '₱0.00';
+  return '₱' + parseFloat(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function Index({ projects, filters, offices }) {
   const [search, setSearch] = useState(filters.search || '');
   const [perPage, setPerPage] = useState(filters.perPage || 10);
@@ -73,43 +76,45 @@ export default function Index({ projects, filters, offices }) {
   const [sortDirection, setSortDirection] = useState(filters.sortDirection || 'asc');
   const [officeFilter, setOfficeFilter] = useState(filters.officeFilter || '');
   const [progressFilter, setProgressFilter] = useState(filters.progressFilter || '');
+  const [yearFilter, setYearFilter] = useState(filters.yearFilter || '');
   const [selectedProject, setSelectedProject] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(null);
+  const [openStatusDropdown, setOpenStatusDropdown] = useState(null);
   const prevFiltersRef = useRef(null);
   const filterTimeoutRef = useRef(null);
   const { auth } = usePage().props;
   const role = auth?.user?.role;
 
-  // Initialize prevFiltersRef on mount
+  // Extract unique years from projects for filter dropdown
+  const uniqueYears = Array.from(new Set(projects.data.map(p => p.year_obligated).filter(Boolean))).sort((a, b) => b - a);
+
   useEffect(() => {
     prevFiltersRef.current = {
       search: filters.search || '',
       office: filters.officeFilter || '',
       progress: filters.progressFilter || '',
+      year: filters.yearFilter || '',
     };
   }, []);
 
-  // Only trigger search when filters ACTUALLY change (not on pagination)
   useEffect(() => {
     const currentFilters = {
       search,
       office: officeFilter,
       progress: progressFilter,
+      year: yearFilter,
     };
 
-    // Check if any filter actually changed
     const filtersChanged =
       currentFilters.search !== prevFiltersRef.current?.search ||
       currentFilters.office !== prevFiltersRef.current?.office ||
-      currentFilters.progress !== prevFiltersRef.current?.progress;
+      currentFilters.progress !== prevFiltersRef.current?.progress ||
+      currentFilters.year !== prevFiltersRef.current?.year;
 
-    if (!filtersChanged) {
-      return;
-    }
+    if (!filtersChanged) return;
 
-    // Update previous filters
     prevFiltersRef.current = currentFilters;
 
     if (filterTimeoutRef.current) {
@@ -123,7 +128,8 @@ export default function Index({ projects, filters, offices }) {
         sortField,
         sortDirection,
         officeFilter,
-        progressFilter
+        progressFilter,
+        yearFilter
       }, { 
         preserveState: true, 
         replace: true 
@@ -131,22 +137,20 @@ export default function Index({ projects, filters, offices }) {
     }, 400);
 
     return () => {
-      if (filterTimeoutRef.current) {
-        clearTimeout(filterTimeoutRef.current);
-      }
+      if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
     };
-  }, [search, officeFilter, progressFilter]);
+  }, [search, officeFilter, progressFilter, yearFilter]);
 
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === "Escape") {
         setShowDeleteModal(false);
+        setOpenStatusDropdown(null);
       }
     };
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
-
 
   const handleSort = (field) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
@@ -159,16 +163,21 @@ export default function Index({ projects, filters, offices }) {
       sortField: field,
       sortDirection: newDirection,
       officeFilter,
-      progressFilter
+      progressFilter,
+      yearFilter
     }, {
       preserveScroll: true,
       preserveState: true,
     });
   };
 
-  const getSortIcon = (field) => {
-    return <ArrowUpDown className="w-3 h-3 md:w-4 md:h-4 text-gray-400" />;
-  };
+  const SortButton = ({ field, label, icon: Icon }) => (
+    <button onClick={() => handleSort(field)} className="flex items-center gap-2 hover:text-blue-600">
+      {Icon && <Icon className="w-4 h-4" />}
+      {label}
+      <ArrowUpDown className={`w-3 h-3 transition-transform ${sortField === field ? (sortDirection === 'desc' ? 'rotate-180' : '') : 'opacity-50'}`} />
+    </button>
+  );
 
   const handleStatusChange = (projectId, newStatus) => {
     if (updatingStatus) return;
@@ -179,10 +188,14 @@ export default function Index({ projects, filters, offices }) {
       progress: newStatus
     }, {
       preserveScroll: true,
-      onFinish: () => setUpdatingStatus(null),
+      onFinish: () => {
+        setUpdatingStatus(null);
+        setOpenStatusDropdown(null);
+      },
       onError: (errors) => {
         console.error('Status update failed:', errors);
         alert('Failed to update status. Please try again.');
+        setUpdatingStatus(null);
       }
     });
   };
@@ -204,11 +217,6 @@ export default function Index({ projects, filters, offices }) {
     }
   };
 
-  const cancelDelete = () => {
-    setShowDeleteModal(false);
-    setProjectToDelete(null);
-  };
-
   const handlePerPageChange = (e) => {
     const newPerPage = e.target.value;
     setPerPage(newPerPage);
@@ -218,26 +226,19 @@ export default function Index({ projects, filters, offices }) {
       sortField,
       sortDirection,
       officeFilter,
-      progressFilter
+      progressFilter,
+      yearFilter
     }, {
       preserveScroll: true,
       preserveState: true,
     });
   };
 
-  const handleOfficeFilterChange = (e) => {
-    setOfficeFilter(e.target.value);
-  };
-
-  const handleProgressFilterChange = (e) => {
-    setProgressFilter(e.target.value);
-  };
-
   const clearFilters = () => {
     setSearch('');
     setOfficeFilter('');
     setProgressFilter('');
-    setFilterOpen(false);
+    setYearFilter('');
   };
 
   return (
@@ -254,7 +255,7 @@ export default function Index({ projects, filters, offices }) {
                 </div>
                 <h2 className="text-base md:text-xl font-semibold text-gray-900">Projects</h2>
               </div>
-              <button
+                <button
                 onClick={() => router.post('/projects/sync')}
                 className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm md:text-base"
                 title="Sync from CSV"
@@ -274,94 +275,104 @@ export default function Index({ projects, filters, offices }) {
             </div>
           </div>
 
-        {/* Filters Section */}
-        <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
-          <div className="flex flex-col gap-3 md:gap-4">
-            {/* Search Bar and Per Page */}
-            <div className="flex flex-col gap-2 md:gap-4 md:flex-row">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search projects..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
-                />
-                {search && (
+          {/* Filters Section */}
+          <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
+            <div className="flex flex-col gap-3 md:gap-4">
+              <div className="flex flex-col gap-2 md:gap-4 md:flex-row">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search projects..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                  />
+                  {search && (
+                    <button
+                      onClick={() => setSearch('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
+                  <select
+                    value={perPage}
+                    onChange={handlePerPageChange}
+                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
+                  >
+                    {[10, 20, 50, 100].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">items</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 md:gap-4 md:flex-row md:items-center flex-wrap">
+                <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
+                  <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <select
+                    value={officeFilter}
+                    onChange={(e) => setOfficeFilter(e.target.value)}
+                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
+                  >
+                    <option value="">All Offices</option>
+                    {offices && offices.map((office) => (
+                      <option key={office.office_id} value={office.office_id}>
+                        {office.office_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
+                  <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <select
+                    value={yearFilter}
+                    onChange={(e) => setYearFilter(e.target.value)}
+                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
+                  >
+                    <option value="">All Years</option>
+                    {uniqueYears.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
+                  <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <select
+                    value={progressFilter}
+                    onChange={(e) => setProgressFilter(e.target.value)}
+                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
+                  >
+                    <option value="">All Status</option>
+                    {progressOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {(search || officeFilter || progressFilter || yearFilter) && (
                   <button
-                    onClick={() => setSearch('')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={clearFilters}
+                    className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors shadow-sm text-xs md:text-sm font-medium"
                   >
                     <X className="w-4 h-4" />
+                    <span className="hidden md:inline">Clear Filters</span>
                   </button>
                 )}
               </div>
-
-              {/* Per Page Selector */}
-              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
-                <select
-                  value={perPage}
-                  onChange={handlePerPageChange}
-                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
-                >
-                  {[10, 20, 50, 100].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-                <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">items</span>
-              </div>
-            </div>
-
-            {/* Filter Row */}
-            <div className="flex flex-col gap-2 md:gap-4 md:flex-row md:items-center flex-wrap">
-              {/* Office Filter */}
-              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
-                <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <select
-                  value={officeFilter}
-                  onChange={handleOfficeFilterChange}
-                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
-                >
-                  <option value="">All Offices</option>
-                  {offices && offices.map((office) => (
-                    <option key={office.office_id} value={office.office_id}>
-                      {office.office_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Status Filter */}
-              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
-                <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <select
-                  value={progressFilter}
-                  onChange={handleProgressFilterChange}
-                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
-                >
-                  <option value="">All Status</option>
-                  {progressOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Clear Filters Button */}
-              {(search || officeFilter || progressFilter) && (
-                <button
-                  onClick={clearFilters}
-                  className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors shadow-sm text-xs md:text-sm font-medium"
-                >
-                  <X className="w-4 h-4" />
-                  <span className="hidden md:inline">Clear Filters</span>
-                </button>
-              )}
             </div>
           </div>
-        </div>
 
           {/* Desktop Table View */}
           <div className="hidden md:block overflow-x-auto">
@@ -369,232 +380,169 @@ export default function Index({ projects, filters, offices }) {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <button
-                      onClick={() => handleSort('project_title')}
-                      className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                    >
-                      <Building2 className="w-4 h-4" />
-                      Project & Company
-                      {getSortIcon('project_title')}
-                    </button>
+                    <SortButton field="year_obligated" label="Year" icon={Calendar} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Phase One
-                    </div>
+                    <SortButton field="project_id" label="Code" icon={FileText} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Phase Two
-                    </div>
+                    <SortButton field="project_title" label="Project & Company" icon={Building2} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <button
-                      onClick={() => handleSort('project_cost')}
-                      className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                    >
-                      <PhilippinePeso className="w-4 h-4" />
-                      Cost
-                      {getSortIcon('project_cost')}
-                    </button>
+                    <SortButton field="project_cost" label="Cost" icon={PhilippinePeso} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <button
-                      onClick={() => handleSort('progress')}
-                      className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      Status
-                      {getSortIcon('progress')}
-                    </button>
+                    <SortButton field="fund_release" label="Fund Release" icon={Calendar} />
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4" />
-                      Items
-                    </div>
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
-                {projects.data.map((project) => {
-                  const phaseOneInitial = formatMonthYear(project.release_initial);
-                  const phaseOneEnd = formatMonthYear(project.release_end);
-                  const phaseTwoInitial = formatMonthYear(project.refund_initial);
-                  const phaseTwoEnd = formatMonthYear(project.refund_end);
-
-                  const phaseOneDisplay = phaseOneInitial && phaseOneEnd ? `${phaseOneInitial} - ${phaseOneEnd}` : '-';
-                  const phaseTwoDisplay = phaseTwoInitial && phaseTwoEnd ? `${phaseTwoInitial} - ${phaseTwoEnd}` : '-';
-
-                  return (
-                    <tr key={project.project_id} className="hover:bg-blue-50/30 transition-all duration-200 group">
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">{project.project_title}</div>
-                          <div className="text-xs text-gray-500 truncate">{project.company?.company_name || 'No company'}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{phaseOneDisplay}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{phaseTwoDisplay}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {project.project_cost ? `₱${parseFloat(project.project_cost).toLocaleString()}` : '-'}
-                      </td>
-                      <td className="px-6 py-4">
-                        {role === 'rpmo' ? (
-                          <select
-                            value={project.progress}
-                            onChange={(e) => handleStatusChange(project.project_id, e.target.value)}
-                            disabled={updatingStatus === project.project_id}
-                            className={`text-xs font-medium rounded-full border-0 px-3 py-1.5 cursor-pointer focus:ring-2 focus:ring-offset-0 transition-all ${
-                              updatingStatus === project.project_id ? 'opacity-50 cursor-wait' : ''
-                            } ${(() => {
-                              const config = getStatusConfig(project.progress);
-                              const colorClasses = {
-                                blue: 'bg-blue-100 text-blue-800 focus:ring-blue-500',
-                                yellow: 'bg-yellow-100 text-yellow-800 focus:ring-yellow-500',
-                                purple: 'bg-purple-100 text-purple-800 focus:ring-purple-500',
-                                orange: 'bg-orange-100 text-orange-800 focus:ring-orange-500',
-                                indigo: 'bg-indigo-100 text-indigo-800 focus:ring-indigo-500',
-                                green: 'bg-green-100 text-green-800 focus:ring-green-500',
-                                cyan: 'bg-cyan-100 text-cyan-800 focus:ring-cyan-500',
-                                teal: 'bg-teal-100 text-teal-800 focus:ring-teal-500',
-                                red: 'bg-red-100 text-red-800 focus:ring-red-500',
-                                gray: 'bg-gray-100 text-gray-800 focus:ring-gray-500',
-                              };
-                              return colorClasses[config.color];
-                            })()}`}
-                          >
+                {projects.data.map((project) => (
+                  <tr key={project.project_id} className="hover:bg-blue-50/30 transition-all duration-200">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{project.year_obligated || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900 font-mono">{project.project_id}</td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">{project.project_title}</div>
+                        <div className="text-xs text-gray-600 mt-1">{project.company?.company_name || 'No company'}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                      {project.project_cost ? formatCurrency(project.project_cost) : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{formatDate(project.fund_release)}</td>
+                    <td className="px-6 py-4">
+                      <div className="relative inline-block">
+                        <button
+                          onClick={() => setOpenStatusDropdown(openStatusDropdown === project.project_id ? null : project.project_id)}
+                          disabled={updatingStatus === project.project_id}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          {getStatusBadge(project.progress)}
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                        
+                        {openStatusDropdown === project.project_id && (
+                          <div className="absolute top-full mt-2 left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-max max-h-96 overflow-y-auto">
                             {progressOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
+                              <button
+                                key={option.value}
+                                onClick={() => handleStatusChange(project.project_id, option.value)}
+                                disabled={updatingStatus === project.project_id}
+                                className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 ${
+                                  project.progress === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                                } ${updatingStatus === project.project_id ? 'opacity-50 cursor-not-allowed' : ''} first:rounded-t-lg last:rounded-b-lg`}
+                              >
                                 {option.label}
-                              </option>
+                              </button>
                             ))}
-                          </select>
-                        ) : (
-                          <div title="Only RPMO can change status">
-                            {getStatusBadge(project.progress)}
                           </div>
                         )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          {project.items ? project.items.length : 0}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => setSelectedProject(project)}
-                            className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200"
-                            title="View Details"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-
-                          <Link
-                            href={`/projects/${project.project_id}/edit`}
-                            className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                            title="Edit Project"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </Link>
-
-                          <button
-                            onClick={() => handleDeleteClick(project)}
-                            disabled={role !== 'rpmo'}
-                            className={`p-2 rounded-lg transition-all duration-200 ${
-                              role === 'rpmo'
-                                ? 'text-red-600 hover:text-red-700 hover:bg-red-50'
-                                : 'text-gray-400 cursor-not-allowed'
-                            }`}
-                            title={role === 'rpmo' ? 'Delete Project' : 'Contact RPMO'}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setSelectedProject(project)}
+                          className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200"
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <Link
+                          href={`/projects/${project.project_id}/edit`}
+                          className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                          title="Edit Project"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteClick(project)}
+                          disabled={role !== 'rpmo'}
+                          className={`p-2 rounded-lg transition-all duration-200 ${role === 'rpmo' ? 'text-red-600 hover:text-red-700 hover:bg-red-50' : 'text-gray-400 cursor-not-allowed'}`}
+                          title={role === 'rpmo' ? 'Delete Project' : 'Contact RPMO'}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
 
-          {/* Mobile Simple List View */}
+          {/* Mobile View */}
           <div className="md:hidden divide-y divide-gray-200">
-            {projects.data.map((project) => {
-              return (
-                <div key={project.project_id} className="flex items-center justify-between px-4 py-4 hover:bg-gray-50 transition-colors">
+            {projects.data.map((project) => (
+              <div key={project.project_id} className="p-4">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 text-sm truncate">{project.project_title}</h3>
-                    <p className="text-xs text-gray-600 truncate mt-1">{project.company?.company_name || 'No company'}</p>
+                    <p className="text-xs text-gray-600 mt-1">{project.company?.company_name || 'No company'}</p>
                   </div>
-
                   <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                    <button
-                      onClick={() => setSelectedProject(project)}
-                      className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200"
-                      title="View Details"
-                    >
+                    <button onClick={() => setSelectedProject(project)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
                       <Eye className="w-4 h-4" />
                     </button>
-
-                    <Link
-                      href={`/projects/${project.project_id}/edit`}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                      title="Edit Project"
-                    >
+                    <Link href={`/projects/${project.project_id}/edit`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
                       <Edit3 className="w-4 h-4" />
                     </Link>
-
-                    <button
-                      onClick={() => handleDeleteClick(project)}
-                      disabled={role !== 'rpmo'}
-                      className={`p-2 rounded-lg transition-all duration-200 ${
-                        role === 'rpmo'
-                          ? 'text-red-600 hover:bg-red-50'
-                          : 'text-gray-400 cursor-not-allowed'
-                      }`}
-                      title={role === 'rpmo' ? 'Delete Project' : 'Contact RPMO'}
-                    >
+                    <button onClick={() => handleDeleteClick(project)} disabled={role !== 'rpmo'} className={`p-2 rounded-lg transition-all ${role === 'rpmo' ? 'text-red-600 hover:bg-red-50' : 'text-gray-400 cursor-not-allowed'}`}>
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-              );
-            })}
+                <div className="flex items-center justify-between text-xs gap-2">
+                  <span className="text-gray-600">Year: {project.year_obligated || '-'}</span>
+                  <div className="relative inline-block">
+                    <button
+                      onClick={() => setOpenStatusDropdown(openStatusDropdown === project.project_id ? null : project.project_id)}
+                      disabled={updatingStatus === project.project_id}
+                      className="flex items-center gap-1"
+                    >
+                      {getStatusBadge(project.progress)}
+                    </button>
+                    
+                    {openStatusDropdown === project.project_id && (
+                      <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-max max-h-48 overflow-y-auto">
+                        {progressOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => handleStatusChange(project.project_id, option.value)}
+                            disabled={updatingStatus === project.project_id}
+                            className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors ${
+                              project.progress === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                            } ${updatingStatus === project.project_id ? 'opacity-50 cursor-not-allowed' : ''} first:rounded-t-lg last:rounded-b-lg`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
           {projects.data.length === 0 && (
             <div className="text-center py-8 md:py-12 px-4">
-              <div className="flex flex-col items-center gap-3 md:gap-4">
-                <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                  <Building2 className="w-6 h-6 md:w-8 md:h-8 text-gray-400" />
-                </div>
-                <div>
-                  <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">No projects found</h3>
-                  <p className="text-xs md:text-sm text-gray-600">Get started by adding your first project</p>
-                </div>
-                <Link
-                  href="/projects/create"
-                  className="flex items-center gap-2 bg-blue-500 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-blue-600 transition-all duration-200 font-medium text-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Project
-                </Link>
-              </div>
+              <Building2 className="w-12 h-12 md:w-16 md:h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">No projects found</h3>
+              <Link href="/projects/create" className="inline-flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-all mt-4">
+                <Plus className="w-4 h-4" />
+                Add Project
+              </Link>
             </div>
           )}
 
           {/* Pagination */}
           {projects.links && projects.links.length > 1 && (
             <div className="bg-gray-50/50 px-4 md:px-6 py-3 md:py-4 border-t border-gray-100">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div className="text-xs md:text-sm text-gray-600">
                   Showing {projects.from || 1} to {projects.to || projects.data.length} of {projects.total || projects.data.length}
                 </div>
@@ -604,13 +552,7 @@ export default function Index({ projects, filters, offices }) {
                       key={index}
                       disabled={!link.url}
                       onClick={() => link.url && router.visit(link.url)}
-                      className={`px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm rounded-lg border transition-all duration-200 flex-shrink-0 ${
-                        link.active
-                          ? 'bg-blue-500 text-white border-transparent shadow-md'
-                          : link.url
-                          ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-                          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                      }`}
+                      className={`px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm rounded-lg border transition-all ${link.active ? 'bg-blue-500 text-white border-transparent' : link.url ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50' : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'}`}
                       dangerouslySetInnerHTML={{ __html: link.label }}
                     />
                   ))}
@@ -621,43 +563,30 @@ export default function Index({ projects, filters, offices }) {
         </div>
       </div>
 
-      {/* Project Modal */}
       {selectedProject && (
-        <ProjectModal
-          project={selectedProject}
-          isOpen={!!selectedProject}
-          onClose={() => setSelectedProject(null)}
-        />
+        <ProjectModal project={selectedProject} isOpen={!!selectedProject} onClose={() => setSelectedProject(null)} />
       )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteModal && projectToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg md:rounded-2xl shadow-2xl max-w-md w-full p-4 md:p-6">
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-red-600" />
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-6 h-6 text-red-600" />
               </div>
               <div className="flex-1">
-                <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2">Delete Project</h3>
-                <p className="text-xs md:text-sm text-gray-600 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Project</h3>
+                <p className="text-sm text-gray-600 mb-2">
                   Are you sure you want to delete <span className="font-semibold">{projectToDelete.project_title}</span>?
                 </p>
-                <p className="text-xs md:text-sm text-red-600 font-medium">This action cannot be undone.</p>
+                <p className="text-sm text-red-600 font-medium">This action cannot be undone.</p>
               </div>
             </div>
-            
-            <div className="flex gap-3 mt-4 md:mt-6">
-              <button
-                onClick={cancelDelete}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm"
-              >
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowDeleteModal(false)} className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm">
                 Cancel
               </button>
-              <button
-                onClick={confirmDelete}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors text-sm"
-              >
+              <button onClick={confirmDelete} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors text-sm">
                 Delete
               </button>
             </div>
@@ -671,180 +600,228 @@ export default function Index({ projects, filters, offices }) {
 function ProjectModal({ project, isOpen, onClose }) {
   if (!isOpen) return null;
 
-  const phaseOneInitial = formatMonthYear(project.release_initial);
-  const phaseOneEnd = formatMonthYear(project.release_end);
-  const phaseTwoInitial = formatMonthYear(project.refund_initial);
-  const phaseTwoEnd = formatMonthYear(project.refund_end);
-
-  const phaseOneDisplay = phaseOneInitial && phaseOneEnd ? `${phaseOneInitial} - ${phaseOneEnd}` : 'Not set';
-  const phaseTwoDisplay = phaseTwoInitial && phaseTwoEnd ? `${phaseTwoInitial} - ${phaseTwoEnd}` : 'Not set';
+  const totalEmployees = (project.male || 0) + (project.female || 0);
+  const totalDirectEmployees = (project.direct_male || 0) + (project.direct_female || 0);
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4">
-      <div className="bg-white rounded-lg md:rounded-2xl shadow-2xl w-full max-w-2xl md:max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg md:rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-blue-500 p-4 md:p-6 text-white sticky top-0 z-10">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="w-8 h-8 md:w-12 md:h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Building2 className="w-4 h-4 md:w-6 md:h-6 text-white" />
+                <Building2 className="w-6 h-6 text-white" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base md:text-xl font-bold truncate">Project Details</h3>
-                <p className="text-xs md:text-sm text-blue-100 truncate">Complete information</p>
+                <h3 className="text-lg md:text-xl font-bold truncate">Project Details</h3>
+                <p className="text-xs md:text-sm text-blue-100">Complete information</p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors flex-shrink-0"
-            >
+            <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors flex-shrink-0">
               <X className="w-5 h-5 text-white" />
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-4 md:p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
-            {/* Project Information */}
+        <div className="p-4 md:p-6 space-y-6">
+          {/* Project Information */}
+          <div className="bg-blue-50 rounded-lg md:rounded-xl p-4 border border-blue-200">
+            <div className="flex items-center gap-2 md:gap-3 mb-4">
+              <div className="p-2 bg-blue-500 rounded-lg">
+                <Building2 className="w-5 h-5 text-white" />
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900">Project Information</h4>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-white rounded p-3 border border-blue-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Project Code</p>
+                <p className="text-sm font-mono font-semibold text-gray-900">{project.project_id}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-blue-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Year Obligated</p>
+                <p className="text-sm font-semibold text-gray-900">{project.year_obligated || '-'}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-blue-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Project Title</p>
+                <p className="text-sm font-semibold text-gray-900">{project.project_title}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-blue-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Company</p>
+                <p className="text-sm text-gray-900">{project.company?.company_name || 'N/A'}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-blue-100 md:col-span-2">
+                <p className="text-xs font-medium text-gray-600 mb-1">Fund Release Date</p>
+                <p className="text-sm text-gray-900">{formatDate(project.fund_release)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Financial Data */}
+          <div className="bg-green-50 rounded-lg md:rounded-xl p-4 border border-green-200">
+            <div className="flex items-center gap-2 md:gap-3 mb-4">
+              <div className="p-2 bg-green-500 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900">Financial Data</h4>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-white rounded p-3 border border-green-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Project Cost (DOST Assistance)</p>
+                <p className="text-sm font-semibold text-green-600">{formatCurrency(project.project_cost)}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-green-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Refund Amount</p>
+                <p className="text-sm font-semibold text-gray-900">{formatCurrency(project.refund_amount)}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-green-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Last Refund</p>
+                <p className="text-sm font-semibold text-gray-900">{formatCurrency(project.last_refund)}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-green-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Revenue (Before SETUP)</p>
+                <p className="text-sm text-gray-900">{formatCurrency(project.revenue)}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-green-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Net Income (Before SETUP)</p>
+                <p className="text-sm text-gray-900">{formatCurrency(project.net_income)}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-green-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Current Asset (Before SETUP)</p>
+                <p className="text-sm text-gray-900">{formatCurrency(project.current_asset)}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-green-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Non-Current Asset (Before SETUP)</p>
+                <p className="text-sm text-gray-900">{formatCurrency(project.noncurrent_asset)}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-green-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Equity (Before SETUP)</p>
+                <p className="text-sm text-gray-900">{formatCurrency(project.equity)}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-green-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Liability (Before SETUP)</p>
+                <p className="text-sm text-gray-900">{formatCurrency(project.liability)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Workforce Data */}
+          <div className="bg-purple-50 rounded-lg md:rounded-xl p-4 border border-purple-200">
+            <div className="flex items-center gap-2 md:gap-3 mb-4">
+              <div className="p-2 bg-purple-500 rounded-lg">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900">Workforce Data</h4>
+            </div>
+            
             <div className="space-y-4">
-              <div className="bg-blue-50 rounded-lg md:rounded-xl p-4 border border-blue-200">
-                <div className="flex items-center gap-2 md:gap-3 mb-4">
-                  <div className="p-2 bg-blue-500 rounded-lg">
-                    <Building2 className="w-4 h-4 md:w-5 md:h-5 text-white" />
+              <div>
+                <p className="text-sm font-semibold text-gray-900 mb-3">Indirect Employees</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white rounded p-3 border border-purple-100">
+                    <p className="text-xs font-medium text-gray-600 mb-1">Male</p>
+                    <p className="text-lg font-bold text-purple-600">{project.male || 0}</p>
                   </div>
-                  <h4 className="text-base md:text-lg font-semibold text-gray-900">Project Info</h4>
+                  <div className="bg-white rounded p-3 border border-purple-100">
+                    <p className="text-xs font-medium text-gray-600 mb-1">Female</p>
+                    <p className="text-lg font-bold text-purple-600">{project.female || 0}</p>
+                  </div>
+                  <div className="bg-white rounded p-3 border border-purple-100 col-span-2">
+                    <p className="text-xs font-medium text-gray-600 mb-1">Total Indirect</p>
+                    <p className="text-lg font-bold text-purple-600">{totalEmployees}</p>
+                  </div>
                 </div>
-                
-                <div className="space-y-3 md:space-y-4 text-sm">
-                  <div className="flex items-start gap-3">
-                    <Building2 className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs md:text-sm font-medium text-gray-600">Project Title</p>
-                      <p className="text-sm md:text-base text-gray-900 font-semibold break-words">{project.project_title}</p>
-                    </div>
-                  </div>
+              </div>
 
-                  <div className="flex items-start gap-3">
-                    <Building2 className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs md:text-sm font-medium text-gray-600">Company</p>
-                      <p className="text-sm md:text-base text-gray-900">{project.company?.company_name || 'N/A'}</p>
-                    </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900 mb-3">Direct Employees</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white rounded p-3 border border-purple-100">
+                    <p className="text-xs font-medium text-gray-600 mb-1">Male</p>
+                    <p className="text-lg font-bold text-purple-600">{project.direct_male || 0}</p>
                   </div>
-
-                  <div className="flex items-start gap-3">
-                    <PhilippinePeso className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs md:text-sm font-medium text-gray-600">Project Cost</p>
-                      <p className="text-sm md:text-base text-gray-900 font-semibold">
-                        {project.project_cost ? `₱${parseFloat(project.project_cost).toLocaleString()}` : 'N/A'}
-                      </p>
-                    </div>
+                  <div className="bg-white rounded p-3 border border-purple-100">
+                    <p className="text-xs font-medium text-gray-600 mb-1">Female</p>
+                    <p className="text-lg font-bold text-purple-600">{project.direct_female || 0}</p>
                   </div>
-
-                  <div className="flex items-start gap-3">
-                    <Calendar className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs md:text-sm font-medium text-gray-600">Fund Release Date</p>
-                      <p className="text-xs md:text-sm text-gray-900">
-                        {project.fund_release 
-                          ? new Date(project.fund_release).toLocaleDateString('en-US', { 
-                              year: 'numeric', 
-                              month: 'long', 
-                              day: 'numeric' 
-                            })
-                          : 'N/A'
-                        }
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <Calendar className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs md:text-sm font-medium text-gray-600">Phase One</p>
-                      <p className="text-sm md:text-base text-gray-900">{phaseOneDisplay}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <Calendar className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs md:text-sm font-medium text-gray-600">Phase Two</p>
-                      <p className="text-sm md:text-base text-gray-900">{phaseTwoDisplay}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <CheckCircle className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs md:text-sm font-medium text-gray-600">Status</p>
-                      <div className="mt-1">
-                        {getStatusBadge(project.progress)}
-                      </div>
-                    </div>
+                  <div className="bg-white rounded p-3 border border-purple-100 col-span-2">
+                    <p className="text-xs font-medium text-gray-600 mb-1">Total Direct</p>
+                    <p className="text-lg font-bold text-purple-600">{totalDirectEmployees}</p>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Project Items */}
-            <div className="space-y-4">
-              <div className="bg-green-50 rounded-lg md:rounded-xl p-4 border border-green-200">
-                <div className="flex items-center gap-2 md:gap-3 mb-4">
-                  <div className="p-2 bg-green-500 rounded-lg">
-                    <Package className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                  </div>
-                  <h4 className="text-base md:text-lg font-semibold text-gray-900">Items</h4>
-                </div>
-                
-                {project.items && project.items.length > 0 ? (
-                  <div className="space-y-2 md:space-y-3 max-h-96 overflow-y-auto">
-                    {project.items.map((item) => (
-                      <div key={item.item_id} className="bg-white rounded-lg p-3 border border-green-100">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <h5 className="font-medium text-gray-900 text-sm flex-1 break-words">{item.item_name}</h5>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 text-xs">
-                          <div>
-                            <p className="text-gray-600 mb-1">Quantity</p>
-                            <p className="font-medium text-gray-900">{item.quantity}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600 mb-1">Cost</p>
-                            <p className="font-semibold text-green-600">₱{parseFloat(item.item_cost).toLocaleString()}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 md:py-8">
-                    <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">No items assigned</p>
-                  </div>
-                )}
+          {/* Project Items */}
+          <div className="bg-green-50 rounded-lg md:rounded-xl p-4 border border-green-200">
+            <div className="flex items-center gap-2 md:gap-3 mb-4">
+              <div className="p-2 bg-green-500 rounded-lg">
+                <Package className="w-5 h-5 text-white" />
               </div>
+              <h4 className="text-lg font-semibold text-gray-900">Items</h4>
             </div>
+            
+            {project.items && project.items.length > 0 ? (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {project.items.map((item) => (
+                  <div key={item.item_id} className="bg-white rounded p-3 border border-green-100">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h5 className="font-medium text-gray-900 text-sm flex-1 break-words">{item.item_name}</h5>
+                    </div>
+                    {item.specifications && (
+                      <p className="text-xs text-gray-600 mb-2">Specs: {item.specifications}</p>
+                    )}
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <p className="text-gray-600 mb-1">Qty</p>
+                        <p className="font-medium text-gray-900">{item.quantity}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 mb-1">Type</p>
+                        <p className="font-medium text-gray-900 capitalize">{item.type}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 mb-1">Cost</p>
+                        <p className="font-semibold text-green-600">{formatCurrency(item.item_cost)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">No items assigned</p>
+              </div>
+            )}
+          </div>
+
+          {/* Status Section */}
+          <div className="bg-gray-100 rounded-lg p-4">
+            <p className="text-xs font-medium text-gray-600 mb-2">Current Status</p>
+            {getStatusBadge(project.progress)}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="bg-gray-50 px-4 md:px-6 py-3 md:py-4 rounded-b-lg md:rounded-b-2xl border-t border-gray-200 sticky bottom-0">
+        <div className="bg-gray-50 px-4 md:px-6 py-4 border-t border-gray-200 sticky bottom-0 rounded-b-lg md:rounded-b-2xl">
           <div className="flex flex-col-reverse md:flex-row justify-end gap-2 md:gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200 text-sm font-medium"
+              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
             >
               Close
             </button>
             <Link
               href={`/projects/${project.project_id}/edit`}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 font-medium text-sm"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all font-medium text-sm"
             >
               <Edit3 className="w-4 h-4" />
-              Edit
+              Edit Project
             </Link>
           </div>
         </div>

@@ -48,7 +48,7 @@ public function index(Request $request)
               ->orWhere('barangay', 'like', "%$search%")
               ->orWhere('municipality', 'like', "%$search%")
               ->orWhere('province', 'like', "%$search%")
-              ->orWhere('products', 'like', "%$search%"); // Added products to search
+              ->orWhere('products', 'like', "%$search%");
         });
     }
 
@@ -89,6 +89,7 @@ public function index(Request $request)
         'allOffices' => $allOffices,
     ]);
 }
+
 public function updateAddedBy(Request $request, $id)
 {
     $request->validate([
@@ -106,6 +107,7 @@ public function create()
 {
     return Inertia::render('Companies/Create');
 }
+
 public function store(Request $request)
 {
     $validated = $request->validate([
@@ -121,10 +123,6 @@ public function store(Request $request)
         'products'         => 'nullable|string',
         'setup_industry'   => 'nullable|string|max:150',
         'industry_type'    => 'nullable|string|max:10',
-        'female'           => 'nullable|integer|min:0',
-        'male'             => 'nullable|integer|min:0',
-        'direct_male'      => 'nullable|integer|min:0',
-        'direct_female'    => 'nullable|integer|min:0',
         'contact_number'   => 'nullable|string|max:13',
         'current_market'   => 'nullable|string|max:100',
     ]);
@@ -202,11 +200,6 @@ public function syncFromCSV()
                 continue;
             }
 
-            // $yearObligated = $data['Year Obligated'] ?? null;
-            // if (!in_array($yearObligated, ['2007'])) {
-            //     continue;
-            // }
-
             $company_name = trim($data['Name of the Business'] ?? '');
             if (!$company_name) {
                 Log::warning("Skipping row $rowIndex: Missing business name");
@@ -222,22 +215,6 @@ public function syncFromCSV()
             // Determine office_id based on province
             $provinceName = $data['Province'] ?? null;
             $officeId = $officeMap[$provinceName] ?? (session('office_id') ?? 1);
-
-            // Parse integer fields
-            $intFields = [
-                'Female indirect employees' => 'female',
-                'Male indirect employees' => 'male',
-                'Male direct Employees' => 'direct_male',
-                'Female direct Employees' => 'direct_female'
-            ];
-
-            $parsed = [];
-            foreach ($intFields as $csvKey => $dbField) {
-                // Remove commas from numeric values
-                $value = $data[$csvKey] ?? '';
-                $value = str_replace(',', '', $value);
-                $parsed[$dbField] = (is_numeric($value) && $value !== '') ? (int) $value : 0;
-            }
 
             try {
                 CompanyModel::create([
@@ -255,10 +232,6 @@ public function syncFromCSV()
                     'products'         => $data['Products'] ?? null,
                     'setup_industry'   => $data['SETUP Industry Sector'] ?? null,
                     'industry_type'    => $data['Type of Enterprise'] ?? null,
-                    'female'           => $parsed['female'],
-                    'male'             => $parsed['male'],
-                    'direct_male'      => $parsed['direct_male'],
-                    'direct_female'    => $parsed['direct_female'],
                     'contact_number'   => $data['Contact number'] ?? null,
                 ]);
                 $newRecords++;
@@ -304,10 +277,6 @@ public function update(Request $request, $id)
         'products'         => 'nullable|string',
         'setup_industry'   => 'nullable|string|max:150',
         'industry_type'    => 'nullable|string|max:10',
-        'female'           => 'nullable|integer|min:0',
-        'male'             => 'nullable|integer|min:0',
-        'direct_male'      => 'nullable|integer|min:0',
-        'direct_female'    => 'nullable|integer|min:0',
         'contact_number'   => 'nullable|string|max:13',
         'current_market'   => 'nullable|string|max:100',
     ]);
@@ -319,11 +288,6 @@ public function update(Request $request, $id)
 }
 
 
-
-
-    /**
-     * Remove the specified resource from storage.
-     */
 public function destroy($id)
 {
     $company = CompanyModel::findOrFail($id);

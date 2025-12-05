@@ -14,18 +14,24 @@ Schema::create('tbl_projects', function (Blueprint $table) {
             
             $table->text('project_title')->nullable();
             $table->unsignedBigInteger('company_id')->nullable();
-            $table->decimal('project_cost', 10, 2)->nullable();
+            $table->decimal('project_cost', 11, 2)->nullable();
 
             $table->unsignedBigInteger('added_by')->nullable();
             $table->string('progress', 45)->nullable();
             $table->year('year_obligated')->nullable();
 
-            $table->decimal('revenue', 10, 2)->nullable();
-            $table->decimal('net_income', 10, 2)->nullable();
-            $table->decimal('current_asset', 10, 2)->nullable();
-            $table->decimal('noncurrent_asset', 10, 2)->nullable();
-            $table->decimal('equity', 10, 2)->nullable();
-            $table->decimal('liability', 10, 2)->nullable();
+            $table->decimal('revenue', 11, 2)->nullable();
+            $table->decimal('net_income', 11, 2)->nullable();
+            $table->decimal('current_asset', 11, 2)->nullable();
+            $table->decimal('noncurrent_asset', 11, 2)->nullable();
+            $table->decimal('equity', 11, 2)->nullable();
+            $table->decimal('liability', 11, 2)->nullable();
+
+
+            $table->smallInteger('female')->nullable();
+            $table->smallInteger('male')->nullable();
+            $table->smallInteger('direct_male')->nullable();
+            $table->smallInteger('direct_female')->nullable();
 
             $table->date('fund_release')->nullable();
             $table->date('release_initial')->nullable();
