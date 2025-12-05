@@ -49,8 +49,8 @@ private const VALID_PROGRESS_STATUSES = [
 
         $search = $request->input('search');
         $perPage = $request->input('perPage', 10);
-        $sortField = $request->input('sortField', 'project_title');
-        $sortDirection = $request->input('sortDirection', 'asc');
+        $sortField = $request->input('sortField', 'project_id');
+        $sortDirection = $request->input('sortDirection', 'desc');
         $officeFilter = $request->input('officeFilter');
         $progressFilter = $request->input('progressFilter');
         $yearFilter = $request->input('yearFilter');
@@ -134,9 +134,27 @@ private const VALID_PROGRESS_STATUSES = [
         // Get offices for filter dropdown
         $offices = OfficeModel::orderBy('office_name')->get();
 
+        // Get ALL unique years from entire dataset (not just current page)
+        // Use a fresh query that respects user role but ignores pagination/sorting
+        $yearQuery = ProjectModel::where('year_obligated', '!=', null)
+            ->distinct()
+            ->orderBy('year_obligated', 'desc');
+
+        // Apply same role filtering
+        if ($user->role === 'user') {
+            $yearQuery->where('added_by', $user->user_id);
+        } elseif ($user->role === 'staff') {
+            $yearQuery->whereHas('company', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
+            });
+        }
+
+        $allYears = $yearQuery->pluck('year_obligated')->toArray();
+
         return Inertia::render('Projects/Index', [
             'projects' => $projects,
             'offices' => $offices,
+            'allYears' => $allYears,
             'filters' => [
                 'search' => $search,
                 'perPage' => $perPage,
@@ -680,6 +698,18 @@ public function syncProjectsFromCSV(){
                         'direct_female'    => $this->sanitizeNumeric($data['Female direct Employees'] ?? null),
                     ]
                 );
+
+                // Create implementation record if project was newly created
+                $implementationExists = ImplementationModel::where('project_id', $project->project_id)->exists();
+                if (!$implementationExists) {
+                    ImplementationModel::create([
+                        'project_id' => $project->project_id,
+                        'tarp' => null,
+                        'pdc' => null,
+                        'liquidation' => null,
+                    ]);
+                    Log::info("Row $rowIndex: Implementation record created for project ID: $projectId");
+                }
 
                 $newRecords++;
                 Log::info("Row $rowIndex synced successfully. Project ID: $projectId, Progress: $progress");
