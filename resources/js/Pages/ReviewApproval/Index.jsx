@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
-import { Search, FileText, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, List, CheckCheck, Send } from 'lucide-react';
+import { Search, FileText, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, List, CheckCheck, Send, Eye } from 'lucide-react';
 
-export default function ReviewList({ projects, filters, years }) {
+export default function Index({ projects, filters, years }) {
   const [search, setSearch] = useState(filters?.search || '');
   const [year, setYear] = useState(filters?.year || '');
   const [sortBy, setSortBy] = useState(filters?.sortBy || 'project_title');
@@ -14,7 +14,7 @@ export default function ReviewList({ projects, filters, years }) {
   // Single debounce effect for search and year
   useEffect(() => {
     const delaySearch = setTimeout(() => {
-      router.get(route('compliance.list'), {
+      router.get(route('compliance.index'), {
         search,
         year,
         sortBy,
@@ -409,10 +409,10 @@ export default function ReviewList({ projects, filters, years }) {
                       <td className="px-6 py-4">
                         <div className="flex justify-center">
                           <a
-                            href={route('compliance.index', project.project_id)}
+                            href={route('compliance.show', project.project_id)}
                             className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
                           >
-                            View
+                              <Eye className="w-3.5 h-3.5" />
                           </a>
                         </div>
                       </td>
@@ -461,7 +461,7 @@ export default function ReviewList({ projects, filters, years }) {
 
                   {/* Action Button */}
                   <a
-                    href={route('compliance.index', project.project_id)}
+                    href={route('compliance.show', project.project_id)}
                     className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs font-medium rounded-lg transition-all duration-200 mt-2"
                   >
                     View Details

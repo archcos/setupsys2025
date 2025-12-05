@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, router, Head } from '@inertiajs/react';
-import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, FolderOpen, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, FolderOpen, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Hammer } from 'lucide-react';
 
 export default function ImplementationIndex({ implementations, filters, offices, userRole }) {
   const [search, setSearch] = useState(filters?.search || '');
@@ -108,7 +108,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
           <div className="bg-gradient-to-r from-gray-50 to-white p-3 md:p-6 border-b border-gray-200">
             <div className="flex items-center gap-2 md:gap-3">
               <div className="p-1.5 md:p-2 bg-green-100 rounded-lg flex-shrink-0">
-                <ClipboardList className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+                <Hammer className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">Implementation Management</h2>
@@ -247,20 +247,20 @@ export default function ImplementationIndex({ implementations, filters, offices,
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-2 md:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         <button
                           onClick={handleSortToggle}
                           className="flex items-center gap-1 transition-colors"
                         >
-                          <span className={isSorted ? 'text-green-600 font-semibold' : 'text-gray-500'}>Code</span>
+                          <span className={isSorted ? 'text-green-600 font-semibold' : 'text-gray-500'}>PROJECT CODE</span>
                           <ArrowUpDown className={`w-3 h-3 transition-colors ${isSorted ? 'text-green-600' : 'text-gray-500'}`} />
                         </button>
                       </th>
-                      <th className="px-2 md:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-                      <th className="px-2 md:px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Project & Company</th>
+                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Signboard</th>
                       <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PDC</th>
-                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">1st Tag</th>
+                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">First Tag</th>
                       <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Final Tag</th>
                       <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Liquidation</th>
                       <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
@@ -332,8 +332,6 @@ export default function ImplementationIndex({ implementations, filters, offices,
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-green-600 text-white text-xs font-medium rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow group"
                             >
                               <Eye className="w-3.5 h-3.5" />
-                              View
-                              <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
                             </Link>
                           </td>
                         </tr>

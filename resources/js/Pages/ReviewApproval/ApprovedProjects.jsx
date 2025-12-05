@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import { Search, X, Building2, ArrowUpDown, FileText } from 'lucide-react';
+import { Search, X, Building2, ArrowUpDown, FileText, Award } from 'lucide-react';
 
 export default function ApprovedProjects({ projects, offices, filters, error: serverError }) {
   const [search, setSearch] = useState(filters?.search || '');
@@ -171,13 +171,17 @@ export default function ApprovedProjects({ projects, offices, filters, error: se
         <div className="bg-white rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
           {/* Header */}
           <div className="bg-gray-50 p-4 md:p-6 border-b border-gray-100">
-            <div className="flex items-center gap-2 md:gap-3 mb-1">
-              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                <FileText className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-1.5 md:p-2 bg-green-100 rounded-lg flex-shrink-0">
+                <Award className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
               </div>
-              <h1 className="text-lg md:text-2xl font-bold text-gray-900">Approved Projects</h1>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Approved Project</h2>
+                <p className="text-xs md:text-sm text-gray-600 mt-0.5 md:mt-1">
+                  Download approval documents
+                </p>
+              </div>
             </div>
-            <p className="text-xs md:text-sm text-gray-600 mt-1 md:mt-2 ml-10 md:ml-12">Download approval documents</p>
           </div>
 
           {/* Error Display */}
