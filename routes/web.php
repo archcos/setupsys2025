@@ -124,8 +124,8 @@ Route::middleware(['log-suspicious'])->group(function () {
 
     //COMPLIANCE
     Route::middleware(['auth'])->group(function () {
-        Route::get('/compliance', [ComplianceController::class, 'list'])->name('compliance.list');
-        Route::get('/compliance/{id}', [ComplianceController::class, 'index'])->name('compliance.index');
+        Route::get('/compliance', [ComplianceController::class, 'index'])->name('compliance.index');
+        Route::get('/compliance/{id}', [ComplianceController::class, 'show'])->name('compliance.show');
         Route::post('/compliance/store', [ComplianceController::class, 'store'])->name('compliance.store');
         Route::post('/compliance/approve', [ComplianceController::class, 'approve'])->name('compliance.approve');
         Route::post('/compliance/deny', [ComplianceController::class, 'deny'])->name('compliance.deny');

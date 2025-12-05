@@ -17,17 +17,17 @@ use App\Mail\ComplianceCompletedMail;
 
 class ComplianceController extends Controller
 {
-    public function list(Request $request)
+    public function index(Request $request)
     {
         $search = $request->input('search', '');
         $year = $request->input('year', '');
-        $sortBy = $request->input('sortBy', 'project_title');
-        $sortOrder = $request->input('sortOrder', 'asc');
+        $sortBy = $request->input('sortBy', 'project_id');
+        $sortOrder = $request->input('sortOrder', 'desc');
 
         // Valid sort columns
-        $validSortColumns = ['project_title', 'company_id', 'year_obligated', 'created_at', 'progress'];
+        $validSortColumns = ['project_id','project_title', 'company_id', 'year_obligated', 'created_at', 'progress'];
         if (!in_array($sortBy, $validSortColumns)) {
-            $sortBy = 'project_title';
+            $sortBy = 'project_id';
         }
 
         $sortOrder = strtoupper($sortOrder) === 'DESC' ? 'desc' : 'asc';
@@ -103,7 +103,7 @@ class ComplianceController extends Controller
             ->pluck('year_obligated')
             ->toArray();
 
-        return Inertia::render('ReviewApproval/ReviewList', [
+        return Inertia::render('ReviewApproval/Index', [
             'projects' => $projects,
             'years' => $years,
             'filters' => [
@@ -115,7 +115,7 @@ class ComplianceController extends Controller
         ]);
     }
     
-    public function index($projectId)
+    public function show($projectId)
     {
         $project = ProjectModel::findOrFail($projectId);
         $compliance = ComplianceModel::where('project_id', $projectId)->first();

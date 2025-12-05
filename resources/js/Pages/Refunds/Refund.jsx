@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useForm, Head, router, usePage, Link } from '@inertiajs/react';
-import { Save, Search, Filter, Calendar, Building2, CheckCircle, AlertCircle, X, Check, Eye } from 'lucide-react';
+import { Save, Search, Filter, Calendar, Building2, CheckCircle, AlertCircle, X, Check, Eye, HandCoins } from 'lucide-react';
 import { MONTHS, REFUND_STATUS } from './constants/refundConstants';
 import FilterSection from './components/FilterSection';
 import RefundTableRow from './components/RefundTableRow';
@@ -171,8 +171,17 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
           
           {/* Header */}
           <div className="bg-gradient-to-r from-gray-50 to-white p-3 md:p-6 border-b border-gray-100">
-            <h2 className="text-lg md:text-xl font-semibold text-gray-900">Refund Management</h2>
-            <p className="text-xs md:text-sm text-gray-600 mt-1">Manage project refund amounts</p>
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-1.5 md:p-2 bg-green-100 rounded-lg flex-shrink-0">
+                <HandCoins className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Refund Management</h2>
+                <p className="text-xs md:text-sm text-gray-600 mt-0.5 md:mt-1">
+                  Manage project refund amounts
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Filters Section - Memoized */}
