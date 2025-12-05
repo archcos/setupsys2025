@@ -28,10 +28,6 @@ class CompanyModel extends Model
         'products',
         'setup_industry',
         'industry_type',
-        'female',
-        'male',
-        'direct_male',
-        'direct_female',
         'contact_number',
     ];
 

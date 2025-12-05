@@ -41,103 +41,113 @@ private const VALID_PROGRESS_STATUSES = [
     'Terminated',
 ];
 
-public function index(Request $request)
-{
-    $user = Auth::user();
-    if (!$user) {
-        return redirect()->route('login');
-    }
-
-    $search = $request->input('search');
-    $perPage = $request->input('perPage', 10);
-    $sortField = $request->input('sortField', 'project_title');
-    $sortDirection = $request->input('sortDirection', 'asc');
-    $officeFilter = $request->input('officeFilter');
-    $progressFilter = $request->input('progressFilter');
-
-    $query = ProjectModel::with([
-        'company.office',
-        'items' => function ($q) {
-            $q->where('report', 'approved');
-        },
-        'messages' => function ($q) {
-            $q->orderBy('created_at', 'desc');
+    public function index(Request $request){
+        $user = Auth::user();
+        if (!$user) {
+            return redirect()->route('login');
         }
-    ]);
 
-    // Filter by user role
-    if ($user->role === 'user') {
-        $query->where('added_by', $user->user_id);
-    } elseif ($user->role === 'staff') {
-        $query->whereHas('company', function ($q) use ($user) {
-            $q->where('office_id', $user->office_id);
-        });
+        $search = $request->input('search');
+        $perPage = $request->input('perPage', 10);
+        $sortField = $request->input('sortField', 'project_title');
+        $sortDirection = $request->input('sortDirection', 'asc');
+        $officeFilter = $request->input('officeFilter');
+        $progressFilter = $request->input('progressFilter');
+        $yearFilter = $request->input('yearFilter');
+
+        $query = ProjectModel::with([
+            'company.office',
+            'items' => function ($q) {
+                $q->where('report', 'approved');
+            },
+            'messages' => function ($q) {
+                $q->orderBy('created_at', 'desc');
+            }
+        ]);
+
+        // Filter by user role
+        if ($user->role === 'user') {
+            $query->where('added_by', $user->user_id);
+        } elseif ($user->role === 'staff') {
+            $query->whereHas('company', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
+            });
+        }
+
+        // Apply search
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('project_title', 'like', "%{$search}%")
+                    ->orWhere('project_id', 'like', "%{$search}%")
+                    ->orWhere('project_cost', 'like', "%{$search}%")
+                    ->orWhere('progress', 'like', "%{$search}%")
+                    ->orWhereHas('company', function ($q) use ($search) {
+                        $q->where('company_name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('items', function ($q) use ($search) {
+                        $q->where('item_name', 'like', "%{$search}%")
+                        ->orWhere('specifications', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        // Apply office filter
+        if ($officeFilter) {
+            $query->whereHas('company', function ($q) use ($officeFilter) {
+                $q->where('office_id', $officeFilter);
+            });
+        }
+
+        // Apply year obligated filter
+        if ($yearFilter) {
+            $query->where('year_obligated', $yearFilter);
+        }
+
+        // Apply progress filter
+        if ($progressFilter) {
+            $query->where('progress', $progressFilter);
+        }
+
+        // Apply sorting
+        if ($sortField === 'project_title') {
+            $query->orderBy('project_title', $sortDirection);
+        } elseif ($sortField === 'project_id') {
+            $query->orderBy('project_id', $sortDirection);
+        } elseif ($sortField === 'project_cost') {
+            $query->orderBy('project_cost', $sortDirection);
+        } elseif ($sortField === 'progress') {
+            $query->orderBy('progress', $sortDirection);
+        } elseif ($sortField === 'year_obligated') {
+            $query->orderBy('year_obligated', $sortDirection);
+        } elseif ($sortField === 'fund_release') {
+            $query->orderBy('fund_release', $sortDirection);
+        } elseif ($sortField === 'company_name') {
+            $query->join('tbl_companies', 'tbl_projects.company_id', '=', 'tbl_companies.company_id')
+                    ->orderBy('tbl_companies.company_name', $sortDirection)
+                    ->select('tbl_projects.*');
+        } else {
+            $query->orderBy('project_title', 'asc');
+        }
+
+        $projects = $query->paginate($perPage)->withQueryString();
+
+        // Get offices for filter dropdown
+        $offices = OfficeModel::orderBy('office_name')->get();
+
+        return Inertia::render('Projects/Index', [
+            'projects' => $projects,
+            'offices' => $offices,
+            'filters' => [
+                'search' => $search,
+                'perPage' => $perPage,
+                'sortField' => $sortField,
+                'sortDirection' => $sortDirection,
+                'officeFilter' => $officeFilter,
+                'progressFilter' => $progressFilter,
+                'yearFilter' => $yearFilter,
+            ],
+        ]);
     }
-
-    // Apply search
-    if ($search) {
-        $query->where(function ($q) use ($search) {
-            $q->where('project_title', 'like', "%{$search}%")
-                ->orWhere('project_cost', 'like', "%{$search}%")
-                ->orWhere('progress', 'like', "%{$search}%")
-                ->orWhereHas('company', function ($q) use ($search) {
-                    $q->where('company_name', 'like', "%{$search}%");
-                })
-                ->orWhereHas('items', function ($q) use ($search) {
-                    $q->where('item_name', 'like', "%{$search}%")
-                    ->orWhere('specifications', 'like', "%{$search}%");
-                });
-        });
-    }
-
-    // Apply office filter
-    if ($officeFilter) {
-        $query->whereHas('company', function ($q) use ($officeFilter) {
-            $q->where('office_id', $officeFilter);
-        });
-    }
-
-    // Apply progress filter
-    if ($progressFilter) {
-        $query->where('progress', $progressFilter);
-    }
-
-    // REMOVED: Only include projects that have approved items
-    // Now projects display even without items
-
-    // Apply sorting
-    if ($sortField === 'project_title') {
-        $query->orderBy('project_title', $sortDirection);
-    } elseif ($sortField === 'project_cost') {
-        $query->orderBy('project_cost', $sortDirection);
-    } elseif ($sortField === 'progress') {
-        $query->orderBy('progress', $sortDirection);
-    } elseif ($sortField === 'company_name') {
-        $query->join('tbl_companies', 'tbl_projects.company_id', '=', 'tbl_companies.company_id')
-                ->orderBy('tbl_companies.company_name', $sortDirection)
-                ->select('tbl_projects.*');
-    } else {
-        $query->orderBy('project_title', 'asc');
-    }
-
-    $projects = $query->paginate($perPage)->withQueryString();
-
-    // Get offices for filter dropdown
-    $offices = OfficeModel::orderBy('office_name')->get();
-
-    return Inertia::render('Projects/Index', [
-        'projects' => $projects,
-        'offices' => $offices,
-        'filters' => [
-            'search' => $search,
-            'perPage' => $perPage,
-            'sortField' => $sortField,
-            'sortDirection' => $sortDirection,
-            'officeFilter' => $officeFilter,
-            'progressFilter' => $progressFilter,
-        ],
-    ]);
-}
 
     public function updateStatus(Request $request, $id){
         $validated = $request->validate([
@@ -267,6 +277,10 @@ public function store(Request $request){
         'noncurrent_asset'  => 'nullable|numeric',
         'equity'            => 'nullable|numeric',
         'liability'         => 'nullable|numeric',
+        'female'            => 'nullable|integer|min:0',
+        'male'              => 'nullable|integer|min:0',
+        'direct_male'       => 'nullable|integer|min:0',
+        'direct_female'     => 'nullable|integer|min:0',
         'fund_release'      => 'nullable|date',
         'release_initial'   => 'nullable|date',
         'release_end'       => 'nullable|date',
@@ -300,6 +314,10 @@ public function store(Request $request){
         'noncurrent_asset'  => $validated['noncurrent_asset'] ?? null,
         'equity'            => $validated['equity'] ?? null,
         'liability'         => $validated['liability'] ?? null,
+        'female'            => $validated['female'] ?? null,
+        'male'              => $validated['male'] ?? null,
+        'direct_male'       => $validated['direct_male'] ?? null,
+        'direct_female'     => $validated['direct_female'] ?? null,
         'fund_release'      => $validated['fund_release'] ?? null,
         'release_initial'   => $validated['release_initial'] ?? null,
         'release_end'       => $validated['release_end'] ?? null,
@@ -405,6 +423,10 @@ public function update(Request $request, $id)
         'noncurrent_asset'  => 'nullable|numeric',
         'equity'            => 'nullable|numeric',
         'liability'         => 'nullable|numeric',
+        'female'            => 'nullable|integer|min:0',
+        'male'              => 'nullable|integer|min:0',
+        'direct_male'       => 'nullable|integer|min:0',
+        'direct_female'     => 'nullable|integer|min:0',
         'fund_release'      => 'nullable|date',
         'release_initial'   => 'required|regex:/^\d{4}-\d{2}$/',
         'release_end'       => 'required|regex:/^\d{4}-\d{2}$/',
@@ -436,6 +458,10 @@ public function update(Request $request, $id)
         'noncurrent_asset'  => $validated['noncurrent_asset'] ?? null,
         'equity'            => $validated['equity'] ?? null,
         'liability'         => $validated['liability'] ?? null,
+        'female'            => $validated['female'] ?? null,
+        'male'              => $validated['male'] ?? null,
+        'direct_male'       => $validated['direct_male'] ?? null,
+        'direct_female'     => $validated['direct_female'] ?? null,
         'fund_release'      => $validated['fund_release'] ?? null,
         'release_initial'   => $validated['release_initial'],
         'release_end'       => $validated['release_end'],
@@ -555,7 +581,7 @@ public function syncProjectsFromCSV(){
                     continue;
                 }
 
-                Log::info("Processing row $rowIndex", $data);
+                // Log::info("Processing row $rowIndex", $data);
 
                 // Validate year obligated
                 $yearObligated = $data['Year Obligated'] ?? null;
@@ -590,6 +616,12 @@ public function syncProjectsFromCSV(){
                     $projectId = (int) (time() . mt_rand(100, 999));
                 }
 
+                $existingProject = ProjectModel::where('project_id', $projectId)->first();
+                if ($existingProject) {
+                    Log::info("Row $rowIndex: Project ID $projectId already exists. Skipping.");
+                    continue;
+                }
+
                 // Parse dates
                 [$releaseInitial, $releaseEnd] = $this->splitMonthYear($data['Original Project Duration'] ?? '');
                 [$refundInitial, $refundEnd] = $this->splitMonthYear($data['Original Refund Schedule'] ?? '');
@@ -612,6 +644,15 @@ public function syncProjectsFromCSV(){
                     Log::warning("Row $rowIndex: Invalid or zero project_cost");
                 }
 
+                // Determine progress based on Status
+                $status = trim($data['STATUS'] ?? '');
+                $progress = match($status) {
+                    'WITHDRAWN' => 'Withdrawn',
+                    'TERMINATED' => 'Terminated',
+                    'GRADUATED' => 'Completed',
+                    default => 'Implementation',
+                };
+
                 // Create or update project
                 $project = ProjectModel::updateOrCreate(
                     ['project_id' => $projectId],
@@ -626,18 +667,22 @@ public function syncProjectsFromCSV(){
                         'year_obligated'   => $yearObligated,
                         'added_by'         => Auth::id() ?? 1,
                         'project_cost'     => $projectCost,
-                        'progress'         => 'Implementation',
+                        'progress'         => $progress,
                         'revenue'          => $this->sanitizeNumeric($data['Revenue (Before SETUP)'] ?? null),
                         'equity'           => $this->sanitizeNumeric($data['Equity (Before SETUP)'] ?? null),
                         'liability'        => $this->sanitizeNumeric($data['Liability (Before SETUP)'] ?? null),
                         'net_income'       => $this->sanitizeNumeric($data['Net Income (Before SETUP)'] ?? null),
                         'current_asset'    => $this->sanitizeNumeric($data['Current Asset (Before SETUP)'] ?? null),
                         'noncurrent_asset' => $this->sanitizeNumeric($data['Non-Current Asset (Before SETUP)'] ?? null),
+                        'female'           => $this->sanitizeNumeric($data['Female indirect employees'] ?? null),
+                        'male'             => $this->sanitizeNumeric($data['Male indirect employees'] ?? null),
+                        'direct_male'      => $this->sanitizeNumeric($data['Male direct Employees'] ?? null),
+                        'direct_female'    => $this->sanitizeNumeric($data['Female direct Employees'] ?? null),
                     ]
                 );
 
                 $newRecords++;
-                Log::info("Row $rowIndex synced successfully. Project ID: $projectId");
+                Log::info("Row $rowIndex synced successfully. Project ID: $projectId, Progress: $progress");
 
             } catch (\Exception $e) {
                 $errorMsg = "Row $rowIndex failed: " . $e->getMessage();

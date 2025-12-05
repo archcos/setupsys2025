@@ -35,6 +35,10 @@ class ProjectModel extends Model
         'noncurrent_asset',
         'equity',
         'liability',
+        'female',
+        'male',
+        'direct_male',
+        'direct_female',
         'created_at',
         'updated_at',
     ];

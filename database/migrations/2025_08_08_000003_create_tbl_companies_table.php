@@ -27,11 +27,6 @@ return new class extends Migration
             $table->string('setup_industry', 150)->nullable();
             $table->string('industry_type', 10)->nullable();
 
-            $table->smallInteger('female')->nullable();
-            $table->smallInteger('male')->nullable();
-            $table->smallInteger('direct_male')->nullable();
-            $table->smallInteger('direct_female')->nullable();
-
             $table->string('contact_number', 50)->nullable();
             $table->string('current_market', 100)->nullable();
 

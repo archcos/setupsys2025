@@ -2,7 +2,6 @@
 import { useForm, Link, Head } from '@inertiajs/react';
 import { Edit3, ChevronLeft, Save, Loader2 } from 'lucide-react';
 import CompanyInfoSection from './components/sections/CompanyInfoSection';
-import WorkforceSection from './components/sections/WorkforceSection';
 import LocationSection from './components/sections/LocationSection';
 import OwnerSection from './components/sections/OwnerSection';
 
@@ -20,10 +19,6 @@ export default function Edit({ company }) {
     products: company.products || '',
     setup_industry: company.setup_industry || '',
     industry_type: company.industry_type || '',
-    female: company.female || 0,
-    male: company.male || 0,
-    direct_male: company.direct_male || 0,
-    direct_female: company.direct_female || 0,
     contact_number: company.contact_number || '',
   });
 
@@ -58,7 +53,6 @@ export default function Edit({ company }) {
 
         <form onSubmit={handleSubmit} className="space-y-4 md:space-y-8">
           <CompanyInfoSection data={data} setData={setData} errors={errors} />
-          <WorkforceSection data={data} setData={setData} errors={errors} />
           <LocationSection data={data} setData={setData} errors={errors} />
           <OwnerSection data={data} setData={setData} errors={errors} />
 

@@ -1,6 +1,6 @@
 import { Link, router, Head } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Eye, Edit3, Trash2, Building, User, Mail, Phone, MapPin, Factory, Package, Users, X, Filter, ArrowUpDown, AlertCircle } from 'lucide-react';
+import { Search, Plus, Eye, Edit3, Trash2, Building, User, Mail, Phone, MapPin, Factory, Package, X, Filter, ArrowUpDown, AlertCircle } from 'lucide-react';
 
 
 export default function Index({ companies, filters, allUsers = [], allOffices = [] }) {
@@ -579,7 +579,7 @@ function CompanyModal({ company, isOpen, onClose }) {
           </div>
         </div>
 
-        {/* Content */}
+      {/* Content */}
         <div className="p-4 md:p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
             {/* Company Info */}
@@ -648,8 +648,6 @@ function CompanyModal({ company, isOpen, onClose }) {
                     </div>
                   </div>
 
-                 
-
                   <div className="flex items-start gap-3">
                     <Package className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div className="min-w-0">
@@ -661,9 +659,8 @@ function CompanyModal({ company, isOpen, onClose }) {
               </div>
             </div>
 
-            {/* Owner & Employee Info */}
+            {/* Owner Info */}
             <div className="space-y-4 md:space-y-6">
-              {/* Owner Info */}
               <div className="bg-gradient-to-r from-green-50 to-green-100/50 rounded-lg md:rounded-xl p-4 md:p-5 border border-green-200">
                 <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
                   <div className="p-2 bg-green-500 rounded-lg">
@@ -682,7 +679,7 @@ function CompanyModal({ company, isOpen, onClose }) {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <Users className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
+                    <Mail className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
                     <div>
                       <p className="text-xs md:text-sm font-medium text-gray-600">Gender</p>
                       <p className="text-xs md:text-sm text-gray-900">{company.sex || 'N/A'}</p>
@@ -695,35 +692,6 @@ function CompanyModal({ company, isOpen, onClose }) {
                       <p className="text-xs md:text-sm font-medium text-gray-600">District</p>
                       <p className="text-xs md:text-sm text-gray-900">{company.district || 'N/A'}</p>
                     </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Employee Stats */}
-              <div className="bg-gradient-to-r from-purple-50 to-purple-100/50 rounded-lg md:rounded-xl p-4 md:p-5 border border-purple-200">
-                <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
-                  <div className="p-2 bg-purple-500 rounded-lg">
-                    <Users className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                  </div>
-                  <h4 className="text-base md:text-lg font-semibold text-gray-900">Employees</h4>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2 md:gap-4">
-                  <div className="text-center p-2 md:p-3 bg-white rounded-lg border border-purple-100">
-                    <p className="text-lg md:text-2xl font-bold text-purple-600">{company.male || 0}</p>
-                    <p className="text-xs text-gray-600">Indirect Male</p>
-                  </div>
-                  <div className="text-center p-2 md:p-3 bg-white rounded-lg border border-purple-100">
-                    <p className="text-lg md:text-2xl font-bold text-purple-600">{company.female || 0}</p>
-                    <p className="text-xs text-gray-600">Indirect Female</p>
-                  </div>
-                  <div className="text-center p-2 md:p-3 bg-white rounded-lg border border-purple-100">
-                    <p className="text-lg md:text-2xl font-bold text-purple-600">{company.direct_male || 0}</p>
-                    <p className="text-xs text-gray-600">Direct Male</p>
-                  </div>
-                  <div className="text-center p-2 md:p-3 bg-white rounded-lg border border-purple-100">
-                    <p className="text-lg md:text-2xl font-bold text-purple-600">{company.direct_female || 0}</p>
-                    <p className="text-xs text-gray-600">Direct Female</p>
                   </div>
                 </div>
               </div>
