@@ -138,7 +138,7 @@ export default function UserLoan({ projects, search, years, selectedYear }) {
                                 return (
                                     <Link
                                         key={p.project_id}
-                                        href={`/user/refunds/${p.project_id}`}
+                                        href={`my-refunds/${p.project_id}`}
                                         className="block p-3 md:p-4 hover:bg-blue-50/50 transition-colors"
                                     >
                                         {/* Project Header */}

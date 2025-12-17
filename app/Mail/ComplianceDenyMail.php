@@ -27,6 +27,18 @@ class ComplianceDenyMail extends Mailable
         $companyName = $this->project->company->company_name ?? 'N/A';
         $deniedByName = $this->deniedBy->name ?? 'Unknown User';
         $denialDate = now()->format('F d, Y \a\t h:i A');
+        $currentYear = \Carbon\Carbon::now()->year;
+
+        // Embed images as attachments
+        $this->attach(resource_path('assets/SETUP_logo.webp'), [
+            'as' => 'setup_logo.webp',
+            'mime' => 'image/webp',
+        ]);
+
+        $this->attach(resource_path('assets/logo.webp'), [
+            'as' => 'logo.webp',
+            'mime' => 'image/webp',
+        ]);
 
         $htmlContent = "
             <!DOCTYPE html>
@@ -39,6 +51,7 @@ class ComplianceDenyMail extends Mailable
                 <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff;'>
                     <!-- Header -->
                     <div style='background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); padding: 40px 20px; text-align: center;'>
+                        <img src='cid:setup_logo.webp' alt='SETUP Logo' style='max-width: 120px; height: auto; margin-bottom: 15px;'>
                         <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;'>✗ Project Compliance Denied</h1>
                         <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;'>Denied on {$denialDate}</p>
                     </div>
@@ -110,11 +123,12 @@ class ComplianceDenyMail extends Mailable
 
                     <!-- Footer -->
                     <div style='background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;'>
+                        <img src='cid:logo.webp' alt='Company Logo' style='max-width: 100px; height: auto; margin-bottom: 15px;'>     
                         <p style='margin: 0 0 10px 0; color: #666; font-size: 13px;'>
                             This is an automated notification from SETUPSYS
                         </p>
                         <p style='margin: 0; color: #999; font-size: 12px;'>
-                            © 2025 SETUPSYS. All rights reserved.
+                            © {$currentYear} SETUPSYS. All rights reserved. | Do not reply to this email
                         </p>
                     </div>
                 </div>

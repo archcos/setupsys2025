@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\DirectorController;
 use App\Http\Controllers\ApplyRestructController;
 use App\Http\Controllers\ComplianceController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\FrequencyController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImplementationController;
@@ -74,7 +75,7 @@ Route::middleware(['log-suspicious'])->group(function () {
     Route::get('/announcements/view', [PageController::class, 'announcements'])->name('announcements.public');
 
 
-    // SIDEBAR
+    // DEVELOPMENT
     Route::middleware(['auth'])->group(function () {
         Route::resource('companies', CompanyController::class);
         Route::resource('projects', ProjectController::class)->middleware('role:head,staff,rpmo')
@@ -83,11 +84,11 @@ Route::middleware(['log-suspicious'])->group(function () {
             ->middleware('role:head,rpmo')
             ->name('projects.destroy');    
         Route::resource('activities', ActivityController::class)->middleware('role:head,staff,rpmo');
-        Route::post('/projects/{id}/update-status', [ProjectController::class, 'updateStatus'])->name('projects.updateStatus');
-        Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly');
-        Route::post('/companies/sync', [CompanyController::class, 'syncFromCSV'])->name('companies.sync');
-        Route::get('/activity-list', [ActivityController::class, 'readonly'])->name('activities.readonly');
-        Route::post('/companies/{id}/update-added-by', [CompanyController::class, 'updateAddedBy']);
+        Route::post('/projects/{id}/update-status', [ProjectController::class, 'updateStatus'])->name('projects.updateStatus')->middleware('role:rpmo');
+        Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly')->middleware('role:user');
+        Route::post('/companies/sync', [CompanyController::class, 'syncFromCSV'])->name('companies.sync')->middleware('role:rpmo');
+        Route::get('/activity-list', [ActivityController::class, 'readonly'])->name('activities.readonly')->middleware('role:user');
+        Route::post('/companies/{id}/update-added-by', [CompanyController::class, 'updateAddedBy'])->middleware('role:rpmo');
         Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
         ->middleware('role:rpmo')
         ->name('projects.sync');
@@ -110,7 +111,6 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/moa/{moa_id}/upload-approved', [MOAController::class, 'uploadApprovedFile'])->name('moa.upload.approved');
         Route::get('/moa/{moa_id}/download-approved', [MOAController::class, 'downloadApprovedFile'])->name('moa.download.approved');
         
-        
         Route::put('/projects/{id}/progress', [ProjectController::class, 'updateProgress'])->middleware('role:staff');
     });
 
@@ -123,7 +123,7 @@ Route::middleware(['log-suspicious'])->group(function () {
     });
 
     //COMPLIANCE
-    Route::middleware(['auth'])->group(function () {
+    Route::middleware(['auth', 'role:staff,rpmo,rd'])->group(function () {
         Route::get('/compliance', [ComplianceController::class, 'index'])->name('compliance.index');
         Route::get('/compliance/{id}', [ComplianceController::class, 'show'])->name('compliance.show');
         Route::post('/compliance/store', [ComplianceController::class, 'store'])->name('compliance.store');
@@ -132,7 +132,7 @@ Route::middleware(['log-suspicious'])->group(function () {
     });
 
     //RD-DASHBOARD
-    Route::middleware(['auth'])->group(function () {
+    Route::middleware(['auth',  'role:rd'])->group(function () {
         Route::get('/rd-dashboard', [RDDashboardController::class, 'index'])->name('rd-dashboard.index');
         Route::post('/rd-dashboard/{projectId}/update-status', [RDDashboardController::class, 'updateStatus'])->name('rd-dashboard.update-status');
         Route::get('/rd-dashboard/{projectId}', [RDDashboardController::class, 'show'])->name('rd-dashboard.show');
@@ -213,7 +213,7 @@ Route::middleware(['log-suspicious'])->group(function () {
     //  USER-ONLY ROUTES 
     Route::middleware(['auth', 'role:user'])->group(function () {
         Route::get('/my-refunds', [RefundController::class, 'userRefunds'])->name('refunds.user');
-        Route::get('/user/refunds/{projectId}', [RefundController::class, 'userProjectRefunds'])
+        Route::get('/my-refunds/{projectId}', [RefundController::class, 'userProjectRefunds'])
             ->name('user.refunds.details');
     });
 
@@ -268,7 +268,7 @@ Route::middleware(['log-suspicious'])->group(function () {
     // Route::post('/messages/{id}/toggle-status', [ReviewController::class, 'toggleMessageStatus'])->name('messages.toggleStatus');
     //REPORTS
 
-    Route::middleware(['auth'])->group(function () {
+    Route::middleware(['auth', 'role:user,staff,rpmo'])->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/create/{project}', [ReportController::class, 'create'])->name('reports.create');
         Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');
@@ -289,6 +289,23 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::put('/announcements/{id}', [AnnouncementController::class, 'update'])->name('announcements.update');
         Route::delete('/announcements/{id}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
     });
+
+    Route::middleware(['auth'])->group(function () {
+    
+    Route::get('/settings/devices', [DeviceController::class, 'list'])
+        ->name('devices.list');
+    
+    Route::delete('/settings/devices/{id}', [DeviceController::class, 'revoke'])
+        ->name('devices.revoke');
+    
+    Route::get('/api/devices/stats', [DeviceController::class, 'getDeviceStats'])
+        ->name('devices.stats');
+    
+    // Admin-only: Cleanup expired devices (can be run manually or via scheduler)
+    Route::post('/admin/devices/cleanup', [DeviceController::class, 'cleanupExpiredDevices'])
+        ->middleware('role:head')
+        ->name('devices.cleanup');
+});
 
 });
 

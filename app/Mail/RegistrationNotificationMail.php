@@ -24,6 +24,18 @@ class RegistrationNotificationMail extends Mailable
         $userName = $this->userName;
         $userEmail = $this->userEmail;
         $registrationDate = now()->format('F d, Y \a\t h:i A');
+        $currentYear = \Carbon\Carbon::now()->year;
+
+        // Embed images as attachments
+        $this->attach(resource_path('assets/SETUP_logo.webp'), [
+            'as' => 'setup_logo.webp',
+            'mime' => 'image/webp',
+        ]);
+
+        $this->attach(resource_path('assets/logo.webp'), [
+            'as' => 'logo.webp',
+            'mime' => 'image/webp',
+        ]);
 
         $htmlContent = "
             <!DOCTYPE html>
@@ -36,6 +48,7 @@ class RegistrationNotificationMail extends Mailable
                 <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff;'>
                     <!-- Header -->
                     <div style='background-color: #0056b3; padding: 30px 20px; text-align: center;'>
+                        <img src='cid:setup_logo.webp' alt='SETUP Logo' style='max-width: 120px; height: auto; margin-bottom: 15px;'>
                         <h1 style='margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;'>Account Registration Confirmation</h1>
                     </div>
 
@@ -81,8 +94,12 @@ class RegistrationNotificationMail extends Mailable
 
                     <!-- Footer -->
                     <div style='background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e0e0e0;'>
+                        <img src='cid:logo.webp' alt='Company Logo' style='max-width: 100px; height: auto; margin-bottom: 15px;'>     
+                        <p style='margin: 0 0 10px 0; color: #666; font-size: 13px;'>
+                            This is an automated notification from SETUPSYS
+                        </p>   
                         <p style='margin: 0; color: #999; font-size: 12px;'>
-                            © 2025 DOST Northern Mindanao. All rights reserved.
+                            © {$currentYear} SETUPSYS. All rights reserved. | Do not reply to this email
                         </p>
                     </div>
                 </div>
