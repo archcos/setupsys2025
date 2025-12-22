@@ -370,34 +370,23 @@ class AuthController extends Controller
         }
     }
 
+
     public function verifyOtp(Request $request){
         $ip = $request->ip();
-        $rateLimitKey = 'otp_verify:' . $ip;
         
-        if (RateLimiter::tooManyAttempts($rateLimitKey, 15)) {
-            $seconds = RateLimiter::availableIn($rateLimitKey);
-            
-            Log::warning('OTP verification rate limited', [
-                'ip' => $ip,
-                'retry_after' => $seconds,
-            ]);
-            
-            return back()->withErrors([
-                'message' => "Too many verification attempts. Try again in {$seconds} seconds.",
-            ]);
-        }
-        
-        RateLimiter::hit($rateLimitKey, 30);
-        
-        $request->validate([
+        $validated = $request->validate([
             'email' => 'required|email',
             'otp' => 'required|numeric|digits:8',
         ]);
         
-        $email = $request->email;
+        $email = $validated['email'];
+        $otp = $validated['otp'];
         $pendingUserId = Session::get('pending_user_id');
         $otpEmail = Session::get('otp_email');
         $deviceFingerprintJson = Session::get('device_fingerprint');
+        
+        $ipKey = 'otp_verify:ip:' . $ip;
+        $userKey = 'otp_verify:user:' . $pendingUserId;
         
         if (!$pendingUserId || !$otpEmail) {
             Log::warning('Missing session data during OTP verification', [
@@ -407,8 +396,7 @@ class AuthController extends Controller
             ]);
             return back()->withErrors(['message' => 'OTP expired or invalid.']);
         }
-
-        // Decode fingerprint from JSON
+        
         $deviceFingerprint = json_decode($deviceFingerprintJson, true);
         
         if (!$deviceFingerprint || !is_array($deviceFingerprint)) {
@@ -431,24 +419,35 @@ class AuthController extends Controller
             return back()->withErrors(['message' => 'Invalid email for OTP.']);
         }
         
-        // SECURE: Use database transaction with row locking
+        if (RateLimiter::tooManyAttempts($ipKey, 15)) {
+            $seconds = RateLimiter::availableIn($ipKey);
+            Log::warning('OTP verification rate limited by IP', [
+                'ip' => $ip,
+                'retry_after' => $seconds,
+            ]);
+            return back()->withErrors(['message' => "Too many verification attempts. Try again in {$seconds} seconds."]);
+        }
+        
+        if (RateLimiter::tooManyAttempts($userKey, 5)) {
+            $seconds = RateLimiter::availableIn($userKey);
+            Log::warning('OTP verification rate limited by user', ['user_id' => $pendingUserId, 'retry_after' => $seconds]);
+            return back()->withErrors(['message' => "Too many verification attempts. Try again in {$seconds} seconds."]);
+        }
+        
+        RateLimiter::hit($ipKey, 30);
+        RateLimiter::hit($userKey, 30);
+        
         try {
-            $otpVerified = DB::transaction(function () use ($email, $request, $ip) {
-                // Lock the row for update to prevent race conditions
+            $otpVerified = DB::transaction(function () use ($email, $otp, $ip) {
                 $otpRecord = OtpModel::where('email', $email)
                     ->lockForUpdate()
                     ->first();
                 
-                // OTP record doesn't exist
                 if (!$otpRecord) {
-                    Log::warning('OTP record not found', [
-                        'email' => $email,
-                        'ip' => $ip,
-                    ]);
+                    Log::warning('OTP record not found', ['email' => $email, 'ip' => $ip]);
                     return false;
                 }
                 
-                // OTP already used
                 if ($otpRecord->used_at !== null) {
                     Log::warning('OTP reuse attempt detected', [
                         'email' => $email,
@@ -459,48 +458,61 @@ class AuthController extends Controller
                     return false;
                 }
                 
-               // Check max attempts FIRST (before checking expiration)
-                $maxAttempts = (int)config('security.otp_attempts');
-                if ($otpRecord->attempts >= $maxAttempts) {
-                    Log::warning('OTP max attempts exceeded', [
-                        'email' => $email,
-                        'attempts' => $otpRecord->attempts,
-                        'ip' => $ip,
-                    ]);
-                    // Only delete when max attempts is reached
-                    $otpRecord->delete();
-                    throw new \Exception('MAX_ATTEMPTS_EXCEEDED');
-                }
+                $maxAttempts = (int)config('security.otp_attempts', 3); // Default to 3 if not set
                 
-                // OTP expired - but DON'T delete, just reject
+                Log::info('OTP max attempts config loaded', [
+                    'raw_config' => config('security.otp_attempts'),
+                    'max_attempts_int' => $maxAttempts,
+                    'email' => $email,
+                ]);
+                
                 if (now()->isAfter($otpRecord->expires_at)) {
                     Log::warning('Expired OTP submission', [
                         'email' => $email,
                         'expired_at' => $otpRecord->expires_at,
                         'ip' => $ip,
                     ]);
-                    // Don't delete expired OTP - keeps audit trail
                     return false;
                 }
                 
-                // Verify OTP hash
                 $secret = config('security.otp_secret');
-                $submittedHash = hash_hmac('sha256', $request->otp, $secret);
+                $submittedHash = hash_hmac('sha256', $otp, $secret);
                 
                 if (!hash_equals($submittedHash, $otpRecord->code)) {
+                    // Increment failed attempts
+                    $otpRecord->increment('attempts');
+                    $otpRecord->refresh(); // Refresh to get updated value
+                    
+                    $attemptsLeft = $maxAttempts - $otpRecord->attempts;
+                    
                     Log::warning('Invalid OTP submitted', [
                         'email' => $email,
-                        'attempts' => $otpRecord->attempts,
+                        'current_attempts' => $otpRecord->attempts,
                         'max_attempts' => $maxAttempts,
+                        'attempts_left' => $attemptsLeft,
+                        'condition_check' => $otpRecord->attempts . ' >= ' . $maxAttempts . ' = ' . ($otpRecord->attempts >= $maxAttempts ? 'TRUE' : 'FALSE'),
                         'ip' => $ip,
                     ]);
                     
-                    // Increment attempts atomically
-                    $otpRecord->increment('attempts');
+                    // DELETE OTP on 3rd failed attempt (or when max attempts reached)
+                    if ($otpRecord->attempts >= $maxAttempts) {
+                        $deleteResult = $otpRecord->delete();
+                        Log::error('🔴 OTP BEING DELETED NOW', [
+                            'email' => $email,
+                            'current_attempts' => $otpRecord->attempts,
+                            'max_attempts' => $maxAttempts,
+                            'otp_id' => $otpRecord->id,
+                            'ip' => $ip,
+                            'deleted_successfully' => $deleteResult ? 'YES' : 'NO',
+                        ]);
+                        // Return false instead of throwing - this commits the transaction properly
+                        return false;
+                    }
+                    
                     return false;
                 }
                 
-                // ✅ OTP is valid - mark as used atomically
+                // OTP is correct - mark as used (DO NOT DELETE)
                 $otpRecord->update([
                     'used_at' => now(),
                     'used_ip' => $ip,
@@ -509,6 +521,7 @@ class AuthController extends Controller
                 Log::info('OTP verified successfully', [
                     'email' => $email,
                     'ip' => $ip,
+                    'otp_id' => $otpRecord->id,
                 ]);
                 
                 return true;
@@ -521,24 +534,22 @@ class AuthController extends Controller
                 'ip' => $ip,
             ]);
             
-            // Only clear session on max attempts
-            if ($e->getMessage() === 'MAX_ATTEMPTS_EXCEEDED') {
-                Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
-                return back()->withErrors(['message' => 'Too many failed attempts. Please request a new OTP.']);
-            }
-            
             Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
             return back()->withErrors(['message' => 'Verification failed. Please try again.']);
         }
         
-        // If OTP verification failed - DON'T clear session, user needs to retry
         if (!$otpVerified) {
-            // Keep session intact so user can try again
-            // Session is automatically cleared after max attempts in verifyOtp transaction
+            // Check if OTP was deleted due to max attempts
+            $otpExists = OtpModel::where('email', $email)->where('used_at', null)->exists();
+            
+            if (!$otpExists) {
+                Log::info('OTP record was deleted due to max attempts', ['email' => $email]);
+                return back()->withErrors(['message' => 'Too many failed attempts. OTP has been invalidated. Please request a new OTP.']);
+            }
+            
             return back()->withErrors(['message' => 'Invalid OTP.']);
         }
         
-        // OTP verified ✅ - Complete login
         $user = UserModel::find($pendingUserId);
         
         if (!$user) {
@@ -603,7 +614,6 @@ class AuthController extends Controller
                 'ip' => $ip,
                 'error' => $e->getMessage(),
             ]);
-            // Don't fail login if device registration fails - user is already authenticated
         }
         
         Session::forget([
@@ -613,7 +623,8 @@ class AuthController extends Controller
             'device_name',
         ]);
         
-        RateLimiter::clear($rateLimitKey);
+        RateLimiter::clear($ipKey);
+        RateLimiter::clear($userKey);
         
         Log::info('OTP verified and login completed', [
             'user_id' => $user->user_id,
@@ -862,7 +873,7 @@ class AuthController extends Controller
         ]);
 
         if (!empty($validated['website'])) {
-            Log::warning('Honeypot triggered in user update', [
+            Log::warning('HP triggered in user update', [
                 'ip' => $request->ip(),
                 'user_id' => Auth::id(),
             ]);

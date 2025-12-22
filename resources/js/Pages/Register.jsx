@@ -5,8 +5,8 @@ import logo from '../../assets/logo.webp';
 import setupLogo from '../../assets/SETUP_logo.webp';
 
 const InputError = ({ error }) =>
-  error ? <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-    <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+  error ? <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1.5">
+    <span className="w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0"></span>
     {error}
   </p> : null;
 
@@ -20,31 +20,41 @@ export default function RegisterPage({ offices }) {
     password: '',
     confirm_password: '',
     office_id: '',
-    website: '' 
+    company_url: '',
+    phone_number: '',
+    fax: ''
   });
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordMismatchError, setPasswordMismatchError] = useState('');
 
   const handleChange = (e) => {
     setData(e.target.name, e.target.value);
+    // Clear mismatch error when user types
+    setPasswordMismatchError('');
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
     if (data.password !== data.confirm_password) {
+      setPasswordMismatchError('Passwords do not match');
       return;
     }
 
-    post('/registration');
+    setPasswordMismatchError('');
+    post('/registration', {
+    preserveScroll: true,
+  });
+    
   };
 
   return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-200 via-white to-indigo-300 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-200 via-white to-indigo-300 flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         <Head title="Registration - DOST SETUP" />
-        {/* Header Card */}
+        
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-6">
           <div className="flex flex-col items-center justify-center gap-4 mb-8">
             {/* Logos */}
@@ -63,15 +73,10 @@ export default function RegisterPage({ offices }) {
           </div>
 
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Create Your Account
-            </h1>
-            <p className="text-gray-600">
-              Join SETUP and get started with your projects
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Your Account</h1>
+            <p className="text-gray-600">Join SETUP and get started with your projects</p>
           </div>
 
-          {/* Error Messages */}
           {errors.message && (
             <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
               {errors.message}
@@ -80,9 +85,41 @@ export default function RegisterPage({ offices }) {
 
           <form onSubmit={handleSubmit} className="space-y-5">
 
+            <div style={{ display: 'none' }} aria-hidden="true">
+              <input
+                type="text"
+                name="phone_number"
+                value={data.phone_number}
+                onChange={handleChange}
+                tabIndex="-1"
+                autoComplete="off"
+              />
+            </div>
+
+            <div style={{ visibility: 'hidden', height: '0', overflow: 'hidden' }} aria-hidden="true">
+              <input
+                type="text"
+                name="company_url"
+                value={data.company_url}
+                onChange={handleChange}
+                tabIndex="-1"
+                autoComplete="off"
+              />
+            </div>
+
+            <div style={{ opacity: '0', position: 'absolute', pointerEvents: 'none', width: '0', height: '0' }} aria-hidden="true">
+              <input
+                type="text"
+                name="fax"
+                value={data.fax}
+                onChange={handleChange}
+                tabIndex="-1"
+                autoComplete="off"
+              />
+            </div>
+
             {/* Name Fields Row */}
             <div className="grid grid-cols-2 gap-3">
-              {/* First Name */}
               <div>
                 <div className="relative">
                   <User size={18} className="absolute left-3 top-3 text-gray-400" />
@@ -101,7 +138,6 @@ export default function RegisterPage({ offices }) {
                 <InputError error={errors.first_name} />
               </div>
 
-              {/* Last Name */}
               <div>
                 <div className="relative">
                   <User size={18} className="absolute left-3 top-3 text-gray-400" />
@@ -136,18 +172,6 @@ export default function RegisterPage({ offices }) {
                 />
               </div>
               <InputError error={errors.middle_name} />
-            </div>
-
-            <div style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px' }} aria-hidden="true">
-              <input
-                type="text"
-                name="website"
-                value={data.website}
-                onChange={handleChange}
-                tabIndex="-1"
-                autoComplete="off"
-                placeholder="Website"
-              />
             </div>
 
             {/* Username */}
@@ -260,6 +284,7 @@ export default function RegisterPage({ offices }) {
                 </button>
               </div>
               <InputError error={errors.confirm_password} />
+              {passwordMismatchError && <InputError error={passwordMismatchError} />}
             </div>
 
             <button
