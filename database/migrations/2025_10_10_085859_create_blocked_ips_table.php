@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('blocked_ips', function (Blueprint $table) {
             $table->id();
-            $table->string('ip')->unique();
+            $table->string('ip')->unique()->index();
             $table->text('reason')->nullable();
-            $table->timestamp('blocked_until')->nullable();
+            $table->timestamp('blocked_until')->index();
             $table->timestamps();
         });
     }
