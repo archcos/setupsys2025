@@ -10,7 +10,7 @@ import { useRefundData } from './hooks/useRefundData';
 
 export default function Refund({ projects, selectedMonth, selectedYear, search, selectedStatus }) {
   const { flash, userRole } = usePage().props;
-  const isRPMO = userRole === 'rpmo';
+  const isRPMO = ['rpmo', 'au'].includes(userRole);
 
   // State management
   const [savingProject, setSavingProject] = useState(null);

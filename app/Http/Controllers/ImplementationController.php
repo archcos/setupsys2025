@@ -23,7 +23,7 @@ class ImplementationController extends Controller
 
         // Authorization check
         $userRole = $user->role;
-        $canViewAll = in_array(strtolower($userRole), ['rpmo']);
+        $canViewAll = in_array(strtolower($userRole), ['rpmo', 'au']);
         $isStaff = in_array(strtolower($userRole), ['staff']);
         
         if (!$canViewAll && !$isStaff) {
@@ -165,7 +165,7 @@ class ImplementationController extends Controller
         ])->findOrFail($implementId);
 
         $userRole = $user->role;
-        $canViewAll = in_array(strtolower($userRole), ['rpmo']);
+        $canViewAll = in_array(strtolower($userRole), ['rpmo','au']);
         $isStaff = in_array(strtolower($userRole), ['staff']);
         
         if (!$canViewAll && $isStaff) {

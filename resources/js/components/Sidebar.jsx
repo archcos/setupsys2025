@@ -30,7 +30,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const getHomePage = () => {
     if (role === 'user') return '/dashboard';
-    if (['irtec', 'ertec', 'rd', 'au'].includes(role)) return '/rd-dashboard';
+    if (['irtec', 'ertec', 'rd'].includes(role)) return '/rd-dashboard';
     return '/home';
   };
 

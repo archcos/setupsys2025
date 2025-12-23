@@ -8,7 +8,7 @@ export default function ProjectRefundDetails({ project, months, summary }) {
   const [bulkStatus, setBulkStatus] = useState('');
   const [monthDetails, setMonthDetails] = useState({});
   const [isUpdating, setIsUpdating] = useState(false);
-  const isRPMO = userRole === 'rpmo';
+  const isRPMO = ['rpmo', 'au'].includes(userRole);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-PH', {

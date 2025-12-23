@@ -57,7 +57,7 @@ Route::middleware(['log-suspicious'])->group(function () {
 
     Route::middleware(['auth'])->group(function () {
     // Protected Home Page
-        Route::get('/home', [HomeController::class, 'index'])->middleware('role:head,staff,rpmo')->name('home');
+        Route::get('/home', [HomeController::class, 'index'])->middleware('role:head,staff,rpmo,au')->name('home');
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('user.dashboard')->middleware('role:user');
         Route::get('/users/{id}/edit', [AuthController::class, 'edit'])->name('users.edit');
         Route::put('/users/{id}', [AuthController::class, 'update'])->name('users.update');
@@ -145,7 +145,7 @@ Route::middleware(['log-suspicious'])->group(function () {
     });
 
     //IMPLEMENTATION
-    Route::middleware(['auth', 'role:staff,rpmo'])->group(function () {
+    Route::middleware(['auth', 'role:staff,rpmo,au'])->group(function () {
         Route::get('/implementation', [ImplementationController::class, 'index'])->name('implementation.index');
         Route::get('/implementation/checklist/{implementId}', [ImplementationController::class, 'checklist']);
         Route::post('/implementation/upload/{field}', [ImplementationController::class, 'uploadToLocal']);
@@ -195,7 +195,7 @@ Route::middleware(['log-suspicious'])->group(function () {
     });
 
     //  VIEWING (Accessible to staff, rpmo, and users) 
-    Route::middleware(['auth', 'role:staff,rpmo'])->group(function () {
+    Route::middleware(['auth', 'role:staff,rpmo,au'])->group(function () {
         Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index');
         Route::get('/refunds/project/{projectId}', [RefundController::class, 'projectRefunds'])
             ->name('refunds.project.details');
@@ -203,7 +203,7 @@ Route::middleware(['log-suspicious'])->group(function () {
 
 
     //  RPMO ONLY (Save + Bulk Update) 
-    Route::middleware(['auth', 'role:rpmo'])->group(function () {
+    Route::middleware(['auth', 'role:rpmo,au'])->group(function () {
         Route::post('/refunds/save', [RefundController::class, 'save']);
         Route::post('/refunds/bulk-update', [RefundController::class, 'bulkUpdate'])
             ->name('refunds.bulk.update');

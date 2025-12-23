@@ -83,8 +83,8 @@ public function uploadApprovedFile(Request $request, $moa_id)
         'approved_file' => [
             'required',
             'file',
-            'mimes:pdf', // Only PDF allowed
-            'max:10240', // 10MB
+            'mimes:pdf',
+            'max:10240',
         ],
     ], [
         'approved_file.required' => 'Please select a file to upload.',
@@ -100,7 +100,7 @@ public function uploadApprovedFile(Request $request, $moa_id)
         $file = $request->file('approved_file');
         $extension = $file->getClientOriginalExtension();
         
-        // Sanitize project and company names for filename
+        // Sanitize names
         $projectTitle = preg_replace('/[^A-Za-z0-9\-]/', '_', $moa->project->project_title);
         $projectTitle = substr($projectTitle, 0, 50);
         
@@ -110,17 +110,50 @@ public function uploadApprovedFile(Request $request, $moa_id)
         $timestamp = now()->format('Y-m-d_His');
         $fileName = "MOA_{$projectTitle}_{$companyName}_{$timestamp}.{$extension}";
         
-        // Keep old file (DO NOT DELETE - just overwrite reference)
+        $currentYear = now()->year;
         $oldFilePath = $moa->approved_file_path;
         
-        // Store new file
-        $path = $file->storeAs('moa', $fileName, 'private');
+        // 1. Store locally
+        Log::info('Uploading MOA file', [
+            'moa_id' => $moa_id,
+            'file_name' => $fileName,
+            'file_size' => $file->getSize(),
+        ]);
+
+        $localFolderPath = "moa/{$currentYear}";
+        $path = $file->storeAs($localFolderPath, $fileName, 'private');
         
         if (!$path) {
-            throw new \Exception('Failed to store file on disk');
+            throw new \Exception('Failed to store file locally');
         }
-        
-        // Update MOA database
+
+        Log::info('File stored locally', [
+            'moa_id' => $moa_id,
+            'local_path' => $path,
+        ]);
+
+        // 2. Backup to Backblaze B2
+        try {
+            $localFilePath = storage_path("app/private/{$path}");
+            $fileContent = file_get_contents($localFilePath);
+            
+            $b2Path = Storage::disk('s3')->put(
+                "moa/{$fileName}",
+                $fileContent
+            );
+
+            Log::info('File backed up to Backblaze', [
+                'moa_id' => $moa_id,
+                'b2_path' => $b2Path,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Backblaze backup failed (local copy safe)', [
+                'moa_id' => $moa_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // 3. Update database
         $isReupload = !empty($oldFilePath);
         $moa->update([
             'approved_file_path' => $path,
@@ -128,29 +161,28 @@ public function uploadApprovedFile(Request $request, $moa_id)
             'approved_by' => Auth::id(),
         ]);
 
-        // Send notification
-$officeUsers = UserModel::where('office_id', $moa->project->company->office_id)
-    ->whereIn('role', ['rpmo', 'staff'])
-    ->get();
+        // 4. Send notifications
+        $officeUsers = UserModel::where('office_id', $moa->project->company->office_id)
+            ->whereIn('role', ['rpmo', 'staff'])
+            ->get();
 
-    $actionType = $isReupload ? 'reuploaded' : 'uploaded';
+        $actionType = $isReupload ? 'reuploaded' : 'uploaded';
 
-    foreach ($officeUsers as $user) {
-        try {
-            Mail::to($user->email)->send(
-                new \App\Mail\MoaNotificationMail(
-                    $actionType,
-                    $moa->project->project_title,
-                    $moa->project->company->company_name,
-                    $user->name
-                )
-            );
-            Log::info("MOA notification email sent to {$user->email}");
-        } catch (\Exception $e) {
-            Log::error("Failed to send MOA email to {$user->email}: " . $e->getMessage());
+        foreach ($officeUsers as $user) {
+            try {
+                Mail::to($user->email)->send(
+                    new \App\Mail\MoaNotificationMail(
+                        $actionType,
+                        $moa->project->project_title,
+                        $moa->project->company->company_name,
+                        $user->name
+                    )
+                );
+                Log::info("MOA notification sent", ['email' => $user->email]);
+            } catch (\Exception $e) {
+                Log::error("Failed to send email", ['email' => $user->email]);
+            }
         }
-    }
-
 
         $successMessage = $isReupload 
             ? 'Approved MOA file reuploaded successfully.' 
@@ -159,10 +191,9 @@ $officeUsers = UserModel::where('office_id', $moa->project->company->office_id)
         return back()->with('success', $successMessage);
         
     } catch (\Exception $e) {
-        Log::error('MOA File Upload Error', [
+        Log::error('MOA Upload Error', [
             'moa_id' => $moa_id,
             'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
         ]);
         
         return back()->withErrors([
@@ -170,6 +201,119 @@ $officeUsers = UserModel::where('office_id', $moa->project->company->office_id)
         ]);
     }
 }
+
+/**
+ * Upload file to Google Drive with year-based folder structure
+ * Creates folder if it doesn't exist
+ */
+private function uploadToGoogle($file, $folderPath, $fileName){
+    try {
+        Log::info('Starting Google Drive upload', [
+            'folder_path' => $folderPath,
+            'file_name' => $fileName,
+            'file_size' => $file->getSize(),
+            'file_mime' => $file->getMimeType(),
+        ]);
+
+        // Google Drive's putFile() automatically creates nested folders if they don't exist
+        $path = Storage::disk('google')->putFile(
+            $folderPath,
+            $file
+        );
+        
+        if (!$path) {
+            throw new \Exception('putFile() returned empty path');
+        }
+
+        Log::info('File successfully uploaded to Google Drive', [
+            'folder_path' => $folderPath,
+            'file_name' => $fileName,
+            'remote_path' => $path,
+            'file_size' => $file->getSize(),
+            'timestamp' => now()->toIso8601String(),
+        ]);
+
+        return $path;
+        
+    } catch (\Exception $e) {
+        Log::error('Google Drive upload failed', [
+            'folder_path' => $folderPath,
+            'file_name' => $fileName,
+            'file_size' => $file->getSize() ?? 'unknown',
+            'error_message' => $e->getMessage(),
+            'error_code' => $e->getCode(),
+            'error_class' => get_class($e),
+            'trace' => $e->getTraceAsString(),
+            'timestamp' => now()->toIso8601String(),
+        ]);
+
+        return null;
+    }
+}
+
+public function uploadToMoa(Request $request){
+    $request->validate([
+        'file' => 'required|file|max:10240',
+    ]);
+
+    $currentYear = now()->year;
+    $folderPath = "moa/{$currentYear}";
+    $file = $request->file('file');
+
+    try {
+        Log::info('uploadToMoa: Starting upload process', [
+            'folder_path' => $folderPath,
+            'original_name' => $file->getClientOriginalName(),
+            'file_size' => $file->getSize(),
+            'file_mime' => $file->getMimeType(),
+            'timestamp' => now()->toIso8601String(),
+        ]);
+
+        // Google Drive's putFile() automatically creates nested folders if they don't exist
+        $path = Storage::disk('google')->putFile(
+            $folderPath,
+            $file
+        );
+
+        if (!$path) {
+            throw new \Exception('putFile() returned empty path');
+        }
+
+        Log::info('uploadToMoa: File successfully uploaded', [
+            'folder_path' => $folderPath,
+            'original_name' => $file->getClientOriginalName(),
+            'remote_path' => $path,
+            'file_size' => $file->getSize(),
+            'timestamp' => now()->toIso8601String(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'uploaded_to' => $path,
+            'file_name' => $file->getClientOriginalName(),
+            'timestamp' => now()->toIso8601String(),
+        ]);
+        
+    } catch (\Exception $e) {
+        Log::error('uploadToMoa: Upload failed', [
+            'folder_path' => $folderPath,
+            'original_name' => $file->getClientOriginalName() ?? 'unknown',
+            'file_size' => $file->getSize() ?? 'unknown',
+            'error_message' => $e->getMessage(),
+            'error_code' => $e->getCode(),
+            'error_class' => get_class($e),
+            'trace' => $e->getTraceAsString(),
+            'timestamp' => now()->toIso8601String(),
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'error' => 'Failed to upload file to Google Drive',
+            'message' => $e->getMessage(),
+        ], 500);
+    }
+}
+
 public function viewApprovedFile($moa_id)
 {
     $moa = MoaModel::findOrFail($moa_id);
