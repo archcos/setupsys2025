@@ -26,11 +26,11 @@ class RedirectIfAuthenticated
                 return redirect()->route('user.dashboard');
             }
 
-            if (in_array($user->role, ['irtec', 'ertec', 'rd', 'au'])) {
+            if (in_array($user->role, ['irtec', 'ertec', 'rd'])) {
                 return redirect()->route('rd-dashboard.index');
             }
 
-            if (in_array($user->role, ['staff', 'rpmo', 'head'])) {
+            if (in_array($user->role, ['staff', 'rpmo', 'head', 'au'])) {
                 return redirect()->route('home');
             }
 

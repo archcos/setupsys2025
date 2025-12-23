@@ -28,9 +28,9 @@ class AppServiceProvider extends ServiceProvider
     date_default_timezone_set('Asia/Manila');
 
 
-        if (app()->environment('local')) {
-            URL::forceScheme('https');
-        }
+        // if (app()->environment('local')) {
+        //     URL::forceScheme('https');
+        // }
 
         // ngrok http 8000
 

@@ -5,7 +5,10 @@ import { LayoutDashboard, Building, Users, FileSignature, FileText, ClipboardLis
 import Dropdown from "./Dropdown";
 
 export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onClose, getHomePage }) {
+    console.log('Current role:', role); // Check what role is being passed
+
   return (
+    
     <>
       {/* Dashboard Link */}
       <Link
@@ -15,7 +18,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
       >
         <LayoutDashboard size={18} />
         {role === 'user' ? 'Dashboard' : 
-         ['rd', 'au'].includes(role) ? 'Dashboard' : 
+         ['rd'].includes(role) ? 'Dashboard' : 
          'Overview'}
       </Link>
 
@@ -71,7 +74,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
       )}
 
     {/* Implementation - Staff/RPMO/RD */}
-    {(role === 'staff' || role === 'rpmo' || role === 'rd') && (
+    {(role === 'staff' || role === 'rpmo' || role === 'rd' || role === 'au') && (
       <Dropdown
         title="Implementation"
         icon={<Pencil size={18} />}
@@ -79,7 +82,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
         onToggle={() => toggleDropdown('implementation')}
         links={[
           // Phase One & Two visible to staff and rpmo (and rd if needed)
-          ...(role === 'staff' || role === 'rpmo'
+          ...(role === 'staff' || role === 'rpmo' || role === 'au'
             ? [
                 { label: 'Phase One', href: '/implementation', icon: <Hammer size={16} /> },
                 { label: 'Phase Two', href: '/refunds', icon: <HandCoins size={16} /> },
