@@ -7,7 +7,6 @@ import { ITEMS_PER_PAGE } from '../constants/stages';
 
 export default function ProjectsList({ 
   filteredProjects, 
-  projectDetails, 
   isStaff, 
   selectedOffices,
   selectedStages,

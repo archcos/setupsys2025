@@ -1,5 +1,5 @@
 import { useForm, router, Head } from '@inertiajs/react';
-import { FileText, Building2, FolderOpen, Users, Download, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { FileText, Building2, FolderOpen, Users, Download, Loader2, AlertCircle, CheckCircle, FileSignature } from 'lucide-react';
 
 
 export default function GenerateDocxForm({ companies, selectedCompany, projects, filters }) {
@@ -39,7 +39,7 @@ export default function GenerateDocxForm({ companies, selectedCompany, projects,
           <div className="bg-gradient-to-r from-gray-50 to-white p-3 md:p-6 border-b border-gray-100">
             <div className="flex items-start md:items-center gap-2 md:gap-3">
               <div className="p-1.5 md:p-2 bg-purple-100 rounded-lg flex-shrink-0">
-                <FileText className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
+                <FileSignature className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
               </div>
               <div className="min-w-0">
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">Generate Draft MOA</h2>

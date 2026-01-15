@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
-import { Search, FileText, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, List, CheckCheck, Send, Eye } from 'lucide-react';
+import { Search, FileText, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, List, CheckCheck, Send, Eye, ClipboardCheck } from 'lucide-react';
 
 export default function Index({ projects, filters, years }) {
   const [search, setSearch] = useState(filters?.search || '');
@@ -133,8 +133,8 @@ export default function Index({ projects, filters, years }) {
           {/* Card Header */}
           <div className="bg-gradient-to-r from-gray-50 to-white p-4 md:p-6 border-b border-gray-100">
             <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                <FileText className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+              <div className="p-1.5 md:p-2 bg-purple-100 rounded-lg flex-shrink-0">
+                <ClipboardCheck className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">Project Compliance</h2>
