@@ -1,6 +1,6 @@
 // components/SidebarMenuItems.jsx
 import { Link } from "@inertiajs/react";
-import { LayoutDashboard, Building, Users, FileSignature, FileText, ClipboardList, SquareKanban, HandCoins, ArrowLeftRight, FileDiff, Megaphone, Eye, AlertCircle, Settings, Zap, CheckCircle, Pencil, Search, ClipboardCheck, Award, BookOpen, FilePlus2, Hammer, ShieldAlert, AudioLines, Logs } from "lucide-react";
+import { LayoutDashboard, Building, Users, FileSignature, FileText, ClipboardList, SquareKanban, HandCoins, ArrowLeftRight, FileDiff, Megaphone, Eye, AlertCircle, Settings, Zap, CheckCircle, Pencil, Search, ClipboardCheck, Award, BookOpen, FilePlus2, Hammer, ShieldAlert, AudioLines, Logs, FileCheck, FileClock, FileBadge, FileSymlink, Stamp, PencilRuler } from "lucide-react";
 
 import Dropdown from "./Dropdown";
 
@@ -77,7 +77,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
     {(role === 'staff' || role === 'rpmo' || role === 'rd' || role === 'au') && (
       <Dropdown
         title="Implementation"
-        icon={<Pencil size={18} />}
+        icon={<PencilRuler size={18} />}
         isOpen={dropdowns.implementation}
         onToggle={() => toggleDropdown('implementation')}
         links={[
@@ -97,7 +97,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
 
           ...(role === 'rpmo' || role === 'rd'
             ? [
-                { label: 'Verify Restructure', href: '/verify-restructure', icon: <Search size={16} /> },
+                { label: 'Verify Restructure', href: '/verify-restructure', icon: <Stamp size={16} /> },
               ]
             : []),
         ]}
@@ -110,11 +110,12 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
       {(role === 'staff' || role === 'rpmo') && (
         <Dropdown
           title="Reports"
-          icon={<FileText size={18} />}
+          icon={<FileSymlink size={18} />}
           isOpen={dropdowns.reports}
           onToggle={() => toggleDropdown('reports')}
           links={[
-            { label: 'Quarterly Reports', href: '/reports', icon: <ClipboardList size={16} /> },
+            { label: 'Quarterly Reports', href: '/reports', icon: <FileClock size={16} /> },
+            { label: 'Completion Report', href: '/completion-report', icon: <FileBadge size={16} /> },
           ]}
           onClose={onClose}
         />

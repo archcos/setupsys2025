@@ -172,8 +172,8 @@ export default function ApprovedProjects({ projects, offices, filters, error: se
           {/* Header */}
           <div className="bg-gray-50 p-4 md:p-6 border-b border-gray-100">
             <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 bg-green-100 rounded-lg flex-shrink-0">
-                <Award className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+              <div className="p-1.5 md:p-2 bg-purple-100 rounded-lg flex-shrink-0">
+                <Award className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">Approved Project</h2>

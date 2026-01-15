@@ -1,7 +1,7 @@
 
 import { Link, router, Head, usePage } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award, Users, TrendingUp, ChevronDown } from 'lucide-react';
+import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award, Users, TrendingUp, ChevronDown, ClipboardList } from 'lucide-react';
 
 // Helper to format date string
 function formatDate(dateStr) {
@@ -253,7 +253,7 @@ export default function Index({ projects, filters, offices, allYears }) {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
               <div className="flex items-center gap-2 md:gap-3">
                 <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
-                  <Building2 className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                  <ClipboardList className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                 </div>
                 <h2 className="text-base md:text-xl font-semibold text-gray-900">Projects</h2>
               </div>
@@ -532,7 +532,7 @@ export default function Index({ projects, filters, offices, allYears }) {
 
           {projects.data.length === 0 && (
             <div className="text-center py-8 md:py-12 px-4">
-              <Building2 className="w-12 h-12 md:w-16 md:h-16 text-gray-400 mx-auto mb-4" />
+              <ClipboardList className="w-12 h-12 md:w-16 md:h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">No projects found</h3>
               <Link href="/projects/create" className="inline-flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-all mt-4">
                 <Plus className="w-4 h-4" />
@@ -613,7 +613,7 @@ function ProjectModal({ project, isOpen, onClose }) {
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="w-8 h-8 md:w-12 md:h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Building2 className="w-6 h-6 text-white" />
+                <ClipboardList className="w-6 h-6 text-white" />
               </div>
               <div className="min-w-0">
                 <h3 className="text-lg md:text-xl font-bold truncate">Project Details</h3>

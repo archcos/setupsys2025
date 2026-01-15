@@ -1,6 +1,6 @@
 import { Link, router, Head, usePage } from "@inertiajs/react";
 import { useState, useEffect } from "react";
-import { Search, PlusCircle, Building2, X, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { Search, PlusCircle, Building2, X, ChevronDown, ChevronUp, AlertTriangle, FileClock } from 'lucide-react';
 
 function formatReportDate(dateStr) {
   if (!dateStr) return "-";
@@ -79,9 +79,9 @@ export default function Index({ projects, filters }) {
           <div className="bg-gray-50 p-3 md:p-6 border-b border-gray-100">
             <div className="flex items-center gap-2 md:gap-3">
               <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
-                <Building2 className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                <FileClock className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               </div>
-              <h2 className="text-lg md:text-xl font-semibold text-gray-900">Reports</h2>
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900">Quarterly Reports</h2>
             </div>
           </div>
 

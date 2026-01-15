@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { CheckCircle, ExternalLink, FileText, Calendar, User, Search, X, Building2, Clock, Filter, ArrowUp, ArrowDown } from 'lucide-react';
+import { CheckCircle, ExternalLink, FileText, Calendar, User, Search, X, Building2, Clock, Filter, ArrowUp, ArrowDown, Stamp } from 'lucide-react';
 
 // Status options for filter
 const statusOptions = [
@@ -95,8 +95,8 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
           <div className="bg-gray-50 p-3 md:p-6 border-b border-gray-100">
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2 md:gap-3">
-                <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                  <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                <div className="p-1.5 md:p-2 bg-green-100 rounded-lg flex-shrink-0">
+                  <Stamp className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h2 className="text-lg md:text-xl font-semibold text-gray-900">Verify Restructuring Applications</h2>

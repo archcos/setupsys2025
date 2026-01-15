@@ -1,6 +1,6 @@
 import { Link, router, Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import { Plus, Search, Calendar, Eye, Edit3, Trash2, Activity, Building2, X, AlertCircle } from 'lucide-react';
+import { Plus, Search, Calendar, Eye, Edit3, Trash2, Activity, Building2, X, AlertCircle, SquareKanban } from 'lucide-react';
 
 
 export default function Index({ activities, filters }) {
@@ -100,7 +100,7 @@ export default function Index({ activities, filters }) {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:gap-4">
               <div className="flex items-center gap-2 md:gap-3">
                 <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
-                  <Activity className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                  <SquareKanban className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                 </div>
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">Activity Management</h2>
               </div>
