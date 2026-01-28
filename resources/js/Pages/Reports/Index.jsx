@@ -18,6 +18,26 @@ function formatReportDate(dateStr) {
   return `Submitted @ ${formatted} - ${quarter}`;
 }
 
+function getStatusColor(status) {
+  switch (status?.toLowerCase()) {
+    case 'reviewed':
+      return 'bg-blue-100 text-blue-800';
+    case 'recommended':
+      return 'bg-green-100 text-green-800';
+    case 'submitted':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'rejected':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+}
+
+function canDeleteReport(status) {
+  const restrictedStatuses = ['reviewed', 'recommended'];
+  return !restrictedStatuses.includes(status?.toLowerCase());
+}
+
 export default function Index({ projects, filters }) {
   const [search, setSearch] = useState(filters.search || "");
   const [perPage, setPerPage] = useState(filters.perPage || 10);
@@ -78,8 +98,8 @@ export default function Index({ projects, filters }) {
           {/* Card Header */}
           <div className="bg-gray-50 p-3 md:p-6 border-b border-gray-100">
             <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
-                <FileClock className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+              <div className="p-1.5 md:p-2 bg-orange-100 rounded-lg">
+                <FileClock className="w-4 h-4 md:w-5 md:h-5 text-orange-600" />
               </div>
               <h2 className="text-lg md:text-xl font-semibold text-gray-900">Quarterly Reports</h2>
             </div>
@@ -154,14 +174,30 @@ export default function Index({ projects, filters }) {
 
                       {/* Dropdown reports */}
                       {openDropdown === project.project_id && (
-                        <div className="mt-2 ml-4 bg-gray-50 border border-gray-200 rounded-lg shadow p-3 space-y-2">
+                        <div className="mt-3 ml-4 bg-white border border-gray-200 rounded-xl shadow-lg p-4 space-y-3 min-w-[550px]">
                           {project.reports && project.reports.length > 0 ? (
-                            project.reports.map((report) => (
+                            project.reports.map((report, index) => (
                               <div
                                 key={report.report_id}
-                                className="flex items-center justify-between text-xs text-gray-700"
+                                className="bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-all duration-200"
                               >
-                                <span>{formatReportDate(report.created_at)}</span>
+                                {/* Header Row */}
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100">
+                                      <span className="text-xs font-semibold text-blue-600">#{index + 1}</span>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-semibold text-gray-900">Report Submission</p>
+                                      <p className="text-xs text-gray-500">{formatReportDate(report.created_at)}</p>
+                                    </div>
+                                  </div>
+                                  <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${getStatusColor(report.status)}`}>
+                                    {report.status || 'submitted'}
+                                  </span>
+                                </div>
+
+                                {/* Action Buttons */}
                                 <div className="flex gap-2">
                                   {/* View */}
                                   <button
@@ -170,31 +206,35 @@ export default function Index({ projects, filters }) {
                                       setModalUrl(route("reports.view", report.report_id));
                                       setShowModal(true);
                                     }}
-                                    className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition text-[10px]"
+                                    className="flex-1 px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition text-xs font-semibold"
                                   >
-                                    View
+                                    👁️ View
                                   </button>
 
                                   {/* Download */}
                                   <a
                                     href={route("reports.download", report.report_id)}
-                                    className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-[10px]"
+                                    className="flex-1 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition text-xs font-semibold"
                                   >
-                                    Download
+                                    ⬇️ Download
                                   </a>
 
-                                  {/* Delete */}
-                                  <button
-                                    onClick={() => handleDeleteClick(report.report_id)}
-                                    className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition text-[10px]"
-                                  >
-                                    Delete
-                                  </button>
+                                  {/* Delete - Conditional */}
+                                  {canDeleteReport(report.status) && (
+                                    <button
+                                      onClick={() => handleDeleteClick(report.report_id)}
+                                      className="flex-1 px-3 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition text-xs font-semibold"
+                                    >
+                                      🗑️ Delete
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             ))
                           ) : (
-                            <p className="text-xs text-gray-500">No reports submitted yet</p>
+                            <div className="text-center py-6">
+                              <p className="text-sm text-gray-500">No reports submitted yet</p>
+                            </div>
                           )}
                         </div>
                       )}
@@ -263,11 +303,27 @@ export default function Index({ projects, filters }) {
 
                 {/* Expanded Reports List */}
                 {openDropdown === project.project_id && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+                  <div className="bg-white border border-gray-200 rounded-xl p-3 space-y-2.5">
                     {project.reports && project.reports.length > 0 ? (
-                      project.reports.map((report) => (
-                        <div key={report.report_id} className="bg-white rounded-lg p-2.5 space-y-2 border border-gray-100">
-                          <div className="text-xs text-gray-600">{formatReportDate(report.created_at)}</div>
+                      project.reports.map((report, index) => (
+                        <div key={report.report_id} className="bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-200 p-3 space-y-2.5 hover:shadow-md transition-all duration-200">
+                          {/* Header */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100">
+                                <span className="text-xs font-semibold text-blue-600">#{index + 1}</span>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-900">Report #{index + 1}</p>
+                                <p className="text-xs text-gray-500">{formatReportDate(report.created_at)}</p>
+                              </div>
+                            </div>
+                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${getStatusColor(report.status)}`}>
+                              {report.status || 'submitted'}
+                            </span>
+                          </div>
+                          
+                          {/* Buttons */}
                           <div className="flex gap-1.5">
                             {/* View */}
                             <button
@@ -276,31 +332,33 @@ export default function Index({ projects, filters }) {
                                 setModalUrl(route("reports.view", report.report_id));
                                 setShowModal(true);
                               }}
-                              className="flex-1 px-2 py-1.5 bg-green-500 text-white rounded text-xs font-medium hover:bg-green-600 transition"
+                              className="flex-1 px-2 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded text-xs font-semibold hover:bg-green-100 transition"
                             >
-                              View
+                              👁️
                             </button>
 
                             {/* Download */}
                             <a
                               href={route("reports.download", report.report_id)}
-                              className="flex-1 px-2 py-1.5 bg-blue-500 text-white rounded text-xs font-medium hover:bg-blue-600 transition"
+                              className="flex-1 px-2 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs font-semibold hover:bg-blue-100 transition"
                             >
-                              Download
+                              ⬇️
                             </a>
 
-                            {/* Delete */}
-                            <button
-                              onClick={() => handleDeleteClick(report.report_id)}
-                              className="flex-1 px-2 py-1.5 bg-red-500 text-white rounded text-xs font-medium hover:bg-red-600 transition"
-                            >
-                              Delete
-                            </button>
+                            {/* Delete - Conditional */}
+                            {canDeleteReport(report.status) && (
+                              <button
+                                onClick={() => handleDeleteClick(report.report_id)}
+                                className="flex-1 px-2 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded text-xs font-semibold hover:bg-red-100 transition"
+                              >
+                                🗑️
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))
                     ) : (
-                      <p className="text-xs text-gray-500 text-center py-3">No reports submitted yet</p>
+                      <p className="text-xs text-gray-500 text-center py-4">No reports submitted yet</p>
                     )}
                   </div>
                 )}

@@ -71,7 +71,7 @@ export default function Index({ projects, filters, years }) {
       raised: {
         bg: 'bg-blue-100',
         text: 'text-blue-800',
-        label: 'Raised',
+        label: 'Recommended',
         icon: Send,
       },
       approved: {

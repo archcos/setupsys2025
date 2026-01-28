@@ -16,7 +16,7 @@ class ReportPolicy
     public function view(UserModel $user, ReportModel $report)
     {
         // Head and RPMO can view all reports
-        if (in_array($user->role, ['head', 'rpmo'])) {
+        if (in_array($user->role, ['head', 'rpmo', 'staff'])) {
             return true;
         }
 
@@ -70,4 +70,18 @@ class ReportPolicy
     {
         return false;
     }
+
+    public function approve(UserModel $user, ReportModel $report)
+    {
+        return in_array($user->role, ['staff', 'head']);
+    }
+
+    /**
+     * Determine if the user can reject a report
+     */
+    public function reject(UserModel $user, ReportModel $report)
+    {
+        return in_array($user->role, ['staff', 'head']);
+    }
+
 }

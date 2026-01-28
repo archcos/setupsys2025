@@ -29,7 +29,8 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\RtecController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\LogController;
-    use App\Mail\SecurityAlertMail;
+use App\Http\Controllers\ReportReviewController;
+use App\Mail\SecurityAlertMail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 
@@ -277,6 +278,21 @@ Route::middleware(['log-suspicious'])->group(function () {
         // New routes for viewing and downloading
         Route::get('/reports/{report_id}/view', [ReportController::class, 'viewReport'])->name('reports.view');
         Route::get('/reports/{report_id}/download', [ReportController::class, 'downloadReport'])->name('reports.download');
+
+          Route::get('/review-reports', [ReportReviewController::class, 'index'])
+                ->name('review-reports.index');
+
+            // Staff action: Recommend a report (submitted -> recommended)
+            Route::post('/review-reports/{reportId}/recommend', [ReportReviewController::class, 'recommend'])
+                ->name('review-reports.recommend');
+
+            // RPMO action: Mark report as reviewed (recommended -> reviewed)
+            Route::post('/review-reports/{reportId}/reviewed', [ReportReviewController::class, 'reviewed'])
+                ->name('review-reports.reviewed');
+
+            // Both roles: Deny a report with reason in status
+            Route::post('/review-reports/{reportId}/deny', [ReportReviewController::class, 'deny'])
+                ->name('review-reports.deny');
     });
 
 

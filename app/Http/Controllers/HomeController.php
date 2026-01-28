@@ -46,7 +46,15 @@ class HomeController extends Controller
         $availableYears = ProjectModel::selectRaw('YEAR(year_obligated) as year')
             ->distinct()
             ->orderByDesc('year')
-            ->pluck('year');
+            ->pluck('year')
+            ->toArray();
+
+        // Ensure current year is included
+        $currentYear = (int) date('Y');
+        if (!in_array($currentYear, $availableYears)) {
+            $availableYears[] = $currentYear;
+        }
+        rsort($availableYears);
 
         return Inertia::render('Home/Index', [
             'projectsPerOffice' => $projectsPerOffice,

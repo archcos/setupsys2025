@@ -52,15 +52,15 @@ class ComplianceApprovalMail extends Mailable
                     <!-- Header -->
                     <div style='background: linear-gradient(135deg, #059669 0%, #047857 100%); padding: 40px 20px; text-align: center;'>
                         <img src='cid:setup_logo.webp' alt='SETUP Logo' style='max-width: 120px; height: auto; margin-bottom: 15px;'>
-                        <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;'>✓ Project Compliance Raised</h1>
-                        <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;'>Raised on {$approvalDate}</p>
+                        <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;'>✓ Project Compliance Recommended</h1>
+                        <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;'>Recommended on {$approvalDate}</p>
                     </div>
 
                     <!-- Main Content -->
                     <div style='padding: 40px 30px;'>
                         <p style='margin: 0 0 30px 0; color: #555; font-size: 16px;'>
                             Hello,<br><br>
-                            A project compliance has been reviewed and raised by the RPMU. This project is now being escalated to you for regional director review and final approval.
+                            A project compliance has been reviewed and recommended by the RPMU. This project is now being escalated to you for regional director review and final approval.
                         </p>
 
                         <!-- Project Information Card -->
@@ -93,7 +93,7 @@ class ComplianceApprovalMail extends Mailable
                             <h3 style='margin: 0 0 15px 0; color: #059669; font-size: 16px; font-weight: 600;'>Approval Details</h3>
                             
                             <div style='margin-bottom: 15px;'>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Raised By</p>
+                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Recommended By</p>
                                 <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$approvedByName} (RPMU)</p>
                             </div>
 
@@ -101,7 +101,7 @@ class ComplianceApprovalMail extends Mailable
                                 <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Approval Status</p>
                                 <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>
                                     <span style='display: inline-block; background-color: #dcfce7; color: #166534; padding: 6px 12px; border-radius: 12px; font-size: 14px;'>
-                                        ✓ Raised by RPMU
+                                        ✓ Recommended by RPMU
                                     </span>
                                 </p>
                             </div>
@@ -146,7 +146,7 @@ class ComplianceApprovalMail extends Mailable
             </html>
         ";
 
-        return $this->subject('[SETUPSYS] Project Compliance Raised - ' . $projectTitle)
+        return $this->subject('[SETUPSYS] Project Compliance Recommended - ' . $projectTitle)
                     ->html($htmlContent);
     }
 }

@@ -60,7 +60,7 @@ class RestructureRaisedMail extends Mailable
                     <!-- Header with Logo -->
                     <div style='background: linear-gradient(135deg, #FF6B35 0%, #D84315 100%); padding: 20px; text-align: center;'>
                         <img src='cid:setup_logo.webp' alt='SETUP Logo' style='max-width: 120px; height: auto; margin-bottom: 15px;'>
-                        <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;'>Restructuring Request Raised</h1>
+                        <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;'>Restructuring Request Recommended</h1>
                         <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;'>Submitted on {$raisedDate}</p>
                     </div>
 
@@ -68,7 +68,7 @@ class RestructureRaisedMail extends Mailable
                     <div style='padding: 40px 30px;'>
                         <p style='margin: 0 0 30px 0; color: #555; font-size: 16px;'>
                             Dear {$this->recipientName},<br><br>
-                            A project restructuring request has been raised and is awaiting your review and approval.
+                            A project restructuring request has been recommended and is awaiting your review and approval.
                         </p>
 
                         <!-- Project Information Card -->
@@ -106,7 +106,7 @@ class RestructureRaisedMail extends Mailable
                             </div>
 
                             <div style='margin-bottom: 15px;'>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Raised By</p>
+                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Recommended By</p>
                                 <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$raisedBy}</p>
                             </div>
 
@@ -149,7 +149,7 @@ class RestructureRaisedMail extends Mailable
             </html>
         ";
 
-        return $this->subject('[SETUPSYS] Restructuring Request Raised - ' . $projectTitle)
+        return $this->subject('[SETUPSYS] Restructuring Request Recommended - ' . $projectTitle)
                     ->html($htmlContent);
     }
 }

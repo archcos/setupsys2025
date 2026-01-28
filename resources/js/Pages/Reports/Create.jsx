@@ -145,7 +145,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
             Back to Reports
           </Link>
           <div className="flex items-start gap-3 md:gap-4">
-            <div className="p-2 md:p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg md:rounded-xl shadow-lg flex-shrink-0">
+            <div className="p-2 md:p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg md:rounded-xl shadow-lg flex-shrink-0">
               <FileText className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div className="min-w-0 flex-1">

@@ -322,10 +322,10 @@ export default function Compliance({ project, compliance, errors, userRole }) {
                         {approveProcessing ? (
                           <span className="flex items-center justify-center gap-2">
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            Raising...
+                            Recommending...
                           </span>
                         ) : (
-                          'Raise'
+                          'Recommend'
                         )}
                       </button>
                     </>
@@ -438,7 +438,7 @@ export default function Compliance({ project, compliance, errors, userRole }) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 z-50">
           <div className="bg-white rounded-xl md:rounded-2xl shadow-xl max-w-md w-full">
             <div className="px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-green-50 to-white">
-              <h3 className="text-base md:text-lg font-semibold text-gray-900">Raise to RD</h3>
+              <h3 className="text-base md:text-lg font-semibold text-gray-900">Recommend to RD</h3>
               <button
                 onClick={() => setShowApproveConfirmModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
@@ -452,7 +452,7 @@ export default function Compliance({ project, compliance, errors, userRole }) {
                 <p className="text-xs md:text-sm text-gray-700 flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
                   <span>
-                    Are you sure you want to raise this project to the Regional Director for approval? 
+                    Are you sure you want to recommend this project to the Regional Director for approval? 
                     Once submitted, you cannot make further changes.
                   </span>
                 </p>
@@ -477,10 +477,10 @@ export default function Compliance({ project, compliance, errors, userRole }) {
                   {approveProcessing ? (
                     <span className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Raising...
+                      Recommending...
                     </span>
                   ) : (
-                    'Confirm Raise'
+                    'Confirm Recommendation'
                   )}
                 </button>
               </div>
