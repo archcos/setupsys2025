@@ -44,7 +44,7 @@ export default function Review({ reports, filters }) {
 
   useEffect(() => {
     const delay = setTimeout(() => {
-      router.get(route("submitted-reports.index"), { search, perPage }, { preserveState: true, replace: true });
+      router.get(route("review-reports.index"), { search, perPage }, { preserveState: true, replace: true });
     }, 400);
     return () => clearTimeout(delay);
   }, [search, perPage]);
@@ -69,9 +69,9 @@ export default function Review({ reports, filters }) {
 
   const confirmWarningAction = () => {
     if (warningAction === 'recommend') {
-      router.post(route("submitted-reports.recommend", warningReportId));
+      router.post(route("review-reports.recommend", warningReportId));
     } else if (warningAction === 'reviewed') {
-      router.post(route("submitted-reports.reviewed", warningReportId));
+      router.post(route("review-reports.reviewed", warningReportId));
     }
     setShowWarningModal(false);
     setWarningAction(null);
@@ -89,7 +89,7 @@ export default function Review({ reports, filters }) {
       alert("Please provide a denial reason");
       return;
     }
-    router.post(route("submitted-reports.deny", denyingReport), {
+    router.post(route("review-reports.deny", denyingReport), {
       reason: denyReason,
     });
     setShowDenyModal(false);
