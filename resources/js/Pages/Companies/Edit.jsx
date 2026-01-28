@@ -34,11 +34,11 @@ export default function Edit({ company }) {
         {/* Header Section */}
         <div className="mb-4 md:mb-8">
           <Link
-            href="/companies"
+            href="/proponents"
             className="inline-flex items-center gap-2 text-xs md:text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-3 md:mb-4 group"
           >
             <ChevronLeft className="w-3 h-3 md:w-4 md:h-4 transition-transform group-hover:-translate-x-1" />
-            Back to Companies
+            Back to Proponents
           </Link>
           <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
             <div className="p-2 md:p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg md:rounded-xl shadow-lg">
@@ -65,7 +65,7 @@ export default function Edit({ company }) {
               </div>
               <div className="flex flex-col-reverse md:flex-row gap-2 md:gap-4">
                 <Link
-                  href="/companies"
+                  href="/proponents"
                   className="px-4 md:px-6 py-2 md:py-3 border border-gray-300 text-gray-700 font-medium rounded-lg md:rounded-xl hover:bg-gray-50 transition-colors duration-200 text-sm text-center"
                 >
                   Cancel

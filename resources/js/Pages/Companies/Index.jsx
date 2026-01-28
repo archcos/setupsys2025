@@ -31,7 +31,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
     }
 
     filterTimeoutRef.current = setTimeout(() => {
-      router.get('/companies', { 
+      router.get('/proponents', { 
         search,
         office: officeFilter,
         setup_industry: setupIndustryFilter,
@@ -40,7 +40,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
         direction: filters.direction || 'asc',
         perPage,
         page: 1  // Reset to page 1 when filters change
-      }, { preserveState: true, replace: true, preserveScroll: true, only: ['companies'] });
+      }, { preserveState: true, replace: true, preserveScroll: true, only: ['proponents'] });
     }, 400);
 
     return () => {
@@ -86,7 +86,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
 
   const confirmDelete = () => {
     if (companyToDelete) {
-      router.delete(`/companies/${companyToDelete.company_id}`);
+      router.delete(`/proponents/${companyToDelete.company_id}`);
       setShowDeleteModal(false);
       setCompanyToDelete(null);
     }
@@ -100,7 +100,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
   const handlePerPageChange = (e) => {
     const newPerPage = e.target.value;
     setPerPage(newPerPage);
-    router.get('/companies', {
+    router.get('/proponents', {
       search,
       perPage: newPerPage,
       office: officeFilter,
@@ -116,7 +116,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
 
   const handleSortToggle = () => {
     const newDirection = (filters.direction === 'asc') ? 'desc' : 'asc';
-    router.get('/companies', {
+    router.get('/proponents', {
       search,
       perPage,
       office: officeFilter,
@@ -147,11 +147,11 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
     setOfficeFilter('');
     setSetupIndustryFilter('');
     setIndustryTypeFilter('');
-    router.get('/companies', { perPage }, { preserveState: true });
+    router.get('/proponents', { perPage }, { preserveState: true });
   };
 
   const handleUpdateAddedBy = (companyId, userId) => {
-    router.post(`/companies/${companyId}/update-added-by`, { added_by: userId }, {
+    router.post(`/proponents/${companyId}/update-added-by`, { added_by: userId }, {
       preserveScroll: true,
       onSuccess: () => {
         setEditingAddedBy(null);
@@ -167,7 +167,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto">
-      <Head title="Companies" />
+      <Head title="Proponents" />
       <div className="max-w-7xl mx-auto">
         {/* Main Content Card */}
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
@@ -178,10 +178,10 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                 <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
                   <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                 </div>
-                <h2 className="text-base md:text-xl font-semibold text-gray-900">Companies</h2>
+                <h2 className="text-base md:text-xl font-semibold text-gray-900">Proponents</h2>
               </div>
               <button
-                onClick={() => router.post('/companies/sync')}
+                onClick={() => router.post('/proponents/sync')}
                 className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm md:text-base"
                 title="Sync from CSV"
               >
@@ -190,11 +190,11 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                 <span className="sm:hidden">Sync</span>
               </button>
               <Link
-                href="/companies/create"
+                href="/proponents/create"
                 className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm md:text-base"
               >
                 <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Add Company</span>
+                <span className="hidden sm:inline">Add Proponent</span>
                 <span className="sm:hidden">Add</span>
               </Link>
             </div>
@@ -481,7 +481,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                               </button>
 
                               <Link
-                                href={`/companies/${company.company_id}/edit`}
+                                href={`/proponents/${company.company_id}/edit`}
                                 className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
                                 title="Edit Company"
                               >
@@ -525,7 +525,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                         </button>
 
                         <Link
-                          href={`/companies/${company.company_id}/edit`}
+                          href={`/proponents/${company.company_id}/edit`}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
                           title="Edit Company"
                         >
@@ -555,7 +555,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                     <p className="text-xs md:text-sm text-gray-500">Get started by adding your first company</p>
                   </div>
                   <Link
-                    href="/companies/create"
+                    href="/proponents/create"
                     className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 md:px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium text-sm"
                   >
                     <Plus className="w-4 h-4" />
@@ -804,7 +804,7 @@ function CompanyModal({ company, isOpen, onClose }) {
               Close
             </button>
             <Link
-              href={`/companies/${company.company_id}/edit`}
+              href={`/proponents/${company.company_id}/edit`}
               className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium text-sm order-1 md:order-2"
             >
               <Edit3 className="w-4 h-4" />

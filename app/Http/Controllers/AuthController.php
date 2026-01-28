@@ -36,8 +36,153 @@ class AuthController extends Controller
         ]);
     }
 
-    public function signin(Request $request)
-    {
+    // public function signin(Request $request){
+    //     $ip = $request->ip();
+    //     $key = 'signin:' . $ip;
+
+    //     // 1. Check if IP is currently blocked
+    //     $blocked = BlockedIp::where('ip', $ip)
+    //         ->where('blocked_until', '>', Carbon::now())
+    //         ->first();
+
+    //     if ($blocked) {
+    //         return back()->withErrors([
+    //             'message' => 'Your IP is temporarily blocked due to suspicious activity.',
+    //         ]);
+    //     }
+
+    //     // 2. Rate limit sign-in attempts — max 10 per minute per IP
+    //     if (RateLimiter::tooManyAttempts($key, 10)) {
+    //         BlockedIp::updateOrCreate(
+    //             ['ip' => $ip],
+    //             [
+    //                 'reason' => 'Rate limit exceeded in sign-in',
+    //                 'blocked_until' => Carbon::now()->addHours(1),
+    //             ]
+    //         );
+
+    //         return back()->withErrors([
+    //             'message' => "Too many sign-in attempts. You are temporarily blocked for 1 hour.",
+    //         ]);
+    //     }
+
+    //     RateLimiter::hit($key, 30);
+
+    //     // 3. Validate login credentials
+    //     $credentials = $request->validate([
+    //         'username' => [
+    //             'required',
+    //             'string',
+    //             'max:12',
+    //             'regex:/^[A-Za-z0-9_]+$/'
+    //         ],
+    //         'password' => 'required|string|min:8|max:255',
+    //     ], [
+    //         'username.regex' => 'Username can only contain letters, numbers, and underscores.',
+    //         'username.max' => 'Username must not exceed 12 characters.',
+    //         'password.min' => 'Password must be at least 8 characters.',
+    //     ]);
+
+    //     // 4. Block attempts to sign in as "iamsuperadmin"
+    //     if (strtolower($credentials['username']) === 'iamsuperadmin') {
+    //         BlockedIp::updateOrCreate(
+    //             ['ip' => $ip],
+    //             [
+    //                 'reason' => 'Attempted login as iamsuperadmin',
+    //                 'blocked_until' => Carbon::now()->addHours(1),
+    //             ]
+    //         );
+
+    //         Log::warning('Attempted iamsuperadmin login', [
+    //             'ip' => $ip,
+    //             'timestamp' => now(),
+    //         ]);
+
+    //         return back()->withErrors([
+    //             'message' => 'Access denied. Suspicious activity detected.',
+    //         ]);
+    //     }
+
+    //     // 5. Check if user exists and credentials match
+    //     $user = UserModel::where('username', $credentials['username'])->first();
+
+    //     if (!$user || !Hash::check($credentials['password'], $user->password)) {
+    //         Log::warning('Failed login attempt', [
+    //             'ip' => $ip,
+    //             'username' => $credentials['username'],
+    //             'timestamp' => now(),
+    //         ]);
+
+    //         return back()->withErrors(['message' => 'Invalid username or password.']);
+    //     }
+
+    //     if ($user->status === 'inactive') {
+    //         return back()->withErrors(['message' => 'Your account is disabled.']);
+    //     }
+
+    //     // 6. Check for existing active session
+    //     $hasSession = DB::table('sessions')
+    //         ->where('user_id', $user->user_id)
+    //         ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->timestamp)
+    //         ->exists();
+
+    //     if ($hasSession) {
+    //         return back()->withErrors(['message' => 'This account is already logged in on another device.']);
+    //     }
+
+    //     // 7. Generate device fingerprint from server-side data
+    //     $deviceFingerprint = DeviceFingerprintService::generateFingerprint($request);
+    //     $deviceName = substr(
+    //         htmlspecialchars($request->header('User-Agent') ?? 'Unknown', ENT_QUOTES, 'UTF-8'),
+    //         0,
+    //         255
+    //     );
+
+    //     Log::info('Device fingerprint generated for login', [
+    //         'user_id' => $user->user_id,
+    //         'fingerprint' => substr($deviceFingerprint['fingerprint'], 0, 8) . '...',
+    //         'ip' => $ip,
+    //     ]);
+
+    //     // 8. Try to register/recognize device
+    //     try {
+    //         DeviceFingerprintService::registerDevice(
+    //             $user->user_id,
+    //             $deviceFingerprint,
+    //             $ip,
+    //             $deviceName
+    //         );
+
+    //         Log::info('Device registered successfully', [
+    //             'user_id' => $user->user_id,
+    //             'ip' => $ip,
+    //         ]);
+    //     } catch (Exception $e) {
+    //         Log::error('Failed to register device', [
+    //             'user_id' => $user->user_id,
+    //             'ip' => $ip,
+    //             'error' => $e->getMessage(),
+    //         ]);
+    //         // Continue with login even if device registration fails
+    //     }
+
+    //     // 9. Complete login immediately (no OTP required)
+    //     $this->completeLogin($user, $request);
+    //     RateLimiter::clear($key);
+
+    //     Log::info('User signed in successfully', [
+    //         'user_id' => $user->user_id,
+    //         'ip' => $ip,
+    //         'role' => $user->role,
+    //     ]);
+
+    //     return $user->role === 'user'
+    //         ? redirect()->route('user.dashboard')
+    //         : redirect()->route('home');
+    // }
+
+
+    public function signin(Request $request){
         $ip = $request->ip();
         $key = 'signin:' . $ip;
 
@@ -208,7 +353,7 @@ class AuthController extends Controller
     Session::put('device_fingerprint', json_encode($deviceFingerprint));
 
     return redirect()->route('otp.verify.form');
-}
+    }
 
     protected function completeLogin($user, Request $request): void
     {
