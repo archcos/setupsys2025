@@ -6,9 +6,11 @@ use App\Models\ImplementationModel;
 use App\Models\ItemModel;
 use App\Models\ProjectModel;
 use App\Models\OfficeModel;
+use App\Services\SupabaseUpload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class ImplementationController extends Controller
@@ -230,18 +232,90 @@ class ImplementationController extends Controller
         $implementation = ImplementationModel::findOrFail($request->implement_id);
 
         try {
-            $folderPath = "implementation/{$implementation->project_id}";
-            
-            $originalName = $file->getClientOriginalName();
             $extension = $file->getClientOriginalExtension();
+            $originalName = $file->getClientOriginalName();
             $nameWithoutExt = pathinfo($originalName, PATHINFO_FILENAME);
-            $filename = "{$field}_{$nameWithoutExt}." . $extension;
+            
+            // Sanitize filename - remove spaces and special characters
+            $nameWithoutExt = preg_replace('/[^A-Za-z0-9\-]/', '_', $nameWithoutExt);
+            $nameWithoutExt = substr($nameWithoutExt, 0, 50);
+            
+            $timestamp = now()->format('Y-m-d_His');
+            $fileName = "{$field}_{$nameWithoutExt}_{$timestamp}.{$extension}";
+            
+            $currentYear = now()->year;
+            $projectId = $implementation->project_id;
+            $oldFilePath = $implementation->$field;
+            
+            // 1. Store file locally
+            Log::info("Uploading {$field} file", [
+                'implement_id' => $implementation->implement_id,
+                'file_name' => $fileName,
+                'file_size' => $file->getSize(),
+            ]);
 
-            $storedPath = Storage::disk('private')->putFileAs($folderPath, $file, $filename);
+            $localFolderPath = "implementation/{$currentYear}";
+            $path = $file->storeAs($localFolderPath, $fileName, 'private');
+            
+            if (!$path) {
+                throw new \Exception('Failed to store file locally');
+            }
 
+            Log::info("File stored locally for {$field}", [
+                'implement_id' => $implementation->implement_id,
+                'local_path' => $path,
+            ]);
+
+            // 2. Upload to Supabase Storage
+            try {
+                $localFilePath = storage_path("app/private/{$path}");
+                
+                if (!file_exists($localFilePath)) {
+                    throw new \Exception("Local file not found at: {$localFilePath}");
+                }
+                
+                $fileContent = file_get_contents($localFilePath);
+                
+                if ($fileContent === false) {
+                    throw new \Exception("Failed to read local file content");
+                }
+                
+                Log::info("Local file found, attempting Supabase upload for {$field}", [
+                    'implement_id' => $implementation->implement_id,
+                    'local_path' => $localFilePath,
+                    'file_size' => strlen($fileContent),
+                ]);
+                
+                $supabasePath = "backup/{$projectId}/{$fileName}";
+                
+                // Upload to Supabase
+                $supabaseUpload = new SupabaseUpload();
+                $uploaded = $supabaseUpload->upload($supabasePath, $fileContent);
+                
+                if ($uploaded) {
+                    Log::info("✓ File successfully uploaded to Supabase for {$field}", [
+                        'implement_id' => $implementation->implement_id,
+                        'project_id' => $projectId,
+                        'supabase_path' => $supabasePath,
+                    ]);
+                } else {
+                    Log::warning("Supabase upload failed for {$field}, continuing anyway", [
+                        'implement_id' => $implementation->implement_id,
+                    ]);
+                }
+                
+            } catch (\Exception $e) {
+                Log::error("Supabase upload error for {$field}", [
+                    'implement_id' => $implementation->implement_id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Continue anyway - don't fail if backup fails
+            }
+
+            // 3. Update database
             $uploadByField = $field . '_by';
             $implementation->update([
-                $field => $storedPath,
+                $field => $path,
                 $field . '_upload' => now('Asia/Manila'),
                 $uploadByField => Auth::id()
             ]);
@@ -254,6 +328,10 @@ class ImplementationController extends Controller
             return redirect()->back()->with('success', ucfirst($field) . ' uploaded successfully.');
 
         } catch (\Exception $e) {
+            Log::error("Upload error for {$field}", [
+                'implement_id' => $implementation->implement_id,
+                'error' => $e->getMessage(),
+            ]);
             return redirect()->back()->withErrors(['upload' => 'Upload failed: ' . $e->getMessage()]);
         }
     }
@@ -291,6 +369,10 @@ class ImplementationController extends Controller
             return back()->with('success', ucfirst($field) . ' file deleted successfully.');
 
         } catch (\Exception $e) {
+            Log::error("Delete error for {$field}", [
+                'implement_id' => $implementation->implement_id,
+                'error' => $e->getMessage(),
+            ]);
             return back()->withErrors(['delete' => 'Failed to delete file.']);
         }
     }

@@ -48,7 +48,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
           isOpen={dropdowns.development}
           onToggle={() => toggleDropdown('development')}
           links={[
-            { label: 'Companies', href: '/companies', icon: <Building size={16} /> },
+            { label: 'Proponents', href: '/proponents', icon: <Building size={16} /> },
             { label: 'Projects', href: '/projects', icon: <ClipboardList size={16} /> },
             { label: 'Activities', href: '/activities', icon: <SquareKanban size={16} /> },
           ]}
@@ -144,12 +144,12 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
       {/* Manage Company - User Only */}
       {role === 'user' && (
         <Dropdown
-          title="Manage Company"
+          title="Manage Information"
           icon={<Building size={18} />}
           isOpen={dropdowns.user}
           onToggle={() => toggleDropdown('user')}
           links={[
-            { label: 'Companies', href: '/companies', icon: <Building size={16} /> },
+            { label: 'Proponents', href: '/proponents', icon: <Building size={16} /> },
             { label: 'Projects', href: '/project-list', icon: <ClipboardList size={16} /> },
             { label: 'Activities', href: '/activity-list', icon: <SquareKanban size={16} /> },
           ]}

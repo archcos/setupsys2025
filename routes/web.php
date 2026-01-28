@@ -77,7 +77,7 @@ Route::middleware(['log-suspicious'])->group(function () {
 
     // DEVELOPMENT
     Route::middleware(['auth'])->group(function () {
-        Route::resource('companies', CompanyController::class);
+        Route::resource('proponents', CompanyController::class);
         Route::resource('projects', ProjectController::class)->middleware('role:head,staff,rpmo')
             ->except(['destroy', 'show']); // exclude destroy from staff
         Route::delete('/projects/{id}', [ProjectController::class, 'destroy'])
