@@ -1,6 +1,6 @@
 // components/SidebarMenuItems.jsx
 import { Link } from "@inertiajs/react";
-import { LayoutDashboard, Building, Users, FileSignature, FileText, ClipboardList, SquareKanban, HandCoins, ArrowLeftRight, FileDiff, Megaphone, Eye, AlertCircle, Settings, Zap, CheckCircle, Pencil, Search, ClipboardCheck, Award, BookOpen, FilePlus2, Hammer, ShieldAlert, AudioLines, Logs, FileCheck, FileClock, FileBadge, FileSymlink, Stamp, PencilRuler } from "lucide-react";
+import { LayoutDashboard, Building, Users, FileSignature, FileText, ClipboardList, SquareKanban, HandCoins, ArrowLeftRight, FileDiff, Megaphone, Eye, AlertCircle, Settings, Zap, CheckCircle, Pencil, Search, ClipboardCheck, Award, BookOpen, FilePlus2, Hammer, ShieldAlert, AudioLines, Logs, FileCheck, FileClock, FileBadge, FileSymlink, Stamp, PencilRuler, FileCheck2 } from "lucide-react";
 
 import Dropdown from "./Dropdown";
 
@@ -115,6 +115,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
           onToggle={() => toggleDropdown('reports')}
           links={[
             { label: 'Quarterly Reports', href: '/reports', icon: <FileClock size={16} /> },
+            { label: 'Review Reports', href: '/review-reports', icon: <FileCheck2 size={16} /> },
             { label: 'Completion Report', href: '/completion-report', icon: <FileBadge size={16} /> },
           ]}
           onClose={onClose}

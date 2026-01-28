@@ -256,7 +256,7 @@ class ComplianceController extends Controller
             Mail::to($director->email)->send(new ComplianceApprovalMail($project, $user));
         }
 
-        return redirect()->back()->with('success', 'Project approved and raised to Regional Director.');
+        return redirect()->back()->with('success', 'Project approved and recommended to Regional Director.');
     }
 
     public function deny(Request $request)

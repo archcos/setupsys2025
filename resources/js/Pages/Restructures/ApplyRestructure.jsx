@@ -44,7 +44,7 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
         bg: 'bg-blue-100',
         text: 'text-blue-800',
         border: 'border-blue-200',
-        label: 'Raised to RD'
+        label: 'Recommended to RD'
       },
     };
 

@@ -5,7 +5,7 @@ import { CheckCircle, ExternalLink, FileText, Calendar, User, Search, X, Buildin
 // Status options for filter
 const statusOptions = [
   { value: 'pending', label: 'Pending', icon: Clock, color: 'yellow' },
-  { value: 'raised', label: 'Raised', icon: FileText, color: 'blue' },
+  { value: 'raised', label: 'Recommended', icon: FileText, color: 'blue' },
   { value: 'approved', label: 'Approved', icon: CheckCircle, color: 'green' },
 ];
 

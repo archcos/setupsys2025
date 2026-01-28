@@ -137,7 +137,7 @@ class ApplyRestructureMail extends Mailable
                                 ⏱️ Please review this application at your earliest convenience.
                             </p>
                             <p style='margin: 0; color: #666; font-size: 13px;'>
-                                Once you finish reviewing, please visit the system to raise the project to regional director.
+                                Once you finish reviewing, please visit the system to recommend the project to regional director.
                             </p>
                         </div>
 

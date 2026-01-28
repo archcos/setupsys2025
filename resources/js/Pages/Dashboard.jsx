@@ -616,7 +616,7 @@ export default function Dashboard() {
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           <CheckCircle className="w-5 h-5 text-green-500" />
-                          <span className="text-gray-700">Raised to Regional Director</span>
+                          <span className="text-gray-700">Recommended to Regional Director</span>
                         </div>
                         {selectedProject.progressDates?.awaiting_approval && (
                           <span className="font-medium text-xs text-green-700">

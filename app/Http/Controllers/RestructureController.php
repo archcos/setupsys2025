@@ -596,13 +596,13 @@ $restructure->update([
             if ($userRole === 'rpmo') {
                 if (!in_array($validated['status'], ['raised', 'pending'])) {
                     return redirect()->back()->withErrors([
-                        'error' => 'RPMO can only raise or deny restructuring requests.'
+                        'error' => 'RPMO can only recommend or deny restructuring requests.'
                     ]);
                 }
             } elseif ($userRole === 'rd') {
                 if ($restructure->status !== 'raised') {
                     return redirect()->back()->withErrors([
-                        'error' => 'Only raised restructuring requests can be approved or denied.'
+                        'error' => 'Only recommended restructuring requests can be approved or denied.'
                     ]);
                 }
                 
@@ -737,7 +737,7 @@ $restructure->update([
             ]);
 
             if ($status === 'raised') {
-                Log::info('Preparing to send RAISED emails');
+                Log::info('Preparing to send RECOMMENDED emails');
                 $this->sendRaisedEmailsSync($restructure, $remarks);
             } elseif ($status === 'approved') {
                 Log::info('Preparing to send APPROVED emails');
@@ -789,7 +789,7 @@ $restructure->update([
                 try {
                     $recipientName = $director->honorific . ' ' . $director->last_name;
                     
-                    Log::info('Attempting to send raised email', [
+                    Log::info('Attempting to send recommended email', [
                         'to' => $director->email,
                         'recipient_name' => $recipientName
                     ]);
