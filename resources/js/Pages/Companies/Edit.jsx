@@ -29,7 +29,7 @@ export default function Edit({ company }) {
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto">
-      <Head title="Edit Company" />
+      <Head title="Edit Proponent" />
       <div className="max-w-5xl mx-auto">
         {/* Header Section */}
         <div className="mb-4 md:mb-8">
@@ -45,8 +45,8 @@ export default function Edit({ company }) {
               <Edit3 className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-xl md:text-3xl font-bold text-gray-900">Edit Company</h1>
-              <p className="text-xs md:text-base text-gray-600 mt-1">Update company information and details</p>
+              <h1 className="text-xl md:text-3xl font-bold text-gray-900">Edit Proponent</h1>
+              <p className="text-xs md:text-base text-gray-600 mt-1">Update proponent information and details</p>
             </div>
           </div>
         </div>
@@ -60,7 +60,7 @@ export default function Edit({ company }) {
           <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="min-w-0">
-                <h3 className="text-base md:text-lg font-semibold text-gray-900">Ready to Update Company?</h3>
+                <h3 className="text-base md:text-lg font-semibold text-gray-900">Ready to Update Proponent Data?</h3>
                 <p className="text-xs md:text-sm text-gray-600 mt-1">Review all changes before saving</p>
               </div>
               <div className="flex flex-col-reverse md:flex-row gap-2 md:gap-4">
@@ -87,7 +87,7 @@ export default function Edit({ company }) {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <Save className="w-4 h-4" />
-                      <span>Update Company</span>
+                      <span>Update Proponent</span>
                     </div>
                   )}
                 </button>

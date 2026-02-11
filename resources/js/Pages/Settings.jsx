@@ -78,22 +78,7 @@ export default function SettingsPage({ user, offices }) {
 
  
 
-        {/* Error Summary (if multiple errors) */}
-        {Object.keys(errors).length > 0 && (
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6">
-            <div className="flex items-start gap-2">
-              <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium">Please fix the following errors:</p>
-                <ul className="mt-2 text-sm space-y-1 list-disc list-inside">
-                  {Object.values(errors).map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* Main Settings Form */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
@@ -342,6 +327,23 @@ export default function SettingsPage({ user, offices }) {
           <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
             <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
             {flash.success}
+          </div>
+        )}
+
+                {/* Error Summary (if multiple errors) */}
+        {Object.keys(errors).length > 0 && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6">
+            <div className="flex items-start gap-2">
+              <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Please fix the following errors:</p>
+                <ul className="mt-2 text-sm space-y-1 list-disc list-inside">
+                  {Object.values(errors).map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
         )}
           </form>

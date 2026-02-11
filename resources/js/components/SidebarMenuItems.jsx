@@ -78,7 +78,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
       <Dropdown
         title="Implementation"
         icon={<PencilRuler size={18} />}
-        isOpen={dropdowns.implementation}
+        isOpen={role === 'rd' ? true : dropdowns.implementation}        
         onToggle={() => toggleDropdown('implementation')}
         links={[
           // Phase One & Two visible to staff and rpmo (and rd if needed)
