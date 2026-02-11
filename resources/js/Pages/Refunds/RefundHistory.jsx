@@ -1,14 +1,39 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Building2, Calendar, CheckCircle2, XCircle, DollarSign, TrendingUp, Clock, FileText, RefreshCw, ChevronLeft, Lock } from 'lucide-react';
+import UnpaidMonthsWarningModal from './components/UnpaidMonthsWarningModal';
 
 export default function ProjectRefundDetails({ project, months, summary }) {
-  const { userRole } = usePage().props;
+  const { userRole, flash } = usePage().props;
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [bulkStatus, setBulkStatus] = useState('');
   const [monthDetails, setMonthDetails] = useState({});
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [warningData, setWarningData] = useState({
+    unpaidMonths: [],
+    projectTitle: '',
+    refundInitial: '',
+    refundEnd: '',
+    message: '',
+    action: '',
+  });
   const isRPMO = ['rpmo', 'au'].includes(userRole);
+
+  // Handle flash warnings from bulk updates
+  useEffect(() => {
+    if (flash?.warning) {
+      setWarningData({
+        unpaidMonths: flash.warning.unpaid_months || [],
+        projectTitle: flash.warning.project_title || '',
+        refundInitial: flash.warning.refund_initial || '',
+        refundEnd: flash.warning.refund_end || '',
+        message: flash.warning.message || 'Cannot update project status.',
+        action: flash.warning.action || '',
+      });
+      setShowWarningModal(true);
+    }
+  }, [flash?.warning]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-PH', {
@@ -78,9 +103,13 @@ export default function ProjectRefundDetails({ project, months, summary }) {
     }, {
       preserveScroll: true,
       onSuccess: () => {
-        setSelectedMonths([]);
-        setBulkStatus('');
-        setMonthDetails({});
+        // Clear form only if no warning is shown
+        // The warning will be shown if flash.warning is set
+        if (!flash?.warning) {
+          setSelectedMonths([]);
+          setBulkStatus('');
+          setMonthDetails({});
+        }
       },
       onFinish: () => {
         setIsUpdating(false);
@@ -131,6 +160,20 @@ export default function ProjectRefundDetails({ project, months, summary }) {
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
       <Head title={`Refund Details - ${project.project_title}`} />
+      
+      {/* Unpaid Months Warning Modal */}
+      <UnpaidMonthsWarningModal
+        isOpen={showWarningModal}
+        onClose={() => {
+          setShowWarningModal(false);
+        }}
+        unpaidMonths={warningData.unpaidMonths}
+        message={warningData.message}
+        action={warningData.action}
+        projectTitle={warningData.projectTitle}
+        refundInitial={warningData.refundInitial}
+        refundEnd={warningData.refundEnd}
+      />
       
       <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
         {/* Back Button */}

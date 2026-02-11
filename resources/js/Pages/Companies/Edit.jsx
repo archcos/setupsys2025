@@ -24,7 +24,7 @@ export default function Edit({ company }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    put(`/companies/${company.company_id}`);
+    put(`/proponents/${company.company_id}`);
   };
 
   return (

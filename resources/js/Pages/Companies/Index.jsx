@@ -9,7 +9,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [officeFilter, setOfficeFilter] = useState(filters.office || '');
   const [setupIndustryFilter, setSetupIndustryFilter] = useState(filters.setup_industry || '');
-  const [industryTypeFilter, setIndustryTypeFilter] = useState(filters.industry_type_filter || '');
+  const [industryTypeFilter, setIndustryTypeFilter] = useState(filters.industry_type || '');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState(null);
   const [editingAddedBy, setEditingAddedBy] = useState(null);
@@ -19,7 +19,8 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
   const isInitialRenderRef = useRef(true);
   const dropdownRef = useRef(null);
 
-    useEffect(() => {
+  // FIXED: Updated to include perPage and removed 'only' option
+  useEffect(() => {
     // Skip on initial render
     if (isInitialRenderRef.current) {
       isInitialRenderRef.current = false;
@@ -36,11 +37,14 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
         office: officeFilter,
         setup_industry: setupIndustryFilter,
         industry_type: industryTypeFilter,
-        sort: filters.sort || 'company_name',
-        direction: filters.direction || 'asc',
+        sort: filters.sort || 'company_id',
+        direction: filters.direction || 'desc',
         perPage,
-        page: 1  // Reset to page 1 when filters change
-      }, { preserveState: true, replace: true, preserveScroll: true, only: ['proponents'] });
+        page: 1
+      }, { 
+        preserveScroll: true, 
+        replace: true 
+      });
     }, 400);
 
     return () => {
@@ -48,7 +52,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
         clearTimeout(filterTimeoutRef.current);
       }
     };
-  }, [search, officeFilter, setupIndustryFilter, industryTypeFilter]);
+  }, [search, officeFilter, setupIndustryFilter, industryTypeFilter, perPage]);
 
   // Handle Escape key
   useEffect(() => {
@@ -106,11 +110,11 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
       office: officeFilter,
       setup_industry: setupIndustryFilter,
       industry_type: industryTypeFilter,
-      sort: filters.sort || 'company_name',
-      direction: filters.direction || 'asc',
+      sort: filters.sort || 'company_id',
+      direction: filters.direction || 'desc',
     }, {
       preserveScroll: true,
-      preserveState: true,
+      replace: true,
     });
   };
 
@@ -126,7 +130,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
       direction: newDirection,
     }, {
       preserveScroll: true,
-      preserveState: true,
+      replace: true,
     });
   };
 
@@ -147,7 +151,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
     setOfficeFilter('');
     setSetupIndustryFilter('');
     setIndustryTypeFilter('');
-    router.get('/proponents', { perPage }, { preserveState: true });
+    router.get('/proponents', { perPage }, { preserveScroll: true });
   };
 
   const handleUpdateAddedBy = (companyId, userId) => {
@@ -209,7 +213,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Search companies..."
+                  placeholder="Search proponents..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
@@ -551,7 +555,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                     <Building className="w-6 h-6 md:w-8 md:h-8 text-gray-400" />
                   </div>
                   <div>
-                    <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">No companies found</h3>
+                    <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">No proponent found</h3>
                     <p className="text-xs md:text-sm text-gray-500">Get started by adding your first company</p>
                   </div>
                   <Link
@@ -810,7 +814,7 @@ function CompanyModal({ company, isOpen, onClose }) {
               <Edit3 className="w-4 h-4" />
               Edit
             </Link>
-          </div>
+          </div>  
         </div>
       </div>
     </div>

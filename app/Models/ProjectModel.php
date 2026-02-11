@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\LogsActivity;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 class ProjectModel extends Model
@@ -124,4 +125,128 @@ class ProjectModel extends Model
     {
         return $this->hasMany(ApplyRestructModel::class, 'project_id', 'project_id');
     }
+
+    public function checkRefundCompletion(){
+        if (!$this->refund_initial || !$this->refund_end) {
+            return [
+                'is_complete' => false,
+                'unpaid_months' => []
+            ];
+        }
+
+        $refundInitial = Carbon::parse($this->refund_initial);
+        $refundEnd = Carbon::parse($this->refund_end);
+
+        $unPaidMonths = [];
+        $current = $refundInitial->copy();
+
+        // Iterate through each month from refund_initial to refund_end
+        // Using lessThanOrEqualTo instead of isSameOrBefore
+        while ($current->lessThanOrEqualTo($refundEnd)) {
+            $monthDate = $current->format('Y-m-d');
+            
+            $refund = $this->refunds()
+                ->where('month_paid', $monthDate)
+                ->first();
+
+            // Check if refund exists and status is 'paid'
+            if (!$refund || $refund->status !== 'paid') {
+                $unPaidMonths[] = $current->format('F Y');
+            }
+
+            $current->addMonth();
+        }
+
+        return [
+            'is_complete' => empty($unPaidMonths),
+            'unpaid_months' => $unPaidMonths
+        ];
+    }
+
+    /**
+     * Check refund completion including a new refund entry that hasn't been saved yet
+     * This is used before saving to check if completion would be achieved
+     */
+    public function checkRefundCompletionWithNewEntry($newMonthDate, $newStatus){
+        if (!$this->refund_initial || !$this->refund_end) {
+            return [
+                'is_complete' => false,
+                'unpaid_months' => []
+            ];
+        }
+
+        $refundInitial = Carbon::parse($this->refund_initial);
+        $refundEnd = Carbon::parse($this->refund_end);
+
+        $unPaidMonths = [];
+        $current = $refundInitial->copy();
+
+        // Iterate through each month from refund_initial to refund_end
+        // Using lessThanOrEqualTo instead of isSameOrBefore
+        while ($current->lessThanOrEqualTo($refundEnd)) {
+            $monthDate = $current->format('Y-m-d');
+            
+            $refund = $this->refunds()
+                ->where('month_paid', $monthDate)
+                ->first();
+
+            // If this is the new entry being saved, check its status
+            if ($monthDate === $newMonthDate) {
+                if ($newStatus !== 'paid') {
+                    $unPaidMonths[] = $current->format('F Y');
+                }
+            } else {
+                // Check existing refunds
+                if (!$refund || $refund->status !== 'paid') {
+                    $unPaidMonths[] = $current->format('F Y');
+                }
+            }
+
+            $current->addMonth();
+        }
+
+        return [
+            'is_complete' => empty($unPaidMonths),
+            'unpaid_months' => $unPaidMonths
+        ];
+    }
+
+    public function checkRefundCompletionWithBulkUpdate($monthsBeingUpdated, $newStatus)
+    {
+        $refundInitial = Carbon::parse($this->refund_initial)->startOfMonth();
+        $refundEnd = Carbon::parse($this->refund_end)->startOfMonth();
+        
+        $unpaidMonths = [];
+        
+        // Generate all months in the range
+        $current = $refundInitial->copy();
+        while ($current <= $refundEnd) {
+            $monthKey = $current->format('Y-m-d');
+            
+            // Check if this month is being updated to paid status
+            if (in_array($monthKey, $monthsBeingUpdated) && $newStatus === 'paid') {
+                // This month will be marked as paid
+                $current->addMonth();
+                continue;
+            }
+            
+            // Check if this month already has a paid refund
+            $refund = $this->refunds()
+                ->where('month_paid', $monthKey)
+                ->first();
+            
+            if (!$refund || $refund->status !== 'paid') {
+                // This month is not paid
+                $unpaidMonths[] = $current->format('F Y');
+            }
+            
+            $current->addMonth();
+        }
+        
+        return [
+            'is_complete' => empty($unpaidMonths),
+            'unpaid_months' => $unpaidMonths,
+        ];
+    }
+
 }

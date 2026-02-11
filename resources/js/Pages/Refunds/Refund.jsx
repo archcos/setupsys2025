@@ -6,6 +6,7 @@ import FilterSection from './components/FilterSection';
 import RefundTableRow from './components/RefundTableRow';
 import RefundMobileCard from './components/RefundMobileCard';
 import RefundPagination from './components/RefundPagination';
+import UnpaidMonthsWarningModal from './components/UnpaidMonthsWarningModal';
 import { useRefundData } from './hooks/useRefundData';
 
 export default function Refund({ projects, selectedMonth, selectedYear, search, selectedStatus }) {
@@ -17,6 +18,15 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
   const [savedProjects, setSavedProjects] = useState(new Set());
   const [searchInput, setSearchInput] = useState(search || '');
   const [statusFilter, setStatusFilter] = useState(selectedStatus || '');
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [warningData, setWarningData] = useState({
+    unpaidMonths: [],
+    projectTitle: '',
+    refundInitial: '',
+    refundEnd: '',
+    message: '',
+    action: '',
+  });
   const isFirstRun = useRef(true);
 
   const { data, setData } = useForm({
@@ -54,6 +64,42 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
     return () => clearTimeout(delaySearch);
   }, [searchInput, statusFilter]);
 
+  // Handle flash messages for warnings - IMPROVED
+  useEffect(() => {
+    console.log('📱 DEBUG: Flash object received:', flash);
+    
+    if (flash && typeof flash === 'object') {
+      console.log('✅ Flash exists, checking for warning...');
+      console.log('Flash keys:', Object.keys(flash));
+      
+      if (flash.warning) {
+        console.log('⚠️ WARNING FOUND IN FLASH!');
+        console.log('Warning content:', flash.warning);
+        
+        const newWarningData = {
+          unpaidMonths: flash.warning.unpaid_months || [],
+          projectTitle: flash.warning.project_title || '',
+          refundInitial: flash.warning.refund_initial || '',
+          refundEnd: flash.warning.refund_end || '',
+          message: flash.warning.message || 'Cannot update project status.',
+          action: flash.warning.action || '',
+        };
+        
+        console.log('📋 Setting warning data with:', newWarningData);
+        setWarningData(newWarningData);
+        
+        console.log('🔔 Setting showWarningModal to TRUE');
+        setShowWarningModal(true);
+        
+        console.log('✅ Modal should now be visible!');
+      } else {
+        console.log('❌ No warning property in flash');
+      }
+    } else {
+      console.log('❌ Flash is not an object or is falsy');
+    }
+  }, [flash]);
+
   // Memoized handlers
   const handleFilterChange = useCallback((month, year, searchValue, statusValue = statusFilter) => {
     router.get('/refunds', 
@@ -86,6 +132,8 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
     const saveDate = `${selectedYear}-${month}-01`;
     const currentStatus = data[`status_${projectId}`];
 
+    console.log('💾 Saving refund:', { projectId, saveDate, currentStatus });
+
     setSavingProject(projectId);
     
     const refundAmount = currentStatus === REFUND_STATUS.RESTRUCTURED 
@@ -105,8 +153,12 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
       save_date: saveDate,
     }, {
       preserveScroll: true,
-      onFinish: () => setSavingProject(null),
+      onFinish: () => {
+        console.log('🏁 Request finished');
+        setSavingProject(null);
+      },
       onSuccess: () => {
+        console.log('✅ Save successful');
         setSavedProjects(prev => new Set([...prev, projectId]));
         setTimeout(() => {
           setSavedProjects(prev => {
@@ -116,7 +168,9 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
           });
         }, 3000);
       },
-      onError: (errors) => console.log('Request errors:', errors),
+      onError: (errors) => {
+        console.log('❌ Request errors:', errors);
+      },
     });
   }, [projectMap, selectedMonth, selectedYear, data]);
 
@@ -183,6 +237,31 @@ export default function Refund({ projects, selectedMonth, selectedYear, search, 
               </div>
             </div>
           </div>
+
+          {/* Debug: Show if modal should be open */}
+          {showWarningModal && (
+            <div className="bg-blue-50 border-b border-blue-200 p-4">
+              <p className="text-sm text-blue-900">
+                🔍 DEBUG: Modal is showing. showWarningModal = {String(showWarningModal)}. 
+                Unpaid months: {warningData.unpaidMonths.length}
+              </p>
+            </div>
+          )}
+
+          {/* Unpaid Months Warning Modal */}
+          <UnpaidMonthsWarningModal
+            isOpen={showWarningModal}
+            onClose={() => {
+              console.log('🔒 Closing warning modal');
+              setShowWarningModal(false);
+            }}
+            unpaidMonths={warningData.unpaidMonths}
+            message={warningData.message}
+            action={warningData.action}
+            projectTitle={warningData.projectTitle}
+            refundInitial={warningData.refundInitial}
+            refundEnd={warningData.refundEnd}
+          />
 
           {/* Filters Section - Memoized */}
           <FilterSection

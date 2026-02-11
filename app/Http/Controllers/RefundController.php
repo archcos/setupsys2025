@@ -9,6 +9,7 @@ use App\Models\RestructureModel;
 use App\Models\RestructureUpdateModel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
@@ -232,72 +233,188 @@ class RefundController extends Controller
         }
     }
 
-public function save()
-{
-    $data = request()->validate([
-        'project_id'     => 'required|exists:tbl_projects,project_id',
-        'refund_amount'  => 'required|numeric|min:0',
-        'amount_due'     => 'nullable|numeric|min:0',
-        'check_num'      => 'nullable|string|max:10', 
-        'receipt_num'    => 'nullable|string|max:10',
-        'status'         => 'required|in:paid,unpaid,restructured',
-        'save_date'      => 'required|date_format:Y-m-d',
-    ]);
+    public function save(){
+        $data = request()->validate([
+            'project_id'     => 'required|exists:tbl_projects,project_id',
+            'refund_amount'  => 'required|numeric|min:0',
+            'amount_due'     => 'nullable|numeric|min:0',
+            'check_num'      => 'nullable|string|max:10', 
+            'receipt_num'    => 'nullable|string|max:10',
+            'status'         => 'required|in:paid,unpaid,restructured',
+            'save_date'      => 'required|date_format:Y-m-d',
+        ]);
 
-    try {
-        $savedMonthDate = Carbon::parse($data['save_date'])->startOfMonth()->format('Y-m-d');
-        $readableMonth  = Carbon::parse($data['save_date'])->format('F Y');
+        try {
+            Log::info('========== REFUND SAVE STARTED ==========');
+            Log::info('Request data:', $data);
 
-        // If status is restructured, set amounts to 0
-        if ($data['status'] === 'restructured') {
-            $data['refund_amount'] = 0;
-            $data['amount_due'] = 0;
-        }
+            $savedMonthDate = Carbon::parse($data['save_date'])->startOfMonth()->format('Y-m-d');
+            $readableMonth  = Carbon::parse($data['save_date'])->format('F Y');
 
-        $refund = RefundModel::updateOrCreate(
-            [
-                'project_id' => $data['project_id'],
-                'month_paid' => $savedMonthDate
-            ],
-            [
-                'refund_amount' => $data['refund_amount'],
-                'amount_due'    => $data['amount_due'],
-                'check_num'     => $data['check_num'] ?? null,
-                'receipt_num'   => $data['receipt_num'] ?? null,
-                'status'        => $data['status'],
-            ]
-        );
+            Log::info('Parsed dates:', [
+                'savedMonthDate' => $savedMonthDate,
+                'readableMonth' => $readableMonth,
+            ]);
 
-        $project   = $refund->project ?? null;
-        $company   = $project?->company ?? null;
-        $ownerName = $company?->owner_name ?? 'Valued Client';
-        $projectTitle = $project?->project_title ?? 'N/A';
-        $companyName = $company?->company_name ?? 'N/A';
-
-        // Send email notification
-        if ($company && $company->email) {
-            try {
-                Mail::to($company->email)->send(
-                    new \App\Mail\RefundNotificationMail(
-                        $ownerName,
-                        $projectTitle,
-                        $companyName,
-                        $readableMonth,
-                        $data['status'],
-                        $refund->amount_due
-                    )
-                );
-                \Illuminate\Support\Facades\Log::info("Refund notification email sent to {$company->email}");
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Failed to send refund email to {$company->email}: " . $e->getMessage());
+            // Get the project with refunds loaded
+            $project = ProjectModel::with('refunds')->find($data['project_id']);
+            if (!$project) {
+                Log::error('Project not found for ID: ' . $data['project_id']);
+                return back()->with('error', 'Project not found.');
             }
-        }
 
-        return back()->with('success', 'Refund saved successfully.');
-    } catch (\Exception $e) {
-        return back()->with('error', 'An error occurred while saving.');
+            Log::info('Project found:', [
+                'project_id' => $project->project_id,
+                'project_title' => $project->project_title,
+                'refund_initial' => $project->refund_initial,
+                'refund_end' => $project->refund_end,
+            ]);
+
+            // If status is restructured, set amounts to 0
+            if ($data['status'] === 'restructured') {
+                $data['refund_amount'] = 0;
+                $data['amount_due'] = 0;
+                Log::info('Status is restructured, setting amounts to 0');
+            }
+
+            // Check if refund_end equals the month being saved
+            $refundEnd = Carbon::parse($project->refund_end)->startOfMonth()->format('Y-m-d');
+            
+            Log::info('Date comparison:', [
+                'savedMonthDate' => $savedMonthDate,
+                'refundEnd' => $refundEnd,
+                'isEqual' => $savedMonthDate === $refundEnd,
+                'status' => $data['status'],
+            ]);
+
+            $completionCheck = null;
+            
+            if ($savedMonthDate === $refundEnd) {
+                Log::info('✅ Saved month matches refund_end!');
+                
+                // Only check completion if marking as paid at the last month
+                if ($data['status'] === 'paid') {
+                    Log::info('Status is PAID at refund_end, checking completion...');
+                    
+                    // Check if all months from refund_initial to refund_end are paid
+                    $completionCheck = $project->checkRefundCompletionWithNewEntry(
+                        $savedMonthDate,
+                        $data['status']
+                    );
+                    
+                    Log::info('Completion check result:', [
+                        'is_complete' => $completionCheck['is_complete'],
+                        'unpaid_months' => $completionCheck['unpaid_months'],
+                    ]);
+                    
+                    // If not all months are paid, show warning with unpaid months
+                    if (!$completionCheck['is_complete']) {
+                        Log::warning('⚠️ Not all months are paid, returning warning modal');
+                        
+                        $warningData = [
+                            'message' => 'Cannot update project status. The following months remain unpaid:',
+                            'unpaid_months' => $completionCheck['unpaid_months'],
+                            'project_title' => $project->project_title,
+                            'refund_initial' => Carbon::parse($project->refund_initial)->format('F Y'),
+                            'refund_end' => Carbon::parse($project->refund_end)->format('F Y'),
+                            'action' => 'Please ensure all months between ' . 
+                                    Carbon::parse($project->refund_initial)->format('F Y') . 
+                                    ' and ' . 
+                                    Carbon::parse($project->refund_end)->format('F Y') . 
+                                    ' are paid before completing the project.'
+                        ];
+                        
+                        Log::info('Warning data to send:', $warningData);
+                        
+                        return back()
+                            ->with('warning', $warningData)
+                            ->withInput();
+                    }
+                    
+                    Log::info('✅ All months are paid! Proceeding to save...');
+                } else {
+                    // If at refund_end but not marking as paid, show error
+                    Log::warning('❌ At refund_end but status is not PAID, status: ' . $data['status']);
+                    
+                    return back()
+                        ->with('error', 'The final refund month must be marked as "Paid" to complete the project.')
+                        ->withInput();
+                }
+            } else {
+                Log::info('⚠️ Saved month does not match refund_end, saving without completion check');
+                Log::info('Months are different - no validation needed');
+            }
+
+            // Save the refund
+            Log::info('Saving refund...');
+            
+            $refund = RefundModel::updateOrCreate(
+                [
+                    'project_id' => $data['project_id'],
+                    'month_paid' => $savedMonthDate
+                ],
+                [
+                    'refund_amount' => $data['refund_amount'],
+                    'amount_due'    => $data['amount_due'],
+                    'check_num'     => $data['check_num'] ?? null,
+                    'receipt_num'   => $data['receipt_num'] ?? null,
+                    'status'        => $data['status'],
+                ]
+            );
+            
+            Log::info('Refund saved:', [
+                'refund_id' => $refund->refund_id ?? 'N/A',
+                'status' => $refund->status,
+            ]);
+
+            // If we're at refund_end and all months are paid, update project status to Completed
+            if ($savedMonthDate === $refundEnd && $completionCheck && $completionCheck['is_complete']) {
+                Log::info('🎉 All conditions met! Updating project status to Completed');
+                
+                $project->update([
+                    'progress' => 'Completed'
+                ]);
+                
+                Log::info('Project status updated to Completed');
+            }
+
+            $company   = $project->company ?? null;
+            $ownerName = $company?->owner_name ?? 'Valued Client';
+            $projectTitle = $project->project_title ?? 'N/A';
+            $companyName = $company?->company_name ?? 'N/A';
+
+            // Send email notification
+            if ($company && $company->email) {
+                try {
+                    Log::info('Sending email to: ' . $company->email);
+                    
+                    Mail::to($company->email)->send(
+                        new \App\Mail\RefundNotificationMail(
+                            $ownerName,
+                            $projectTitle,
+                            $companyName,
+                            $readableMonth,
+                            $data['status'],
+                            $refund->amount_due
+                        )
+                    );
+                    Log::info("Refund notification email sent to {$company->email}");
+                } catch (\Exception $e) {
+                    Log::error("Failed to send refund email to {$company->email}: " . $e->getMessage());
+                }
+            }
+
+            $message = 'Refund saved successfully.';
+            if ($savedMonthDate === $refundEnd && $completionCheck && $completionCheck['is_complete']) {
+                $message .= ' Project status updated to Completed.';
+            }
+
+            return back()->with('success', $message);
+        } catch (\Exception $e) {
+
+            return back()->with('error', 'An error occurred while saving: ' . $e->getMessage());
+        }
     }
-}
 
     public function userRefunds()
     {
@@ -394,8 +511,7 @@ public function save()
     /**
      * Bulk update refund status with individual check_num and receipt_num for each month
      */
-    public function bulkUpdate()
-    {
+    public function bulkUpdate(){
         $data = request()->validate([
             'project_id'    => 'required|exists:tbl_projects,project_id',
             'month_dates'   => 'required|array',
@@ -405,10 +521,67 @@ public function save()
         ]);
 
         try {
-            $project = ProjectModel::with('company')->findOrFail($data['project_id']);
+
+            $project = ProjectModel::with('company', 'refunds')->findOrFail($data['project_id']);
+
             $updatedCount = 0;
             $monthDetails = $data['month_details'] ?? [];
+            $refundEnd = Carbon::parse($project->refund_end)->startOfMonth()->format('Y-m-d');
+            $isMarkingAsComplete = false;
 
+            // Check if any of the months being updated is the refund_end and status is paid
+            foreach ($data['month_dates'] as $monthDate) {
+                $monthParsed = Carbon::parse($monthDate)->startOfMonth()->format('Y-m-d');
+                
+                if ($monthParsed === $refundEnd && $data['status'] === 'paid') {
+                    $isMarkingAsComplete = true;
+                    break;
+                }
+            }
+
+            // If marking as complete, check if all months will be paid
+            if ($isMarkingAsComplete) {
+                
+                // We need to check completion considering the new entries that will be created
+                // Get all month dates being updated
+                $monthsToUpdate = collect($data['month_dates'])
+                    ->map(fn($date) => Carbon::parse($date)->startOfMonth()->format('Y-m-d'))
+                    ->unique()
+                    ->toArray();
+
+                // Check completion with the bulk update
+                $completionCheck = $project->checkRefundCompletionWithBulkUpdate(
+                    $monthsToUpdate,
+                    $data['status']
+                );
+
+                // If not all months are paid, show warning
+                if (!$completionCheck['is_complete']) {
+                    
+                    $warningData = [
+                        'message' => 'Cannot update project status. The following months remain unpaid:',
+                        'unpaid_months' => $completionCheck['unpaid_months'],
+                        'project_title' => $project->project_title,
+                        'refund_initial' => Carbon::parse($project->refund_initial)->format('F Y'),
+                        'refund_end' => Carbon::parse($project->refund_end)->format('F Y'),
+                        'action' => 'Please ensure all months between ' . 
+                                Carbon::parse($project->refund_initial)->format('F Y') . 
+                                ' and ' . 
+                                Carbon::parse($project->refund_end)->format('F Y') . 
+                                ' are paid before completing the project.'
+                    ];
+                    
+                    Log::info('Warning data to send:', $warningData);
+                    
+                    return back()
+                        ->with('warning', $warningData)
+                        ->withInput();
+                }
+                
+                Log::info('✅ All months will be paid! Proceeding with bulk update...');
+            }
+
+            // Proceed with bulk update
             foreach ($data['month_dates'] as $monthDate) {
                 $monthParsed = Carbon::parse($monthDate);
                 
@@ -446,8 +619,21 @@ public function save()
                 $updatedCount++;
             }
 
-            return back()->with('success', "{$updatedCount} month(s) updated successfully to " . strtoupper($data['status']) . ".");
+            // If we were marking as complete and all months are paid, update project status
+            if ($isMarkingAsComplete) {
+                
+                $project->update([
+                    'progress' => 'Completed'
+                ]);
+            }
+
+            $message = "{$updatedCount} month(s) updated successfully to " . strtoupper($data['status']) . ".";
+            if ($isMarkingAsComplete) {
+                $message .= ' Project status updated to Completed.';
+            }
+            return back()->with('success', $message);
         } catch (\Exception $e) {
+
             return back()->with('error', 'An error occurred while updating: ' . $e->getMessage());
         }
     }

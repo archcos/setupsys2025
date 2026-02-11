@@ -144,7 +144,7 @@ public function store(Request $request)
 
     CompanyModel::create($validated);
 
-    return redirect()->route('companies.index')->with('success', 'Company added successfully.');
+    return redirect()->route('proponents.index')->with('success', 'Company added successfully.');
 }
 
 
@@ -295,7 +295,7 @@ public function update(Request $request, $id)
     $company = CompanyModel::findOrFail($id);
     $company->update($validated);
 
-    return redirect()->route('companies.index')->with('success', 'Company updated successfully.');
+    return redirect()->route('proponents.index')->with('success', 'Company updated successfully.');
 }
 
 
@@ -304,6 +304,6 @@ public function destroy($id)
     $company = CompanyModel::findOrFail($id);
     $company->delete();
 
-    return redirect()->route('companies.index')->with('success', 'Company deleted successfully.');
+    return redirect()->route('proponents.index')->with('success', 'Company deleted successfully.');
 }
 }
