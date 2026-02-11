@@ -13,10 +13,17 @@ export default function Dropdown({ title, icon, isOpen, onToggle, links, onClose
           {icon}
           <span>{title}</span>
         </div>
-        {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        <div className={`transform transition-transform duration-300 ease-in-out ${isOpen ? 'rotate-180' : 'rotate-0'}`}>
+          <ChevronDown size={16} />
+        </div>
       </button>
 
-      {isOpen && (
+      {/* Animated dropdown content */}
+      <div
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
         <div className="ml-6 mt-2 space-y-1">
           {links.map((link, idx) =>
             link.target === "_blank" ? (
@@ -43,7 +50,7 @@ export default function Dropdown({ title, icon, isOpen, onToggle, links, onClose
             )
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
