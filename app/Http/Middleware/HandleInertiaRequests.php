@@ -56,6 +56,9 @@ class HandleInertiaRequests extends Middleware
                 'error' => session('error'),
                 'warning' => $request->session()->pull('warning'),
             ],
+            'errors' => $request->session()->get('errors') 
+                ? $request->session()->get('errors')->getBag('default')->getMessages()
+                : [],
         ]);
     }
 }

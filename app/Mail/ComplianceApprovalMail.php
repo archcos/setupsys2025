@@ -73,7 +73,7 @@ class ComplianceApprovalMail extends Mailable
                             </div>
 
                             <div style='margin-bottom: 15px;'>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Company Name</p>
+                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Proponent Name</p>
                                 <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$companyName}</p>
                             </div>
 

@@ -130,9 +130,9 @@ Route::middleware(['log-suspicious'])->group(function () {
 
     //RD-DASHBOARD
     Route::middleware(['auth',  'role:rd'])->group(function () {
-        Route::get('/rd-dashboard', [RDDashboardController::class, 'index'])->name('rd-dashboard.index');
-        Route::post('/rd-dashboard/{projectId}/update-status', [RDDashboardController::class, 'updateStatus'])->name('rd-dashboard.update-status');
-        Route::get('/rd-dashboard/{projectId}', [RDDashboardController::class, 'show'])->name('rd-dashboard.show');
+        Route::get('/rd/dashboard', [RDDashboardController::class, 'index'])->name('rd-dashboard.index');
+        Route::post('/rd/dashboard/{projectId}/update-status', [RDDashboardController::class, 'updateStatus'])->name('rd-dashboard.update-status');
+        Route::get('/rd/dashboard/{projectId}', [RDDashboardController::class, 'show'])->name('rd-dashboard.show');
     });
 
     //NOTIFICATION

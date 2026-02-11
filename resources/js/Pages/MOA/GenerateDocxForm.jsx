@@ -54,12 +54,12 @@ export default function GenerateDocxForm({ companies, selectedCompany, projects,
               <div className="space-y-3 md:space-y-4">
                 <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-gray-700">
                   <Building2 className="w-3 h-3 md:w-4 md:h-4 text-blue-600 flex-shrink-0" />
-                  Company Selection
+                  Proponent Selection
                 </div>
                 
                 <div>
                   <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
-                    Select Company <span className="text-red-500">*</span>
+                    Select Proponent <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={data.company_id}
@@ -69,7 +69,7 @@ export default function GenerateDocxForm({ companies, selectedCompany, projects,
                     }}
                     className="w-full px-3 md:px-4 py-2 md:py-3 text-sm md:text-base border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                   >
-                    <option value="">Choose a company...</option>
+                    <option value="">Choose a proponent...</option>
                     {companies.map((c) => (
                       <option key={c.company_id} value={c.company_id}>
                         {c.company_name}
@@ -145,7 +145,7 @@ export default function GenerateDocxForm({ companies, selectedCompany, projects,
                   ) : (
                     <div className="text-center py-4 md:py-6 bg-gray-50 rounded-lg">
                       <FolderOpen className="w-6 h-6 md:w-8 md:h-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-xs md:text-sm text-gray-500">No projects found for this company.</p>
+                      <p className="text-xs md:text-sm text-gray-500">No projects found for this proponent.</p>
                     </div>
                   )}
                 </div>

@@ -351,7 +351,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                             className="flex items-center gap-2 hover:text-blue-600 transition-colors"
                           >
                             <Building className="w-4 h-4" />
-                            Company
+                            Proponent
                             <ArrowUpDown className="w-3 h-3" />
                           </button>
                         </th>
@@ -556,14 +556,14 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                   </div>
                   <div>
                     <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">No proponent found</h3>
-                    <p className="text-xs md:text-sm text-gray-500">Get started by adding your first company</p>
+                    <p className="text-xs md:text-sm text-gray-500">Get started by adding your first proponent</p>
                   </div>
                   <Link
                     href="/proponents/create"
                     className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 md:px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium text-sm"
                   >
                     <Plus className="w-4 h-4" />
-                    Add Company
+                    Add Proponent
                   </Link>
                 </div>
               </div>
@@ -619,7 +619,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
               </div>
               <div className="flex-1">
                 <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2">
-                  Delete Company
+                  Delete Proponent
                 </h3>
                 <p className="text-xs md:text-sm text-gray-600 mb-2">
                   Are you sure you want to delete <span className="font-semibold">{companyToDelete.company_name}</span>?
@@ -665,7 +665,7 @@ function CompanyModal({ company, isOpen, onClose }) {
                 <Building className="w-5 h-5 md:w-6 md:h-6 text-white" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base md:text-xl font-bold truncate">Company Details</h3>
+                <h3 className="text-base md:text-xl font-bold truncate">Proponent Details</h3>
                 <p className="text-xs md:text-sm text-blue-100">Information & overview</p>
               </div>
             </div>
@@ -688,14 +688,14 @@ function CompanyModal({ company, isOpen, onClose }) {
                   <div className="p-2 bg-blue-500 rounded-lg">
                     <Building className="w-4 h-4 md:w-5 md:h-5 text-white" />
                   </div>
-                  <h4 className="text-base md:text-lg font-semibold text-gray-900">Company Info</h4>
+                  <h4 className="text-base md:text-lg font-semibold text-gray-900">Proponent Info</h4>
                 </div>
                 
                 <div className="space-y-3 md:space-y-4">
                   <div className="flex items-start gap-3">
                     <Building className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-xs md:text-sm font-medium text-gray-600">Company Name</p>
+                      <p className="text-xs md:text-sm font-medium text-gray-600">Proponent Name</p>
                       <p className="text-sm md:text-base text-gray-900 font-semibold truncate">{company.company_name}</p>
                     </div>
                   </div>

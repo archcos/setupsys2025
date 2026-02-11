@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -989,16 +990,16 @@ class AuthController extends Controller
         ]);
     }
 
-    public function update(Request $request, string $id)
-    {
-        $user = UserModel::findOrFail($id);
+public function update(Request $request, string $id){
+    $user = UserModel::findOrFail($id);
 
+    try {
         $validated = $request->validate([
             'first_name'   => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
             'middle_name'  => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
             'last_name'    => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
-            'username'     => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9_]+$/', 'unique:tbl_users,username,' . $id . ',user_id'],
-            'email'        => ['required', 'email', 'max:255', 'unique:tbl_users,email,' . $id . ',user_id'],
+            'username'     => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9_]+$/', Rule::unique('tbl_users', 'username')->ignore($id, 'user_id')],
+            'email'        => ['required', 'email', 'max:255', Rule::unique('tbl_users', 'email')->ignore($id, 'user_id')],
             'password'     => [
                 'nullable', 'string', 'min:12', 'max:72',
                 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,72}$/',
@@ -1016,35 +1017,40 @@ class AuthController extends Controller
             'username.unique' => 'This username is already taken.',
             'email.unique' => 'This email is already registered.',
         ]);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return back()
+            ->withErrors($e->errors())
+            ->withInput($request->except('password', 'password_confirmation'));
+    }
 
-        if (!empty($validated['website'])) {
-            Log::warning('HP triggered in user update', [
-                'ip' => $request->ip(),
-                'user_id' => Auth::id(),
-            ]);
-            return back()->with('success', 'Settings updated successfully!');
-        }
-
-        $user->fill([
-            'first_name'  => $validated['first_name'],
-            'middle_name' => $validated['middle_name'] ?? null,
-            'last_name'   => $validated['last_name'],
-            'username'    => $validated['username'],
-            'email'       => $validated['email'],
-            'office_id'   => $validated['office_id'],
+    if (!empty($validated['website'])) {
+        Log::warning('HP triggered in user update', [
+            'ip' => $request->ip(),
+            'user_id' => Auth::id(),
         ]);
-
-        if (!empty($validated['password'])) {
-            $user->password = Hash::make($validated['password']);
-        }
-
-        $user->save();
-
-        Log::info('User settings updated', [
-            'user_id' => $user->user_id,
-            'updated_by' => Auth::id(),
-        ]);
-
         return back()->with('success', 'Settings updated successfully!');
     }
+
+    $user->fill([
+        'first_name'  => $validated['first_name'],
+        'middle_name' => $validated['middle_name'] ?? null,
+        'last_name'   => $validated['last_name'],
+        'username'    => $validated['username'],
+        'email'       => $validated['email'],
+        'office_id'   => $validated['office_id'],
+    ]);
+
+    if (!empty($validated['password'])) {
+        $user->password = Hash::make($validated['password']);
+    }
+
+    $user->save();
+
+    Log::info('User settings updated', [
+        'user_id' => $user->user_id,
+        'updated_by' => Auth::id(),
+    ]);
+
+    return back()->with('success', 'Settings updated successfully!');
+}
 }

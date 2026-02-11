@@ -39,7 +39,7 @@ export default function CompanyCreate() {
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto">
-      <Head title="Create Company" />
+      <Head title="Create Proponent" />
       <div className="max-w-5xl mx-auto">
         {/* Header Section */}
         <div className="mb-4 md:mb-8">
@@ -70,7 +70,7 @@ export default function CompanyCreate() {
           <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="min-w-0">
-                <h3 className="text-base md:text-lg font-semibold text-gray-900">Ready to Create Company?</h3>
+                <h3 className="text-base md:text-lg font-semibold text-gray-900">Ready to Create Proponent?</h3>
                 <p className="text-xs md:text-sm text-gray-600 mt-1">Review all information before submitting</p>
               </div>
               <div className="flex flex-col-reverse md:flex-row gap-2 md:gap-4">
@@ -97,7 +97,7 @@ export default function CompanyCreate() {
                   ) : (
                     <div className="flex items-center justify-center gap-2">
                       <Check className="w-4 h-4" />
-                      <span>Create Company</span>
+                      <span>Create Proponent</span>
                     </div>
                   )}
                 </button>
