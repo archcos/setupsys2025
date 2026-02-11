@@ -18,7 +18,7 @@ class RDDashboardController extends Controller
 {
     public function index()
     {
-        // Get projects with complete compliances (4/4 links)
+        // Get projects with complete compliances (2/2 links)
         $projects = ProjectModel::with(['compliance', 'company'])
             ->select(
                 'project_id',
@@ -29,14 +29,11 @@ class RDDashboardController extends Controller
             )
             ->get()
             ->filter(function ($project) {
-                // Only show projects where all 4 links are filled
+                // Only show projects where all 2 links are filled
                 $compliance = $project->compliance;
                 if (!$compliance) return false;
                 
-                return $compliance->link_1 && 
-                       $compliance->link_2 && 
-                       $compliance->link_3 && 
-                       $compliance->link_4;
+                return $compliance->pp_link && $compliance->fs_link;
             })
             ->values();
 
@@ -240,7 +237,7 @@ class RDDashboardController extends Controller
         $compliance = $project->compliance;
 
         // Check if all links are filled
-        if (!$compliance || !($compliance->link_1 && $compliance->link_2 && $compliance->link_3 && $compliance->link_4)) {
+        if (!$compliance || !($compliance->pp_link && $compliance->fs_link)) {
             return redirect()->route('rd-dashboard.index')->with('error', 'This project does not have all compliance items completed');
         }
 

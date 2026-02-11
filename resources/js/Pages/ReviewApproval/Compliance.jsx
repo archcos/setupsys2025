@@ -6,10 +6,8 @@ export default function Compliance({ project, compliance, errors, userRole }) {
   const { data, setData, post, processing } = useForm({
     project_id: project.project_id,
     links: {
-      link_1: compliance?.link_1 || "",
-      link_2: compliance?.link_2 || "",
-      link_3: compliance?.link_3 || "",
-      link_4: compliance?.link_4 || "",
+      pp_link: compliance?.pp_link || "",
+      fs_link: compliance?.fs_link || "",
     },
   });
 
@@ -106,8 +104,8 @@ export default function Compliance({ project, compliance, errors, userRole }) {
   };
 
   const filledCount = Object.values(data.links).filter(link => link.trim()).length;
-  const isCompleted = filledCount === 4;
-  const isAlreadyApproved = compliance?.status === 'raised' || compliance?.status === 'approved';
+  const isCompleted = filledCount === 2;
+  const isAlreadyApproved = compliance?.status === 'recommended' || compliance?.status === 'approved';
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -152,7 +150,7 @@ export default function Compliance({ project, compliance, errors, userRole }) {
               }`}>
                 <CheckCircle className="w-4 h-4 md:w-5 md:h-5" />
                 <span className="font-medium text-xs md:text-sm">
-                  {isCompleted ? 'Completed' : `${filledCount}/4`}
+                  {isCompleted ? 'Completed' : `${filledCount}/2`}
                 </span>
               </div>
             </div>
@@ -174,24 +172,26 @@ export default function Compliance({ project, compliance, errors, userRole }) {
             <div className="h-1.5 md:h-2 bg-gray-100">
               <div 
                 className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-300"
-                style={{ width: `${(filledCount / 4) * 100}%` }}
+                style={{ width: `${(filledCount / 2) * 100}%` }}
               />
             </div>
 
             {/* Content */}
             <div className="p-4 md:p-8">
               <div className="grid gap-3 md:gap-6">
-                {[1, 2, 3, 4].map((i) => {
-                  const linkKey = `link_${i}`;
-                  const dateKey = `link_${i}_date`;
-                  const addedByKey = `link_${i}_added_by`;
-                  const hasValue = data.links[linkKey]?.trim();
-                  const hasHistory = compliance?.[linkKey];
-                  const hasError = linkErrors[linkKey] || errors?.[`links.${linkKey}`];
+                {[
+                  { key: 'pp_link', label: 'Project Proposal' },
+                  { key: 'fs_link', label: 'Financial Statement' }
+                ].map(({ key, label }) => {
+                  const dateKey = `${key}_date`;
+                  const addedByKey = `${key}_added_by`;
+                  const hasValue = data.links[key]?.trim();
+                  const hasHistory = compliance?.[key];
+                  const hasError = linkErrors[key] || errors?.[`links.${key}`];
 
                   return (
                     <div
-                      key={i}
+                      key={key}
                       className={`border-2 rounded-lg md:rounded-xl transition-all duration-200 overflow-hidden ${
                         hasError
                           ? 'border-red-300 bg-red-50/30'
@@ -219,7 +219,7 @@ export default function Compliance({ project, compliance, errors, userRole }) {
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-sm md:text-base text-gray-900">Link {i}</h3>
+                            <h3 className="font-semibold text-sm md:text-base text-gray-900">{label}</h3>
                             <p className="text-xs text-gray-500">
                               {hasError ? 'Invalid Link' : hasValue ? 'Completed' : 'Pending'}
                             </p>
@@ -234,9 +234,9 @@ export default function Compliance({ project, compliance, errors, userRole }) {
                       <div className="px-4 md:px-6 py-3 md:py-4">
                         <input
                           type="url"
-                          value={data.links[linkKey]}
-                          onChange={(e) => handleLinkChange(linkKey, e.target.value)}
-                          placeholder="Enter Google Drive or OneDrive URL"
+                          value={data.links[key]}
+                          onChange={(e) => handleLinkChange(key, e.target.value)}
+                          placeholder={`Paste ${label} link (Google Drive or OneDrive)`}
                           disabled={userRole === 'rpmo' || isAlreadyApproved}
                           className={`w-full border-2 rounded-lg px-3 md:px-4 py-2 md:py-3 focus:outline-none transition-all duration-200 text-xs md:text-sm ${
                             userRole === 'rpmo' || isAlreadyApproved
@@ -246,9 +246,9 @@ export default function Compliance({ project, compliance, errors, userRole }) {
                               : 'border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
                           }`}
                         />
-                        {userRole === 'rpmo' && data.links[linkKey] && (
+                        {userRole === 'rpmo' && data.links[key] && (
                           <a
-                            href={data.links[linkKey]}
+                            href={data.links[key]}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="mt-2 inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs md:text-sm font-medium"
@@ -293,7 +293,7 @@ export default function Compliance({ project, compliance, errors, userRole }) {
               <div className="mt-6 md:mt-8 pt-6 md:pt-8 border-t border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
                 <div className="text-xs md:text-sm text-gray-600">
                   <span className="font-medium text-gray-900">{filledCount}</span>
-                  <span> of 4 links completed</span>
+                  <span> of 2 links completed</span>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row gap-2 md:gap-3 w-full md:w-auto">
