@@ -27,6 +27,17 @@ class RestructureRaisedMail extends Mailable
 
     public function build()
     {
+        // Attach PNG images
+        $this->attach(resource_path('assets/SETUP_logo.png'), [
+            'as' => 'setup_logo.png',
+            'mime' => 'image/png',
+        ]);
+
+        $this->attach(resource_path('assets/logo.png'), [
+            'as' => 'logo.png',
+            'mime' => 'image/png',
+        ]);
+
         $projectTitle = $this->project->project_title ?? 'N/A';
         $companyName = $this->company->company_name ?? 'N/A';
         $raisedBy = $this->restructure->addedBy->name ?? 'Unknown User';
@@ -36,17 +47,6 @@ class RestructureRaisedMail extends Mailable
         $endDate = \Carbon\Carbon::parse($this->restructure->restruct_end)->format('F Y');
         $remarks = nl2br(htmlspecialchars($this->remarks));
         $currentYear = \Carbon\Carbon::now()->year;
-
-        // Embed images as attachments
-        $this->attach(resource_path('assets/SETUP_logo.webp'), [
-            'as' => 'setup_logo.webp',
-            'mime' => 'image/webp',
-        ]);
-
-        $this->attach(resource_path('assets/logo.webp'), [
-            'as' => 'logo.webp',
-            'mime' => 'image/webp',
-        ]);
 
         $htmlContent = "
             <!DOCTYPE html>
@@ -59,7 +59,7 @@ class RestructureRaisedMail extends Mailable
                 <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff;'>
                     <!-- Header with Logo -->
                     <div style='background: linear-gradient(135deg, #FF6B35 0%, #D84315 100%); padding: 20px; text-align: center;'>
-                        <img src='cid:setup_logo.webp' alt='SETUP Logo' style='max-width: 120px; height: auto; margin-bottom: 15px;'>
+                        <img src='cid:setup_logo.png' alt='SETUP Logo' style='max-width: 120px; height: auto; margin: 0 auto 15px; display: block;'>
                         <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;'>Restructuring Request Recommended</h1>
                         <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;'>Submitted on {$raisedDate}</p>
                     </div>
@@ -136,7 +136,7 @@ class RestructureRaisedMail extends Mailable
 
                     <!-- Footer with Logo -->
                     <div style='background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;'>
-                        <img src='cid:logo.webp' alt='Company Logo' style='max-width: 100px; height: auto; margin-bottom: 15px;'>
+                        <img src='cid:logo.png' alt='Company Logo' style='max-width: 100px; height: auto; margin: 0 auto 15px; display: block;'>
                         <p style='margin: 0 0 10px 0; color: #666; font-size: 13px;'>
                             This is an automated notification from SETUPSYS
                         </p>

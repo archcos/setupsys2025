@@ -39,6 +39,17 @@ class UnpaidRefundReminderMail extends Mailable
 
     public function build()
     {
+        // Attach PNG images
+        $this->attach(resource_path('assets/SETUP_logo.png'), [
+            'as' => 'setup_logo.png',
+            'mime' => 'image/png',
+        ]);
+
+        $this->attach(resource_path('assets/logo.png'), [
+            'as' => 'logo.png',
+            'mime' => 'image/png',
+        ]);
+
         $companyName = htmlspecialchars($this->companyName);
         $projectTitle = htmlspecialchars($this->projectTitle);
         $month = htmlspecialchars($this->month);
@@ -68,17 +79,6 @@ class UnpaidRefundReminderMail extends Mailable
         
         $currentYear = \Carbon\Carbon::now()->year;
 
-        // Embed images as attachments
-        $this->attach(resource_path('assets/SETUP_logo.webp'), [
-            'as' => 'setup_logo.webp',
-            'mime' => 'image/webp',
-        ]);
-
-        $this->attach(resource_path('assets/logo.webp'), [
-            'as' => 'logo.webp',
-            'mime' => 'image/webp',
-        ]);
-
         $htmlContent = "
             <!DOCTYPE html>
             <html>
@@ -90,7 +90,7 @@ class UnpaidRefundReminderMail extends Mailable
                 <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff;'>
                     <!-- Header -->
                     <div style='background: linear-gradient(135deg, {$gradientStart} 0%, {$gradientEnd} 100%); padding: 40px 20px; text-align: center;'>
-                        <img src='cid:setup_logo.webp' alt='SETUP Logo' style='max-width: 120px; height: auto; margin-bottom: 15px;'>
+                        <img src='cid:setup_logo.png' alt='SETUP Logo' style='max-width: 120px; height: auto; margin: 0 auto 15px; display: block;'>
                         <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;'>Payment Reminder</h1>
                         <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;'>Refund Obligation Notice</p>
                     </div>
@@ -150,10 +150,13 @@ class UnpaidRefundReminderMail extends Mailable
                         <!-- Important Note -->
                         <div style='background-color: #fff9e6; border-left: 4px solid #ffc107; padding: 15px 20px; margin: 30px 0; border-radius: 4px;'>
                             <p style='margin: 0 0 10px 0; color: #856404; font-size: 14px; font-weight: 600;'>
-                                📋 Important Note
+                                📋 Important Notes
+                            </p>
+                            <p style='margin: 0 0 8px 0; color: #856404; font-size: 13px; line-height: 1.6;'>
+                                • If you have already submitted payment for this period, please disregard this message.
                             </p>
                             <p style='margin: 0; color: #856404; font-size: 13px; line-height: 1.6;'>
-                                If you have an Approved Project Restructuring for this time period, please disregard this reminder. Your restructured payment schedule will be honored.
+                                • If you have an Approved Project Restructuring for this time period, please disregard this reminder. Your restructured payment schedule will be honored.
                             </p>
                         </div>
 
@@ -171,7 +174,7 @@ class UnpaidRefundReminderMail extends Mailable
 
                     <!-- Footer -->
                     <div style='background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;'>
-                        <img src='cid:logo.webp' alt='Company Logo' style='max-width: 100px; height: auto; margin-bottom: 15px;'>
+                        <img src='cid:logo.png' alt='Company Logo' style='max-width: 100px; height: auto; margin: 0 auto 15px; display: block;'>
                         <p style='margin: 0 0 10px 0; color: #666; font-size: 13px;'>
                             This is an automated reminder from SETUPSYS
                         </p>
