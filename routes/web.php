@@ -25,14 +25,9 @@ use App\Http\Controllers\RDDashboardController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RestructureController;
-use App\Http\Controllers\ReviewController;
-use App\Http\Controllers\RtecController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\ReportReviewController;
-use App\Mail\SecurityAlertMail;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 
 Route::middleware(['log-suspicious'])->group(function () {
 
@@ -87,9 +82,10 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::resource('activities', ActivityController::class)->middleware('role:head,staff,rpmo');
         Route::post('/projects/{id}/update-status', [ProjectController::class, 'updateStatus'])->name('projects.updateStatus')->middleware('role:rpmo');
         Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly')->middleware('role:user');
-        Route::post('/companies/sync', [CompanyController::class, 'syncFromCSV'])->name('companies.sync')->middleware('role:rpmo');
+        // Route::post('/companies/sync', [CompanyController::class, 'syncFromCSV'])->name('companies.sync')->middleware('role:rpmo');
         Route::get('/activity-list', [ActivityController::class, 'readonly'])->name('activities.readonly')->middleware('role:user');
-        Route::post('/companies/{id}/update-added-by', [CompanyController::class, 'updateAddedBy'])->middleware('role:rpmo');
+        Route::post('/proponents/sync', [CompanyController::class, 'syncFromCSV'])->name('proponents.sync')->middleware('role:rpmo');
+        Route::post('/proponents/{id}/update-added-by', [CompanyController::class, 'updateAddedBy'])->middleware('role:rpmo')->name('proponents.update-added-by');
         Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
         ->middleware('role:rpmo')
         ->name('projects.sync');

@@ -116,7 +116,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
           links={[
             { label: 'Quarterly Reports', href: '/reports', icon: <FileClock size={16} /> },
             { label: 'Review Reports', href: '/review-reports', icon: <FileCheck2 size={16} /> },
-            { label: 'Completion Report', href: '/completion-report', icon: <FileBadge size={16} /> },
+            // { label: 'Completion Report', href: '/completion-report', icon: <FileBadge size={16} /> },
           ]}
           onClose={onClose}
         />

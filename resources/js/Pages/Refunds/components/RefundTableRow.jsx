@@ -17,6 +17,14 @@ const RefundTableRow = React.memo(({
   const isRestructured = currentStatus === REFUND_STATUS.RESTRUCTURED;
   const latestRefund = project.refunds?.[0];
 
+  // Get formatted refund dates for display
+  const refundInitialFormatted = project.refund_initial 
+    ? new Date(project.refund_initial).toLocaleDateString('en-PH', { year: 'numeric', month: 'long' })
+    : '';
+  const refundEndFormatted = project.refund_end 
+    ? new Date(project.refund_end).toLocaleDateString('en-PH', { year: 'numeric', month: 'long' })
+    : '';
+
   // Memoized handlers for input changes
   const handleRefundAmountChange = useCallback((e) => {
     const val = e.target.value;
@@ -120,6 +128,7 @@ const RefundTableRow = React.memo(({
             STATUS_STYLES[currentStatus] || STATUS_STYLES.unpaid
           }`}
           disabled={!isRPMO}
+          title={`Status: ${currentStatus} | Refund Period: ${refundInitialFormatted} to ${refundEndFormatted}`}
         >
           <option value="paid" className="text-green-700">Paid</option>
           <option value="unpaid" className="text-red-700">Unpaid</option>
