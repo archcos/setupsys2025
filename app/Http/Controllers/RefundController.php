@@ -399,6 +399,16 @@ class RefundController extends Controller
                         )
                     );
                     Log::info("Refund notification email sent to {$company->email}");
+
+                    if ($savedMonthDate === $refundEnd && $completionCheck && $completionCheck['is_complete']) {
+                        Mail::to($company->email)->send(
+                            new \App\Mail\RefundCompletedMail(
+                                $project->project_id,
+                                now()->format('F d, Y \a\t h:i A')
+                            )
+                        );
+                        Log::info("Refund completion congratulations email sent to {$company->email}");
+                    }
                 } catch (\Exception $e) {
                     Log::error("Failed to send refund email to {$company->email}: " . $e->getMessage());
                 }

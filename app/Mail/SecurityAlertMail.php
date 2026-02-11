@@ -20,6 +20,17 @@ class SecurityAlertMail extends Mailable
 
     public function build()
     {
+        // Attach PNG images
+        $this->attach(resource_path('assets/SETUP_logo.png'), [
+            'as' => 'setup_logo.png',
+            'mime' => 'image/png',
+        ]);
+
+        $this->attach(resource_path('assets/logo.png'), [
+            'as' => 'logo.png',
+            'mime' => 'image/png',
+        ]);
+
         $ipAddress = $this->data['ip_address'] ?? 'Unknown';
         $userId = $this->data['user_id'] ?? 'Guest';
         $method = $this->data['before']['method'] ?? 'N/A';
@@ -30,6 +41,7 @@ class SecurityAlertMail extends Mailable
         $blockedUntil = now()->addHours(24)->format('F d, Y \a\t h:i A');
         $blockStatus = $this->isBlocked ? "✅ BLOCKED for 24 hours until {$blockedUntil}" : "⚠️ NOT BLOCKED";
         $blockStatusColor = $this->isBlocked ? '#d32f2f' : '#ff9800';
+        $currentYear = now()->year;
 
         $htmlContent = "
             <!DOCTYPE html>
@@ -42,6 +54,7 @@ class SecurityAlertMail extends Mailable
                 <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff;'>
                     <!-- Header -->
                     <div style='background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); padding: 40px 20px; text-align: center;'>
+                        <img src='cid:setup_logo.png' alt='SETUP Logo' style='max-width: 120px; height: auto; margin: 0 auto 15px; display: block;'>
                         <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;'>🚨 Security Alert</h1>
                         <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;'>Detected on {$timestamp}</p>
                     </div>
@@ -134,11 +147,12 @@ class SecurityAlertMail extends Mailable
 
                     <!-- Footer -->
                     <div style='background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;'>
+                        <img src='cid:logo.png' alt='Company Logo' style='max-width: 100px; height: auto; margin: 0 auto 15px; display: block;'>
                         <p style='margin: 0 0 10px 0; color: #666; font-size: 13px;'>
                             This is a critical security notification from your system
                         </p>
                         <p style='margin: 0; color: #999; font-size: 12px;'>
-                            Do not ignore this email. If you did not receive this alert but your system was compromised, contact your system administrator immediately.
+                            © {$currentYear} SETUPSYS. All rights reserved. | Do not ignore this email. If you did not receive this alert but your system was compromised, contact your system administrator immediately.
                         </p>
                     </div>
                 </div>
