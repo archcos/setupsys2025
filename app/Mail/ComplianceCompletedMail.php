@@ -32,6 +32,11 @@ class ComplianceCompletedMail extends Mailable
         $submittedDate = now()->format('F d, Y \a\t h:i A');
         $currentYear = \Carbon\Carbon::now()->year;
 
+        // Get compliance details for links
+        $compliance = $this->project->compliance;
+        $ppLink = $compliance->pp_link ?? null;
+        $fsLink = $compliance->fs_link ?? null;
+
         // Embed images as attachments
         $this->attach(resource_path('assets/SETUP_logo.webp'), [
             'as' => 'setup_logo.webp',
@@ -63,7 +68,7 @@ class ComplianceCompletedMail extends Mailable
                     <div style='padding: 40px 30px;'>
                         <p style='margin: 0 0 30px 0; color: #555; font-size: 16px;'>
                             Hello,<br><br>
-                            A project compliance has been completed with all required documents (4/4 links) and is now ready for your review and approval.
+                            A project compliance has been completed with all required documents (2/2 links) and is now ready for your review and recommendation.
                         </p>
 
                         <!-- Project Information Card -->
@@ -86,6 +91,27 @@ class ComplianceCompletedMail extends Mailable
                             </div>
                         </div>
 
+                        <!-- Documents Submitted -->
+                        <div style='background-color: #f0fdf4; border-left: 4px solid #22c55e; padding: 20px; margin: 30px 0; border-radius: 4px;'>
+                            <h3 style='margin: 0 0 15px 0; color: #16a34a; font-size: 16px; font-weight: 600;'>Documents Submitted</h3>
+                            
+                            <div style='margin-bottom: 15px;'>
+                                <p style='margin: 0 0 8px 0; color: #333; font-size: 15px; font-weight: 600;'>
+                                    <span style='display: inline-block; width: 20px; height: 20px; background-color: #22c55e; color: #ffffff; text-align: center; border-radius: 50%; font-size: 12px; font-weight: 700; line-height: 20px;'>✓</span>
+                                    <span style='margin-left: 10px;'>Project Proposal</span>
+                                </p>
+                                " . ($ppLink ? "<a href='{$ppLink}' style='display: inline-block; margin-left: 30px; color: #16a34a; text-decoration: none; font-weight: 600; font-size: 14px;'>→ Open Link</a>" : "") . "
+                            </div>
+
+                            <div>
+                                <p style='margin: 0 0 8px 0; color: #333; font-size: 15px; font-weight: 600;'>
+                                    <span style='display: inline-block; width: 20px; height: 20px; background-color: #22c55e; color: #ffffff; text-align: center; border-radius: 50%; font-size: 12px; font-weight: 700; line-height: 20px;'>✓</span>
+                                    <span style='margin-left: 10px;'>Financial Statement</span>
+                                </p>
+                                " . ($fsLink ? "<a href='{$fsLink}' style='display: inline-block; margin-left: 30px; color: #16a34a; text-decoration: none; font-weight: 600; font-size: 14px;'>→ Open Link</a>" : "") . "
+                            </div>
+                        </div>
+
                         <!-- Submission Information -->
                         <div style='background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 30px 0; border-radius: 4px;'>
                             <h3 style='margin: 0 0 15px 0; color: #3b82f6; font-size: 16px; font-weight: 600;'>Submission Details</h3>
@@ -104,7 +130,7 @@ class ComplianceCompletedMail extends Mailable
                                 <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Status</p>
                                 <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>
                                     <span style='display: inline-block; background-color: #dbeafe; color: #1e40af; padding: 6px 12px; border-radius: 12px; font-size: 14px;'>
-                                        ✓ Complete (4/4 Links)
+                                        ✓ Complete (2/2 Links)
                                     </span>
                                 </p>
                             </div>
@@ -116,7 +142,7 @@ class ComplianceCompletedMail extends Mailable
                                 📋 This project compliance is now complete and ready for your review.
                             </p>
                             <p style='margin: 0; color: #1e3a8a; font-size: 13px;'>
-                                Please review the submission and take appropriate action (Approve or Deny) in the system.
+                                Please review the submission and take appropriate action (Recommend or Deny) in the system.
                             </p>
                         </div>
 

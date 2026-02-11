@@ -122,6 +122,12 @@ export default function RDDashboardIndex({ projects, stats }) {
     });
   };
 
+  // Document config for displaying pp_link and fs_link
+  const documentConfig = [
+    { key: 'pp_link', label: 'Project Proposal' },
+    { key: 'fs_link', label: 'Financial Statement' }
+  ];
+
   return (
     <main className="flex-1 p-4 md:p-6 overflow-y-auto">
       <Head title="Regional Director's Dashboard" />
@@ -285,16 +291,15 @@ export default function RDDashboardIndex({ projects, stats }) {
                       <div className="mb-6">
                         <h4 className="font-semibold text-sm md:text-base text-gray-900 mb-4 flex items-center gap-2">
                           <FileText className="w-4 h-4 md:w-5 md:h-5 text-blue-600 flex-shrink-0" />
-                          Compliance Links (4/4)
+                          Compliance Documents (2/2)
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
-                          {[1, 2, 3, 4].map((i) => {
-                            const linkKey = `link_${i}`;
-                            const link = project.compliance[linkKey];
+                          {documentConfig.map(({ key, label }) => {
+                            const link = project.compliance[key];
                             const displayLink = link ? (link.length > 40 ? link.substring(0, 40) + '...' : link) : '';
                             return (
                               <a
-                                key={i}
+                                key={key}
                                 href={link}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -302,10 +307,10 @@ export default function RDDashboardIndex({ projects, stats }) {
                                 className="group flex items-center gap-2 p-2 md:p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-all"
                               >
                                 <div className="flex-shrink-0 w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                                  <span className="text-xs font-semibold text-blue-600">{i}</span>
+                                  <span className="text-xs font-semibold text-blue-600">📄</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium text-gray-600">Link {i}</p>
+                                  <p className="text-xs font-medium text-gray-600">{label}</p>
                                   <p className="text-xs text-blue-600 line-clamp-1 group-hover:underline">{displayLink}</p>
                                 </div>
                                 <ExternalLink className="w-3 h-3 md:w-4 md:h-4 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
@@ -369,7 +374,7 @@ export default function RDDashboardIndex({ projects, stats }) {
                   </h3>
                   <p className="text-gray-500 text-xs md:text-sm">
                     {activeFilter === 'total' 
-                      ? 'Projects with all 4 compliance file links will appear here'
+                      ? 'Projects with all 2 compliance documents will appear here'
                       : `No projects match the ${activeFilter} filter`
                     }
                   </p>

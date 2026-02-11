@@ -162,14 +162,18 @@ class ComplianceController extends Controller
         }
 
         // Validate each link
-        foreach (range(1, 4) as $i) {
-            $linkKey = "link_$i";
+        $linkMapping = [
+            'pp_link' => 'Project Proposal',
+            'fs_link' => 'Financial Statement'
+        ];
+
+        foreach ($linkMapping as $linkKey => $linkLabel) {
             if (!empty($request->links[$linkKey])) {
                 $link = $request->links[$linkKey];
                 
                 if (!$this->isValidCloudLink($link)) {
                     return back()->withErrors([
-                        "links.$linkKey" => "Link $i must be a valid Google Drive or OneDrive link"
+                        "links.$linkKey" => "$linkLabel must be a valid Google Drive or OneDrive link"
                     ])->withInput();
                 }
             }
@@ -180,10 +184,9 @@ class ComplianceController extends Controller
 
         $currentUser = Auth::user()->name ?? 'System';
 
-        foreach (range(1, 4) as $i) {
-            $linkKey = "link_$i";
-            $dateKey = "link_{$i}_date";
-            $addedByKey = "link_{$i}_added_by";
+        foreach ($linkMapping as $linkKey => $linkLabel) {
+            $dateKey = "{$linkKey}_date";
+            $addedByKey = "{$linkKey}_added_by";
 
             // Only update if a new value is provided
             if (!empty($request->links[$linkKey])) {
@@ -202,13 +205,13 @@ class ComplianceController extends Controller
         $compliance->status = 'pending';
         $compliance->save();
 
-        // Check if all 4 links are filled
-        $filledLinks = collect([1, 2, 3, 4])
-            ->filter(fn($i) => !empty($compliance->{"link_$i"}))
+        // Check if all links are filled
+        $filledLinks = collect(['pp_link', 'fs_link'])
+            ->filter(fn($linkKey) => !empty($compliance->$linkKey))
             ->count();
 
-        // If staff and compliance is complete (4/4), send email to RPMO users
-        if ($user->role === 'staff' && $filledLinks === 4) {
+        // If staff and compliance is complete (2/2), send email to RPMO users
+        if ($user->role === 'staff' && $filledLinks === 2) {
 
             $project->progress = 'Project Review';
             $project->save();
@@ -238,10 +241,10 @@ class ComplianceController extends Controller
 
         $project = ProjectModel::findOrFail($request->project_id);
 
-        // Update compliance status to 'raised'
+        // Update compliance status to 'recommended'
         $compliance = ComplianceModel::where('project_id', $request->project_id)->first();
         if ($compliance) {
-            $compliance->status = 'raised';
+            $compliance->status = 'recommended';
             $compliance->save();
         }
 

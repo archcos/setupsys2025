@@ -42,11 +42,11 @@ export default function Index({ projects, filters, years }) {
   // Inline functions - no need for useMemo
   const countFilledLinks = (compliance) => {
     if (!compliance) return 0;
-    return [1, 2, 3, 4].filter(i => compliance[`link_${i}`]).length;
+    return ['pp_link', 'fs_link'].filter(key => compliance[key]).length;
   };
 
   const isCompleted = (compliance) => {
-    return compliance && countFilledLinks(compliance) === 4;
+    return compliance && countFilledLinks(compliance) === 2;
   };
 
   const getSortIcon = (column) => {
@@ -68,7 +68,7 @@ export default function Index({ projects, filters, years }) {
         label: 'Pending',
         icon: AlertCircle,
       },
-      raised: {
+      recommended: {
         bg: 'bg-blue-100',
         text: 'text-blue-800',
         label: 'Recommended',
@@ -95,7 +95,7 @@ export default function Index({ projects, filters, years }) {
 
   // Calculate stats - inline, no memoization needed
   const pendingCount = projects.filter(p => (p.compliance?.status || 'pending') === 'pending').length;
-  const raisedCount = projects.filter(p => p.compliance?.status === 'raised').length;
+  const recommendedCount = projects.filter(p => p.compliance?.status === 'recommended').length;
   const approvedCount = projects.filter(p => p.compliance?.status === 'approved').length;
 
   // Filter projects - inline, no memoization needed for simple filtering
@@ -104,7 +104,7 @@ export default function Index({ projects, filters, years }) {
     : projects.filter(p => {
         const status = p.compliance?.status || 'pending';
         return statusFilter === 'pending' ? status === 'pending' :
-               statusFilter === 'raised' ? status === 'raised' :
+               statusFilter === 'recommended' ? status === 'recommended' :
                statusFilter === 'approved' ? status === 'approved' :
                true;
       });
@@ -166,21 +166,21 @@ export default function Index({ projects, filters, years }) {
               )}
             </button>
 
-            {/* Raised */}
+            {/* Recommended */}
             <button
-              onClick={() => setStatusFilter('raised')}
+              onClick={() => setStatusFilter('recommended')}
               className={`bg-white rounded-lg shadow-sm border-2 p-3 text-left transition-all hover:shadow-md ${
-                statusFilter === 'raised' 
+                statusFilter === 'recommended' 
                   ? 'border-blue-500 ring-2 ring-blue-200' 
                   : 'border-gray-100 hover:border-blue-300'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-gray-600">Raised</p>
-                <Send className={`w-4 h-4 ${statusFilter === 'raised' ? 'text-blue-600' : 'text-gray-400'}`} />
+                <p className="text-xs font-medium text-gray-600">Recommended</p>
+                <Send className={`w-4 h-4 ${statusFilter === 'recommended' ? 'text-blue-600' : 'text-gray-400'}`} />
               </div>
-              <p className="text-2xl font-bold text-blue-600">{raisedCount}</p>
-              {statusFilter === 'raised' && (
+              <p className="text-2xl font-bold text-blue-600">{recommendedCount}</p>
+              {statusFilter === 'recommended' && (
                 <p className="text-xs text-blue-600 mt-2 font-medium">● Active</p>
               )}
             </button>
@@ -239,15 +239,15 @@ export default function Index({ projects, filters, years }) {
             </button>
 
             <button
-              onClick={() => setStatusFilter('raised')}
+              onClick={() => setStatusFilter('recommended')}
               className={`rounded-lg border-2 p-2 text-xs transition-all ${
-                statusFilter === 'raised' 
+                statusFilter === 'recommended' 
                   ? 'border-blue-500 bg-blue-50' 
                   : 'border-gray-100 bg-white'
               }`}
             >
-              <p className="text-gray-600 font-medium">Raised</p>
-              <p className={`text-lg font-bold mt-1 ${statusFilter === 'raised' ? 'text-blue-600' : 'text-gray-900'}`}>{raisedCount}</p>
+              <p className="text-gray-600 font-medium">Recommended</p>
+              <p className={`text-lg font-bold mt-1 ${statusFilter === 'recommended' ? 'text-blue-600' : 'text-gray-900'}`}>{recommendedCount}</p>
             </button>
 
             <button
@@ -397,7 +397,7 @@ export default function Index({ projects, filters, years }) {
                       <td className="px-6 py-4">
                         <div className="flex justify-center">
                           <div className="text-sm font-medium text-gray-900">
-                            <span>{filledLinks}</span><span className="text-gray-500">/4</span>
+                            <span>{filledLinks}</span><span className="text-gray-500">/2</span>
                           </div>
                         </div>
                       </td>
@@ -451,7 +451,7 @@ export default function Index({ projects, filters, years }) {
                     </div>
                     <div className="bg-gray-50 rounded p-2">
                       <span className="text-gray-500 text-xs block">Progress</span>
-                      <p className="font-medium text-gray-900 mt-0.5">{filledLinks}<span className="text-gray-500">/4</span></p>
+                      <p className="font-medium text-gray-900 mt-0.5">{filledLinks}<span className="text-gray-500">/2</span></p>
                     </div>
                     <div className="bg-gray-50 rounded p-2">
                       <span className="text-gray-500 text-xs block">Status</span>

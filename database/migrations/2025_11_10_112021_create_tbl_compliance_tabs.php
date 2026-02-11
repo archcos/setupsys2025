@@ -12,14 +12,17 @@ return new class extends Migration
             $table->id('compliance_id');
             $table->unsignedBigInteger('project_id');
 
-            // Four links, each with date and added_by
-        for ($i = 1; $i <= 4; $i++) {
-                $table->text("link_$i")->nullable();
-                $table->dateTime("link_{$i}_date")->nullable();
-                $table->string("link_{$i}_added_by")->nullable();
-            }
+            // Project Proposal Link
+            $table->text('pp_link')->nullable();
+            $table->dateTime('pp_link_date')->nullable();
+            $table->string('pp_link_added_by')->nullable();
 
-            $table->enum('status', ['pending', 'raised', 'approved'])->default('pending');
+            // Financial Statement Link
+            $table->text('fs_link')->nullable();
+            $table->dateTime('fs_link_date')->nullable();
+            $table->string('fs_link_added_by')->nullable();
+
+            $table->enum('status', ['pending', 'recommended', 'approved'])->default('pending');
 
             $table->timestamps();
 
