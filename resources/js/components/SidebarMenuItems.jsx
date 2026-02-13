@@ -1,6 +1,6 @@
 // components/SidebarMenuItems.jsx
 import { Link } from "@inertiajs/react";
-import { LayoutDashboard, Building, Users, FileSignature, FileText, ClipboardList, SquareKanban, HandCoins, ArrowLeftRight, FileDiff, Megaphone, Eye, AlertCircle, Settings, Zap, CheckCircle, Pencil, Search, ClipboardCheck, Award, BookOpen, FilePlus2, Hammer, ShieldAlert, AudioLines, Logs, FileCheck, FileClock, FileBadge, FileSymlink, Stamp, PencilRuler, FileCheck2 } from "lucide-react";
+import { LayoutDashboard, Building, Users, FileSignature, FileText, ClipboardList, SquareKanban, HandCoins, ArrowLeftRight, FileDiff, Megaphone, Eye, AlertCircle, Settings, Zap, CheckCircle, Pencil, Search, ClipboardCheck, Award, BookOpen, FilePlus2, Hammer, ShieldAlert, AudioLines, Logs, FileCheck, FileClock, FileBadge, FileSymlink, Stamp, PencilRuler, FileCheck2, ClipboardPenLine } from "lucide-react";
 
 import Dropdown from "./Dropdown";
 
@@ -145,12 +145,12 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
       {/* Manage Company - User Only */}
       {role === 'user' && (
         <Dropdown
-          title="Manage Information"
-          icon={<Building size={18} />}
+          title="Information"
+          icon={<ClipboardPenLine size={18} />}
           isOpen={dropdowns.user}
           onToggle={() => toggleDropdown('user')}
           links={[
-            { label: 'Proponents', href: '/proponents', icon: <Building size={16} /> },
+            { label: 'Proponent', href: '/proponents', icon: <Building size={16} /> },
             { label: 'Projects', href: '/project-list', icon: <ClipboardList size={16} /> },
             { label: 'Activities', href: '/activity-list', icon: <SquareKanban size={16} /> },
           ]}
@@ -161,7 +161,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
       {/* My Transactions - User Only */}
       {role === 'user' && (
         <Dropdown
-          title="My Transactions"
+          title="Transactions"
           icon={<ArrowLeftRight size={18} />}
           isOpen={dropdowns.transaction}
           onToggle={() => toggleDropdown('transaction')}

@@ -134,7 +134,7 @@ public function store(Request $request)
         'products'         => 'nullable|string',
         'setup_industry'   => 'nullable|string|max:150',
         'industry_type'    => 'nullable|string|max:10',
-        'contact_number'   => 'nullable|string|max:13',
+        'contact_number'   => 'nullable|digits_between:11,11|regex:/^09[0-9]{9}$/',
         'current_market'   => 'nullable|string|max:100',
     ]);
 
@@ -288,7 +288,7 @@ public function update(Request $request, $id)
         'products'         => 'nullable|string',
         'setup_industry'   => 'nullable|string|max:150',
         'industry_type'    => 'nullable|string|max:10',
-        'contact_number'   => 'nullable|string|max:13',
+        'contact_number'   => 'nullable|digits_between:11,11|regex:/^09[0-9]{9}$/',
         'current_market'   => 'nullable|string|max:100',
     ]);
 

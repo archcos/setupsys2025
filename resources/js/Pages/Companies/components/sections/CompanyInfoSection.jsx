@@ -52,6 +52,7 @@ export default function CompanyInfoSection({ data, setData, errors }) {
           <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Company Name</label>
           <input
             type="text"
+            maxLength="254"
             className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
             placeholder="Enter company name"
             value={data.company_name}
@@ -70,6 +71,7 @@ export default function CompanyInfoSection({ data, setData, errors }) {
           <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Primary Products/Services</label>
           <input
             type="text"
+            maxLength="254"
             className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
             placeholder="Describe your main products or services"
             value={data.products}
@@ -80,6 +82,23 @@ export default function CompanyInfoSection({ data, setData, errors }) {
             <div className="text-red-500 text-xs md:text-sm mt-1 flex items-center gap-1">
               <AlertCircle className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
               {errors.products}
+            </div>
+          )}
+        </div>
+          <div className="md:col-span-2">
+          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Current Market Location</label>
+          <input
+            type="text"
+            maxLength="100"
+            className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
+            placeholder="Current Market Location (e.g. Carmen, Cagayan de Oro City)"
+            value={data.current_market}
+            onChange={(e) => setData('current_market', e.target.value)}
+          />
+          {errors.current_market && (
+            <div className="text-red-500 text-xs md:text-sm mt-1 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+              {errors.current_market}
             </div>
           )}
         </div>
@@ -131,6 +150,8 @@ export default function CompanyInfoSection({ data, setData, errors }) {
             </div>
           )}
         </div>
+
+      
       </div>
     </FormCard>
   );

@@ -98,6 +98,7 @@ export default function LocationSection({ data, setData, errors }) {
           <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Street Address</label>
           <input
             type="text"
+            maxLength="100"
             className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
             placeholder="Building number, street name"
             value={data.street}
@@ -184,14 +185,14 @@ export default function LocationSection({ data, setData, errors }) {
         </div>
 
         <div>
-          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">District Code</label>
+          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">District Code (Optional)</label>
           <input
             type="text"
+            maxLength="30"
             className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
             placeholder="Example: BUK-D2"
             value={data.district}
             onChange={(e) => setData('district', e.target.value)}
-            required
           />
           {errors.district && (
             <div className="text-red-500 text-xs md:text-sm mt-1 flex items-center gap-1">
