@@ -28,6 +28,7 @@ class CompanyModel extends Model
         'products',
         'setup_industry',
         'industry_type',
+        'current_market',
         'contact_number',
     ];
 

@@ -10,6 +10,7 @@ export default function OwnerSection({ data, setData, errors }) {
           <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Full Name</label>
           <input
             type="text"
+            maxLength={100}
             className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
             placeholder="Juan Dela Cruz"
             value={data.owner_name}
@@ -48,6 +49,7 @@ export default function OwnerSection({ data, setData, errors }) {
           <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Contact Number</label>
           <input
             type="tel"
+            maxLength={11}
             className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
             placeholder="09XXXXXXXXX"
             value={data.contact_number}
@@ -70,6 +72,7 @@ export default function OwnerSection({ data, setData, errors }) {
             placeholder="owner@company.com"
             value={data.email}
             onChange={(e) => setData('email', e.target.value)}
+            required
           />
           {errors.email && (
             <div className="text-red-500 text-xs md:text-sm mt-1 flex items-center gap-1">

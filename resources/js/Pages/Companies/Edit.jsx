@@ -1,11 +1,16 @@
 // pages/Companies/Edit.jsx
-import { useForm, Link, Head } from '@inertiajs/react';
-import { Edit3, ChevronLeft, Save, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useForm, Link, Head, usePage } from '@inertiajs/react';
+import { Edit3, ChevronLeft, Save, Loader2, AlertCircle } from 'lucide-react';
 import CompanyInfoSection from './components/sections/CompanyInfoSection';
 import LocationSection from './components/sections/LocationSection';
 import OwnerSection from './components/sections/OwnerSection';
 
 export default function Edit({ company }) {
+  const { errors: pageErrors } = usePage().props;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [displayErrors, setDisplayErrors] = useState({});
+
   const { data, setData, put, processing, errors } = useForm({
     company_name: company.company_name || '',
     owner_name: company.owner_name || '',
@@ -20,12 +25,55 @@ export default function Edit({ company }) {
     setup_industry: company.setup_industry || '',
     industry_type: company.industry_type || '',
     contact_number: company.contact_number || '',
+    current_market: company.current_market || '',
   });
+
+  // Merge errors from both sources
+  useEffect(() => {
+    const allErrors = { ...errors, ...pageErrors };
+    setDisplayErrors(allErrors);
+  }, [errors, pageErrors]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    put(`/proponents/${company.company_id}`);
+
+    // Reset previous errors
+    setDisplayErrors({});
+    setIsSubmitting(true);
+
+    // Validate phone number format if provided
+    if (data.contact_number && !/^09[0-9]{9}$/.test(data.contact_number)) {
+      setDisplayErrors(prev => ({
+        ...prev,
+        contact_number: ['Phone number must be in format: 09123456789 (11 digits)']
+      }));
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Validate email format if provided
+    if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      setDisplayErrors(prev => ({
+        ...prev,
+        email: ['Please enter a valid email address']
+      }));
+      setIsSubmitting(false);
+      return;
+    }
+
+    setTimeout(() => {
+      put(`/proponents/${company.company_id}`, {
+        preserveScroll: true,
+        onError: (errors) => {
+          setDisplayErrors(errors);
+          setIsSubmitting(false);
+        },
+        onFinish: () => setIsSubmitting(false),
+      });
+    }, 500);
   };
+
+  const hasErrors = Object.keys(displayErrors).length > 0;
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto">
@@ -51,10 +99,35 @@ export default function Edit({ company }) {
           </div>
         </div>
 
+        {/* Error Alert */}
+        {hasErrors && (
+          <div className="mb-4 md:mb-8 bg-red-50 border border-red-200 rounded-lg md:rounded-xl p-4 md:p-6">
+            <div className="flex gap-3 md:gap-4">
+              <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-red-900 text-sm md:text-base mb-3">
+                  Please fix the following errors:
+                </h3>
+                <ul className="space-y-2">
+                  {Object.entries(displayErrors).map(([field, messages]) => (
+                    <li key={field} className="text-red-800 text-xs md:text-sm">
+                      <span className="font-medium capitalize">
+                        {field.replace(/_/g, ' ')}:
+                      </span>
+                      {' '}
+                      {Array.isArray(messages) ? messages[0] : messages}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4 md:space-y-8">
-          <CompanyInfoSection data={data} setData={setData} errors={errors} />
-          <LocationSection data={data} setData={setData} errors={errors} />
-          <OwnerSection data={data} setData={setData} errors={errors} />
+          <CompanyInfoSection data={data} setData={setData} errors={displayErrors} />
+          <LocationSection data={data} setData={setData} errors={displayErrors} />
+          <OwnerSection data={data} setData={setData} errors={displayErrors} />
 
           {/* Submit Section */}
           <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100">
@@ -72,14 +145,14 @@ export default function Edit({ company }) {
                 </Link>
                 <button
                   type="submit"
-                  disabled={processing}
+                  disabled={processing || isSubmitting}
                   className={`px-4 md:px-8 py-2 md:py-3 rounded-lg md:rounded-xl font-medium transition-all duration-200 text-sm ${
-                    processing
+                    processing || isSubmitting
                       ? 'bg-gray-400 text-white cursor-not-allowed'
                       : 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 shadow-md hover:shadow-lg'
                   }`}
                 >
-                  {processing ? (
+                  {processing || isSubmitting ? (
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span>Updating...</span>
