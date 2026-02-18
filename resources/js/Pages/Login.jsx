@@ -12,7 +12,7 @@ export default function LoginPage() {
   const flash = props.flash || {};
 
   const { data, setData, post, processing, errors } = useForm({
-    username: '',
+    login: '',
     password: '',
   });
   
@@ -28,7 +28,6 @@ export default function LoginPage() {
           console.error(errors.message);
           setIsAuthenticating(false);
         },
-        // Remove X-Device-ID header - rely on server fingerprinting
       });
     } catch (error) {
       console.error("CSRF refresh failed:", error);
@@ -73,11 +72,11 @@ export default function LoginPage() {
                   <span className="text-gray-700 font-medium">Verifying credentials...</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse delay-150"></div>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: '150ms' }}></div>
                   <span className="text-gray-600">Generating OTP code...</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
-                  <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse delay-300"></div>
+                  <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></div>
                   <span className="text-gray-500">Sending email...</span>
                 </div>
               </div>
@@ -142,14 +141,14 @@ export default function LoginPage() {
                   DOST - Northern Mindanao
                 </h2>
                 <h3 className="text-sm text-gray-600 font-medium leading-relaxed">
-                  Small Enterprise Technology Upgrading Program
+                  Small Enterprise Technology Upgrading Program <br/>Integrated Management System
                 </h3>
               </div>
             </div>
 
             <div className="text-center mb-2">
               <p className="text-gray-600">
-                Sign in to your SETUP account
+                Sign in to your SIMS account
               </p>
             </div>
 
@@ -161,6 +160,14 @@ export default function LoginPage() {
               </div>
             )}
 
+            {/* Password Reset Success Message */}
+            {flash.message && (
+              <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
+                <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
+                <span>{flash.message}</span>
+              </div>
+            )}
+
             {errors.message && (
               <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
                 <AlertCircle size={20} className="text-red-600 flex-shrink-0" />
@@ -169,32 +176,31 @@ export default function LoginPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Username */}
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                  Username
+                <label htmlFor="login" className="block text-sm font-medium text-gray-700 mb-1">
+                  Username or Email
                 </label>
                 <div className="relative">
                   <User size={18} className="absolute left-3 top-3.5 text-gray-400" />
                   <input
-                    id="username"
+                    id="login"
                     type="text"
-                    value={data.username}
-                    onChange={(e) => setData('username', e.target.value)}
-                    placeholder="Enter your username"
+                    value={data.login}
+                    onChange={(e) => setData('login', e.target.value)}
+                    placeholder="Enter your username or email"
                     disabled={isAuthenticating}
                     className={`w-full border pl-10 pr-4 py-3.5 rounded-xl transition-colors ${
-                      errors.username 
+                      errors.login 
                         ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
                         : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                     } disabled:bg-gray-50 disabled:cursor-not-allowed`}
                     required
                   />
                 </div>
-                {errors.username && (
+                {errors.login && (
                   <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
                     <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                    {errors.username}
+                    {errors.login}
                   </p>
                 )}
               </div>
@@ -240,7 +246,7 @@ export default function LoginPage() {
               {/* Forgot Password */}
               <div className="flex justify-end">
                 <Link
-                  href="/contact"
+                  href={route('password.request')}
                   className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
                 >
                   Forgot your password?
@@ -284,27 +290,19 @@ export default function LoginPage() {
           </div>
 
           <div className="text-center text-sm text-gray-500">
+            <p>
+              Have Inquires?{" "}
+              <Link
+                href="/contact"
+                className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+              >
+                Contact Us
+              </Link>
+            </p>
             <p><span>© {new Date().getFullYear()} </span> DOST Northern Mindanao. All rights reserved.</p>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes loading-bar {
-          0% { width: 0%; }
-          50% { width: 70%; }
-          100% { width: 100%; }
-        }
-        .animate-loading-bar {
-          animation: loading-bar 2s ease-in-out infinite;
-        }
-        .delay-150 {
-          animation-delay: 150ms;
-        }
-        .delay-300 {
-          animation-delay: 300ms;
-        }
-      `}</style>
     </>
   );
 }

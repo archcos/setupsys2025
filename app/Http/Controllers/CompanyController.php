@@ -87,7 +87,8 @@ public function index(Request $request)
         'filters' => $request->only('search', 'perPage', 'office', 'industry_type', 'setup_industry', 'sort', 'direction'),
         'allUsers' => $user->role === 'rpmo' ? $allUsers : null,
         'allOffices' => $allOffices,
-        'canEditAddedBy' => $user->role === 'rpmo', // Pass permission to frontend
+        'canEditAddedBy' => $user->role === 'rpmo',
+        'userRole' => $user->role, // Pass user role to frontend
     ]);
 }
 
@@ -135,7 +136,7 @@ public function store(Request $request)
         'setup_industry'   => 'nullable|string|max:150',
         'industry_type'    => 'nullable|string|max:10',
         'contact_number'   => 'nullable|digits_between:11,11|regex:/^09[0-9]{9}$/',
-        'current_market'   => 'nullable|string|max:100',
+        // 'current_market'   => 'nullable|string|max:100',
     ]);
 
     $user = Auth::user();
@@ -289,7 +290,7 @@ public function update(Request $request, $id)
         'setup_industry'   => 'nullable|string|max:150',
         'industry_type'    => 'nullable|string|max:10',
         'contact_number'   => 'nullable|digits_between:11,11|regex:/^09[0-9]{9}$/',
-        'current_market'   => 'nullable|string|max:100',
+        // 'current_market'   => 'nullable|string|max:100',
     ]);
 
     $company = CompanyModel::findOrFail($id);

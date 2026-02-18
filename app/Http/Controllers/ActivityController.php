@@ -13,10 +13,12 @@ class ActivityController extends Controller
 {
     public function index(Request $request)
     {
-        $user = Auth::user(); // Get authenticated user
+        $user = Auth::user();
 
         $search = $request->input('search');
         $perPage = $request->input('perPage', 10);
+        $sortBy = $request->input('sortBy', 'activity_id');
+        $sortOrder = $request->input('sortOrder', 'desc');
 
         $query = ActivityModel::with('project.company');
 
@@ -27,18 +29,31 @@ class ActivityController extends Controller
                 });
         }
 
-        // Staff users see only their office's data
-        if ($user && $user->role === 'staff') {
-            $query->whereHas('project.company', function ($q) use ($user) {
-                $q->where('office_id', $user->office_id);
-            });
+        // Role-based access control
+        if ($user) {
+            if ($user->role === 'staff') {
+                // Staff users see only their office's data
+                $query->whereHas('project.company', function ($q) use ($user) {
+                    $q->where('office_id', $user->office_id);
+                });
+            }
+            // 'rpmo' role sees all data, no filtering needed
         }
 
-        $activities = $query->orderBy('activity_id', 'desc')->paginate($perPage);
+        // Handle sorting for nested relationships
+        if ($sortBy === 'project_title') {
+            $query->join('tbl_projects', 'tbl_activities.project_id', '=', 'tbl_projects.project_id')
+                ->select('tbl_activities.*')
+                ->orderBy('tbl_projects.project_title', $sortOrder);
+        } else {
+            $query->orderBy('tbl_activities.' . $sortBy, $sortOrder);
+        }
+
+        $activities = $query->paginate($perPage);
 
         return Inertia::render('Activities/Index', [
             'activities' => $activities,
-            'filters' => $request->only('search', 'perPage'),
+            'filters' => $request->only('search', 'perPage', 'sortBy', 'sortOrder'),
         ]);
     }
 
@@ -46,6 +61,8 @@ class ActivityController extends Controller
     {
         $user = Auth::user();
         $search = $request->input('search');
+        $sortBy = $request->input('sortBy', 'activity_id');
+        $sortOrder = $request->input('sortOrder', 'desc');
 
         $query = ActivityModel::with('project.company')
             ->when($user && $user->role === 'user', function ($q) use ($user) {
@@ -57,14 +74,23 @@ class ActivityController extends Controller
                 $q->whereHas('project.company', function ($q2) use ($user) {
                     $q2->where('office_id', $user->office_id);
                 });
-            })
-            ->orderBy('activity_id', 'desc');
+            });
+        // 'rpmo' role sees all data, no filtering applied
 
         if ($search) {
             $query->where('activity_name', 'like', "%$search%")
                 ->orWhereHas('project', function ($q) use ($search) {
                     $q->where('project_title', 'like', "%$search%");
                 });
+        }
+
+        // Handle sorting for nested relationships
+        if ($sortBy === 'project_title') {
+            $query->join('tbl_projects', 'tbl_activities.project_id', '=', 'tbl_projects.project_id')
+                ->select('tbl_activities.*')
+                ->orderBy('tbl_projects.project_title', $sortOrder);
+        } else {
+            $query->orderBy('tbl_activities.' . $sortBy, $sortOrder);
         }
 
         $activities = $query->get();
@@ -85,9 +111,10 @@ class ActivityController extends Controller
                 $q->where('office_id', $user->office_id);
             });
         }
+        // 'rpmo' role sees all projects, no filtering needed
 
         return Inertia::render('Activities/Create', [
-            'projects' => $query->get(),
+            'projects' => $query->orderBy('project_title', 'asc')->get(),
         ]);
     }
 
@@ -101,6 +128,13 @@ class ActivityController extends Controller
             'activities.*.end_date' => 'required|date|after_or_equal:activities.*.start_date',
         ]);
 
+        $project = ProjectModel::with('company.office')->findOrFail($validated['project_id']);
+
+        // Authorization check for staff users
+        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $project->company->office_id) {
+            abort(403, 'Unauthorized to create activities for this project.');
+        }
+
         foreach ($validated['activities'] as $activity) {
             ActivityModel::create([
                 'project_id' => $validated['project_id'],
@@ -109,9 +143,6 @@ class ActivityController extends Controller
                 'end_date' => $activity['end_date'],
             ]);
         }
-
-        $project = ProjectModel::with('company.office')->findOrFail($validated['project_id']);
-
 
         $office = $project->company->office;
 
@@ -127,17 +158,36 @@ class ActivityController extends Controller
 
     public function edit($id)
     {
-        $activity = ActivityModel::with('project')->findOrFail($id);
+        $activity = ActivityModel::with('project.company')->findOrFail($id);
+
+        // Authorization check for staff users
+        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $activity->project->company->office_id) {
+            abort(403, 'Unauthorized to edit this activity.');
+        }
+
+        $query = ProjectModel::with('company');
+
+        // Staff users only see projects in their office
+        if (Auth::user()->role === 'staff') {
+            $query->whereHas('company', function ($q) {
+                $q->where('office_id', Auth::user()->office_id);
+            });
+        }
 
         return Inertia::render('Activities/Edit', [
             'activity' => $activity,
-            'projects' => ProjectModel::all(),
+            'projects' => $query->orderBy('project_title', 'asc')->get(),
         ]);
     }
 
     public function update(Request $request, $id)
     {
-        $activity = ActivityModel::findOrFail($id);
+        $activity = ActivityModel::with('project.company')->findOrFail($id);
+
+        // Authorization check for staff users
+        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $activity->project->company->office_id) {
+            abort(403, 'Unauthorized to update this activity.');
+        }
 
         $validated = $request->validate([
             'project_id' => 'required|exists:tbl_projects,project_id',
@@ -163,6 +213,13 @@ class ActivityController extends Controller
 
     public function destroy($id)
     {
+        $activity = ActivityModel::with('project.company')->findOrFail($id);
+
+        // Authorization check for staff users
+        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $activity->project->company->office_id) {
+            abort(403, 'Unauthorized to delete this activity.');
+        }
+
         ActivityModel::destroy($id);
         return redirect('/activities')->with('success', 'Activity deleted!');
     }

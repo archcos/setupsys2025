@@ -15,6 +15,16 @@ export default {
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
+            keyframes: {
+                'loading-bar': {
+                '0%': { width: '0%' },
+                '50%': { width: '70%' },
+                '100%': { width: '100%' },
+                },
+            },
+            animation: {
+                'loading-bar': 'loading-bar 2s ease-in-out infinite',
+            },
         },
     },
 
