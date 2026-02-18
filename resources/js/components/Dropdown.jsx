@@ -1,13 +1,20 @@
 // components/Dropdown.jsx
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Link } from "@inertiajs/react";
+import { useTheme } from "../contexts/ThemeContext";
 
 export default function Dropdown({ title, icon, isOpen, onToggle, links, onClose }) {
+  const { darkMode } = useTheme();
+
   return (
     <div>
       <button
         onClick={onToggle}
-        className="w-full flex justify-between items-center px-3 py-2 rounded-md hover:shadow hover:bg-gray-100 transition font-medium"
+        className={`w-full flex justify-between items-center px-3 py-2 rounded-md transition font-medium ${
+          darkMode
+            ? 'text-slate-100 hover:bg-slate-700 hover:shadow-md'
+            : 'text-gray-800 hover:bg-gray-100 hover:shadow'
+        }`}
       >
         <div className="flex items-center gap-2">
           {icon}
@@ -32,7 +39,11 @@ export default function Dropdown({ title, icon, isOpen, onToggle, links, onClose
                 href={link.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:shadow hover:bg-gray-100 transition"
+                className={`flex items-center gap-2 text-sm px-2 py-1 rounded transition ${
+                  darkMode
+                    ? 'text-slate-300 hover:text-slate-100 hover:bg-slate-700'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                }`}
               >
                 {link.icon}
                 {link.label}
@@ -41,7 +52,11 @@ export default function Dropdown({ title, icon, isOpen, onToggle, links, onClose
               <Link
                 key={idx}
                 href={link.href}
-                className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:shadow hover:bg-gray-100 transition"
+                className={`flex items-center gap-2 text-sm px-2 py-1 rounded transition ${
+                  darkMode
+                    ? 'text-slate-300 hover:text-slate-100 hover:bg-slate-700'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                }`}
                 onClick={onClose}
               >
                 {link.icon}

@@ -176,10 +176,10 @@ class UnpaidRefundReminderMail extends Mailable
                     <div style='background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;'>
                         <img src='cid:logo.png' alt='Company Logo' style='max-width: 100px; height: auto; margin: 0 auto 15px; display: block;'>
                         <p style='margin: 0 0 10px 0; color: #666; font-size: 13px;'>
-                            This is an automated reminder from SETUPSYS
+                            This is an automated reminder from SETUP Information Management System (SIMS)
                         </p>
                         <p style='margin: 0; color: #999; font-size: 12px;'>
-                            © {$currentYear} SETUPSYS. All rights reserved.
+                            © {$currentYear} SETUP Information Management System (SIMS). All rights reserved.
                         </p>
                     </div>
                 </div>
@@ -187,7 +187,7 @@ class UnpaidRefundReminderMail extends Mailable
             </html>
         ";
 
-        return $this->subject('[SETUPSYS] Unpaid Refund Reminder - ' . $projectTitle)
+        return $this->subject('[DOSTNM-SIMS] Unpaid Refund Reminder - ' . $projectTitle)
                     ->html($htmlContent);
     }
 }

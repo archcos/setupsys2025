@@ -141,7 +141,7 @@ export default function LoginPage() {
                   DOST - Northern Mindanao
                 </h2>
                 <h3 className="text-sm text-gray-600 font-medium leading-relaxed">
-                  Small Enterprise Technology Upgrading Program <br/>Integrated Management System
+                  Small Enterprise Technology Upgrading Program <br/>Information Management System
                 </h3>
               </div>
             </div>
@@ -291,7 +291,7 @@ export default function LoginPage() {
 
           <div className="text-center text-sm text-gray-500">
             <p>
-              Have Inquires?{" "}
+              Have Inquiries?{" "}
               <Link
                 href="/contact"
                 className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
@@ -299,6 +299,7 @@ export default function LoginPage() {
                 Contact Us
               </Link>
             </p>
+            <br/>
             <p><span>© {new Date().getFullYear()} </span> DOST Northern Mindanao. All rights reserved.</p>
           </div>
         </div>

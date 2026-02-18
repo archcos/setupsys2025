@@ -138,10 +138,10 @@ class RDDisapprovalMail extends Mailable
                     <div style='background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;'>
                         <img src='cid:logo.png' alt='Company Logo' style='max-width: 100px; height: auto; margin: 0 auto 15px; display: block;'>     
                         <p style='margin: 0 0 10px 0; color: #666; font-size: 13px;'>
-                            This is an automated notification from SETUPSYS
+                            This is an automated notification from SETUP Information Management System (SIMS)
                         </p>
                         <p style='margin: 0; color: #999; font-size: 12px;'>
-                            © {$currentYear} SETUPSYS. All rights reserved. | Do not reply to this email
+                            © {$currentYear} SETUP Information Management System (SIMS). All rights reserved. | Do not reply to this email
                         </p>
                     </div>
                 </div>
@@ -149,7 +149,7 @@ class RDDisapprovalMail extends Mailable
             </html>
         ";
 
-        return $this->subject('[SETUPSYS] Project Disapproved - ' . $projectTitle)
+        return $this->subject('[DOSTN-SIMS] Project Disapproved - ' . $projectTitle)
                     ->html($htmlContent);
     }
 }
