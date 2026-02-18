@@ -10,6 +10,8 @@ export default {
         './resources/js/**/*.jsx',
     ],
 
+    darkMode: 'class',
+
     theme: {
         extend: {
             fontFamily: {
@@ -17,9 +19,9 @@ export default {
             },
             keyframes: {
                 'loading-bar': {
-                '0%': { width: '0%' },
-                '50%': { width: '70%' },
-                '100%': { width: '100%' },
+                    '0%': { width: '0%' },
+                    '50%': { width: '70%' },
+                    '100%': { width: '100%' },
                 },
             },
             animation: {

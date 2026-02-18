@@ -152,7 +152,7 @@ class SecurityAlertMail extends Mailable
                             This is a critical security notification from your system
                         </p>
                         <p style='margin: 0; color: #999; font-size: 12px;'>
-                            © {$currentYear} SETUPSYS. All rights reserved. | Do not ignore this email. If you did not receive this alert but your system was compromised, contact your system administrator immediately.
+                            © {$currentYear} SETUP Information Management System (SIMS). All rights reserved. | Do not ignore this email. If you did not receive this alert but your system was compromised, contact your system administrator immediately.
                         </p>
                     </div>
                 </div>
@@ -160,7 +160,7 @@ class SecurityAlertMail extends Mailable
             </html>
         ";
 
-        return $this->subject('🚨 SETUPSYS Security Alert - ' . $this->alertType)
+        return $this->subject('🚨 DOSTNM-SIMS Security Alert - ' . $this->alertType)
                     ->html($htmlContent);
     }
 }

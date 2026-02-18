@@ -92,7 +92,7 @@ class PasswordResetOtpMail extends Mailable
                                 🔒 Security Reminder
                             </p>
                             <p style='margin: 0; color: #856404; font-size: 13px; line-height: 1.6;'>
-                                • Never share this code with anyone, including SETUPSYS staff<br>
+                                • Never share this code with anyone, including DOST staff<br>
                                 • If you didn't request a password reset, please secure your account immediately<br>
                                 • This code can only be used once<br>
                                 • This code will expire and cannot be used after {$expiryDateTime}
@@ -128,10 +128,10 @@ class PasswordResetOtpMail extends Mailable
                     <div style='background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;'>
                         <img src='cid:logo.png' alt='Company Logo' style='max-width: 100px; height: auto; margin: 0 auto 15px; display: block;'>     
                         <p style='margin: 0 0 10px 0; color: #666; font-size: 13px;'>
-                            This is an automated security notification from SETUPSYS
+                            This is an automated security notification from SETUP Information Management System (SIMS)
                         </p>
                         <p style='margin: 0; color: #999; font-size: 12px;'>
-                            © {$currentYear} SETUPSYS. All rights reserved. | Do not reply to this email
+                            © {$currentYear} SETUP Information Management System (SIMS). All rights reserved. | Do not reply to this email
                         </p>
                     </div>
                 </div>
@@ -139,7 +139,7 @@ class PasswordResetOtpMail extends Mailable
             </html>
         ";
 
-        return $this->subject('[SETUPSYS] Password Reset Code')
+        return $this->subject('[SETUP Information Management System (SIMS)] Password Reset Code')
                     ->html($htmlContent);
     }
 }

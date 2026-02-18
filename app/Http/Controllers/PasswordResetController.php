@@ -135,7 +135,7 @@ class PasswordResetController extends Controller
         }
 
         // HARDCODE max attempts to 3 - DO NOT USE CONFIG
-        $maxAttempts = 3;
+        $maxAttempts = (int)config('security.otp_attempts');
         $attemptsUsed = $otpRecord->attempts;
         $attemptsLeft = max(0, $maxAttempts - $attemptsUsed);
 
@@ -199,7 +199,7 @@ class PasswordResetController extends Controller
             ]);
         }
 
-        $maxAttempts = (int)config('security.otp_attempts', 3);
+        $maxAttempts = (int)config('security.otp_attempts');
         $attemptsLeft = max(0, $maxAttempts - $otpRecord->attempts);
 
         return response()->json([
@@ -267,7 +267,7 @@ class PasswordResetController extends Controller
             ->first();
 
         // HARDCODE max attempts to 3 - DO NOT USE CONFIG
-        $maxAttempts = 3;
+        $maxAttempts = (int)config('security.otp_attempts');
 
         // If no valid OTP exists, reject
         if (!$otpRecord) {
@@ -425,7 +425,8 @@ class PasswordResetController extends Controller
 
         // If OTP was successfully verified, redirect to reset form
         if ($otpVerified) {
-            Session::put('reset_otp_verified', true);
+            $verificationToken = hash_hmac('sha256', $email . $pendingUserId, config('app.key'));
+            Session::put('reset_otp_verified', $verificationToken);
 
             Log::info('Password reset OTP verified, ready for new password', [
                 'user_id' => $pendingUserId,
@@ -498,9 +499,11 @@ class PasswordResetController extends Controller
     public function showResetForm()
     {
         $email = Session::get('reset_email');
-        $otpVerified = Session::get('reset_otp_verified');
+        $storedToken = Session::get('reset_otp_verified');
+        $expectedToken = hash_hmac('sha256', $email . Session::get('reset_pending_user_id'), config('app.key'));
 
-        if (!$email || !$otpVerified) {
+        if (!$email || !$storedToken || !hash_equals($expectedToken, $storedToken)) {
+            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_verified']);
             return redirect()->route('password.request');
         }
 
@@ -513,24 +516,38 @@ class PasswordResetController extends Controller
     /**
      * Handle the actual password reset
      */
-    public function resetPassword(Request $request)
-    {
+    public function resetPassword(Request $request){
         $ip = $request->ip();
         $email = Session::get('reset_email');
-        $otpVerified = Session::get('reset_otp_verified');
         $pendingUserId = Session::get('reset_pending_user_id');
+        $storedToken = Session::get('reset_otp_verified');
 
-        // Validate session
-        if (!$email || !$otpVerified || !$pendingUserId) {
-            Log::warning('Unauthorized password reset attempt', [
+        // Validate session - check all values exist first
+        if (!$email || !$pendingUserId || !$storedToken) {
+            Log::warning('Unauthorized password reset attempt - missing session data', [
                 'ip' => $ip,
                 'has_email' => (bool)$email,
-                'has_otp_verified' => (bool)$otpVerified,
+                'has_pending_user' => (bool)$pendingUserId,
+                'has_token' => (bool)$storedToken,
             ]);
 
             Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_verified']);
             return back()->withErrors(['message' => 'Invalid reset session. Please try again.']);
         }
+
+        // Verify HMAC token — same logic as showResetForm()
+        $expectedToken = hash_hmac('sha256', $email . $pendingUserId, config('app.key'));
+
+        if (!hash_equals($expectedToken, $storedToken)) {
+            Log::warning('Unauthorized password reset attempt - token mismatch', [
+                'ip' => $ip,
+                'user_id' => $pendingUserId,
+            ]);
+
+            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_verified']);
+            return back()->withErrors(['message' => 'Invalid reset session. Please try again.']);
+        }
+
 
         // Validate new password
         $validated = $request->validate([
@@ -592,6 +609,22 @@ class PasswordResetController extends Controller
                 'password' => Hash::make($validated['password']),
             ]);
 
+            // Send password changed notification email
+            try {
+                Mail::to($user->email)->send(new \App\Mail\PasswordChangedMail(
+                    $user->name,
+                    $user->email,
+                    $ip,
+                ));
+            } catch (Exception $e) {
+                // Don't fail the reset if email fails — just log it
+                Log::warning('Failed to send password changed notification email', [
+                    'user_id' => $user->user_id,
+                    'email' => $user->email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             // Invalidate all sessions for this user
             DB::table('sessions')
                 ->where('user_id', $user->user_id)
@@ -637,84 +670,48 @@ class PasswordResetController extends Controller
     /**
      * Resend OTP for password reset
      */
-    public function resendOtp(Request $request)
-    {
+    public function resendOtp(Request $request){
         $ip = $request->ip();
         $rateLimitKey = 'resend_password_reset_otp:' . $ip;
 
+        // ✅ Check rate limits FIRST before touching any records
         if (RateLimiter::tooManyAttempts($rateLimitKey, 5)) {
             $seconds = RateLimiter::availableIn($rateLimitKey);
-
-            Log::warning('Password reset OTP resend rate limited', [
-                'ip' => $ip,
-                'retry_after' => $seconds,
-            ]);
-
             return response()->json([
                 'message' => "Too many resend requests. Try again in {$seconds} seconds."
             ], 429);
         }
 
-        RateLimiter::hit($rateLimitKey, 30);
-
         $validated = $request->validate(['email' => 'required|email']);
         $email = $validated['email'];
 
         if (!Session::has('reset_pending_user_id')) {
-            Log::warning('Resend password reset OTP without valid session', [
-                'email' => $email,
-                'ip' => $ip,
-            ]);
-
-            return response()->json([
-                'message' => 'Invalid session. Please request a new reset.'
-            ], 422);
+            return response()->json(['message' => 'Invalid session. Please request a new reset.'], 422);
         }
 
         $sessionEmail = Session::get('reset_email');
         if ($sessionEmail !== $email) {
-            Log::warning('Email mismatch in password reset OTP resend', [
-                'session_email' => $sessionEmail,
-                'submitted_email' => $email,
-                'ip' => $ip,
-            ]);
-
-            return response()->json([
-                'message' => 'Email does not match reset request.'
-            ], 422);
+            return response()->json(['message' => 'Email does not match reset request.'], 422);
         }
 
         $cooldownKey = 'resend_password_reset_cooldown:' . hash('sha256', $email . $ip);
 
+        // ✅ Check cooldown BEFORE deleting
         if (Cache::has($cooldownKey)) {
             $secondsLeft = Cache::getSeconds($cooldownKey) ?? 30;
-
-            Log::warning('Password reset OTP resend on cooldown', [
-                'email' => $email,
-                'ip' => $ip,
-            ]);
-
             return response()->json([
                 'message' => "Please wait {$secondsLeft} seconds before requesting another OTP."
             ], 429);
         }
 
-        // Delete old OTP before creating new one
-        OtpModel::where('email', $email)
-            ->where('used_at', null)
-            ->delete();
+        // ✅ Only NOW delete old OTP and send new one
+        OtpModel::where('email', $email)->where('used_at', null)->delete();
 
         if (!$this->sendPasswordResetOtp($email)) {
-            Log::error('Failed to resend password reset OTP', [
-                'email' => $email,
-                'ip' => $ip,
-            ]);
-
-            return response()->json([
-                'message' => 'Failed to send OTP. Please try again.'
-            ], 500);
+            return response()->json(['message' => 'Failed to send OTP. Please try again.'], 500);
         }
 
+        RateLimiter::hit($rateLimitKey, 30);
         Cache::put($cooldownKey, true, now()->addSeconds(30));
 
         $otpRecord = OtpModel::where('email', $email)
@@ -722,10 +719,7 @@ class PasswordResetController extends Controller
             ->orderBy('created_at', 'desc')
             ->first();
 
-        Log::info('Password reset OTP resent successfully', [
-            'email' => $email,
-            'ip' => $ip,
-        ]);
+        Log::info('Password reset OTP resent successfully', ['email' => $email, 'ip' => $ip]);
 
         return response()->json([
             'message' => 'OTP resent successfully! Check your email.',
@@ -736,17 +730,14 @@ class PasswordResetController extends Controller
     /**
      * Send password reset OTP via email
      */
-    protected function sendPasswordResetOtp($email)
-    {
-        // DELETE ALL OLD OTP RECORDS FIRST - this is critical!
+    protected function sendPasswordResetOtp($email){
+        // ✅ Single delete at the top — remove the one inside the try block
         OtpModel::where('email', $email)->delete();
 
         $resendKey = 'password_reset_otp_resend:' . hash('sha256', $email);
 
         if (Cache::has($resendKey)) {
-            Log::warning('Password reset OTP resend rate limited', [
-                'email' => $email,
-            ]);
+            Log::warning('Password reset OTP resend rate limited', ['email' => $email]);
             return false;
         }
 
@@ -759,19 +750,15 @@ class PasswordResetController extends Controller
         }
 
         $otpHash = hash_hmac('sha256', $otp, $secret);
-        $otpLifetime = 5; // minutes - hardcoded since config seems broken
-        $expiresAt = now()->addMinutes($otpLifetime);
+        $expiresAt = now()->addMinutes(5);
 
         try {
-            // Make absolutely sure no old records exist
-            OtpModel::where('email', $email)->delete();
-
-            // Create fresh OTP with attempts = 0
+            // ✅ No second delete here anymore
             $otpRecord = OtpModel::create([
                 'email' => $email,
                 'code' => $otpHash,
                 'expires_at' => $expiresAt,
-                'attempts' => 0,  // Always start fresh
+                'attempts' => 0,
                 'used_at' => null,
                 'used_ip' => null,
                 'resend_count' => 1,
@@ -788,7 +775,6 @@ class PasswordResetController extends Controller
                 Log::info('Password reset OTP sent successfully', [
                     'email' => $email,
                     'otp_id' => $otpRecord->id,
-                    'attempts' => $otpRecord->attempts,
                     'expires_at' => $expiresAt,
                 ]);
 
@@ -798,7 +784,6 @@ class PasswordResetController extends Controller
                     'email' => $email,
                     'error' => $e->getMessage(),
                 ]);
-
                 $otpRecord->delete();
                 return false;
             }
@@ -810,7 +795,6 @@ class PasswordResetController extends Controller
             return false;
         }
     }
-
 
     /**
      * Mask email for display (e.g., u***r@g***l.com)

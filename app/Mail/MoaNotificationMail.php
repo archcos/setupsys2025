@@ -130,14 +130,14 @@ class MoaNotificationMail extends Mailable
                                 {$icon} Action required
                             </p>
                             <p style='margin: 0; color: #666; font-size: 13px;'>
-                                Please log in to the SETUPSYS Portal to review this MOA.
+                                Please log in to the DOSTNM-SIMS Portal to review this MOA.
                             </p>
                         </div>
 
                         <!-- Visit Site Button -->
                         <div style='text-align: center; margin: 30px 0;'>
                             <a href='http://192.168.0.7:8096/' style='display: inline-block; background: linear-gradient(135deg, {$gradientStart} 0%, {$gradientEnd} 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 4px; font-weight: 600; font-size: 15px; box-shadow: 0 2px 8px rgba(0,86,179,0.3);'>
-                                Review MOA in SETUPSYS →
+                                Review MOA in DOSTNM-SIMS →
                             </a>
                         </div>
                     </div>
@@ -146,10 +146,10 @@ class MoaNotificationMail extends Mailable
                     <div style='background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;'>
                         <img src='cid:logo.png' alt='Company Logo' style='max-width: 100px; height: auto; margin: 0 auto 15px; display: block;'>
                         <p style='margin: 0 0 10px 0; color: #666; font-size: 13px;'>
-                            This is an automated notification from SETUPSYS
+                            This is an automated notification from SETUP Information Management System (SIMS)
                         </p>
                         <p style='margin: 0; color: #999; font-size: 12px;'>
-                            © {$currentYear} SETUPSYS. All rights reserved.
+                            © {$currentYear} SETUP Information Management System (SIMS). All rights reserved.
                         </p>
                     </div>
                 </div>
@@ -157,7 +157,7 @@ class MoaNotificationMail extends Mailable
             </html>
         ";
 
-        return $this->subject('[SETUPSYS] ' . $title)
+        return $this->subject('[DOSTNM-SIMS] ' . $title)
                     ->html($htmlContent);
     }
 }

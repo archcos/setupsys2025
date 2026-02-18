@@ -13,7 +13,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
       {/* Dashboard Link */}
       <Link
         href={getHomePage()}
-        className="flex items-center gap-2 px-3 py-2 rounded-md hover:shadow hover:bg-gray-100 transition"
+        className="flex items-center gap-2 px-3 py-2 rounded-md hover:shadow hover:bg-gray-400 transition"
         onClick={onClose}
       >
         <LayoutDashboard size={18} />

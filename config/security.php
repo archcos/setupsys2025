@@ -7,5 +7,5 @@ return [
     ]),
     'otp_secret' => env('OTP_SECRET'),
     'otp_lifetime' => env('OTP_LIFETIME'),
-    'otp_attempts' => env('OTP_ATTEMPTS'),
+    'otp_attempts' => env('OTP_MAX_ATTEMPTS'),
 ];

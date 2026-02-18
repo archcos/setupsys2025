@@ -165,6 +165,16 @@ export default function ResetPassword({ email, maskedEmail }) {
                             </div>
                         )}
 
+                        {/* Session Warning */}
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <p className="text-sm text-amber-800 flex items-center gap-2">
+                                <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-600" />
+                                <span>
+                                    <span className="font-semibold">Heads up:</span> Resetting your password will log you out of all active sessions on all devices.
+                                </span>
+                            </p>
+                        </div>
+
                         {/* Submit Button */}
                         <button
                             type="submit"

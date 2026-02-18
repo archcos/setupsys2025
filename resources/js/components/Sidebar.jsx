@@ -5,8 +5,10 @@ import { Link, usePage } from "@inertiajs/react";
 import logo from '../../assets/logo.webp';
 import setupLogo from '../../assets/SETUP_logo.webp';
 import SidebarMenuItems from "./SidebarMenuItems";
+import { useTheme } from "../contexts/ThemeContext";
 
 export default function Sidebar({ isOpen, onClose }) {
+  const { darkMode } = useTheme();
   const [dropdowns, setDropdowns] = useState({
     development: false,
     implementation: false,
@@ -36,7 +38,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
   return (
     <>
-      {/* Mobile overlay - only show on small screens */}
+      {/* Mobile overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
@@ -44,14 +46,22 @@ export default function Sidebar({ isOpen, onClose }) {
         />
       )}
 
-      <aside className={`${
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      } fixed lg:sticky lg:translate-x-0 left-0 top-0 z-50 w-64 bg-white text-gray-800 p-6 shadow-md h-screen lg:max-h-screen overflow-y-auto transition-all duration-300 lg:duration-0`}>
-        
-        {/* Close button for mobile and tablet */}
+      <aside className={`
+        ${isOpen ? "translate-x-0" : "-translate-x-full"}
+        fixed lg:sticky lg:translate-x-0 left-0 top-0 z-50 w-64 p-6 shadow-md
+        h-screen lg:max-h-screen overflow-y-auto transition-all duration-300 lg:duration-0
+        ${darkMode
+          ? 'bg-slate-900 text-slate-100 border-r border-slate-700'
+          : 'bg-white text-gray-800'
+        }
+      `}>
+
+        {/* Close button - mobile/tablet */}
         <button
           onClick={onClose}
-          className="lg:hidden absolute top-4 right-4 p-2 hover:bg-gray-100 rounded"
+          className={`lg:hidden absolute top-4 right-4 p-2 rounded transition ${
+            darkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-gray-100 text-gray-600'
+          }`}
         >
           <X size={20} />
         </button>
@@ -69,9 +79,9 @@ export default function Sidebar({ isOpen, onClose }) {
 
           {/* Navigation Menu */}
           <nav className="space-y-4">
-            <SidebarMenuItems 
-              role={role} 
-              dropdowns={dropdowns} 
+            <SidebarMenuItems
+              role={role}
+              dropdowns={dropdowns}
               toggleDropdown={toggleDropdown}
               onClose={onClose}
               getHomePage={getHomePage}
