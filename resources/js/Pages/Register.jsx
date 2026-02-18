@@ -67,8 +67,8 @@ export default function RegisterPage({ offices }) {
             <div className="flex flex-col items-center text-center space-y-1">
               <h2 className="text-lg font-bold text-gray-900 tracking-tight">DOST - Northern Mindanao</h2>
               <h3 className="text-sm text-gray-600 font-medium leading-relaxed">
-                Small Enterprise Technology Upgrading Program
-              </h3>
+                  Small Enterprise Technology Upgrading Program <br/>Integrated Management System
+                </h3>
             </div>
           </div>
 

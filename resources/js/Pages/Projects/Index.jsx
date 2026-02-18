@@ -419,14 +419,14 @@ export default function Index({ projects, filters, offices, allYears }) {
                       <div className="relative inline-block">
                         <button
                           onClick={() => setOpenStatusDropdown(openStatusDropdown === project.project_id ? null : project.project_id)}
-                          disabled={updatingStatus === project.project_id}
-                          className="flex items-center gap-2 cursor-pointer"
+                          disabled={updatingStatus === project.project_id || role === 'staff'}
+                          className={`flex items-center gap-2 cursor-pointer ${role === 'staff' ? 'opacity-60 cursor-not-allowed' : ''}`}
                         >
                           {getStatusBadge(project.progress)}
                           <ChevronDown className="w-3 h-3" />
                         </button>
                         
-                        {openStatusDropdown === project.project_id && (
+                        {openStatusDropdown === project.project_id && role !== 'staff' && (
                           <div className="absolute top-full mt-2 left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-max max-h-96 overflow-y-auto">
                             {progressOptions.map((option) => (
                               <button
@@ -502,13 +502,13 @@ export default function Index({ projects, filters, offices, allYears }) {
                   <div className="relative inline-block">
                     <button
                       onClick={() => setOpenStatusDropdown(openStatusDropdown === project.project_id ? null : project.project_id)}
-                      disabled={updatingStatus === project.project_id}
-                      className="flex items-center gap-1"
+                      disabled={updatingStatus === project.project_id || role === 'staff'}
+                      className={`flex items-center gap-1 ${role === 'staff' ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
                       {getStatusBadge(project.progress)}
                     </button>
                     
-                    {openStatusDropdown === project.project_id && (
+                    {openStatusDropdown === project.project_id && role !== 'staff' && (
                       <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-max max-h-48 overflow-y-auto">
                         {progressOptions.map((option) => (
                           <button

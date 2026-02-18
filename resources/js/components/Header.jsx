@@ -12,9 +12,9 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [screenSize, setScreenSize] = useState('mobile');
 
-  const fullText = "  Small Enterprise Technology Upgrading Program Digital System";
-  const mediumText = "  SETUP Digital System";
-  const shortText = "  SETUP";
+  const fullText = "  Small Enterprise Technology Upgrading Program Integrated Management System";
+  const mediumText = "  SETUP Integrated Management System";
+  const shortText = "  SIMS";
   
   const { auth, notifications = [] } = usePage().props;
 
@@ -122,11 +122,11 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
 
       {/* Right Section - Actions */}
       <div className="flex items-center gap-1 sm:gap-2 md:gap-4 relative flex-shrink-0">
-        <NotificationDropdown 
+        {/* <NotificationDropdown 
           notifOpen={notifOpen}
           onToggle={handleToggleNotification}
           notifications={notifications}
-        />
+        /> */}
 
         <ProfileDropdown 
           dropdownOpen={dropdownOpen}

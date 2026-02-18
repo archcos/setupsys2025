@@ -28,6 +28,7 @@ use App\Http\Controllers\RestructureController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\ReportReviewController;
+use App\Http\Controllers\PasswordResetController;
 
 Route::middleware(['log-suspicious'])->group(function () {
 
@@ -318,6 +319,36 @@ Route::middleware(['log-suspicious'])->group(function () {
         ->middleware('role:head')
         ->name('devices.cleanup');
 });
+
+
+    // Request password reset form
+    Route::get('/password/reset/request', [PasswordResetController::class, 'showRequestForm'])
+        ->name('password.request');
+    
+    // Handle password reset request
+    Route::post('/password/reset/request', [PasswordResetController::class, 'requestReset'])
+        ->name('password.reset.request');
+    
+    // Show OTP verification form
+    Route::get('/password/reset/verify', [PasswordResetController::class, 'showVerifyForm'])
+        ->name('password.reset.verify-form');
+    
+    // Verify OTP
+    Route::post('/password/reset/verify', [PasswordResetController::class, 'verifyOtp'])
+        ->name('password.reset.verify');
+    
+    // Resend OTP during password reset
+    Route::post('/password/reset/resend-otp', [PasswordResetController::class, 'resendOtp'])
+        ->name('password.reset.resend-otp');
+    
+    // Show password reset form (after OTP verification)
+    Route::get('/password/reset', [PasswordResetController::class, 'showResetForm'])
+        ->name('password.reset.form');
+    
+    // Handle password reset
+    Route::post('/password/reset', [PasswordResetController::class, 'resetPassword'])
+        ->name('password.reset');
+
 
 });
 

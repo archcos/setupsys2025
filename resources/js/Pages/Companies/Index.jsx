@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Eye, Edit3, Trash2, Building, User, Mail, Phone, MapPin, Factory, Package, X, Filter, ArrowUpDown, AlertCircle } from 'lucide-react';
 
 
-export default function Index({ companies, filters, allUsers = [], allOffices = [], canEditAddedBy = false }) {
+export default function Index({ companies, filters, allUsers = [], allOffices = [], canEditAddedBy = false, userRole = 'user' }) {
   const [search, setSearch] = useState(filters.search || '');
   const [perPage, setPerPage] = useState(filters.perPage || 10);
   const [selectedCompany, setSelectedCompany] = useState(null);
@@ -18,6 +18,10 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
   const filterTimeoutRef = useRef(null);
   const isInitialRenderRef = useRef(true);
   const dropdownRef = useRef(null);
+
+  // Determine filter visibility based on role
+  const showFilters = userRole !== 'user'; // Hide filters only for 'user' role
+  const showOfficeFilter = userRole === 'rpmo'; // Show office filter only for 'rpmo' role
 
   // FIXED: Updated to include perPage and removed 'only' option
   useEffect(() => {
@@ -204,137 +208,141 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
             </div>
           </div>
 
-        {/* Filters Section */}
-        <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
-          <div className="flex flex-col gap-3 md:gap-4">
-            {/* Search Bar and Per Page */}
-            <div className="flex flex-col gap-2 md:gap-4 md:flex-row">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search proponents..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch('')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+          {/* Filters Section - Hide only for user role */}
+          {showFilters && (
+            <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
+              <div className="flex flex-col gap-3 md:gap-4">
+                {/* Search Bar and Per Page */}
+                <div className="flex flex-col gap-2 md:gap-4 md:flex-row">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="Search proponents..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                    />
+                    {search && (
+                      <button
+                        onClick={() => setSearch('')}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
 
-              {/* Per Page Selector */}
-              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
-                <select
-                  value={perPage}
-                  onChange={handlePerPageChange}
-                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
-                >
-                  {[10, 20, 50, 100].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-                <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">items</span>
+                  {/* Per Page Selector */}
+                  <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
+                    <select
+                      value={perPage}
+                      onChange={handlePerPageChange}
+                      className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
+                    >
+                      {[10, 20, 50, 100].map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                    <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">items</span>
+                  </div>
+                </div>
+
+                {/* Filter Row */}
+                <div className="flex flex-col gap-2 md:gap-4 md:flex-row md:items-center flex-wrap">
+                  {/* Office Filter - Only show for rpmo role */}
+                  {showOfficeFilter && (
+                    <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
+                      <Building className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <select
+                        value={officeFilter}
+                        onChange={handleOfficeChange}
+                        className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
+                      >
+                        <option value="">All Offices</option>
+                        {allOffices.map((office) => (
+                          <option key={office.office_id} value={office.office_id}>
+                            {office.office_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Industry Type Filter */}
+                  <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
+                    <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <select
+                      value={industryTypeFilter}
+                      onChange={handleIndustryTypeChange}
+                      className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
+                    >
+                      <option value="">All Types</option>
+                      <option value="MICRO">MICRO</option>
+                      <option value="SMALL">SMALL</option>
+                      <option value="MEDIUM">MEDIUM</option>
+                    </select>
+                  </div>
+
+                  {/* Setup Industry Filter */}
+                  <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
+                    <Factory className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <select
+                      value={setupIndustryFilter}
+                      onChange={handleSetupIndustryChange}
+                      className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
+                    >
+                      <option value="">All Industries</option>
+                      <optgroup label="Major Industry Sectors">
+                        <option value="Agriculture/Aquaculture/Forestry">Agriculture / Aquaculture / Forestry</option>
+                        <option value="Creative Industry">Creative Industry</option>
+                        <option value="Energy and Environment">Energy and Environment</option>
+                        <option value="Food Processing">Food Processing</option>
+                        <option value="Furniture">Furniture</option>
+                        <option value="Gifts, Decors, Handicrafts">Gifts, Decors, Handicrafts</option>
+                        <option value="Health and Wellness">Health and Wellness</option>
+                        <option value="Metals and Engineering">Metals and Engineering</option>
+                        <option value="Other Regional Priority Sectors">Other Regional Priority Sectors</option>
+                      </optgroup>
+                      <optgroup label="Sub-Industries / Manufacturing">
+                        <option value="Crop and animal production, hunting, and related service activities">Crop & Animal Production</option>
+                        <option value="Forestry and Logging">Forestry & Logging</option>
+                        <option value="Fishing and aquaculture">Fishing & Aquaculture</option>
+                        <option value="Food processing">Food Processing</option>
+                        <option value="Beverage manufacturing">Beverage Manufacturing</option>
+                        <option value="Textile manufacturing">Textile Manufacturing</option>
+                        <option value="Wearing apparel manufacturing">Wearing Apparel</option>
+                        <option value="Leather and related products manufacturing">Leather Products</option>
+                        <option value="Wood and products of wood and cork manufacturing">Wood & Cork Products</option>
+                        <option value="Paper and paper products manufacturing">Paper & Paper Products</option>
+                        <option value="Chemicals and chemical products manufacturing">Chemicals & Chemical Products</option>
+                        <option value="Basic pharmaceutical products and pharmaceutical preparations manufacturing">Pharmaceutical Products</option>
+                        <option value="Rubber and plastic products manufacturing">Rubber & Plastic Products</option>
+                        <option value="Non-metallic mineral products manufacturing">Non-metallic Minerals</option>
+                        <option value="Fabricated metal products manufacturing">Fabricated Metal Products</option>
+                        <option value="Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing">Machinery & Equipment (NEC)</option>
+                        <option value="Other transport equipment manufacturing">Transport Equipment</option>
+                        <option value="Furniture manufacturing">Furniture Manufacturing</option>
+                        <option value="Information and Communication">Information & Communication</option>
+                        <option value="Other regional priority industries approved by the Regional Development Council">Regional Priority Industries</option>
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  {/* Clear Filters Button */}
+                  {(search || officeFilter || setupIndustryFilter || industryTypeFilter) && (
+                    <button
+                      onClick={clearFilters}
+                      className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors shadow-sm text-xs md:text-sm font-medium"
+                    >
+                      <X className="w-4 h-4" />
+                      <span className="hidden md:inline">Clear Filters</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-
-            {/* Filter Row */}
-            <div className="flex flex-col gap-2 md:gap-4 md:flex-row md:items-center flex-wrap">
-              {/* Office Filter */}
-              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
-                <Building className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <select
-                  value={officeFilter}
-                  onChange={handleOfficeChange}
-                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
-                >
-                  <option value="">All Offices</option>
-                  {allOffices.map((office) => (
-                    <option key={office.office_id} value={office.office_id}>
-                      {office.office_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Industry Type Filter */}
-              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
-                <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <select
-                  value={industryTypeFilter}
-                  onChange={handleIndustryTypeChange}
-                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
-                >
-                  <option value="">All Types</option>
-                  <option value="MICRO">MICRO</option>
-                  <option value="SMALL">SMALL</option>
-                  <option value="MEDIUM">MEDIUM</option>
-                </select>
-              </div>
-
-     {/* Setup Industry Filter */}
-      <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
-        <Factory className="w-4 h-4 text-gray-400 flex-shrink-0" />
-        <select
-          value={setupIndustryFilter}
-          onChange={handleSetupIndustryChange}
-          className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
-        >
-          <option value="">All Industries</option>
-          <optgroup label="Major Industry Sectors">
-            <option value="Agriculture/Aquaculture/Forestry">Agriculture / Aquaculture / Forestry</option>
-            <option value="Creative Industry">Creative Industry</option>
-            <option value="Energy and Environment">Energy and Environment</option>
-            <option value="Food Processing">Food Processing</option>
-            <option value="Furniture">Furniture</option>
-            <option value="Gifts, Decors, Handicrafts">Gifts, Decors, Handicrafts</option>
-            <option value="Health and Wellness">Health and Wellness</option>
-            <option value="Metals and Engineering">Metals and Engineering</option>
-            <option value="Other Regional Priority Sectors">Other Regional Priority Sectors</option>
-          </optgroup>
-          <optgroup label="Sub-Industries / Manufacturing">
-            <option value="Crop and animal production, hunting, and related service activities">Crop & Animal Production</option>
-            <option value="Forestry and Logging">Forestry & Logging</option>
-            <option value="Fishing and aquaculture">Fishing & Aquaculture</option>
-            <option value="Food processing">Food Processing</option>
-            <option value="Beverage manufacturing">Beverage Manufacturing</option>
-            <option value="Textile manufacturing">Textile Manufacturing</option>
-            <option value="Wearing apparel manufacturing">Wearing Apparel</option>
-            <option value="Leather and related products manufacturing">Leather Products</option>
-            <option value="Wood and products of wood and cork manufacturing">Wood & Cork Products</option>
-            <option value="Paper and paper products manufacturing">Paper & Paper Products</option>
-            <option value="Chemicals and chemical products manufacturing">Chemicals & Chemical Products</option>
-            <option value="Basic pharmaceutical products and pharmaceutical preparations manufacturing">Pharmaceutical Products</option>
-            <option value="Rubber and plastic products manufacturing">Rubber & Plastic Products</option>
-            <option value="Non-metallic mineral products manufacturing">Non-metallic Minerals</option>
-            <option value="Fabricated metal products manufacturing">Fabricated Metal Products</option>
-            <option value="Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing">Machinery & Equipment (NEC)</option>
-            <option value="Other transport equipment manufacturing">Transport Equipment</option>
-            <option value="Furniture manufacturing">Furniture Manufacturing</option>
-            <option value="Information and Communication">Information & Communication</option>
-            <option value="Other regional priority industries approved by the Regional Development Council">Regional Priority Industries</option>
-          </optgroup>
-        </select>
-      </div>
-
-              {/* Clear Filters Button */}
-              {(search || officeFilter || setupIndustryFilter || industryTypeFilter) && (
-                <button
-                  onClick={clearFilters}
-                  className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors shadow-sm text-xs md:text-sm font-medium"
-                >
-                  <X className="w-4 h-4" />
-                  <span className="hidden md:inline">Clear Filters</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+          )}
 
           {/* Table Section - Responsive */}
           <div>

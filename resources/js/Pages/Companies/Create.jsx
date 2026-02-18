@@ -25,7 +25,7 @@ export default function CompanyCreate() {
     setup_industry: '',
     industry_type: '',
     contact_number: '',
-    current_market: '',
+    // current_market: '',
   });
 
   // Merge errors from both sources

@@ -8,13 +8,14 @@ use Illuminate\Support\Facades\Log;
 
 class DeviceFingerprintService
 {
-    private const FINGERPRINT_VERSION = 1;
+    private const FINGERPRINT_VERSION = 2; // Bumped version due to removing IP
     private const TRUST_DURATION_DAYS = 90;
     private const MAX_FINGERPRINT_AGE_DAYS = 365;
     private const ENTROPY_THRESHOLD = 0.01; // HTTP headers are naturally low-entropy text
 
     /**
      * Generate multi-layered device fingerprint with versioning
+     * NOTE: IP address intentionally excluded - it changes on network/restart
      */
     public static function generateFingerprint(Request $request): array
     {
@@ -64,8 +65,7 @@ class DeviceFingerprintService
             'tls_version' => $_SERVER['SSL_PROTOCOL'] ?? 'unknown',
             'http_version' => $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1',
             'platform_info' => self::extractPlatformHints($request->header('User-Agent', '')),
-            'ipv4_subnet' => self::getIPv4Subnet($request->ip()),
-            'ipv6_prefix' => self::getIPv6Prefix($request->ip()),
+            // IP addresses excluded - they change on computer restart / network switch
         ];
     }
 
@@ -79,8 +79,6 @@ class DeviceFingerprintService
             'tls_version' => $components['tls_version'],
             'http_version' => $components['http_version'],
             'platform_info' => $components['platform_info'],
-            'ipv4_subnet' => $components['ipv4_subnet'],
-            'ipv6_prefix' => $components['ipv6_prefix'],
         ];
     }
 
@@ -110,12 +108,12 @@ class DeviceFingerprintService
         $totalWeight = 0;
         
         $weights = [
-            'user_agent' => 0.25,
+            'user_agent' => 0.35,
             'accept_language' => 0.15,
             'accept_encoding' => 0.1,
             'tls_cipher' => 0.2,
-            'http_version' => 0.15,
-            'platform_info' => 0.15,
+            'http_version' => 0.1,
+            'platform_info' => 0.1,
         ];
         
         foreach ($weights as $key => $weight) {
@@ -155,24 +153,6 @@ class DeviceFingerprintService
         return implode('|', $hints) ?: 'unknown';
     }
 
-    private static function getIPv4Subnet(?string $ip): string
-    {
-        if (!$ip || !filter_var($ip, FILTER_VALIDATE_IP, ['flags' => FILTER_FLAG_IPV4])) {
-            return 'unknown';
-        }
-        $parts = explode('.', $ip);
-        return implode('.', array_slice($parts, 0, 3));
-    }
-
-    private static function getIPv6Prefix(?string $ip): string
-    {
-        if (!$ip || !filter_var($ip, FILTER_VALIDATE_IP, ['flags' => FILTER_FLAG_IPV6])) {
-            return 'unknown';
-        }
-        $parts = explode(':', $ip);
-        return implode(':', array_slice($parts, 0, 4));
-    }
-
     public static function verifyDevice(
         string $userId,
         array $currentFingerprint,
@@ -185,10 +165,6 @@ class DeviceFingerprintService
             'ip' => $currentIp,
             'entropy' => $currentFingerprint['entropy_score'],
         ]);
-
-        // Skip entropy check for HTTP headers (they're naturally low-entropy text)
-        // Entropy checking is more relevant for client-side fingerprinting,
-        // not server-side HTTP header analysis
 
         // Try strict match first
         $device = SavedDeviceModel::where('user_id', $userId)
@@ -205,7 +181,7 @@ class DeviceFingerprintService
                 'looking_for' => substr($currentFingerprint['fingerprint'], 0, 16) . '...',
             ]);
             
-            // Try relaxed match
+            // Try relaxed match (e.g., browser updated from Chrome 120.0.1 to 120.0.2)
             $device = SavedDeviceModel::where('user_id', $userId)
                 ->where('device_fingerprint_relaxed', $currentFingerprint['fingerprint_relaxed'])
                 ->first();
@@ -247,7 +223,7 @@ class DeviceFingerprintService
             ];
         }
 
-        // Device recognized and trusted
+        // Device recognized and trusted - update last usage
         Log::info('✅ DEVICE VERIFIED - SKIPPING MFA', [
             'device_id' => $device->id,
             'device_name' => $device->device_name,

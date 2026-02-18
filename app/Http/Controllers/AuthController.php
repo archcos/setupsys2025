@@ -217,21 +217,20 @@ class AuthController extends Controller
 
         // 3. Validate login credentials
         $credentials = $request->validate([
-            'username' => [
-                'required',
-                'string',
-                'max:12',
-                'regex:/^[A-Za-z0-9_]+$/'
-            ],
+            'login' => 'required|string|max:255',
             'password' => 'required|string|min:8|max:255',
         ], [
-            'username.regex' => 'Username can only contain letters, numbers, and underscores.',
-            'username.max' => 'Username must not exceed 12 characters.',
+            'login.required' => 'Username or email is required.',
             'password.min' => 'Password must be at least 8 characters.',
         ]);
 
-        // 4. Block attempts to sign in as "iamsuperadmin"
-        if (strtolower($credentials['username']) === 'iamsuperadmin') {
+        // 4. Find user by username or email
+        $user = UserModel::where('username', $credentials['login'])
+            ->orWhere('email', $credentials['login'])
+            ->first();
+
+        // 5. Block attempts to sign in as "iamsuperadmin"
+        if ($user && strtolower($user->username) === 'iamsuperadmin') {
             BlockedIp::updateOrCreate(
                 ['ip' => $ip],
                 [
@@ -250,114 +249,97 @@ class AuthController extends Controller
             ]);
         }
 
-        // 5. Check if user exists and credentials match
-        $user = UserModel::where('username', $credentials['username'])->first();
-
+        // 6. Check if user exists and credentials match
         if (!$user || !Hash::check($credentials['password'], $user->password)) {
             Log::warning('Failed login attempt', [
                 'ip' => $ip,
-                'username' => $credentials['username'],
+                'login_attempt' => $credentials['login'],
                 'timestamp' => now(),
             ]);
 
-            return back()->withErrors(['message' => 'Invalid username or password.']);
-        }
-
-        if ($user->status === 'inactive') {
-            return back()->withErrors(['message' => 'Your account is disabled.']);
-        }
-
-        // 6. Check for existing active session
-        $hasSession = DB::table('sessions')
-            ->where('user_id', $user->user_id)
-            ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->timestamp)
-            ->exists();
-
-        if ($hasSession) {
-            return back()->withErrors(['message' => 'This account is already logged in on another device.']);
+            return back()->withErrors(['message' => 'Invalid username/email or password.']);
         }
 
         // 7. Generate device fingerprint from server-side data
-    $deviceFingerprint = DeviceFingerprintService::generateFingerprint($request);
-    $deviceName = substr(
-        htmlspecialchars($request->header('User-Agent') ?? 'Unknown', ENT_QUOTES, 'UTF-8'),
-        0,
-        255
-    );
+        $deviceFingerprint = DeviceFingerprintService::generateFingerprint($request);
+        $deviceName = substr(
+            htmlspecialchars($request->header('User-Agent') ?? 'Unknown', ENT_QUOTES, 'UTF-8'),
+            0,
+            255
+        );
 
-    // DEBUG: Check if device exists in database
-    $existingDevices = SavedDeviceModel::where('user_id', $user->user_id)->get();
-    
-    Log::info('=== LOGIN FINGERPRINT DEBUG ===', [
-        'user_id' => $user->user_id,
-        'current_fingerprint' => $deviceFingerprint['fingerprint'],
-        'current_fingerprint_relaxed' => $deviceFingerprint['fingerprint_relaxed'],
-        'entropy_score' => $deviceFingerprint['entropy_score'],
-        'ip' => $ip,
-        'user_agent' => $request->header('User-Agent'),
-        'total_saved_devices' => $existingDevices->count(),
-    ]);
-
-    // Show all saved fingerprints for this user
-    foreach ($existingDevices as $device) {
-        Log::info('Saved device in DB', [
-            'device_id' => $device->id,
-            'device_name' => $device->device_name,
-            'saved_fingerprint' => $device->device_fingerprint,
-            'saved_fingerprint_relaxed' => $device->device_fingerprint_relaxed,
-            'last_ip' => $device->last_ip,
-            'is_trusted' => $device->is_trusted,
-            'trust_expires_at' => $device->trust_expires_at,
-            'matches_strict' => $device->device_fingerprint === $deviceFingerprint['fingerprint'],
-            'matches_relaxed' => $device->device_fingerprint_relaxed === $deviceFingerprint['fingerprint_relaxed'],
+        // DEBUG: Check if device exists in database
+        $existingDevices = SavedDeviceModel::where('user_id', $user->user_id)->get();
+        
+        Log::info('=== LOGIN FINGERPRINT DEBUG ===', [
+            'user_id' => $user->user_id,
+            'current_fingerprint' => $deviceFingerprint['fingerprint'],
+            'current_fingerprint_relaxed' => $deviceFingerprint['fingerprint_relaxed'],
+            'entropy_score' => $deviceFingerprint['entropy_score'],
+            'ip' => $ip,
+            'user_agent' => $request->header('User-Agent'),
+            'total_saved_devices' => $existingDevices->count(),
         ]);
-    }
-    // 8. Check if device is recognized and trusted
-    $verification = DeviceFingerprintService::verifyDevice(
-        $user->user_id,
-        $deviceFingerprint,
-        $ip
-    );
 
-    if (!$verification['require_mfa']) {
-        // Device recognized and trusted - complete login
-        Log::info('Login via recognized device - SKIPPING MFA', [
+        // Show all saved fingerprints for this user
+        foreach ($existingDevices as $device) {
+            Log::info('Saved device in DB', [
+                'device_id' => $device->id,
+                'device_name' => $device->device_name,
+                'saved_fingerprint' => $device->device_fingerprint,
+                'saved_fingerprint_relaxed' => $device->device_fingerprint_relaxed,
+                'last_ip' => $device->last_ip,
+                'is_trusted' => $device->is_trusted,
+                'trust_expires_at' => $device->trust_expires_at,
+                'matches_strict' => $device->device_fingerprint === $deviceFingerprint['fingerprint'],
+                'matches_relaxed' => $device->device_fingerprint_relaxed === $deviceFingerprint['fingerprint_relaxed'],
+            ]);
+        }
+        // 8. Check if device is recognized and trusted
+        $verification = DeviceFingerprintService::verifyDevice(
+            $user->user_id,
+            $deviceFingerprint,
+            $ip
+        );
+
+        if (!$verification['require_mfa']) {
+            // Device recognized and trusted - complete login
+            Log::info('Login via recognized device - SKIPPING MFA', [
+                'user_id' => $user->user_id,
+                'ip' => $ip,
+                'reason' => $verification['reason'],
+            ]);
+
+            $this->completeLogin($user, $request);
+            RateLimiter::clear($key);
+
+            return $user->role === 'user'
+                ? redirect()->route('user.dashboard')
+                : redirect()->route('home');
+        }
+
+        // 9. New/unrecognized device — Require OTP verification
+        Log::warning('MFA required - device not recognized', [
             'user_id' => $user->user_id,
             'ip' => $ip,
             'reason' => $verification['reason'],
+            'threat_level' => $verification['threat_level'],
         ]);
 
-        $this->completeLogin($user, $request);
-        RateLimiter::clear($key);
+        if (!$this->sendOtp($user->email)) {
+            return back()->withErrors(['message' => 'Failed to send OTP. Please try again.']);
+        }
 
-        return $user->role === 'user'
-            ? redirect()->route('user.dashboard')
-            : redirect()->route('home');
+        // Store device info in session for OTP verification
+        Session::put('pending_user_id', $user->user_id);
+        Session::put('otp_email', $user->email);
+        Session::put('device_name', $deviceName);
+        Session::put('device_fingerprint', json_encode($deviceFingerprint));
+
+        return redirect()->route('otp.verify.form');
     }
 
-    // 9. New/unrecognized device — Require OTP verification
-    Log::warning('MFA required - device not recognized', [
-        'user_id' => $user->user_id,
-        'ip' => $ip,
-        'reason' => $verification['reason'],
-        'threat_level' => $verification['threat_level'],
-    ]);
-
-    if (!$this->sendOtp($user->email)) {
-        return back()->withErrors(['message' => 'Failed to send OTP. Please try again.']);
-    }
-
-    // Store device info in session for OTP verification
-    Session::put('pending_user_id', $user->user_id);
-    Session::put('otp_email', $user->email);
-    Session::put('device_name', $deviceName);
-    Session::put('device_fingerprint', json_encode($deviceFingerprint));
-
-    return redirect()->route('otp.verify.form');
-    }
-
-    protected function completeLogin($user, Request $request): void
-    {
+    protected function completeLogin($user, Request $request): void{
         $request->session()->invalidate();
         $request->session()->regenerate();
 
