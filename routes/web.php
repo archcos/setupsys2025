@@ -67,7 +67,7 @@ Route::middleware(['log-suspicious'])->group(function () {
     Route::get('/contact', [PageController::class, 'contact'])->name('contact');
     Route::post('/contact', [PageController::class, 'sendContact'])
         ->name('contact.send');
-    Route::get('/about', [PageController::class, 'about'])->name('about');
+    Route::get('/about-us', [PageController::class, 'about'])->name('about');
     Route::get('/help', [PageController::class, 'help'])->name('help');
     Route::get('/announcements/view', [PageController::class, 'announcements'])->name('announcements.public');
 

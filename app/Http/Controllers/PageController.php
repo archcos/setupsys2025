@@ -320,7 +320,7 @@ private function generateEmailHTML($data)
 }
 
     public function about() {
-        return Inertia::render('About');
+        return Inertia::render('AboutUs');
     }
 
     public function help() {

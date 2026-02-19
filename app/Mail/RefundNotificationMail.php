@@ -138,14 +138,14 @@ class RefundNotificationMail extends Mailable
                                 📊 View your complete refund history
                             </p>
                             <p style='margin: 0; color: #666; font-size: 13px;'>
-                                Log in to the SETUPSYS Portal to view detailed refund records and payment schedules.
+                                Log in to the SIMS Portal to view detailed refund records and payment schedules.
                             </p>
                         </div>
 
                         <!-- Visit Site Button -->
                         <div style='text-align: center; margin: 30px 0;'>
                             <a href='http://192.168.0.7:8096/' style='display: inline-block; background: linear-gradient(135deg, {$colors['gradient']} 0%, {$colors['gradientEnd']} 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 4px; font-weight: 600; font-size: 15px; box-shadow: 0 2px 8px rgba(0,86,179,0.3);'>
-                                View in SETUPSYS Portal →
+                                View in SIMS Portal →
                             </a>
                         </div>
 
