@@ -57,7 +57,7 @@ export default function Footer() {
               </a>
             </div>
             <div>
-              <Link href="/about" className={`transition ${darkMode ? 'hover:text-slate-100' : 'hover:text-white'}`}>
+              <Link href="/about-us" className={`transition ${darkMode ? 'hover:text-slate-100' : 'hover:text-white'}`}>
                 About SETUP
               </Link>
             </div>
