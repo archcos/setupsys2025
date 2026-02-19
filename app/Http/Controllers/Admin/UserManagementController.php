@@ -104,7 +104,7 @@ public function update(Request $request, $id)
 
     $request->validate([
         'office_id' => 'required|exists:tbl_offices,office_id',
-        'role' => 'required|in:head,user,staff,rpmo',
+        'role' => 'required|in:rd,au,head,user,staff,rpmo',
         'status' => 'required|in:active,inactive',
         'password' => 'nullable|string|min:6',
         'admin_password' => 'required|string',

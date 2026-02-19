@@ -530,10 +530,10 @@ useEffect(() => {
                   onChange={e => setForm({ ...form, role: e.target.value })}
                   className="w-full px-3 md:px-4 py-2 md:py-3 text-sm border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 bg-gray-50"
                 >
-                  <option value="admin">Admin</option>
-                  <option value="rpmo">RPMO Staff</option>
+                  <option value="head">Admin</option>
                   <option value="rd">Regional Director</option>
-                  <option value="head">Head</option>
+                  <option value="rpmo">RPMO Staff</option>
+                  <option value="au">Accounting Staff</option>
                   <option value="staff">Staff</option>
                   <option value="user">User</option>
                 </select>
