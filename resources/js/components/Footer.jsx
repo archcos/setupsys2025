@@ -47,8 +47,6 @@ export default function Footer() {
             <div>
               <a
                 href="/contact"
-                target="_blank"
-                rel="noopener noreferrer"
                 className={`flex items-center gap-1 justify-center transition ${
                   darkMode ? 'hover:text-slate-100' : 'hover:text-white'
                 }`}
@@ -103,8 +101,6 @@ export default function Footer() {
           <div className="flex items-center gap-3 lg:gap-4 text-right">
             <a
               href="/contact"
-              target="_blank"
-              rel="noopener noreferrer"
               className={`flex items-center gap-1 transition ${darkMode ? 'hover:text-slate-100' : 'hover:text-white'}`}
             >
               <Mail className="w-4 h-4" /> Contact Us
