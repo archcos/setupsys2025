@@ -198,6 +198,7 @@ export default function Checklist({ implementation, approvedItems }) {
   useEffect(() => {
     if (page.errors.upload) alert(page.errors.upload);
     if (page.errors.delete) alert(page.errors.delete);
+    if (page.errors.tag_amount) alert(page.errors.tag_amount);
     if (page.success) alert(page.success);
   }, [page.errors, page.success]);
 

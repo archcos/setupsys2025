@@ -103,63 +103,69 @@ export default function ApprovedProjects({ projects, offices, filters, error: se
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleDownload = async () => {
-    if (!validateForm()) {
+const handleDownload = async () => {
+  if (!validateForm()) return;
+
+  setIsSubmitting(true);
+  setDownloadProgress('Generating document...');
+
+  try {
+    // Read fresh CSRF token from cookie (Laravel sets this automatically)
+    const xsrfToken = decodeURIComponent(
+      document.cookie
+        .split('; ')
+        .find(row => row.startsWith('XSRF-TOKEN='))
+        ?.split('=')[1] ?? ''
+    );
+
+    const generateResponse = await fetch(route('approvals.generate', { project_id: selected }), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-XSRF-TOKEN': xsrfToken,  // ← use X-XSRF-TOKEN with cookie value, not X-CSRF-TOKEN
+      },
+      body: JSON.stringify({
+        owner_lastname: formData.owner_lastname,
+        position: formData.position,
+      }),
+    });
+
+    if (!generateResponse.ok) {
+      const errorData = await generateResponse.json();
+      setErrors({ form: errorData.error || 'Failed to generate document' });
+      setIsSubmitting(false);
+      setDownloadProgress('');
       return;
     }
 
-    setIsSubmitting(true);
-    setDownloadProgress('Generating document...');
+    const data = await generateResponse.json();
 
-    try {
-      const generateResponse = await fetch(route('approvals.generate', { project_id: selected }), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
-        },
-        body: JSON.stringify({
-          owner_lastname: formData.owner_lastname,
-          position: formData.position,
-        }),
-      });
-
-      if (!generateResponse.ok) {
-        const errorData = await generateResponse.json();
-        setErrors({ form: errorData.error || 'Failed to generate document' });
-        setIsSubmitting(false);
-        setDownloadProgress('');
-        return;
-      }
-
-      const data = await generateResponse.json();
-      
-      if (!data.success || !data.downloadUrl) {
-        setErrors({ form: 'Invalid response from server' });
-        setIsSubmitting(false);
-        setDownloadProgress('');
-        return;
-      }
-
-      setDownloadProgress('Downloading file...');
-      
-      const link = document.createElement('a');
-      link.href = data.downloadUrl;
-      link.click();
-
-      setTimeout(() => {
-        setIsSubmitting(false);
-        setDownloadProgress('');
-        handleCloseModal();
-      }, 500);
-
-    } catch (error) {
-      console.error('Download error:', error);
-      setErrors({ form: 'An error occurred. Please try again.' });
+    if (!data.success || !data.downloadUrl) {
+      setErrors({ form: 'Invalid response from server' });
       setIsSubmitting(false);
       setDownloadProgress('');
+      return;
     }
-  };
+
+    setDownloadProgress('Downloading file...');
+
+    const link = document.createElement('a');
+    link.href = data.downloadUrl;
+    link.click();
+
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setDownloadProgress('');
+      handleCloseModal();
+    }, 500);
+
+  } catch (error) {
+    console.error('Download error:', error);
+    setErrors({ form: 'An error occurred. Please try again.' });
+    setIsSubmitting(false);
+    setDownloadProgress('');
+  }
+};
 
   const hasActiveFilters = search || officeFilter;
   const data = projects?.data || [];

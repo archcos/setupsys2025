@@ -64,10 +64,10 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
           isOpen={dropdowns.review}
           onToggle={() => toggleDropdown('review')}
           links={[
-            { label: 'Draft MOA', href: '/draft-moa', icon: <FileSignature size={16} /> },
-            { label: 'MOA List', href: '/moa', icon: <FileText size={16} /> },
             { label: 'Project Compliance', href: '/compliance', icon: <ClipboardCheck size={16} /> },
             { label: 'Approved Project', href: `/approved-projects`, icon: <Award size={16} /> },
+            { label: 'Draft MOA', href: '/draft-moa', icon: <FileSignature size={16} /> },
+            { label: 'MOA List', href: '/moa', icon: <FileText size={16} /> },
           ]}
           onClose={onClose}
         />
@@ -136,7 +136,6 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
             label: 'Check Announcements',
             href: '/announcements/view',
             icon: <Eye size={16} />,
-            target: '_blank',
           },
         ]}
         onClose={onClose}
