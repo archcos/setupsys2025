@@ -111,6 +111,7 @@ public function uploadApprovedFile(Request $request, $moa_id){
             $fileName = "MOA_{$projectTitle}_{$companyName}_{$timestamp}.{$extension}";
             
             $currentYear = now()->year;
+            $projectId = $moa->project_id;
             $oldFilePath = $moa->approved_file_path;
             
             // 1. Store file locally
@@ -120,7 +121,7 @@ public function uploadApprovedFile(Request $request, $moa_id){
                 'file_size' => $file->getSize(),
             ]);
 
-            $localFolderPath = "moa/{$currentYear}";
+            $localFolderPath = "{$currentYear}/{$projectId}/moa";
             $path = $file->storeAs($localFolderPath, $fileName, 'private');
             
             if (!$path) {
@@ -153,7 +154,7 @@ public function uploadApprovedFile(Request $request, $moa_id){
                 ]);
                 
                 $projectId = $moa->project_id;
-                $supabasePath = "backup/{$projectId}/{$fileName}";
+                $supabasePath = "backup/{$currentYear}/{$projectId}/{$fileName}";
                 
                 // Upload to Supabase
                 $supabaseUpload = new SupabaseUpload();

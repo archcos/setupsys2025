@@ -23,6 +23,7 @@ use PhpOffice\PhpWord\TemplateProcessor;
 use PhpOffice\PhpWord\Element\Table;
 use PhpOffice\PhpWord\SimpleType\Jc;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use App\Services\SupabaseUpload;
 
 class ReportController extends Controller
 {
@@ -679,24 +680,52 @@ $templateProcessor->setComplexBlock('nonequip_table', $nonequipTable);
         'size' => filesize($tempPdf)
     ]);
 
-    // Store in private storage
-    $storagePath = "reports/report_{$project->project_id}_{$report->report_id}_" . time() . ".pdf";
-    
-    $reportsDir = storage_path('app/private/reports');
+    // Store in private storage: {year}/{project_id}/reports/{filename}
+    $currentYear = now()->year;
+    $projectId = $project->project_id;
+    $storagePath = "{$currentYear}/{$projectId}/reports/{$pdfFilename}";
+
+    $reportsDir = storage_path("app/private/{$currentYear}/{$projectId}/reports");
     if (!is_dir($reportsDir)) {
         mkdir($reportsDir, 0777, true);
     }
-    
+
     $pdfContent = file_get_contents($tempPdf);
     $stored = Storage::disk('private')->put($storagePath, $pdfContent);
-    
+
     if (!$stored) {
         Log::error('Failed to store PDF');
         $this->cleanupTempDirectory($tempDir);
         throw new \Exception('Failed to store PDF in private storage');
     }
-    
-    Log::info('PDF stored successfully', ['storage_path' => $storagePath]);
+
+    Log::info('PDF stored locally', ['storage_path' => $storagePath]);
+
+    // Upload to Supabase Storage
+    try {
+        $supabasePath = "backup/{$currentYear}/{$projectId}/reports/{$pdfFilename}";
+
+        $supabaseUpload = new SupabaseUpload();
+        $uploaded = $supabaseUpload->upload($supabasePath, $pdfContent);
+
+        if ($uploaded) {
+            Log::info('✓ Report PDF successfully uploaded to Supabase', [
+                'report_id'      => $report_id,
+                'project_id'     => $projectId,
+                'supabase_path'  => $supabasePath,
+            ]);
+        } else {
+            Log::warning('Supabase upload failed for report PDF, continuing anyway', [
+                'report_id' => $report_id,
+            ]);
+        }
+    } catch (\Exception $e) {
+        Log::error('Supabase upload error for report PDF', [
+            'report_id' => $report_id,
+            'error'     => $e->getMessage(),
+        ]);
+        // Continue anyway - don't fail if backup fails
+    }
 
     $this->cleanupTempDirectory($tempDir);
 

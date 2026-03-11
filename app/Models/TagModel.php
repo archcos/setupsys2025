@@ -13,15 +13,20 @@ class TagModel extends Model
 
     protected $table = 'tbl_tags';
     protected $primaryKey = 'tag_id';
-    public $timestamps = true; // Your table doesn't have created_at/updated_at
+    public $timestamps = true; // Enables created_at/updated_at
 
     protected $fillable = [
         'implement_id',
         'tag_name',
         'tag_amount',
+        'created_at', // Add to fillable for mass assignment
     ];
 
-    
+    // Optional: Cast created_at as datetime for easier manipulation
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
 
     public function implement()
     {
