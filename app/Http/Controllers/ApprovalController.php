@@ -14,6 +14,7 @@ use App\Models\CompanyModel;
 use App\Models\OfficeModel;
 use App\Models\DirectorModel;
 use App\Models\ComplianceModel;
+use App\Services\SupabaseUpload;
 
 class ApprovalController extends Controller
 {
@@ -97,10 +98,8 @@ class ApprovalController extends Controller
             // Get offices for filter dropdown
             $offices = [];
             if ($user->role === 'rpmo') {
-                // RPMO can see all offices
                 $offices = OfficeModel::orderBy('office_name')->get();
             } elseif ($user->role === 'staff' && $user->office_id) {
-                // Staff only sees their own office
                 $offices = OfficeModel::where('office_id', $user->office_id)->get();
             }
 
@@ -128,7 +127,7 @@ class ApprovalController extends Controller
     }
 
     /**
-     * Generate approval document and return download URL
+     * Generate approval document, store locally, backup to Supabase, and return download URL
      */
     public function generateDocument(Request $request, $project_id)
     {
@@ -192,7 +191,7 @@ class ApprovalController extends Controller
             // Replace placeholders
             $template->setValues([
                 'CURRENT_DATE'      => $currentDate,
-                'OWNER_NAME' => $company->owner_name ? strtoupper($company->owner_name) : 'N/A',
+                'OWNER_NAME'        => $company->owner_name ? strtoupper($company->owner_name) : 'N/A',
                 'POSITION'          => $validated['position'],
                 'COMPANY_NAME'      => $company->company_name ?? 'N/A',
                 'COMPANY_LOCATION'  => $companyLocation,
@@ -202,7 +201,7 @@ class ApprovalController extends Controller
                 'OWNER_LASTNAME'    => $validated['owner_lastname'],
                 'PROJECT_TITLE'     => $project->project_title,
                 'PROJECT_COST'      => number_format($project->project_cost, 2),
-                'AMOUNT_WORDS' => ucwords($amountWords),
+                'AMOUNT_WORDS'      => ucwords($amountWords),
             ]);
 
             // Add e-signature image if placeholder exists in template
@@ -224,25 +223,77 @@ class ApprovalController extends Controller
 
             // Generate safe filename
             $safeProjectTitle = preg_replace('/[^A-Za-z0-9_\-]/', '_', $project->project_title);
-            $fileName = 'approval_' . $safeProjectTitle . '_' . time() . '.docx';
-            
-            // Save to storage/app/private/approval directory
-            $privatePath = 'private/approval/' . $fileName;
-            $fullPath = storage_path('app/' . $privatePath);
-            
-            // Ensure directory exists
+            $safeProjectTitle = substr($safeProjectTitle, 0, 50);
+            $timestamp = now()->format('Y-m-d_His');
+            $fileName = "approval_{$safeProjectTitle}_{$timestamp}.docx";
+
+            $currentYear = now()->year;
+            $localFolderPath = "{$currentYear}/{$project_id}/approval";
+
+            // 1. Store file locally
+            Log::info('Generating approval document', [
+                'project_id' => $project_id,
+                'file_name'  => $fileName,
+            ]);
+
+            $fullPath = storage_path("app/private/{$localFolderPath}/{$fileName}");
             $directory = dirname($fullPath);
+
             if (!file_exists($directory)) {
                 mkdir($directory, 0755, true);
             }
-            
-            // Save the document
+
             $template->saveAs($fullPath);
+
+            if (!file_exists($fullPath)) {
+                throw new \Exception('Failed to save approval document locally');
+            }
+
+            $storagePath = "{$localFolderPath}/{$fileName}";
+
+            Log::info('Approval document stored locally', [
+                'project_id'   => $project_id,
+                'storage_path' => $storagePath,
+            ]);
+
+            // 2. Upload to Supabase Storage
+            try {
+                $fileContent = file_get_contents($fullPath);
+
+                if ($fileContent === false) {
+                    throw new \Exception('Failed to read local file content');
+                }
+
+                $supabasePath = "backup/{$currentYear}/{$project_id}/approval/{$fileName}";
+
+                $supabaseUpload = new SupabaseUpload();
+                $uploaded = $supabaseUpload->upload($supabasePath, $fileContent);
+
+                if ($uploaded) {
+                    Log::info('✓ Approval document successfully uploaded to Supabase', [
+                        'project_id'    => $project_id,
+                        'supabase_path' => $supabasePath,
+                    ]);
+                } else {
+                    Log::warning('Supabase upload failed for approval document, continuing anyway', [
+                        'project_id' => $project_id,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Supabase upload error for approval document', [
+                    'project_id' => $project_id,
+                    'error'      => $e->getMessage(),
+                ]);
+                // Continue anyway - don't fail if backup fails
+            }
 
             // Return JSON with download URL
             return response()->json([
-                'success' => true,
-                'downloadUrl' => route('approvals.download', ['project_id' => $project_id, 'fileName' => $fileName]),
+                'success'     => true,
+                'downloadUrl' => route('approvals.download', [
+                    'project_id' => $project_id,
+                    'fileName'   => $fileName,
+                ]),
             ]);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -266,7 +317,9 @@ class ApprovalController extends Controller
     public function download($project_id, $fileName)
     {
         try {
-            $filePath = storage_path('app/private/approval/' . $fileName);
+            // Reconstruct path from year and project_id
+            $currentYear = now()->year;
+            $filePath = storage_path("app/private/{$currentYear}/{$project_id}/approval/{$fileName}");
 
             if (!file_exists($filePath)) {
                 Log::error('Downloaded file not found: ' . $filePath);
@@ -283,25 +336,19 @@ class ApprovalController extends Controller
         }
     }
 
-
     /**
      * Convert number to words
-     * 
-     * @param float|int $number
-     * @return string
      */
     private function convertNumberToWords($number)
     {
         try {
             if (!extension_loaded('intl')) {
-                // Fallback if intl extension is not available
                 return number_format($number, 2);
             }
             
             $formatter = new \NumberFormatter('en', \NumberFormatter::SPELLOUT);
             $words = $formatter->format(floor($number));
             
-            // Handle decimal part if exists
             $decimalPart = round(($number - floor($number)) * 100);
             if ($decimalPart > 0) {
                 $words .= ' and ' . $formatter->format($decimalPart) . ' centavos';
