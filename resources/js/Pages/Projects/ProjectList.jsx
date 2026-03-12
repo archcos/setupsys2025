@@ -87,44 +87,92 @@ export default function ProjectList({ projects }) {
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {projects.map((project, index) => {
-                  const isOpen = openDropdowns[project.project_id] || false;
+<tbody className="divide-y divide-gray-100">
+  {projects.flatMap((project, index) => {
+    const isOpen = openDropdowns[project.project_id] || false;
 
-                  return (
-                    <tr
-                      key={`main-${project.project_id}`}
-                      className={`hover:bg-blue-50/50 cursor-pointer transition-all duration-200 ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
-                      } ${isOpen ? 'bg-blue-50' : ''}`}
-                      onClick={() => toggleDropdown(project.project_id)}
-                    >
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900 text-sm">{project.project_title}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-gray-700 text-sm">{project.company?.company_name || 'N/A'}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-gray-700 text-sm">{formatPhase(project.release_initial, project.release_end)}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-gray-700 text-sm">{formatPhase(project.refund_initial, project.refund_end)}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="font-medium text-gray-900 text-sm">{formatCurrency(project.project_cost)}</span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        {isOpen ? (
-                          <ChevronUp className="w-5 h-5 text-blue-500 mx-auto transition-transform duration-200" />
-                        ) : (
-                          <ChevronDown className="w-5 h-5 text-gray-400 mx-auto transition-transform duration-200" />
-                        )}
-                      </td>
+    const rows = [
+      <tr
+        key={`main-${project.project_id}`}
+        className={`hover:bg-blue-50/50 cursor-pointer transition-all duration-200 ${
+          index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+        } ${isOpen ? 'bg-blue-50' : ''}`}
+        onClick={() => toggleDropdown(project.project_id)}
+      >
+        <td className="px-6 py-4">
+          <div className="font-medium text-gray-900 text-sm">{project.project_title}</div>
+        </td>
+        <td className="px-6 py-4">
+          <span className="text-gray-700 text-sm">{project.company?.company_name || 'N/A'}</span>
+        </td>
+        <td className="px-6 py-4">
+          <span className="text-gray-700 text-sm">{formatPhase(project.release_initial, project.release_end)}</span>
+        </td>
+        <td className="px-6 py-4">
+          <span className="text-gray-700 text-sm">{formatPhase(project.refund_initial, project.refund_end)}</span>
+        </td>
+        <td className="px-6 py-4">
+          <span className="font-medium text-gray-900 text-sm">{formatCurrency(project.project_cost)}</span>
+        </td>
+        <td className="px-6 py-4 text-center">
+          {isOpen ? (
+            <ChevronUp className="w-5 h-5 text-blue-500 mx-auto transition-transform duration-200" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-gray-400 mx-auto transition-transform duration-200" />
+          )}
+        </td>
+      </tr>
+    ];
+
+    if (isOpen) {
+      rows.push(
+        <tr key={`expanded-${project.project_id}`}>
+          <td colSpan={6} className="px-6 py-4 bg-blue-50/30 border-t border-blue-100">
+            <div className="flex items-center gap-2 mb-3">
+              <Package className="w-4 h-4 text-blue-600" />
+              <h4 className="font-semibold text-gray-900 text-sm">Project Items</h4>
+              {project.items?.length > 0 && (
+                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                  {project.items.length}
+                </span>
+              )}
+            </div>
+
+            {project.items?.length > 0 ? (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 uppercase border-b border-gray-200">
+                    <th className="pb-2 text-left font-semibold">Item Name</th>
+                    <th className="pb-2 text-left font-semibold">Specifications</th>
+                    <th className="pb-2 text-left font-semibold">Quantity</th>
+                    <th className="pb-2 text-left font-semibold">Cost</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {project.items.map((item) => (
+                    <tr key={item.item_id} className="hover:bg-blue-50/50">
+                      <td className="py-2 text-gray-900 font-medium">{item.item_name}</td>
+                      <td className="py-2 text-gray-600">{item.specifications}</td>
+                      <td className="py-2 text-gray-700">{item.quantity}</td>
+                      <td className="py-2 font-semibold text-green-600">{formatCurrency(item.item_cost)}</td>
                     </tr>
-                  );
-                })}
-              </tbody>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="text-center py-4">
+                <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">No items for this project</p>
+              </div>
+            )}
+          </td>
+        </tr>
+      );
+    }
+
+    return rows;
+  })}
+</tbody>
             </table>
           </div>
 

@@ -500,13 +500,18 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                                 <Edit3 className="w-4 h-4" />
                               </Link>
 
-                              <button
-                                onClick={() => handleDeleteClick(company)}
-                                className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
-                                title="Delete Company"
+                             <button
+                                onClick={() => !company.projects_count && handleDeleteClick(company)}
+                                className={`p-2 rounded-lg transition-all duration-200 ${
+                                  company.projects_count
+                                    ? 'text-gray-300 cursor-not-allowed'
+                                    : 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                                }`}
+                                title={company.projects_count ? 'Cannot delete: has associated projects' : 'Delete Company'}
+                                disabled={!!company.projects_count}
                               >
                                 <Trash2 className="w-4 h-4" />
-                              </button>
+                            </button>
                             </div>
                           </td>
                         </tr>
@@ -544,13 +549,18 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                           <Edit3 className="w-4 h-4" />
                         </Link>
 
-                        <button
-                          onClick={() => handleDeleteClick(company)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
-                          title="Delete Company"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                       <button
+                        onClick={() => !company.projects_count && handleDeleteClick(company)}
+                        className={`p-2 rounded-lg transition-all duration-200 ${
+                          company.projects_count
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'text-red-600 hover:bg-red-50'
+                        }`}
+                        title={company.projects_count ? 'Cannot delete: has associated projects' : 'Delete Company'}
+                        disabled={!!company.projects_count}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                       </div>
                     </div>
                   ))}
