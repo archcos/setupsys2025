@@ -19,13 +19,13 @@ class TagModel extends Model
         'implement_id',
         'tag_name',
         'tag_amount',
-        'created_at', // Add to fillable for mass assignment
+        'approved_at', 
     ];
 
-    // Optional: Cast created_at as datetime for easier manipulation
     protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'created_at'  => 'datetime',
+        'updated_at'  => 'datetime',
+        'approved_at' => 'datetime', 
     ];
 
     public function implement()

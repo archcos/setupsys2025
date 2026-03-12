@@ -352,8 +352,8 @@ private function sendLiquidationNotification(
 
         // Hardcoded CC emails
         $hardcodedCc = [
-            'example1@dost.gov.ph',
-            'example2@dost.gov.ph',
+            // 'example1@dost.gov.ph',
+            // 'example2@dost.gov.ph',
         ];
 
         $director             = $office->director ?? null;
@@ -379,9 +379,11 @@ private function sendLiquidationNotification(
         $subject = "{$officeName} SETUP Accepted Liquidation Report";
 
         if ($directorEmail) {
-            Mail::to($directorEmail)
+            $staffEmails = $officeStaffUsers->pluck('email')->filter()->toArray();
+            $allRecipients = array_merge([$directorEmail], $staffEmails);
+
+            Mail::to($allRecipients)
                 ->cc(array_filter($hardcodedCc))
-                ->bcc($officeStaffUsers->pluck('email')->filter()->toArray())
                 ->send(new LiquidationNotificationMail(
                     $projectTitle,
                     $companyName,
@@ -390,15 +392,14 @@ private function sendLiquidationNotification(
                     $fileName,
                     $subject,
                     $officeName,
-                    $uploaderName   // <-- new
+                    $uploaderName
                 ));
         } else {
             $staffEmails = $officeStaffUsers->pluck('email')->filter()->toArray();
+
             if (!empty($staffEmails)) {
-                $toEmail = array_shift($staffEmails);
-                Mail::to($toEmail)
+                Mail::to($staffEmails)
                     ->cc(array_filter($hardcodedCc))
-                    ->bcc($staffEmails)
                     ->send(new LiquidationNotificationMail(
                         $projectTitle,
                         $companyName,
@@ -407,8 +408,12 @@ private function sendLiquidationNotification(
                         $fileName,
                         $subject,
                         $officeName,
-                        $uploaderName   // <-- new
+                        $uploaderName
                     ));
+            } else {
+                Log::warning('No recipients found for liquidation notification', [
+                    'implement_id' => $implementation->implement_id,
+                ]);
             }
         }
 

@@ -45,7 +45,7 @@ class TagController extends Controller
             'implement_id' => 'required|exists:tbl_implements,implement_id',
             'tag_name'     => 'required|string|max:255',
             'tag_amount'   => 'required|numeric|min:0',
-            'created_at'   => 'nullable|date_format:Y-m-d H:i|before_or_equal:now', // Allow custom created_at
+            'approved_at'  => 'nullable|date_format:Y-m-d H:i|before_or_equal:now',
         ]);
 
         $remaining = $this->getRemainingAmount($validated['implement_id']);
@@ -56,19 +56,15 @@ class TagController extends Controller
             ])->withInput();
         }
 
-        // If no created_at provided, it will use current timestamp automatically
-        $tagData = [
-            'implement_id' => $validated['implement_id'],
-            'tag_name'     => $validated['tag_name'],
-            'tag_amount'   => $validated['tag_amount'],
-        ];
+        $tag = new TagModel();
+        $tag->implement_id = $validated['implement_id'];
+        $tag->tag_name     = $validated['tag_name'];
+        $tag->tag_amount   = $validated['tag_amount'];
+        $tag->approved_at  = !empty($validated['approved_at'])
+            ? Carbon::createFromFormat('Y-m-d H:i', $validated['approved_at'])
+            : now();
 
-        // Add created_at if provided
-        if ($validated['created_at']) {
-            $tagData['created_at'] = Carbon::createFromFormat('Y-m-d H:i', $validated['created_at']);
-        }
-
-        $tag = TagModel::create($tagData);
+        $tag->save();
         $this->updateProjectProgress($tag->implement_id);
 
         return back()->with('success', 'Tag added successfully.');
@@ -77,14 +73,13 @@ class TagController extends Controller
     public function update(Request $request, $tagId)
     {
         $validated = $request->validate([
-            'tag_name'   => 'required|string|max:255',
-            'tag_amount' => 'required|numeric|min:0',
-            'created_at' => 'nullable|date_format:Y-m-d H:i|before_or_equal:now', // Allow updating created_at
+            'tag_name'    => 'required|string|max:255',
+            'tag_amount'  => 'required|numeric|min:0',
+            'approved_at' => 'nullable|date_format:Y-m-d H:i|before_or_equal:now',
         ]);
 
         $tag = TagModel::findOrFail($tagId);
 
-        // Exclude current tag when calculating remaining
         $remaining = $this->getRemainingAmount($tag->implement_id, $tagId);
 
         if ($validated['tag_amount'] > $remaining) {
@@ -93,17 +88,13 @@ class TagController extends Controller
             ])->withInput();
         }
 
-        $updateData = [
-            'tag_name'   => $validated['tag_name'],
-            'tag_amount' => $validated['tag_amount'],
-        ];
+        $tag->tag_name    = $validated['tag_name'];
+        $tag->tag_amount  = $validated['tag_amount'];
+        $tag->approved_at = !empty($validated['approved_at'])
+            ? Carbon::createFromFormat('Y-m-d H:i', $validated['approved_at'])
+            : $tag->approved_at; // keep existing if not provided
 
-        // Update created_at if provided
-        if ($validated['created_at']) {
-            $updateData['created_at'] = Carbon::createFromFormat('Y-m-d H:i', $validated['created_at']);
-        }
-
-        $tag->update($updateData);
+        $tag->save();
         $this->updateProjectProgress($tag->implement_id);
 
         return back()->with('success', 'Tag updated successfully.');
