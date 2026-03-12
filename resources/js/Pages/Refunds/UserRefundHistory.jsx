@@ -1,4 +1,4 @@
-import { Building2, Calendar, CheckCircle2, XCircle, DollarSign, TrendingUp, Clock, FileText, RefreshCw, ChevronLeft } from 'lucide-react';
+import { Building2, Calendar, CheckCircle2, XCircle, TrendingUp, Clock, FileText, RefreshCw, ChevronLeft, PhilippinePeso } from 'lucide-react';
 import {Link } from "@inertiajs/react";
 export default function ProjectRefundDetailsView({ project, months, summary }) {
 
@@ -81,7 +81,7 @@ export default function ProjectRefundDetailsView({ project, months, summary }) {
             <div className="bg-white rounded-lg p-2 md:p-4 border border-gray-200 shadow-sm">
               <div className="flex flex-col gap-2">
                 <div className="p-2 bg-blue-100 rounded-lg w-fit">
-                  <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                  <PhilippinePeso className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                 </div>
                 <div>
                   <div className="text-xs text-gray-500 uppercase font-semibold">Total Project Cost</div>

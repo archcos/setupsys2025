@@ -17,7 +17,7 @@ public function index(Request $request)
 {
     $user = Auth::user();
 
-    $query = CompanyModel::with(['office', 'addedByUser']);
+    $query = CompanyModel::with(['office', 'addedByUser'])->withCount('projects');
 
     // Get all users sorted alphabetically
     $allUsers = UserModel::select('user_id', 'first_name', 'last_name')
@@ -142,6 +142,14 @@ public function store(Request $request)
     $user = Auth::user();
     $validated['added_by']  = $user->user_id;
     $validated['office_id'] = $user->office_id;
+
+    if ($user->role === 'user') {
+        $count = CompanyModel::where('added_by', $user->user_id)->count();
+        if ($count >= 5) {
+            return back()->with('error', 'You have reached the maximum limit of 5 proponents.');
+        }
+    }
+
 
     CompanyModel::create($validated);
 
@@ -302,7 +310,12 @@ public function update(Request $request, $id)
 
 public function destroy($id)
 {
-    $company = CompanyModel::findOrFail($id);
+    $company = CompanyModel::withCount('projects')->findOrFail($id);
+
+    if ($company->projects_count > 0) {
+        return back()->with('error', 'Cannot delete this proponent because it has associated projects.');
+    }
+
     $company->delete();
 
     return redirect()->route('proponents.index')->with('success', 'Company deleted successfully.');
