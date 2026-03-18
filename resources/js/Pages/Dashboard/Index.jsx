@@ -46,8 +46,8 @@ export default function Dashboard() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Welcome back!</h1>
-          <p className="text-gray-600 mt-1">Here's what's happening with your projects</p>
+          <h1 className="text-3xl font-bold">Welcome back!</h1>
+          <p className="mt-1">Here's what's happening with your projects</p>
         </div>
         <div className="flex items-center gap-3">
           <Calendar className="w-5 h-5 text-blue-800" />

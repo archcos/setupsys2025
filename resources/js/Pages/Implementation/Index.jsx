@@ -1,21 +1,18 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, router, Head } from '@inertiajs/react';
-import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, FolderOpen, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Hammer } from 'lucide-react';
+import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, ChevronRight, ArrowUpDown, Hammer, List } from 'lucide-react';
 
 export default function ImplementationIndex({ implementations, filters, offices, userRole }) {
   const [search, setSearch] = useState(filters?.search || '');
   const [perPage, setPerPage] = useState(filters?.perPage || 10);
-  const [statusFilter, setStatusFilter] = useState(filters?.statusFilter || null);
+  const [statusFilter, setStatusFilter] = useState(filters?.statusFilter || 'pending');
   const [officeFilter, setOfficeFilter] = useState(filters?.officeFilter || '');
   const [sortDirection, setSortDirection] = useState(filters?.direction || 'desc');
   const [isSorted, setIsSorted] = useState(!!filters?.direction);
   const debounceTimer = useRef(null);
 
-  // Debounce search and filters - use useCallback to prevent unnecessary recreations
   useEffect(() => {
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
     debounceTimer.current = setTimeout(() => {
       router.get(
@@ -25,19 +22,11 @@ export default function ImplementationIndex({ implementations, filters, offices,
       );
     }, 400);
 
-    return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    };
+    return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
   }, [search, statusFilter, officeFilter, perPage, sortDirection]);
 
   const handlePageChange = useCallback((url) => {
-    if (url) {
-      router.visit(url, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-      });
-    }
+    if (url) router.visit(url, { preserveState: true, preserveScroll: true, replace: true });
   }, []);
 
   const handleStatClick = useCallback((status) => {
@@ -49,61 +38,77 @@ export default function ImplementationIndex({ implementations, filters, offices,
     setIsSorted(true);
   }, []);
 
-  const getCompletionStatus = useCallback((impl) => {
-    if (impl.liquidation) {
-      return { status: 'complete', label: 'Complete', icon: CheckCircle };
-    } else {
-      return { status: 'pending', label: 'Pending', icon: AlertTriangle };
-    }
-  }, []);
-
-  const getStatusBadge = useCallback((impl) => {
-    const status = getCompletionStatus(impl);
-    const StatusIcon = status.icon;
-    
-    return (
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-        status.status === 'complete' 
-          ? 'bg-green-100 text-green-800'
-          : status.status === 'in-progress'
-          ? 'bg-blue-100 text-blue-800'
-          : 'bg-amber-100 text-amber-800'
-      }`}>
-        <StatusIcon className="w-3 h-3" />
-        {status.label}
-      </span>
-    );
-  }, [getCompletionStatus]);
-
   const getUntaggingStatus = useCallback((impl) => {
     const totalTags = impl.tags?.reduce((sum, tag) => sum + parseFloat(tag.tag_amount || 0), 0) || 0;
     const projectCost = parseFloat(impl.project?.project_cost || 0);
     const firstUntaggedThreshold = projectCost * 0.5;
-    
-    const firstUntagged = totalTags >= firstUntaggedThreshold;
-    const finalUntagged = totalTags >= projectCost;
-    
-    return { firstUntagged, finalUntagged, totalTags, projectCost };
+    return {
+      firstUntagged: totalTags >= firstUntaggedThreshold,
+      finalUntagged: totalTags >= projectCost,
+      totalTags,
+      projectCost,
+    };
   }, []);
 
-  const getStats = useCallback(() => {
-      // Use the counts from backend that were calculated before pagination
-      const total = implementations.total || 0;
-      const complete = implementations.complete_count || 0;
-      const pending = implementations.pending_count || 0;
-      
-      return { total, complete, pending };
-  }, [implementations.total, implementations.complete_count, implementations.pending_count]);
+  const getStatusBadge = useCallback((impl) => {
+    const isComplete = !!impl.liquidation;
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+        isComplete ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+      }`}>
+        {isComplete
+          ? <CheckCircle className="w-3 h-3" />
+          : <AlertTriangle className="w-3 h-3" />
+        }
+        {isComplete ? 'Complete' : 'Pending'}
+      </span>
+    );
+  }, []);
 
+  const total   = implementations.total || 0;
+  const complete = implementations.complete_count || 0;
+  const pending  = implementations.pending_count || 0;
 
-  const stats = getStats();
+  // Stat card config — pending first, then complete, then total
+  const statCards = [
+    {
+      key: 'pending',
+      label: 'Pending',
+      count: pending,
+      activeColor: 'border-amber-500 ring-2 ring-amber-200',
+      hoverColor: 'hover:border-amber-300',
+      textColor: 'text-amber-600',
+      activeIndicator: 'text-amber-600',
+      icon: <AlertTriangle className={`w-4 h-4 ${statusFilter === 'pending' ? 'text-amber-600' : 'text-gray-400'}`} />,
+    },
+    {
+      key: 'complete',
+      label: 'Complete',
+      count: complete,
+      activeColor: 'border-green-500 ring-2 ring-green-200',
+      hoverColor: 'hover:border-green-300',
+      textColor: 'text-green-600',
+      activeIndicator: 'text-green-600',
+      icon: <CheckCircle className={`w-4 h-4 ${statusFilter === 'complete' ? 'text-green-600' : 'text-gray-400'}`} />,
+    },
+    {
+      key: null,
+      label: 'Total',
+      count: total,
+      activeColor: 'border-blue-500 ring-2 ring-blue-200',
+      hoverColor: 'hover:border-blue-300',
+      textColor: 'text-blue-600',
+      activeIndicator: 'text-blue-600',
+      icon: <List className={`w-4 h-4 ${statusFilter === null ? 'text-blue-600' : 'text-gray-400'}`} />,
+    },
+  ];
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
       <Head title="Implementation Checklist" />
       <div className="max-w-7xl mx-auto">
-        {/* Main Content Card */}
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
+
           {/* Card Header */}
           <div className="bg-gradient-to-r from-gray-50 to-white p-3 md:p-6 border-b border-gray-200">
             <div className="flex items-center gap-2 md:gap-3">
@@ -117,49 +122,71 @@ export default function ImplementationIndex({ implementations, filters, offices,
             </div>
           </div>
 
-          {/* Stats Summary */}
-          <div className="p-3 md:p-6 bg-gradient-to-r from-green-50/30 to-blue-50/30 border-b border-gray-100">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
+          {/* Stats Cards — Desktop */}
+          <div className="hidden md:grid md:grid-cols-3 gap-3 p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
+            {statCards.map((card) => (
               <button
-                onClick={() => handleStatClick(null)}
-                className={`text-center p-3 md:p-4 rounded-lg transition-all duration-200 ${
-                  statusFilter === null
-                    ? 'bg-gray-100 ring-2 ring-offset-2 ring-gray-500 shadow-md'
-                    : 'hover:shadow-md hover:bg-gray-50 cursor-pointer'
+                key={String(card.key)}
+                onClick={() => setStatusFilter(card.key)}
+                className={`bg-white rounded-lg shadow-sm border-2 p-3 text-left transition-all hover:shadow-md ${
+                  statusFilter === card.key
+                    ? card.activeColor
+                    : `border-gray-100 ${card.hoverColor}`
                 }`}
               >
-                <div className="text-xl md:text-2xl font-bold text-gray-900">{stats.total}</div>
-                <div className="text-xs md:text-sm text-gray-600">Total Projects</div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-gray-600">{card.label}</p>
+                  {card.icon}
+                </div>
+                <p className={`text-2xl font-bold ${card.textColor}`}>{card.count}</p>
+                {statusFilter === card.key && (
+                  <p className={`text-xs mt-2 font-medium ${card.activeIndicator}`}>● Active</p>
+                )}
               </button>
+            ))}
+          </div>
+
+          {/* Stats Cards — Mobile */}
+          <div className="md:hidden grid grid-cols-3 gap-2 p-3 bg-gray-50 border-b border-gray-100">
+            {statCards.map((card) => (
               <button
-                onClick={() => handleStatClick('complete')}
-                className={`text-center p-3 md:p-4 rounded-lg transition-all duration-200 ${
-                  statusFilter === 'complete'
-                    ? 'bg-green-100 ring-2 ring-offset-2 ring-green-500 shadow-md'
-                    : 'hover:shadow-md hover:bg-green-50 cursor-pointer'
+                key={String(card.key)}
+                onClick={() => setStatusFilter(card.key)}
+                className={`rounded-lg border-2 p-2 text-xs transition-all ${
+                  statusFilter === card.key
+                    ? `${card.activeColor} bg-opacity-10`
+                    : 'border-gray-100 bg-white'
                 }`}
               >
-                <div className="text-xl md:text-2xl font-bold text-green-600">{stats.complete}</div>
-                <div className="text-xs md:text-sm text-gray-600">Complete</div>
+                <p className="text-gray-600 font-medium">{card.label}</p>
+                <p className={`text-lg font-bold mt-1 ${statusFilter === card.key ? card.textColor : 'text-gray-900'}`}>
+                  {card.count}
+                </p>
               </button>
+            ))}
+          </div>
+
+          {/* Filter Info Bar */}
+          <div className="px-3 md:px-6 py-2 md:py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs md:text-sm text-gray-600">
+              Showing <span className="font-semibold text-gray-900">{implementations.total ?? implementations.data?.length}</span> result{(implementations.total ?? implementations.data?.length) !== 1 ? 's' : ''}
+              {statusFilter && (
+                <span className="ml-1">({statusFilter})</span>
+              )}
+            </p>
+            {statusFilter !== null && (
               <button
-                onClick={() => handleStatClick('pending')}
-                className={`text-center p-3 md:p-4 rounded-lg transition-all duration-200 ${
-                  statusFilter === 'pending'
-                    ? 'bg-amber-100 ring-2 ring-offset-2 ring-amber-500 shadow-md'
-                    : 'hover:shadow-md hover:bg-amber-50 cursor-pointer'
-                }`}
+                onClick={() => setStatusFilter(null)}
+                className="text-xs md:text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
-                <div className="text-xl md:text-2xl font-bold text-amber-600">{stats.pending}</div>
-                <div className="text-xs md:text-sm text-gray-600">Pending</div>
+                Clear
               </button>
-            </div>
+            )}
           </div>
 
           {/* Filters Section */}
           <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
             <div className="flex flex-col gap-2 md:gap-4">
-              {/* Search Bar */}
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
@@ -170,19 +197,14 @@ export default function ImplementationIndex({ implementations, filters, offices,
                   className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                 />
                 {search && (
-                  <button
-                    onClick={() => setSearch('')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
+                  <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
 
-              {/* Filter Row */}
               <div className="flex flex-col md:flex-row gap-2 md:gap-3">
-                {/* Office Filter - only show for RPMO */}
-                {userRole === 'rpmo' || userRole === 'RPMO' ? (
+                {(userRole === 'rpmo' || userRole === 'RPMO') && (
                   <select
                     value={officeFilter}
                     onChange={(e) => setOfficeFilter(e.target.value)}
@@ -190,14 +212,11 @@ export default function ImplementationIndex({ implementations, filters, offices,
                   >
                     <option value="">All Offices</option>
                     {offices?.map((office) => (
-                      <option key={office.office_id} value={office.office_id}>
-                        {office.office_name}
-                      </option>
+                      <option key={office.office_id} value={office.office_id}>{office.office_name}</option>
                     ))}
                   </select>
-                ) : null}
+                )}
 
-                {/* Per Page Selector */}
                 <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
                   <select
                     value={perPage}
@@ -214,8 +233,8 @@ export default function ImplementationIndex({ implementations, filters, offices,
             </div>
           </div>
 
-          {/* Content Section */}
-          {implementations.data.length === 0 ? (
+          {/* Content */}
+          {implementations.data?.length === 0 ? (
             <div className="text-center py-8 md:py-12 px-4">
               <div className="flex flex-col items-center gap-3 md:gap-4">
                 <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-100 rounded-full flex items-center justify-center">
@@ -224,15 +243,16 @@ export default function ImplementationIndex({ implementations, filters, offices,
                 <div>
                   <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">No implementations found</h3>
                   <p className="text-xs md:text-sm text-gray-500">
-                    {search ? `No implementations match your search "${search}"` : statusFilter ? `No ${statusFilter} implementations found` : 'No implementation checklists have been created yet'}
+                    {search
+                      ? `No implementations match "${search}"`
+                      : statusFilter
+                      ? `No ${statusFilter} implementations found`
+                      : 'No implementation checklists have been created yet'}
                   </p>
                 </div>
                 {(search || statusFilter) && (
                   <button
-                    onClick={() => {
-                      setSearch('');
-                      setStatusFilter(null);
-                    }}
+                    onClick={() => { setSearch(''); setStatusFilter('pending'); }}
                     className="px-3 md:px-4 py-1.5 md:py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
                   >
                     Clear Filters
@@ -242,34 +262,30 @@ export default function ImplementationIndex({ implementations, filters, offices,
             </div>
           ) : (
             <>
-              {/* Desktop Table View */}
+              {/* Desktop Table */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <button
-                          onClick={handleSortToggle}
-                          className="flex items-center gap-1 transition-colors"
-                        >
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button onClick={handleSortToggle} className="flex items-center gap-1 transition-colors">
                           <span className={isSorted ? 'text-green-600 font-semibold' : 'text-gray-500'}>PROJECT CODE</span>
-                          <ArrowUpDown className={`w-3 h-3 transition-colors ${isSorted ? 'text-green-600' : 'text-gray-500'}`} />
+                          <ArrowUpDown className={`w-3 h-3 ${isSorted ? 'text-green-600' : 'text-gray-500'}`} />
                         </button>
                       </th>
-                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Project & Company</th>
-                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Signboard</th>
-                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PDC</th>
-                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">First Tag</th>
-                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Final Tag</th>
-                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Liquidation</th>
-                      <th className="px-2 md:px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Project & Company</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Signboard</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PDC</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">First Tag</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Final Tag</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Liquidation</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {implementations.data.map((impl) => {
                       const untaggingStatus = getUntaggingStatus(impl);
-                      
                       return (
                         <tr key={impl.implement_id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-gray-600">
@@ -288,48 +304,26 @@ export default function ImplementationIndex({ implementations, filters, offices,
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 md:px-6 py-3 md:py-4">
-                            {getStatusBadge(impl)}
+                          <td className="px-4 md:px-6 py-3 md:py-4">{getStatusBadge(impl)}</td>
+                          <td className="px-4 md:px-6 py-3 md:py-4 text-center">
+                            {impl.tarp ? <CheckCircle className="w-5 h-5 text-green-600 mx-auto" /> : <Clock className="w-5 h-5 text-gray-300 mx-auto" />}
                           </td>
                           <td className="px-4 md:px-6 py-3 md:py-4 text-center">
-                            {impl.tarp ? (
-                              <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-600 mx-auto" />
-                            ) : (
-                              <Clock className="w-4 h-4 md:w-5 md:h-5 text-gray-300 mx-auto" />
-                            )}
+                            {impl.pdc ? <CheckCircle className="w-5 h-5 text-green-600 mx-auto" /> : <Clock className="w-5 h-5 text-gray-300 mx-auto" />}
                           </td>
                           <td className="px-4 md:px-6 py-3 md:py-4 text-center">
-                            {impl.pdc ? (
-                              <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-600 mx-auto" />
-                            ) : (
-                              <Clock className="w-4 h-4 md:w-5 md:h-5 text-gray-300 mx-auto" />
-                            )}
+                            {untaggingStatus.firstUntagged ? <CheckCircle className="w-5 h-5 text-green-600 mx-auto" /> : <Clock className="w-5 h-5 text-gray-300 mx-auto" />}
                           </td>
                           <td className="px-4 md:px-6 py-3 md:py-4 text-center">
-                            {untaggingStatus.firstUntagged ? (
-                              <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-600 mx-auto" />
-                            ) : (
-                              <Clock className="w-4 h-4 md:w-5 md:h-5 text-gray-300 mx-auto" />
-                            )}
+                            {untaggingStatus.finalUntagged ? <CheckCircle className="w-5 h-5 text-green-600 mx-auto" /> : <Clock className="w-5 h-5 text-gray-300 mx-auto" />}
                           </td>
                           <td className="px-4 md:px-6 py-3 md:py-4 text-center">
-                            {untaggingStatus.finalUntagged ? (
-                              <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-600 mx-auto" />
-                            ) : (
-                              <Clock className="w-4 h-4 md:w-5 md:h-5 text-gray-300 mx-auto" />
-                            )}
-                          </td>
-                          <td className="px-4 md:px-6 py-3 md:py-4 text-center">
-                            {impl.liquidation ? (
-                              <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-600 mx-auto" />
-                            ) : (
-                              <Clock className="w-4 h-4 md:w-5 md:h-5 text-gray-300 mx-auto" />
-                            )}
+                            {impl.liquidation ? <CheckCircle className="w-5 h-5 text-green-600 mx-auto" /> : <Clock className="w-5 h-5 text-gray-300 mx-auto" />}
                           </td>
                           <td className="px-4 md:px-6 py-3 md:py-4 text-center">
                             <Link
                               href={`/implementation/checklist/${impl.implement_id}`}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-green-600 text-white text-xs font-medium rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow group"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-green-600 text-white text-xs font-medium rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </Link>
@@ -341,11 +335,10 @@ export default function ImplementationIndex({ implementations, filters, offices,
                 </table>
               </div>
 
-              {/* Mobile Card View */}
+              {/* Mobile Cards */}
               <div className="md:hidden divide-y divide-gray-100">
                 {implementations.data.map((impl) => {
                   const untaggingStatus = getUntaggingStatus(impl);
-                  
                   return (
                     <div key={impl.implement_id} className="p-3 space-y-3">
                       <div className="flex items-start gap-2">
@@ -360,51 +353,24 @@ export default function ImplementationIndex({ implementations, filters, offices,
                         </div>
                       </div>
 
-                      <div>
-                        {getStatusBadge(impl)}
-                      </div>
+                      <div>{getStatusBadge(impl)}</div>
 
                       <div className="bg-gray-50 rounded-lg p-2.5 space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-600">Signboard</span>
-                          {impl.tarp ? (
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <Clock className="w-4 h-4 text-gray-300" />
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-600">PDC</span>
-                          {impl.pdc ? (
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <Clock className="w-4 h-4 text-gray-300" />
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-600">First Untagging</span>
-                          {untaggingStatus.firstUntagged ? (
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <Clock className="w-4 h-4 text-gray-300" />
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-600">Final Untagging</span>
-                          {untaggingStatus.finalUntagged ? (
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <Clock className="w-4 h-4 text-gray-300" />
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-600">Liquidation</span>
-                          {impl.liquidation ? (
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <Clock className="w-4 h-4 text-gray-300" />
-                          )}
-                        </div>
+                        {[
+                          { label: 'Signboard', value: impl.tarp },
+                          { label: 'PDC', value: impl.pdc },
+                          { label: 'First Untagging', value: untaggingStatus.firstUntagged },
+                          { label: 'Final Untagging', value: untaggingStatus.finalUntagged },
+                          { label: 'Liquidation', value: impl.liquidation },
+                        ].map(({ label, value }) => (
+                          <div key={label} className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600">{label}</span>
+                            {value
+                              ? <CheckCircle className="w-4 h-4 text-green-600" />
+                              : <Clock className="w-4 h-4 text-gray-300" />
+                            }
+                          </div>
+                        ))}
                       </div>
 
                       <Link
@@ -442,13 +408,14 @@ export default function ImplementationIndex({ implementations, filters, offices,
                           : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                       }`}
                     >
-                      {link.label === "&laquo; Previous" ? "←" : link.label === "Next &raquo;" ? "→" : link.label}
+                      {link.label === '&laquo; Previous' ? '←' : link.label === 'Next &raquo;' ? '→' : link.label}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
           )}
+
         </div>
       </div>
     </main>

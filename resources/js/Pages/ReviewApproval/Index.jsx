@@ -7,7 +7,7 @@ export default function Index({ projects, filters, years }) {
   const [year, setYear] = useState(filters?.year || '');
   const [sortBy, setSortBy] = useState(filters?.sortBy || 'project_title');
   const [sortOrder, setSortOrder] = useState(filters?.sortOrder || 'asc');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('pending');
 
   const { flash } = usePage().props;
 

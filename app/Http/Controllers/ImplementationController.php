@@ -81,6 +81,14 @@ class ImplementationController extends Controller
         $totalCount    = (clone $baseQuery)->count();
 
         $implementations = $baseQuery->paginate($perPage);
+        if ($statusFilter === 'complete') {
+            $baseQuery->whereNotNull('liquidation');
+        } elseif ($statusFilter === 'pending') {
+            $baseQuery->whereNull('liquidation');
+        }
+
+        $implementations = $baseQuery->paginate($perPage);
+
 
         $implementations->getCollection()->transform(function ($implementation) {
             $projectCost = floatval($implementation->project->project_cost ?? 0);
@@ -100,18 +108,18 @@ class ImplementationController extends Controller
             return $implementation;
         });
 
-        if ($statusFilter) {
-            $filtered = $implementations->getCollection()->filter(function ($implementation) use ($statusFilter) {
-                if ($statusFilter === 'complete') {
-                    return !!$implementation->liquidation;
-                } elseif ($statusFilter === 'pending') {
-                    return !$implementation->liquidation;
-                }
-                return true;
-            });
+        // if ($statusFilter) {
+        //     $filtered = $implementations->getCollection()->filter(function ($implementation) use ($statusFilter) {
+        //         if ($statusFilter === 'complete') {
+        //             return !!$implementation->liquidation;
+        //         } elseif ($statusFilter === 'pending') {
+        //             return !$implementation->liquidation;
+        //         }
+        //         return true;
+        //     });
 
-            $implementations->setCollection($filtered);
-        }
+        //     $implementations->setCollection($filtered);
+        // }
 
         $offices = [];
         if ($canViewAll) {

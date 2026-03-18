@@ -28,7 +28,7 @@ export default function Index({ announcements, userRole }) {
             <div className="max-w-5xl mx-auto p-3 md:p-6">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4 mb-4 md:mb-8">
-                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                    <h1 className="text-2xl md:text-3xl font-bold">
                         Announcements
                     </h1>
 

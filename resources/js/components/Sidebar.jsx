@@ -8,10 +8,12 @@ import SidebarMenuItems from "./SidebarMenuItems";
 import { useTheme } from "../contexts/ThemeContext";
 
 export default function Sidebar({ isOpen, onClose }) {
+  const { auth } = usePage().props;
+  const role = auth?.user?.role;
   const { darkMode } = useTheme();
   const [dropdowns, setDropdowns] = useState({
     development: false,
-    implementation: false,
+    implementation: role === 'rd' ? true : false, 
     reports: false,
     user: true,
     transaction: true,
@@ -27,8 +29,6 @@ export default function Sidebar({ isOpen, onClose }) {
     }));
   };
 
-  const { auth } = usePage().props;
-  const role = auth?.user?.role;
 
   const getHomePage = () => {
     if (role === 'user') return '/dashboard';

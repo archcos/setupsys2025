@@ -149,10 +149,10 @@ export default function Create({ project, objects, equipments, nonequipments, re
               <FileText className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl md:text-3xl font-bold text-gray-900 line-clamp-2">
+              <h1 className="text-xl md:text-xl font-bold line-clamp-2">
                 {project.project_title}
               </h1>
-              <p className="text-xs md:text-base text-gray-600 mt-1">
+              <p className="text-xs md:text-base mt-1">
                 Complete the project report details
               </p>
             </div>
@@ -565,7 +565,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
                   <div className="col-span-2 md:col-span-1 flex flex-col">
                     <label className="text-xs font-medium text-gray-600 mb-1">Product Name</label>
                     <input
-                      className="px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                      className="px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-black"
                       value={product.product_name || ""}
                       onChange={(e) => updateProduct(index, "product_name", e.target.value)}
                       required={index === 0}

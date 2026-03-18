@@ -8,10 +8,10 @@ export default function HeaderSection({ isStaff, userOfficeName, selectedYear, a
           <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-white" />
         </div>
         <div className="min-w-0">
-          <h1 className="text-lg md:text-2xl font-bold text-gray-900 truncate">
+          <h1 className="text-lg md:text-2xl font-bold truncate">
             {isStaff ? `${userOfficeName}` : 'Dashboard'}
           </h1>
-          <p className="text-xs md:text-sm text-gray-600 truncate">
+          <p className="text-xs md:text-sm truncate">
             {isStaff ? 'Project overview' : 'Overview & performance'}
           </p>
         </div>

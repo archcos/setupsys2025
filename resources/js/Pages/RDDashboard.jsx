@@ -16,7 +16,7 @@ import {
 export default function RDDashboardIndex({ projects, stats }) {
   const { flash } = usePage().props;
   const [expandedProject, setExpandedProject] = useState(null);
-  const [activeFilter, setActiveFilter] = useState('total');
+  const [activeFilter, setActiveFilter] = useState('pending');
   const [showDisapprovalModal, setShowDisapprovalModal] = useState(false);
   const [showApprovalConfirmModal, setShowApprovalConfirmModal] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
@@ -149,8 +149,8 @@ export default function RDDashboardIndex({ projects, stats }) {
 
         {/* Header */}
         <div className="mb-6 md:mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Regional Director's Dashboard</h1>
-          <p className="text-sm md:text-base text-gray-600 mt-2">Review and approve completed project compliance</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Regional Director's Dashboard</h1>
+          <p className="text-sm md:text-base mt-2">Review and approve completed project compliance</p>
         </div>
 
         {/* Stats Cards with Filters */}
@@ -244,7 +244,7 @@ export default function RDDashboardIndex({ projects, stats }) {
           </p>
           {activeFilter !== 'total' && (
             <button
-              onClick={() => setActiveFilter('total')}
+              onClick={() => setActiveFilter('pending')}
               className="text-xs md:text-sm text-blue-600 hover:text-blue-700 font-medium text-left"
             >
               Clear Filter

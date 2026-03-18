@@ -18,7 +18,7 @@ export default function ProfileDropdown({ dropdownOpen, onToggle, fullName, prof
         className="flex items-center space-x-2 focus:outline-none hover:bg-gray-200 rounded px-2 py-1 transition"
       >
         <img src={profile} alt="Profile" className="w-7 h-7 md:w-8 md:h-8 rounded-full" />
-        <span className="hidden sm:inline font-medium text-gray-700 text-sm md:text-base truncate max-w-xs">
+        <span className="hidden sm:inline font-medium text-gray-500 text-sm md:text-base truncate max-w-xs">
           {fullName}
         </span>
       </button>
