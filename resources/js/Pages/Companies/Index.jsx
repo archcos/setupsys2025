@@ -47,6 +47,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
         page: 1
       }, { 
         preserveScroll: true, 
+        preserveState: true,
         replace: true 
       });
     }, 400);
@@ -221,7 +222,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                       placeholder="Search proponents..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                      className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                     />
                     {search && (
                       <button
