@@ -19,47 +19,41 @@ class ComplianceController extends Controller
 {
     public function index(Request $request)
     {
-        $search = $request->input('search', '');
-        $year = $request->input('year', '');
-        $sortBy = $request->input('sortBy', 'project_id');
-        $sortOrder = $request->input('sortOrder', 'desc');
+        $search      = $request->input('search', '');
+        $year        = $request->input('year', '');
+        $sortBy      = $request->input('sortBy', 'project_id');
+        $sortOrder   = $request->input('sortOrder', 'desc');
+        $statusFilter = $request->input('statusFilter', 'pending');
+        $perPage     = $request->input('perPage', 10);
 
         // Valid sort columns
-        $validSortColumns = ['project_id','project_title', 'company_id', 'year_obligated', 'created_at', 'progress'];
+        $validSortColumns = ['project_id', 'project_title', 'company_id', 'year_obligated', 'created_at', 'progress'];
         if (!in_array($sortBy, $validSortColumns)) {
             $sortBy = 'project_id';
         }
 
         $sortOrder = strtoupper($sortOrder) === 'DESC' ? 'desc' : 'asc';
 
-        // Build query
-        $query = ProjectModel::with(['compliance', 'company'])
-            ->select(
-                'project_id',
-                'project_title',
-                'company_id',
-                'year_obligated',
-                'progress',
-                'created_at'
-            );
-
-        // Filter by office based on user role
         $user = Auth::user();
+
+        // ── Base query ────────────────────────────────────────────────────────
+        $baseQuery = ProjectModel::with(['compliance', 'company'])
+            ->select('project_id', 'project_title', 'company_id', 'year_obligated', 'progress', 'created_at');
+
+        // Role-based scope
         if ($user) {
             if ($user->role === 'staff' && $user->office_id) {
-                $query->whereHas('company', function ($q) use ($user) {
+                $baseQuery->whereHas('company', function ($q) use ($user) {
                     $q->where('office_id', $user->office_id);
                 });
             } elseif ($user->role !== 'rpmo') {
-                // Non-RPMO and non-staff roles see nothing
-                $query->whereRaw('1 = 0');
+                $baseQuery->whereRaw('1 = 0');
             }
-            // RPMO role sees all (no filter applied)
         }
 
-        // Apply search filter
+        // Search
         if ($search) {
-            $query->where(function ($q) use ($search) {
+            $baseQuery->where(function ($q) use ($search) {
                 $q->where('project_title', 'like', "%{$search}%")
                   ->orWhereHas('company', function ($q) use ($search) {
                       $q->where('company_name', 'like', "%{$search}%");
@@ -67,12 +61,36 @@ class ComplianceController extends Controller
             });
         }
 
-        // Apply year filter
+        // Year
         if ($year) {
-            $query->where('year_obligated', $year);
+            $baseQuery->where('year_obligated', $year);
         }
 
-        // Apply sorting
+        // ── Compute status counts BEFORE applying status filter ───────────────
+        $statusCounts = [
+            'all'         => (clone $baseQuery)->count(),
+            'pending'     => (clone $baseQuery)->whereHas('compliance', fn($q) => $q->where('status', 'pending'))
+                                               ->orWhereDoesntHave('compliance')
+                                               ->count(),
+            'recommended' => (clone $baseQuery)->whereHas('compliance', fn($q) => $q->where('status', 'recommended'))->count(),
+            'approved'    => (clone $baseQuery)->whereHas('compliance', fn($q) => $q->where('status', 'approved'))->count(),
+        ];
+
+        // ── Apply status filter ───────────────────────────────────────────────
+        $query = clone $baseQuery;
+
+        if ($statusFilter === 'pending') {
+            // pending = no compliance record OR compliance.status = 'pending'
+            $query->where(function ($q) {
+                $q->whereDoesntHave('compliance')
+                  ->orWhereHas('compliance', fn($q) => $q->where('status', 'pending'));
+            });
+        } elseif (in_array($statusFilter, ['recommended', 'approved'])) {
+            $query->whereHas('compliance', fn($q) => $q->where('status', $statusFilter));
+        }
+        // 'all' → no additional filter
+
+        // ── Sorting ───────────────────────────────────────────────────────────
         if ($sortBy === 'company_id') {
             $query->join('tbl_companies', 'tbl_projects.company_id', '=', 'tbl_companies.company_id')
                   ->select('tbl_projects.*', 'tbl_companies.company_name')
@@ -81,46 +99,42 @@ class ComplianceController extends Controller
             $query->orderBy($sortBy, $sortOrder);
         }
 
-        $projects = $query->get();
+        // ── Paginate ──────────────────────────────────────────────────────────
+        $projects = $query->paginate($perPage)->withQueryString();
 
-        // Get all available years for filter dropdown
-        $yearsQuery = ProjectModel::distinct()
-            ->whereNotNull('year_obligated');
+        // ── Year dropdown ─────────────────────────────────────────────────────
+        $yearsQuery = ProjectModel::distinct()->whereNotNull('year_obligated');
 
-        // Filter years by role
         if ($user) {
             if ($user->role === 'staff' && $user->office_id) {
-                $yearsQuery->whereHas('company', function ($q) use ($user) {
-                    $q->where('office_id', $user->office_id);
-                });
+                $yearsQuery->whereHas('company', fn($q) => $q->where('office_id', $user->office_id));
             } elseif ($user->role !== 'rpmo') {
-                // Non-RPMO and non-staff roles see nothing
                 $yearsQuery->whereRaw('1 = 0');
             }
         }
 
-        $years = $yearsQuery->orderBy('year_obligated', 'desc')
-            ->pluck('year_obligated')
-            ->toArray();
+        $years = $yearsQuery->orderBy('year_obligated', 'desc')->pluck('year_obligated')->toArray();
 
         return Inertia::render('ReviewApproval/Index', [
-            'projects' => $projects,
-            'years' => $years,
-            'filters' => [
-                'search' => $search,
-                'year' => $year,
-                'sortBy' => $sortBy,
-                'sortOrder' => $sortOrder,
-            ]
+            'projects'     => $projects,
+            'years'        => $years,
+            'statusCounts' => $statusCounts,
+            'filters'      => [
+                'search'       => $search,
+                'year'         => $year,
+                'sortBy'       => $sortBy,
+                'sortOrder'    => $sortOrder,
+                'statusFilter' => $statusFilter,
+                'perPage'      => $perPage,
+            ],
         ]);
     }
-    
+
     public function show($projectId)
     {
-        $project = ProjectModel::findOrFail($projectId);
+        $project    = ProjectModel::findOrFail($projectId);
         $compliance = ComplianceModel::where('project_id', $projectId)->first();
 
-        // Check authorization
         $user = Auth::user();
         if ($user) {
             if ($user->role === 'staff' && $user->office_id) {
@@ -128,28 +142,26 @@ class ComplianceController extends Controller
                     abort(403, 'Unauthorized access to this project.');
                 }
             } elseif ($user->role !== 'rpmo') {
-                // Non-RPMO and non-staff roles cannot access
                 abort(403, 'Unauthorized access to this project.');
             }
         }
 
         return Inertia::render('ReviewApproval/Compliance', [
-            'project' => $project,
+            'project'    => $project,
             'compliance' => $compliance,
-            'userRole' => $user->role ?? null,
+            'userRole'   => $user->role ?? null,
         ]);
     }
 
     public function store(Request $request)
     {
-        // Custom validation for links
         $request->validate([
             'project_id' => 'required|exists:tbl_projects,project_id',
-            'links' => 'array',
+            'links'      => 'array',
         ]);
 
-        $user = Auth::user();
-        $project = ProjectModel::findOrFail($request->project_id);  // Add this line
+        $user    = Auth::user();
+        $project = ProjectModel::findOrFail($request->project_id);
 
         if ($user) {
             if ($user->role === 'staff' && $user->office_id) {
@@ -161,17 +173,14 @@ class ComplianceController extends Controller
             }
         }
 
-        // Validate each link
         $linkMapping = [
             'pp_link' => 'Project Proposal',
-            'fs_link' => 'Financial Statement'
+            'fs_link' => 'Financial Statement',
         ];
 
         foreach ($linkMapping as $linkKey => $linkLabel) {
             if (!empty($request->links[$linkKey])) {
-                $link = $request->links[$linkKey];
-                
-                if (!$this->isValidCloudLink($link)) {
+                if (!$this->isValidCloudLink($request->links[$linkKey])) {
                     return back()->withErrors([
                         "links.$linkKey" => "$linkLabel must be a valid Google Drive or OneDrive link"
                     ])->withInput();
@@ -179,52 +188,41 @@ class ComplianceController extends Controller
             }
         }
 
-        // Get existing compliance or create new instance
-        $compliance = ComplianceModel::firstOrNew(['project_id' => $request->project_id]);
-
+        $compliance  = ComplianceModel::firstOrNew(['project_id' => $request->project_id]);
         $currentUser = Auth::user()->name ?? 'System';
 
         foreach ($linkMapping as $linkKey => $linkLabel) {
-            $dateKey = "{$linkKey}_date";
+            $dateKey    = "{$linkKey}_date";
             $addedByKey = "{$linkKey}_added_by";
 
-            // Only update if a new value is provided
             if (!empty($request->links[$linkKey])) {
                 $link = $request->links[$linkKey];
-                
-                // If the link is changed or empty before, update it
                 if ($compliance->$linkKey !== $link) {
-                    $compliance->$linkKey = $link;
-                    $compliance->$dateKey = now();
+                    $compliance->$linkKey    = $link;
+                    $compliance->$dateKey    = now();
                     $compliance->$addedByKey = $currentUser;
                 }
             }
         }
 
-        // Set status to pending when staff saves
         $compliance->status = 'pending';
         $compliance->save();
 
-        // Check if all links are filled
         $filledLinks = collect(['pp_link', 'fs_link'])
-            ->filter(fn($linkKey) => !empty($compliance->$linkKey))
+            ->filter(fn($k) => !empty($compliance->$k))
             ->count();
 
-        // If staff and compliance is complete (2/2), send email to RPMO users
         if ($user->role === 'staff' && $filledLinks === 2) {
-
             $project->progress = 'Project Review';
             $project->save();
+
             $rpmoUsers = UserModel::where('role', 'rpmo')->get();
-            
-            if ($rpmoUsers->count() > 0) {
-                foreach ($rpmoUsers as $rpmoUser) {
-                    Mail::to($rpmoUser->email)->send(new ComplianceCompletedMail($request->project_id, $user));
-                }
+            foreach ($rpmoUsers as $rpmoUser) {
+                Mail::to($rpmoUser->email)->send(new ComplianceCompletedMail($request->project_id, $user));
             }
         }
 
-        return redirect()->back()->with('success', 'compliance updated successfully.');
+        return redirect()->back()->with('success', 'Compliance updated successfully.');
     }
 
     public function approve(Request $request)
@@ -233,28 +231,23 @@ class ComplianceController extends Controller
             'project_id' => 'required|exists:tbl_projects,project_id',
         ]);
 
-        // Only RPMO can approve
         $user = Auth::user();
         if (!$user || $user->role !== 'rpmo') {
             abort(403, 'Only RPMO can approve projects.');
         }
 
-        $project = ProjectModel::findOrFail($request->project_id);
-
-        // Update compliance status to 'recommended'
+        $project    = ProjectModel::findOrFail($request->project_id);
         $compliance = ComplianceModel::where('project_id', $request->project_id)->first();
+
         if ($compliance) {
             $compliance->status = 'recommended';
             $compliance->save();
         }
 
-        // Update project progress to 'approval'
         $project->progress = 'Awaiting Approval';
         $project->save();
 
-        // Get director with office_id = 1
         $director = DirectorModel::where('office_id', 1)->first();
-
         if ($director && $director->email) {
             Mail::to($director->email)->send(new ComplianceApprovalMail($project, $user));
         }
@@ -266,30 +259,25 @@ class ComplianceController extends Controller
     {
         $request->validate([
             'project_id' => 'required|exists:tbl_projects,project_id',
-            'remark' => 'required|string|min:5|max:500',
+            'remark'     => 'required|string|min:5|max:500',
         ]);
 
-        // Only RPMO can deny
         $user = Auth::user();
         if (!$user || $user->role !== 'rpmo') {
             abort(403, 'Only RPMO can deny projects.');
         }
 
-        $project = ProjectModel::findOrFail($request->project_id);
-        $remark = $request->input('remark');
-
-        // Keep compliance status as 'pending' when denied
+        $project    = ProjectModel::findOrFail($request->project_id);
         $compliance = ComplianceModel::where('project_id', $request->project_id)->first();
+
         if ($compliance) {
             $compliance->status = 'pending';
             $compliance->save();
         }
 
-        // Get director with office_id = 1
         $director = DirectorModel::where('office_id', 1)->first();
-
         if ($director && $director->email) {
-            Mail::to($director->email)->send(new ComplianceDenyMail($project, $user, $remark));
+            Mail::to($director->email)->send(new ComplianceDenyMail($project, $user, $request->input('remark')));
         }
 
         return redirect()->back()->with('success', 'Project denied. Director has been notified with remarks.');
@@ -297,15 +285,10 @@ class ComplianceController extends Controller
 
     private function isValidCloudLink($url)
     {
-        if (empty($url)) {
-            return true; // Allow empty
-        }
-        
+        if (empty($url)) return true;
         $lower = strtolower(trim($url));
-        
-        // Only allow Google Drive and OneDrive links
-        return strpos($lower, 'drive.google.com') !== false ||
-               strpos($lower, 'onedrive.live.com') !== false ||
-               strpos($lower, '1drv.ms') !== false; // OneDrive short links
+        return str_contains($lower, 'drive.google.com')   ||
+               str_contains($lower, 'onedrive.live.com')  ||
+               str_contains($lower, '1drv.ms');
     }
 }

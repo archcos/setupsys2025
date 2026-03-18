@@ -1,14 +1,88 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, router, Head } from '@inertiajs/react';
-import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, ChevronRight, ArrowUpDown, Hammer, List } from 'lucide-react';
+import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, ArrowUpDown, Hammer, List } from 'lucide-react';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const STATUS_CONFIG = {
+  all: {
+    label:     'All',
+    tab:       'bg-gray-700 text-white',
+    badge:     'bg-white/25 text-white',
+    pillStyle: 'bg-gray-100 text-gray-700 border border-gray-200',
+    icon:      List,
+  },
+  pending: {
+    label:     'Pending',
+    tab:       'bg-amber-500 text-white',
+    badge:     'bg-white/25 text-white',
+    pillStyle: 'bg-amber-100 text-amber-800 border border-amber-200',
+    icon:      AlertTriangle,
+  },
+  complete: {
+    label:     'Complete',
+    tab:       'bg-green-500 text-white',
+    badge:     'bg-white/25 text-white',
+    pillStyle: 'bg-green-100 text-green-800 border border-green-200',
+    icon:      CheckCircle,
+  },
+};
+
+const STATUS_KEYS = ['all', 'pending', 'complete'];
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function StatusTabs({ statusFilter, counts, onChange }) {
+  return (
+    <div className="flex gap-1.5 overflow-x-auto pb-1">
+      {STATUS_KEYS.map((key) => {
+        const cfg      = STATUS_CONFIG[key];
+        const isActive = (statusFilter ?? 'all') === key;
+        const count    = counts?.[key] ?? 0;
+
+        return (
+          <button
+            key={key}
+            onClick={() => onChange(key === 'all' ? null : key)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+              isActive
+                ? `${cfg.tab} shadow-sm`
+                : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            {cfg.label}
+            <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-xs font-bold ${
+              isActive ? cfg.badge : 'bg-gray-100 text-gray-600'
+            }`}>
+              {count}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function StatusPill({ isComplete }) {
+  const cfg  = isComplete ? STATUS_CONFIG.complete : STATUS_CONFIG.pending;
+  const Icon = cfg.icon;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${cfg.pillStyle}`}>
+      <Icon className="w-3 h-3" />
+      {cfg.label}
+    </span>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ImplementationIndex({ implementations, filters, offices, userRole }) {
-  const [search, setSearch] = useState(filters?.search || '');
-  const [perPage, setPerPage] = useState(filters?.perPage || 10);
-  const [statusFilter, setStatusFilter] = useState(filters?.statusFilter || 'pending');
-  const [officeFilter, setOfficeFilter] = useState(filters?.officeFilter || '');
-  const [sortDirection, setSortDirection] = useState(filters?.direction || 'desc');
-  const [isSorted, setIsSorted] = useState(!!filters?.direction);
+  const [search,        setSearch]        = useState(filters?.search        || '');
+  const [perPage,       setPerPage]       = useState(filters?.perPage       || 10);
+  const [statusFilter,  setStatusFilter]  = useState(filters?.statusFilter  ?? 'pending');
+  const [officeFilter,  setOfficeFilter]  = useState(filters?.officeFilter  || '');
+  const [sortDirection, setSortDirection] = useState(filters?.direction     || 'desc');
+  const [isSorted,      setIsSorted]      = useState(!!filters?.direction);
   const debounceTimer = useRef(null);
 
   useEffect(() => {
@@ -29,8 +103,8 @@ export default function ImplementationIndex({ implementations, filters, offices,
     if (url) router.visit(url, { preserveState: true, preserveScroll: true, replace: true });
   }, []);
 
-  const handleStatClick = useCallback((status) => {
-    setStatusFilter(prev => prev === status ? null : status);
+  const handleStatusFilter = useCallback((val) => {
+    setStatusFilter(val);
   }, []);
 
   const handleSortToggle = useCallback(() => {
@@ -39,8 +113,8 @@ export default function ImplementationIndex({ implementations, filters, offices,
   }, []);
 
   const getUntaggingStatus = useCallback((impl) => {
-    const totalTags = impl.tags?.reduce((sum, tag) => sum + parseFloat(tag.tag_amount || 0), 0) || 0;
-    const projectCost = parseFloat(impl.project?.project_cost || 0);
+    const totalTags           = impl.tags?.reduce((sum, tag) => sum + parseFloat(tag.tag_amount || 0), 0) || 0;
+    const projectCost         = parseFloat(impl.project?.project_cost || 0);
     const firstUntaggedThreshold = projectCost * 0.5;
     return {
       firstUntagged: totalTags >= firstUntaggedThreshold,
@@ -50,58 +124,17 @@ export default function ImplementationIndex({ implementations, filters, offices,
     };
   }, []);
 
-  const getStatusBadge = useCallback((impl) => {
-    const isComplete = !!impl.liquidation;
-    return (
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-        isComplete ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
-      }`}>
-        {isComplete
-          ? <CheckCircle className="w-3 h-3" />
-          : <AlertTriangle className="w-3 h-3" />
-        }
-        {isComplete ? 'Complete' : 'Pending'}
-      </span>
-    );
-  }, []);
-
-  const total   = implementations.total || 0;
+  const total    = implementations.total          || 0;
   const complete = implementations.complete_count || 0;
-  const pending  = implementations.pending_count || 0;
+  const pending  = implementations.pending_count  || 0;
 
-  // Stat card config — pending first, then complete, then total
-  const statCards = [
-    {
-      key: 'pending',
-      label: 'Pending',
-      count: pending,
-      activeColor: 'border-amber-500 ring-2 ring-amber-200',
-      hoverColor: 'hover:border-amber-300',
-      textColor: 'text-amber-600',
-      activeIndicator: 'text-amber-600',
-      icon: <AlertTriangle className={`w-4 h-4 ${statusFilter === 'pending' ? 'text-amber-600' : 'text-gray-400'}`} />,
-    },
-    {
-      key: 'complete',
-      label: 'Complete',
-      count: complete,
-      activeColor: 'border-green-500 ring-2 ring-green-200',
-      hoverColor: 'hover:border-green-300',
-      textColor: 'text-green-600',
-      activeIndicator: 'text-green-600',
-      icon: <CheckCircle className={`w-4 h-4 ${statusFilter === 'complete' ? 'text-green-600' : 'text-gray-400'}`} />,
-    },
-    {
-      key: null,
-      label: 'Total',
-      count: total,
-      activeColor: 'border-blue-500 ring-2 ring-blue-200',
-      hoverColor: 'hover:border-blue-300',
-      textColor: 'text-blue-600',
-      activeIndicator: 'text-blue-600',
-      icon: <List className={`w-4 h-4 ${statusFilter === null ? 'text-blue-600' : 'text-gray-400'}`} />,
-    },
-  ];
+  const statusCounts = {
+    all:      total,
+    pending:  pending,
+    complete: complete,
+  };
+
+  const hasActiveFilters = !!(search || officeFilter || (statusFilter && statusFilter !== 'pending'));
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
@@ -109,7 +142,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
       <div className="max-w-7xl mx-auto">
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
 
-          {/* Card Header */}
+          {/* Header */}
           <div className="bg-gradient-to-r from-gray-50 to-white p-3 md:p-6 border-b border-gray-200">
             <div className="flex items-center gap-2 md:gap-3">
               <div className="p-1.5 md:p-2 bg-green-100 rounded-lg flex-shrink-0">
@@ -122,115 +155,94 @@ export default function ImplementationIndex({ implementations, filters, offices,
             </div>
           </div>
 
-          {/* Stats Cards — Desktop */}
-          <div className="hidden md:grid md:grid-cols-3 gap-3 p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
-            {statCards.map((card) => (
-              <button
-                key={String(card.key)}
-                onClick={() => setStatusFilter(card.key)}
-                className={`bg-white rounded-lg shadow-sm border-2 p-3 text-left transition-all hover:shadow-md ${
-                  statusFilter === card.key
-                    ? card.activeColor
-                    : `border-gray-100 ${card.hoverColor}`
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-medium text-gray-600">{card.label}</p>
-                  {card.icon}
-                </div>
-                <p className={`text-2xl font-bold ${card.textColor}`}>{card.count}</p>
-                {statusFilter === card.key && (
-                  <p className={`text-xs mt-2 font-medium ${card.activeIndicator}`}>● Active</p>
-                )}
-              </button>
-            ))}
-          </div>
+          {/* Filters */}
+          <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100 space-y-3">
 
-          {/* Stats Cards — Mobile */}
-          <div className="md:hidden grid grid-cols-3 gap-2 p-3 bg-gray-50 border-b border-gray-100">
-            {statCards.map((card) => (
-              <button
-                key={String(card.key)}
-                onClick={() => setStatusFilter(card.key)}
-                className={`rounded-lg border-2 p-2 text-xs transition-all ${
-                  statusFilter === card.key
-                    ? `${card.activeColor} bg-opacity-10`
-                    : 'border-gray-100 bg-white'
-                }`}
-              >
-                <p className="text-gray-600 font-medium">{card.label}</p>
-                <p className={`text-lg font-bold mt-1 ${statusFilter === card.key ? card.textColor : 'text-gray-900'}`}>
-                  {card.count}
-                </p>
-              </button>
-            ))}
-          </div>
+            {/* Status Tabs */}
+            <StatusTabs statusFilter={statusFilter ?? 'all'} counts={statusCounts} onChange={handleStatusFilter} />
 
-          {/* Filter Info Bar */}
-          <div className="px-3 md:px-6 py-2 md:py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-xs md:text-sm text-gray-600">
-              Showing <span className="font-semibold text-gray-900">{implementations.total ?? implementations.data?.length}</span> result{(implementations.total ?? implementations.data?.length) !== 1 ? 's' : ''}
-              {statusFilter && (
-                <span className="ml-1">({statusFilter})</span>
-              )}
-            </p>
-            {statusFilter !== null && (
-              <button
-                onClick={() => setStatusFilter(null)}
-                className="text-xs md:text-sm text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-
-          {/* Filters Section */}
-          <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
-            <div className="flex flex-col gap-2 md:gap-4">
+            {/* Search */}
+            <div className="flex flex-col gap-2 md:gap-4 md:flex-row">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
                   placeholder="Search company or project..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                  className="w-full pl-10 pr-8 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all bg-white shadow-sm"
                 />
                 {search && (
-                  <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
 
-              <div className="flex flex-col md:flex-row gap-2 md:gap-3">
-                {(userRole === 'rpmo' || userRole === 'RPMO') && (
+              <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm w-fit">
+                <select
+                  value={perPage}
+                  onChange={(e) => setPerPage(Number(e.target.value))}
+                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer py-2"
+                >
+                  {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <span className="text-xs text-gray-500 hidden md:inline">entries</span>
+              </div>
+            </div>
+
+            {/* Office + Sort + Clear */}
+            <div className="flex flex-col gap-2 md:gap-4 md:flex-row md:items-center flex-wrap">
+              {(userRole === 'rpmo' || userRole === 'RPMO') && offices?.length > 0 && (
+                <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm flex-1 md:flex-initial md:min-w-[200px]">
+                  <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <select
                     value={officeFilter}
                     onChange={(e) => setOfficeFilter(e.target.value)}
-                    className="px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white shadow-sm"
+                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
                   >
                     <option value="">All Offices</option>
-                    {offices?.map((office) => (
+                    {offices.map((office) => (
                       <option key={office.office_id} value={office.office_id}>{office.office_name}</option>
                     ))}
                   </select>
-                )}
-
-                <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
-                  <select
-                    value={perPage}
-                    onChange={(e) => setPerPage(Number(e.target.value))}
-                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
-                  >
-                    {[10, 20, 50, 100].map((n) => (
-                      <option key={n} value={n}>{n}</option>
-                    ))}
-                  </select>
-                  <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">entries</span>
                 </div>
-              </div>
+              )}
+
+              <button
+                onClick={handleSortToggle}
+                className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-white border border-gray-300 rounded-lg md:rounded-xl hover:bg-gray-50 transition-colors shadow-sm text-xs md:text-sm"
+                title={sortDirection === 'desc' ? 'Newest first' : 'Oldest first'}
+              >
+                <ArrowUpDown className={`w-4 h-4 ${isSorted ? 'text-green-600' : 'text-gray-600'}`} />
+                <span className={`hidden md:inline font-medium ${isSorted ? 'text-green-700' : 'text-gray-700'}`}>
+                  {sortDirection === 'desc' ? 'Newest' : 'Oldest'}
+                </span>
+              </button>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={() => { setSearch(''); setOfficeFilter(''); setStatusFilter('pending'); setSortDirection('desc'); setIsSorted(false); }}
+                  className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors text-xs md:text-sm font-medium"
+                >
+                  <X className="w-4 h-4" />
+                  <span className="hidden md:inline">Clear Filters</span>
+                </button>
+              )}
             </div>
+
+            {/* Result count */}
+            {implementations.data && (
+              <p className="text-xs text-gray-500">
+                Showing{' '}
+                <span className="font-semibold text-gray-900">{implementations.from || 0}</span>–
+                <span className="font-semibold text-gray-900">{implementations.to || 0}</span> of{' '}
+                <span className="font-semibold text-gray-900">{implementations.total || 0}</span> results
+                {statusFilter && statusFilter !== 'all' && (
+                  <span className="ml-1">· {STATUS_CONFIG[statusFilter]?.label}</span>
+                )}
+              </p>
+            )}
           </div>
 
           {/* Content */}
@@ -238,22 +250,24 @@ export default function ImplementationIndex({ implementations, filters, offices,
             <div className="text-center py-8 md:py-12 px-4">
               <div className="flex flex-col items-center gap-3 md:gap-4">
                 <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                  <ClipboardList className="w-6 h-6 md:w-8 md:h-8 text-gray-500" />
+                  <ClipboardList className="w-6 h-6 md:w-8 md:h-8 text-gray-400" />
                 </div>
                 <div>
-                  <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">No implementations found</h3>
-                  <p className="text-xs md:text-sm text-gray-500">
-                    {search
-                      ? `No implementations match "${search}"`
-                      : statusFilter
-                      ? `No ${statusFilter} implementations found`
+                  <p className="text-gray-900 font-medium text-sm md:text-base mb-1">
+                    {statusFilter && statusFilter !== 'all'
+                      ? `No ${STATUS_CONFIG[statusFilter]?.label.toLowerCase()} implementations`
+                      : 'No implementations found'}
+                  </p>
+                  <p className="text-gray-500 text-xs md:text-sm">
+                    {hasActiveFilters
+                      ? 'Try adjusting your filters or search terms'
                       : 'No implementation checklists have been created yet'}
                   </p>
                 </div>
-                {(search || statusFilter) && (
+                {hasActiveFilters && (
                   <button
-                    onClick={() => { setSearch(''); setStatusFilter('pending'); }}
-                    className="px-3 md:px-4 py-1.5 md:py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+                    onClick={() => { setSearch(''); setOfficeFilter(''); setStatusFilter('pending'); }}
+                    className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors"
                   >
                     Clear Filters
                   </button>
@@ -265,46 +279,45 @@ export default function ImplementationIndex({ implementations, filters, offices,
               {/* Desktop Table */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <button onClick={handleSortToggle} className="flex items-center gap-1 transition-colors">
-                          <span className={isSorted ? 'text-green-600 font-semibold' : 'text-gray-500'}>PROJECT CODE</span>
-                          <ArrowUpDown className={`w-3 h-3 ${isSorted ? 'text-green-600' : 'text-gray-500'}`} />
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <button onClick={handleSortToggle} className="flex items-center gap-1">
+                          <span className={isSorted ? 'text-green-600' : ''}>Project Code</span>
+                          <ArrowUpDown className={`w-3 h-3 ${isSorted ? 'text-green-600' : 'text-gray-400'}`} />
                         </button>
                       </th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Project & Company</th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Signboard</th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PDC</th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">First Tag</th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Final Tag</th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Liquidation</th>
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                      <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Project & Company</th>
+                      <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Signboard</th>
+                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">PDC</th>
+                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">First Tag</th>
+                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Final Tag</th>
+                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Liquidation</th>
+                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-gray-100">
                     {implementations.data.map((impl) => {
                       const untaggingStatus = getUntaggingStatus(impl);
+                      const isComplete      = !!impl.liquidation;
                       return (
-                        <tr key={impl.implement_id} className="hover:bg-gray-50 transition-colors">
+                        <tr key={impl.implement_id} className="hover:bg-blue-50/30 transition-all duration-200">
                           <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-gray-600">
                             {impl.project_id}
                           </td>
                           <td className="px-4 md:px-6 py-3 md:py-4">
-                            <div className="flex items-start gap-2 md:gap-3">
-                              <div className="min-w-0 flex-1">
-                                <h3 className="font-medium text-gray-900 text-xs md:text-sm mb-1 line-clamp-1">
-                                  {impl.project?.project_title || 'No Title'}
-                                </h3>
-                                <div className="flex items-center gap-1 text-xs text-gray-600 min-w-0">
-                                  <Building2 className="w-3 h-3 flex-shrink-0" />
-                                  <span className="line-clamp-1">{impl.project?.company?.company_name || 'N/A'}</span>
-                                </div>
-                              </div>
+                            <div className="text-xs md:text-sm font-semibold text-gray-900 line-clamp-1">
+                              {impl.project?.project_title || 'No Title'}
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                              <Building2 className="w-3 h-3 flex-shrink-0" />
+                              <span className="line-clamp-1">{impl.project?.company?.company_name || 'N/A'}</span>
                             </div>
                           </td>
-                          <td className="px-4 md:px-6 py-3 md:py-4">{getStatusBadge(impl)}</td>
+                          <td className="px-4 md:px-6 py-3 md:py-4">
+                            <StatusPill isComplete={isComplete} />
+                          </td>
                           <td className="px-4 md:px-6 py-3 md:py-4 text-center">
                             {impl.tarp ? <CheckCircle className="w-5 h-5 text-green-600 mx-auto" /> : <Clock className="w-5 h-5 text-gray-300 mx-auto" />}
                           </td>
@@ -323,7 +336,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
                           <td className="px-4 md:px-6 py-3 md:py-4 text-center">
                             <Link
                               href={`/implementation/checklist/${impl.implement_id}`}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-green-600 text-white text-xs font-medium rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 shadow-sm transition-all"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </Link>
@@ -339,21 +352,22 @@ export default function ImplementationIndex({ implementations, filters, offices,
               <div className="md:hidden divide-y divide-gray-100">
                 {implementations.data.map((impl) => {
                   const untaggingStatus = getUntaggingStatus(impl);
+                  const isComplete      = !!impl.liquidation;
                   return (
                     <div key={impl.implement_id} className="p-3 space-y-3">
-                      <div className="flex items-start gap-2">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-medium text-gray-900 text-sm mb-0.5 line-clamp-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs text-gray-400">ID: {impl.project_id}</div>
+                          <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mt-0.5">
                             {impl.project?.project_title || 'No Title'}
                           </h3>
-                          <div className="flex items-center gap-1 text-xs text-gray-600">
+                          <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
                             <Building2 className="w-3 h-3 flex-shrink-0" />
                             <span className="truncate">{impl.project?.company?.company_name || 'N/A'}</span>
                           </div>
                         </div>
+                        <StatusPill isComplete={isComplete} />
                       </div>
-
-                      <div>{getStatusBadge(impl)}</div>
 
                       <div className="bg-gray-50 rounded-lg p-2.5 space-y-1.5">
                         {[
@@ -375,7 +389,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
 
                       <Link
                         href={`/implementation/checklist/${impl.implement_id}`}
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-xs font-medium rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm"
+                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all"
                       >
                         <Eye className="w-4 h-4" />
                         View Checklist
@@ -388,28 +402,29 @@ export default function ImplementationIndex({ implementations, filters, offices,
           )}
 
           {/* Pagination */}
-          {implementations.links && implementations.links.length > 1 && (
-            <div className="bg-gradient-to-r from-gray-50/50 to-white px-3 md:px-6 py-3 md:py-4 border-t border-gray-100 sticky bottom-0 z-10">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
-                <div className="text-xs md:text-sm text-gray-600">
-                  Showing {implementations.from || 1} to {implementations.to || implementations.data.length} of {implementations.total || implementations.data.length} results
-                </div>
+          {implementations.links && implementations.links.length > 3 && (
+            <div className="bg-gray-50/50 px-3 md:px-6 py-3 md:py-4 border-t border-gray-100">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <p className="text-xs md:text-sm text-gray-600">
+                  Showing <span className="font-medium">{implementations.from || 0}</span>–
+                  <span className="font-medium">{implementations.to || 0}</span> of{' '}
+                  <span className="font-medium">{implementations.total || 0}</span> results
+                </p>
                 <div className="flex gap-1 overflow-x-auto">
                   {implementations.links.map((link, index) => (
                     <button
                       key={index}
                       disabled={!link.url}
                       onClick={() => handlePageChange(link.url)}
-                      className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all duration-200 flex-shrink-0 ${
+                      className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all flex-shrink-0 ${
                         link.active
-                          ? 'bg-gradient-to-r from-green-500 to-green-600 text-white border-transparent shadow-md'
+                          ? 'bg-green-500 text-white border-green-500 shadow-sm'
                           : link.url
-                          ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                          ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
                           : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                       }`}
-                    >
-                      {link.label === '&laquo; Previous' ? '←' : link.label === 'Next &raquo;' ? '→' : link.label}
-                    </button>
+                      dangerouslySetInnerHTML={{ __html: link.label }}
+                    />
                   ))}
                 </div>
               </div>
