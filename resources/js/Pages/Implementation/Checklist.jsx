@@ -157,7 +157,7 @@ export default function Checklist({ implementation, approvedItems }) {
   const canUploadLiquidation = percentage >= 100;
 
   /* ── reusable input class ── */
-  const inputCls = "w-full px-3 md:px-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all";
+  const inputCls = "w-full px-3 md:px-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all";
 
   const renderFileUploadSection = (field) => {
     const fileExists = !!implementation[field];
@@ -241,8 +241,8 @@ export default function Checklist({ implementation, approvedItems }) {
                 <ClipboardList className="w-5 h-5 md:w-6 md:h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl md:text-3xl font-bold text-gray-900">Implementation Checklist</h1>
-                <p className="text-xs md:text-base text-gray-600 mt-1">Track project deliverables and requirements</p>
+                <h1 className="text-xl md:text-3xl font-bold">Implementation Checklist</h1>
+                <p className="text-xs md:text-base mt-1">Track project deliverables and requirements</p>
               </div>
             </div>
           </div>
@@ -286,8 +286,8 @@ export default function Checklist({ implementation, approvedItems }) {
           {/* ── Equipment Tagging ── */}
           <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100 mb-4 md:mb-8">
             <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-              <div className="p-1.5 md:p-2 bg-purple-100 rounded-lg flex-shrink-0">
-                <Package className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
+              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                <Package className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               </div>
               <h2 className="text-base md:text-xl font-semibold text-gray-900">Equipment Tagging</h2>
             </div>
@@ -295,7 +295,7 @@ export default function Checklist({ implementation, approvedItems }) {
             {isRPMO && (
               <div className="mb-4 md:mb-6">
                 <button onClick={handleAddTagClick}
-                  className="inline-flex items-center gap-1 md:gap-2 px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-xs md:text-sm font-medium rounded-lg md:rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl">
+                  className="inline-flex items-center gap-1 md:gap-2 px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs md:text-sm font-medium rounded-lg md:rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl">
                   <Plus className="w-4 h-4 md:w-5 md:h-5" />
                   <span>Add Equipment Tag</span>
                 </button>
@@ -306,14 +306,14 @@ export default function Checklist({ implementation, approvedItems }) {
             <div className="mb-4 md:mb-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs md:text-sm font-medium text-gray-700">Project Completion</span>
-                <span className="text-xs md:text-sm font-bold text-purple-600">{percentage.toFixed(1)}%</span>
+                <span className="text-xs md:text-sm font-bold text-blue-600">{percentage.toFixed(1)}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3 md:h-4 overflow-hidden">
-                <div className="bg-gradient-to-r from-purple-500 to-purple-600 h-full transition-all duration-500 ease-out"
+                <div className="bg-gradient-to-r from-blue-500 to-blue-600 h-full transition-all duration-500 ease-out"
                   style={{ width: `${Math.min(percentage, 100)}%` }} />
               </div>
               <div className="flex items-center gap-1 md:gap-2 mt-2">
-                <Target className="w-3 h-3 md:w-4 md:h-4 text-purple-500 flex-shrink-0" />
+                <Target className="w-3 h-3 md:w-4 md:h-4 text-blue-500 flex-shrink-0" />
                 <span className="text-xs md:text-sm text-gray-600">
                   Tag Total: <strong>₱{totalAmount?.toLocaleString()}</strong> / ₱{projectCost.toLocaleString()}
                 </span>
@@ -328,7 +328,7 @@ export default function Checklist({ implementation, approvedItems }) {
                   <div className="flex items-center gap-2 md:gap-3">
                     <div className="flex-1 min-w-0">
                       <span className="text-xs md:text-sm font-medium text-gray-900">{tag.tag_name}</span>
-                      <span className="text-purple-600 font-semibold text-xs md:text-sm ml-2">
+                      <span className="text-blue-600 font-semibold text-xs md:text-sm ml-2">
                         ₱{parseFloat(tag.tag_amount).toLocaleString()}
                       </span>
                     </div>
@@ -388,8 +388,8 @@ export default function Checklist({ implementation, approvedItems }) {
           {/* ── Liquidation ── */}
           <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100">
             <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-              <div className="p-1.5 md:p-2 bg-emerald-100 rounded-lg flex-shrink-0">
-                <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-emerald-600" />
+              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-base md:text-xl font-semibold text-gray-900">Liquidation Report</h2>
@@ -443,10 +443,10 @@ export default function Checklist({ implementation, approvedItems }) {
             <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
               <input type="file" onChange={(e) => setData('liquidation', e.target.files[0])}
                 disabled={implementation.liquidation || !canUploadLiquidation}
-                className="flex-1 text-xs md:text-sm text-gray-500 file:mr-2 md:file:mr-4 file:py-1.5 md:file:py-2 file:px-3 md:file:px-4 file:rounded-lg file:border-0 file:text-xs md:file:text-sm file:font-medium file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
+                className="flex-1 text-xs md:text-sm text-gray-500 file:mr-2 md:file:mr-4 file:py-1.5 md:file:py-2 file:px-3 md:file:px-4 file:rounded-lg file:border-0 file:text-xs md:file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
               <button onClick={() => upload('liquidation')}
                 disabled={!data.liquidation || implementation.liquidation || loadingField === 'liquidation' || !canUploadLiquidation}
-                className="inline-flex items-center justify-center gap-1 md:gap-2 px-4 md:px-6 py-2 bg-emerald-500 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0">
+                className="inline-flex items-center justify-center gap-1 md:gap-2 px-4 md:px-6 py-2 bg-blue-500 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0">
                 {loadingField === 'liquidation'
                   ? <><Loader2 className="animate-spin w-3 h-3 md:w-4 md:h-4" /><span>Uploading...</span></>
                   : <><Upload className="w-3 h-3 md:w-4 md:h-4" /><span>Upload</span></>}
@@ -556,7 +556,7 @@ export default function Checklist({ implementation, approvedItems }) {
                 <input type="datetime-local" value={data.tag_created_at} onChange={(e) => setData('tag_created_at', e.target.value)} className={inputCls} />
                 <p className="text-xs text-gray-500 mt-1">Current: {formatTagDate(data.tag_created_at ? data.tag_created_at.replace('T',' ') : new Date().toISOString())}</p>
               </div>
-              <div className="p-3 bg-purple-50 rounded-lg border border-purple-200 text-xs text-gray-600 space-y-1">
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-xs text-gray-600 space-y-1">
                 <p><span className="font-semibold">Project Budget:</span> ₱{projectCost.toLocaleString()}</p>
                 <p><span className="font-semibold">Tagged Amount:</span> ₱{totalAmount.toLocaleString()}</p>
                 <p><span className="font-semibold">Remaining:</span> ₱{(projectCost - totalAmount).toLocaleString()}</p>
@@ -565,7 +565,7 @@ export default function Checklist({ implementation, approvedItems }) {
 
             <div className="flex gap-2 md:gap-3 pt-3 md:pt-4 border-t border-gray-200">
               <button onClick={() => setShowAddTagModal(false)} className="flex-1 px-4 py-2.5 md:py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm transition-colors">Cancel</button>
-              <button onClick={addTag} className="flex-1 px-4 py-2.5 md:py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 font-medium text-sm transition-all shadow-md hover:shadow-lg">Add Tag</button>
+              <button onClick={addTag} className="flex-1 px-4 py-2.5 md:py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 font-medium text-sm transition-all shadow-md hover:shadow-lg">Add Tag</button>
             </div>
           </div>
         </div>

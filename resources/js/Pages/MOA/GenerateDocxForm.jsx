@@ -38,8 +38,8 @@ export default function GenerateDocxForm({ companies, selectedCompany, projects,
           {/* Card Header */}
           <div className="bg-gradient-to-r from-gray-50 to-white p-3 md:p-6 border-b border-gray-100">
             <div className="flex items-start md:items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 bg-purple-100 rounded-lg flex-shrink-0">
-                <FileSignature className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
+              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                <FileSignature className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               </div>
               <div className="min-w-0">
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">Generate Draft MOA</h2>
@@ -67,7 +67,7 @@ export default function GenerateDocxForm({ companies, selectedCompany, projects,
                       setData('company_id', e.target.value);
                       handleSelectCompany(e.target.value);
                     }}
-                    className="w-full px-3 md:px-4 py-2 md:py-3 text-sm md:text-base border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                    className="w-full px-3 md:px-4 py-2 md:py-3 text-sm md:text-base border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                   >
                     <option value="">Choose a proponent...</option>
                     {companies.map((c) => (
@@ -237,7 +237,7 @@ export default function GenerateDocxForm({ companies, selectedCompany, projects,
                     className={`inline-flex items-center justify-center gap-2 px-4 md:px-6 py-2 md:py-3 rounded-lg md:rounded-xl font-medium text-sm md:text-base transition-all duration-200 flex-shrink-0 ${
                       processing || !isFormValid
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 shadow-lg hover:shadow-xl'
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
                     }`}
                   >
                     {processing ? (
@@ -259,7 +259,7 @@ export default function GenerateDocxForm({ companies, selectedCompany, projects,
                 {processing && (
                   <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-200">
                     <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse flex-shrink-0"></div>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse flex-shrink-0"></div>
                       <span>Processing your request...</span>
                     </div>
                   </div>

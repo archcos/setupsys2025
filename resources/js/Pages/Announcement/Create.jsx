@@ -33,8 +33,8 @@ export default function Create({ office_id }) {
               <Plus className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl md:text-3xl font-bold text-gray-900">Create Announcement</h1>
-              <p className="text-xs md:text-sm text-gray-600 mt-0.5 md:mt-1">Will be linked to your office automatically</p>
+              <h1 className="text-xl md:text-3xl font-bold">Create Announcement</h1>
+              <p className="text-xs md:text-sm mt-0.5 md:mt-1">Will be linked to your office automatically</p>
             </div>
           </div>
         </div>

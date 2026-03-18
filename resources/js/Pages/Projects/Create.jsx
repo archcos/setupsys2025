@@ -95,8 +95,8 @@ export default function Create({ companies, nextProjectCode }) {
               <Plus className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-xl md:text-3xl font-bold text-gray-900">Create New Project</h1>
-              <p className="text-xs md:text-base text-gray-600 mt-1">Fill in the details to create a comprehensive project</p>
+              <h1 className="text-xl md:text-3xl font-bold">Create New Project</h1>
+              <p className="text-xs md:text-base mt-1">Fill in the details to create a comprehensive project</p>
             </div>
           </div>
         </div>

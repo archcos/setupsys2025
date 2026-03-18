@@ -17,12 +17,12 @@ export default function ObjectivesSection({ data, setData, errors }) {
   };
 
   return (
-    <FormCard icon={Target} title="Project Objectives" iconBgColor="bg-indigo-100" iconColor="text-indigo-600">
+    <FormCard icon={Target} title="Project Objectives" iconBgColor="bg-blue-100" iconColor="text-blue-600">
       <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-3 md:gap-0 mb-4 md:mb-6">
         <button
           type="button"
           onClick={addObjective}
-          className="inline-flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white text-xs md:text-sm font-medium rounded-lg hover:from-indigo-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg"
+          className="inline-flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs md:text-sm font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
         >
           <Plus className="w-3 h-3 md:w-4 md:h-4" />
           Add Objective

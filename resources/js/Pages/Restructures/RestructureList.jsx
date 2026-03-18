@@ -150,8 +150,8 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
           {/* Header */}
           <div className="bg-gray-50 p-3 md:p-6 border-b border-gray-100">
             <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 bg-green-100 rounded-lg flex-shrink-0">
-                <Stamp className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                <Stamp className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">Verify Restructuring Applications</h2>
@@ -295,11 +295,11 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                       <td className="px-4 md:px-6 py-3 md:py-4 text-center">
                         {(userRole === 'rpmo' || userRole === 'rd') ? (
                           <Link href={`/verify-restructure/${item.apply_id}`}
-                            className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs md:text-sm font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-500/30 transition-all hover:shadow-xl hover:shadow-green-500/40">
+                            className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white text-xs md:text-sm font-medium rounded-lg hover:from-blue-700 hover:to-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:shadow-xl hover:shadow-blue-500/40">
                             <CheckCircle className="w-3 h-3 md:w-4 md:h-4" />Verify
                           </Link>
                         ) : (
-                          <span className="inline-flex items-center px-2 md:px-3 py-1 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg">RPMO/RD</span>
+                          <span className="inline-flex items-center px-2 md:px-3 py-1 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg">RPMU/RD</span>
                         )}
                       </td>
                     </tr>

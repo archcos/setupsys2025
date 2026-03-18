@@ -13,7 +13,7 @@ export default function FinancialSection({ data, setData, errors }) {
   ];
 
   return (
-    <FormCard icon={BarChart3} title="Financial Information" iconBgColor="bg-purple-100" iconColor="text-purple-600">
+    <FormCard icon={BarChart3} title="Financial Information" iconBgColor="bg-blue-100" iconColor="text-blue-600">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
         {financialFields.map((field) => (
           <div key={field.key}>

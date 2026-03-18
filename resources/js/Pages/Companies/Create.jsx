@@ -93,8 +93,8 @@ export default function CompanyCreate() {
               <Building2 className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-xl md:text-3xl font-bold text-gray-900">Create New Proponent</h1>
-              <p className="text-xs md:text-base text-gray-600 mt-1">Fill in the details to create a proponent profile</p>
+              <h1 className="text-xl md:text-3xl font-bold">Create New Proponent</h1>
+              <p className="text-xs md:text-base mt-1">Fill in the details to create a proponent profile</p>
             </div>
           </div>
         </div>

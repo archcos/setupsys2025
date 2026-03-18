@@ -10,7 +10,7 @@ export default function TimelineSection({ data, setData, errors }) {
   };
 
   return (
-    <FormCard icon={Calendar} title="Timeline & Dates" iconBgColor="bg-green-100" iconColor="text-green-600">
+    <FormCard icon={Calendar} title="Timeline & Dates" iconBgColor="bg-blue-100" iconColor="text-blue-600">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         <div>
           <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Initial Project Fund Release</label>

@@ -106,8 +106,8 @@ export default function Review({ reports, filters }) {
           {/* Card Header */}
           <div className="bg-gray-50 p-3 md:p-6 border-b border-gray-100">
             <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 bg-orange-100 rounded-lg">
-                <FileCheck2 className="w-4 h-4 md:w-5 md:h-5 text-orange-600" />
+              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
+                <FileCheck2 className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               </div>
               <div>
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">Review Reports</h2>
@@ -130,7 +130,7 @@ export default function Review({ reports, filters }) {
                   placeholder="Search by project or proponent..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                  className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                 />
                 {search && (
                   <button
@@ -414,8 +414,8 @@ export default function Review({ reports, filters }) {
           {/* Empty State */}
           {reports.data.length === 0 && (
             <div className="text-center py-12 px-4">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mb-4">
-                <Clock className="w-8 h-8 text-orange-600" />
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                <Clock className="w-8 h-8 text-blue-600" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">No Reports</h3>
               <p className="text-sm text-gray-600">There are no reports at this time.</p>
@@ -437,7 +437,7 @@ export default function Review({ reports, filters }) {
                       onClick={() => link.url && router.visit(link.url)}
                       className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all duration-200 flex-shrink-0 ${
                         link.active
-                          ? "bg-orange-500 text-white border-transparent shadow-md"
+                          ? "bg-blue-500 text-white border-transparent shadow-md"
                           : link.url
                           ? "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
                           : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
@@ -472,7 +472,7 @@ export default function Review({ reports, filters }) {
 
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-40">
-                <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-400 border-t-orange-500"></div>
+                <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-400 border-t-blue-500"></div>
               </div>
             )}
 

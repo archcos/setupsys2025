@@ -89,12 +89,12 @@ export default function Edit({ company }) {
             Back to Proponents
           </Link>
           <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
-            <div className="p-2 md:p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg md:rounded-xl shadow-lg">
+            <div className="p-2 md:p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg md:rounded-xl shadow-lg">
               <Edit3 className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-xl md:text-3xl font-bold text-gray-900">Edit Proponent</h1>
-              <p className="text-xs md:text-base text-gray-600 mt-1">Update proponent information and details</p>
+              <h1 className="text-xl md:text-3xl font-bold ">Edit Proponent</h1>
+              <p className="text-xs md:text-base mt-1">Update proponent information and details</p>
             </div>
           </div>
         </div>
@@ -149,7 +149,7 @@ export default function Edit({ company }) {
                   className={`px-4 md:px-8 py-2 md:py-3 rounded-lg md:rounded-xl font-medium transition-all duration-200 text-sm ${
                     processing || isSubmitting
                       ? 'bg-gray-400 text-white cursor-not-allowed'
-                      : 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 shadow-md hover:shadow-lg'
+                      : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg'
                   }`}
                 >
                   {processing || isSubmitting ? (

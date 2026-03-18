@@ -10,7 +10,7 @@ const WORKFORCE_FIELDS = [
 
 export default function WorkforceSection({ data, setData, errors }) {
   return (
-    <FormCard icon={Users} title="Workforce Distribution" iconBgColor="bg-cyan-100" iconColor="text-cyan-600">
+    <FormCard icon={Users} title="Workforce Distribution" iconBgColor="bg-blue-100" iconColor="text-blue-600">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
         {WORKFORCE_FIELDS.map((field) => (
           <div key={field.key}>

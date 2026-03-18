@@ -59,12 +59,12 @@ export default function Edit({ project, companies }) {
             Back to Projects
           </Link>
           <div className="flex items-start md:items-center gap-3 md:gap-4">
-            <div className="p-2 md:p-3 bg-gradient-to-r from-amber-500 to-orange-600 rounded-lg md:rounded-xl shadow-lg flex-shrink-0">
+            <div className="p-2 md:p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg md:rounded-xl shadow-lg flex-shrink-0">
               <Edit3 className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Edit Project</h1>
-              <p className="text-sm md:text-base text-gray-600 mt-1">Update project details and configurations</p>
+              <h1 className="text-2xl md:text-3xl font-bold">Edit Project</h1>
+              <p className="text-sm md:text-base mt-1">Update project details and configurations</p>
             </div>
           </div>
         </div>
@@ -128,7 +128,7 @@ export default function Edit({ project, companies }) {
                   className={`flex-1 md:flex-none px-4 md:px-8 py-2 md:py-3 rounded-lg md:rounded-xl font-medium text-sm md:text-base transition-all duration-200 ${
                     processing
                       ? 'bg-gray-400 text-white cursor-not-allowed'
-                      : 'bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700 shadow-lg hover:shadow-xl'
+                      : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
                   }`}
                 >
                   {processing ? (

@@ -199,7 +199,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
               </button>
               <Link
                 href="/proponents/create"
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm md:text-base"
+                className="flex items-center justify-center gap-2 bg-blue-500 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:bg-blue-600 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
               >
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Add Proponent</span>

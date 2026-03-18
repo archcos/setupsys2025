@@ -17,7 +17,7 @@ export default function ItemsSection({ data, setData, errors }) {
   };
 
   return (
-    <FormCard icon={Package} title="Project Items" iconBgColor="bg-orange-100" iconColor="text-orange-600">
+    <FormCard icon={Package} title="Project Items" iconBgColor="bg-blue-100" iconColor="text-blue-600">
       <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-3 md:gap-0 mb-4 md:mb-6">
         <button
           type="button"
