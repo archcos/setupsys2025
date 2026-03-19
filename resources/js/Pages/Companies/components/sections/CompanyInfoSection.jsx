@@ -3,22 +3,9 @@ import { Building2, AlertCircle } from 'lucide-react';
 import FormCard from '../FormCard';
 
 const INDUSTRY_OPTIONS = [
+
   {
-    label: 'Major Industry Sectors',
-    options: [
-      'Agriculture/Aquaculture/Forestry',
-      'Creative Industry',
-      'Energy and Environment',
-      'Food Processing',
-      'Furniture',
-      'Gifts, Decors, Handicrafts',
-      'Health and Wellness',
-      'Metals and Engineering',
-      'Other Regional Priority Sectors',
-    ]
-  },
-  {
-    label: 'Sub-Industries / Manufacturing',
+    label: 'SETUP 4.0 Priority Sectors',
     options: [
       'Crop and animal production, hunting, and related service activities',
       'Forestry and Logging',
@@ -41,7 +28,7 @@ const INDUSTRY_OPTIONS = [
       'Information and Communication',
       'Other regional priority industries approved by the Regional Development Council',
     ]
-  }
+  },
 ];
 
 export default function CompanyInfoSection({ data, setData, errors }) {

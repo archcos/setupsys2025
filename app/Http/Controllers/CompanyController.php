@@ -62,9 +62,9 @@ public function index(Request $request)
         $query->where('industry_type', $request->industry_type);
     }
 
-    // Filter by setup industry
-    if ($request->has('setup_industry') && $request->setup_industry) {
-        $query->where('setup_industry', $request->setup_industry);
+    // Filter by setup industry (case-insensitive)
+    if ($request->filled('setup_industry')) {
+        $query->whereRaw('LOWER(setup_industry) = LOWER(?)', [$request->setup_industry]);
     }
 
     // Sorting
@@ -81,6 +81,11 @@ public function index(Request $request)
 
     $perPage = $request->input('perPage', 10);
     $companies = $query->paginate($perPage)->withQueryString();
+    $availableYears = \App\Models\ProjectModel::select('year_obligated')
+    ->whereNotNull('year_obligated')
+    ->distinct()
+    ->orderBy('year_obligated', 'desc')
+    ->pluck('year_obligated');
 
     return Inertia::render('Companies/Index', [
         'companies' => $companies,
@@ -89,6 +94,7 @@ public function index(Request $request)
         'allOffices' => $allOffices,
         'canEditAddedBy' => $user->role === 'rpmo',
         'userRole' => $user->role, // Pass user role to frontend
+        'availableYears' => $availableYears,
     ]);
 }
 
@@ -154,6 +160,120 @@ public function store(Request $request)
     CompanyModel::create($validated);
 
     return redirect()->route('proponents.index')->with('success', 'Company added successfully.');
+}
+
+public function export(Request $request)
+{
+    $user = Auth::user();
+
+    $query = CompanyModel::with(['office', 'addedByUser', 'projects']);
+
+    // Role-based filtering
+    if ($user->role === 'user') {
+        $query->where('added_by', $user->user_id);
+    } elseif ($user->role === 'staff') {
+        $query->where('office_id', $user->office_id);
+    }
+
+    // Filter by year (supports multiple)
+    if ($request->filled('year')) {
+        $years = (array) $request->input('year');
+        $query->whereHas('projects', function ($q) use ($years) {
+            $q->whereIn('year_obligated', $years);
+        });
+    }
+
+    // Filter by office (supports multiple)
+    if ($request->filled('office')) {
+        $offices = (array) $request->input('office');
+        $query->whereIn('office_id', $offices);
+    }
+
+    // Filter by industry type (supports multiple)
+    if ($request->filled('industry_type')) {
+        $types = (array) $request->input('industry_type');
+        $query->whereIn('industry_type', $types);
+    }
+
+    // Filter by setup industry (supports multiple, case-insensitive)
+    if ($request->filled('setup_industry')) {
+        $industries = (array) $request->input('setup_industry');
+        $query->where(function ($q) use ($industries) {
+            foreach ($industries as $industry) {
+                $q->orWhereRaw('LOWER(setup_industry) = LOWER(?)', [$industry]);
+            }
+        });
+    }
+
+    $companies = $query->orderBy('company_name')->get();
+
+    $filename = 'proponents_' . now()->format('Ymd_His') . '.csv';
+
+    $headers = [
+        'Content-Type'        => 'text/csv',
+        'Content-Disposition' => "attachment; filename=\"$filename\"",
+        'Pragma'              => 'no-cache',
+        'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
+        'Expires'             => '0',
+    ];
+
+    $callback = function () use ($companies) {
+        $handle = fopen('php://output', 'w');
+
+        fputcsv($handle, [
+            'ID',
+            'Company Name',
+            'Owner Name',
+            'Email',
+            'Contact Number',
+            'Street',
+            'Barangay',
+            'Municipality',
+            'Province',
+            'District',
+            'Sex',
+            'Industry Type',
+            'Setup Industry',
+            'Products',
+            'Office',
+            'Added By',
+            'Project Years',
+        ]);
+
+        foreach ($companies as $company) {
+            // Collect all unique year_obligated values for this company's projects
+            $projectYears = $company->projects
+                ->pluck('year_obligated')
+                ->filter()
+                ->unique()
+                ->sort()
+                ->implode(', ');
+
+            fputcsv($handle, [
+                $company->company_id,
+                $company->company_name,
+                $company->owner_name,
+                $company->email,
+                $company->contact_number,
+                $company->street,
+                $company->barangay,
+                $company->municipality,
+                $company->province,
+                $company->district,
+                $company->sex,
+                $company->industry_type,
+                $company->setup_industry,
+                $company->products,
+                $company->office?->office_name,
+                $company->addedByUser?->first_name . ' ' . $company->addedByUser?->last_name,
+                $projectYears,
+            ]);
+        }
+
+        fclose($handle);
+    };
+
+    return response()->stream($callback, 200, $headers);
 }
 
 
@@ -250,7 +370,10 @@ public function syncFromCSV()
                     'district'         => $data['District'] ?? null,
                     'sex'              => $data['Sex'] ?? null,
                     'products'         => $data['Products'] ?? null,
-                    'setup_industry'   => $data['SETUP Industry Sector'] ?? null,
+                    'setup_industry'   => (function($val) {
+                        if (is_null($val)) return null;
+                        return (strtolower(trim($val)) === 'food processing') ? 'Food Processing' : $val;
+                    })($data['SETUP Industry Sector'] ?? null),                    
                     'industry_type'    => $data['Type of Enterprise'] ?? null,
                     'contact_number'   => $data['Contact number'] ?? null,
                 ]);

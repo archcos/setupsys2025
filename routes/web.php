@@ -74,22 +74,23 @@ Route::middleware(['log-suspicious'])->group(function () {
 
     // DEVELOPMENT
     Route::middleware(['auth'])->group(function () {
-        Route::resource('proponents', CompanyController::class);
+        Route::get('/proponents/export', [CompanyController::class, 'export'])->name('proponents.export'); // ← ADD THIS FIRST
+        
+        Route::resource('proponents', CompanyController::class)->except(['show']); // ← except show since you don't have it
         Route::resource('projects', ProjectController::class)->middleware('role:head,staff,rpmo')
-            ->except(['destroy', 'show']); // exclude destroy from staff
+            ->except(['destroy', 'show']);
         Route::delete('/projects/{id}', [ProjectController::class, 'destroy'])
             ->middleware('role:head,rpmo')
             ->name('projects.destroy');    
         Route::resource('activities', ActivityController::class)->middleware('role:head,staff,rpmo');
         Route::post('/projects/{id}/update-status', [ProjectController::class, 'updateStatus'])->name('projects.updateStatus')->middleware('role:rpmo');
         Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly')->middleware('role:user');
-        // Route::post('/companies/sync', [CompanyController::class, 'syncFromCSV'])->name('companies.sync')->middleware('role:rpmo');
         Route::get('/activity-list', [ActivityController::class, 'readonly'])->name('activities.readonly')->middleware('role:user');
         Route::post('/proponents/sync', [CompanyController::class, 'syncFromCSV'])->name('proponents.sync')->middleware('role:rpmo');
         Route::post('/proponents/{id}/update-added-by', [CompanyController::class, 'updateAddedBy'])->middleware('role:rpmo')->name('proponents.update-added-by');
         Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
-        ->middleware('role:rpmo')
-        ->name('projects.sync');
+            ->middleware('role:rpmo')
+            ->name('projects.sync');
     });
 
 

@@ -1,9 +1,13 @@
 import { Link, router, Head } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Eye, Edit3, Trash2, Building, User, Mail, Phone, MapPin, Factory, Package, X, Filter, ArrowUpDown, AlertCircle } from 'lucide-react';
+import IndustrySelect from './components/IndustrySelect';
+import MultiSelect from './components/MultiSelect';
+import { INDUSTRY_OPTIONS_GROUPED, INDUSTRY_TYPE_OPTIONS } from './components/industryOptions.js';
 
 
-export default function Index({ companies, filters, allUsers = [], allOffices = [], canEditAddedBy = false, userRole = 'user' }) {
+
+export default function Index({ companies, filters, allUsers = [], allOffices = [], canEditAddedBy = false, userRole = 'user', availableYears = [] }) {
   const [search, setSearch] = useState(filters.search || '');
   const [perPage, setPerPage] = useState(filters.perPage || 10);
   const [selectedCompany, setSelectedCompany] = useState(null);
@@ -18,6 +22,8 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
   const filterTimeoutRef = useRef(null);
   const isInitialRenderRef = useRef(true);
   const dropdownRef = useRef(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+
 
   // Determine filter visibility based on role
   const showFilters = userRole !== 'user'; // Hide filters only for 'user' role
@@ -180,24 +186,39 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
       <div className="max-w-7xl mx-auto">
         {/* Main Content Card */}
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
-          {/* Card Header */}
-          <div className="bg-gradient-to-r from-gray-50 to-white p-3 md:p-6 border-b border-gray-100">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
-              <div className="flex items-center gap-2 md:gap-3">
-                <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
-                  <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-                </div>
-                <h2 className="text-base md:text-xl font-semibold text-gray-900">Proponents</h2>
+        {/* Card Header */}
+        <div className="bg-gradient-to-r from-gray-50 to-white p-3 md:p-6 border-b border-gray-100">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
+            {/* Title - left side */}
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
+                <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               </div>
+              <h2 className="text-base md:text-xl font-semibold text-gray-900">Proponents</h2>
+            </div>
+
+            {/* Action buttons - right side, grouped */}
+            <div className="flex items-center gap-2 md:gap-3 md:ml-auto flex-wrap">
               <button
                 onClick={() => router.post('/proponents/sync')}
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm md:text-base"
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
                 title="Sync from CSV"
               >
                 <Package className="w-4 h-4" />
                 <span className="hidden sm:inline">Sync CSV</span>
                 <span className="sm:hidden">Sync</span>
               </button>
+
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
+                title="Export to CSV"
+              >
+                <Package className="w-4 h-4" />
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
+              </button>
+
               <Link
                 href="/proponents/create"
                 className="flex items-center justify-center gap-2 bg-blue-500 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:bg-blue-600 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
@@ -208,6 +229,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
               </Link>
             </div>
           </div>
+        </div>
 
           {/* Filters Section - Hide only for user role */}
           {showFilters && (
@@ -288,48 +310,12 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                   {/* Setup Industry Filter */}
                   <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
                     <Factory className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <select
+                    <IndustrySelect
                       value={setupIndustryFilter}
                       onChange={handleSetupIndustryChange}
                       className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
-                    >
-                      <option value="">All Industries</option>
-                      <optgroup label="Major Industry Sectors">
-                        <option value="Agriculture/Aquaculture/Forestry">Agriculture / Aquaculture / Forestry</option>
-                        <option value="Creative Industry">Creative Industry</option>
-                        <option value="Energy and Environment">Energy and Environment</option>
-                        <option value="Food Processing">Food Processing</option>
-                        <option value="Furniture">Furniture</option>
-                        <option value="Gifts, Decors, Handicrafts">Gifts, Decors, Handicrafts</option>
-                        <option value="Health and Wellness">Health and Wellness</option>
-                        <option value="Metals and Engineering">Metals and Engineering</option>
-                        <option value="Other Regional Priority Sectors">Other Regional Priority Sectors</option>
-                      </optgroup>
-                      <optgroup label="Sub-Industries / Manufacturing">
-                        <option value="Crop and animal production, hunting, and related service activities">Crop & Animal Production</option>
-                        <option value="Forestry and Logging">Forestry & Logging</option>
-                        <option value="Fishing and aquaculture">Fishing & Aquaculture</option>
-                        <option value="Food processing">Food Processing</option>
-                        <option value="Beverage manufacturing">Beverage Manufacturing</option>
-                        <option value="Textile manufacturing">Textile Manufacturing</option>
-                        <option value="Wearing apparel manufacturing">Wearing Apparel</option>
-                        <option value="Leather and related products manufacturing">Leather Products</option>
-                        <option value="Wood and products of wood and cork manufacturing">Wood & Cork Products</option>
-                        <option value="Paper and paper products manufacturing">Paper & Paper Products</option>
-                        <option value="Chemicals and chemical products manufacturing">Chemicals & Chemical Products</option>
-                        <option value="Basic pharmaceutical products and pharmaceutical preparations manufacturing">Pharmaceutical Products</option>
-                        <option value="Rubber and plastic products manufacturing">Rubber & Plastic Products</option>
-                        <option value="Non-metallic mineral products manufacturing">Non-metallic Minerals</option>
-                        <option value="Fabricated metal products manufacturing">Fabricated Metal Products</option>
-                        <option value="Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing">Machinery & Equipment (NEC)</option>
-                        <option value="Other transport equipment manufacturing">Transport Equipment</option>
-                        <option value="Furniture manufacturing">Furniture Manufacturing</option>
-                        <option value="Information and Communication">Information & Communication</option>
-                        <option value="Other regional priority industries approved by the Regional Development Council">Regional Priority Industries</option>
-                      </optgroup>
-                    </select>
+                    />
                   </div>
-
                   {/* Clear Filters Button */}
                   {(search || officeFilter || setupIndustryFilter || industryTypeFilter) && (
                     <button
@@ -628,6 +614,16 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
         />
       )}
 
+      {showExportModal && (
+        <ExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          allOffices={allOffices}
+          userRole={userRole}
+          availableYears={availableYears} 
+        />
+      )}
+
       {/* Delete Confirmation Modal */}
       {showDeleteModal && companyToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -835,6 +831,133 @@ function CompanyModal({ company, isOpen, onClose }) {
             </Link>
           </div>  
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+function ExportModal({ isOpen, onClose, allOffices = [], userRole, availableYears = [] }) {
+  const [exportYears, setExportYears] = useState([]);
+  const [exportOffices, setExportOffices] = useState([]);
+  const [exportIndustryTypes, setExportIndustryTypes] = useState([]);
+  const [exportSetupIndustries, setExportSetupIndustries] = useState([]);
+
+  if (!isOpen) return null;
+
+  const officeOptions = allOffices.map((o) => ({ value: String(o.office_id), label: o.office_name }));
+  const yearOptions = availableYears.map((y) => ({ value: String(y), label: String(y) }));
+
+  const handleExport = () => {
+    const params = new URLSearchParams();
+    exportYears.forEach((y) => params.append('year[]', y));
+    exportOffices.forEach((o) => params.append('office[]', o));
+    exportIndustryTypes.forEach((t) => params.append('industry_type[]', t));
+    exportSetupIndustries.forEach((s) => params.append('setup_industry[]', s));
+    window.location.href = `/proponents/export?${params.toString()}`;
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Package className="w-5 h-5 text-green-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Export Proponents</h3>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        <p className="text-sm text-gray-500 mb-5">
+          Select one or more filters. Leave blank to export all records.
+        </p>
+
+        <div className="space-y-5">
+          {/* Year */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Project Year
+              <span className="ml-1.5 text-xs text-gray-400 font-normal">(years the proponent has projects)</span>
+            </label>
+            <MultiSelect
+              options={yearOptions}
+              value={exportYears}
+              onChange={setExportYears}
+              placeholder="All Years"
+            />
+          </div>
+
+          {/* Office - rpmo only */}
+          {userRole === 'rpmo' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Office</label>
+              <MultiSelect
+                options={officeOptions}
+                value={exportOffices}
+                onChange={setExportOffices}
+                placeholder="All Offices"
+              />
+            </div>
+          )}
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-gray-400 font-medium tracking-wider">Industry Filters</span>
+            </div>
+          </div>
+
+          {/* Industry Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Industry Type</label>
+            <MultiSelect
+              options={INDUSTRY_TYPE_OPTIONS}
+              value={exportIndustryTypes}
+              onChange={setExportIndustryTypes}
+              placeholder="All Types"
+            />
+          </div>
+
+          {/* Setup Industry */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Setup Industry</label>
+            <MultiSelect
+              options={INDUSTRY_OPTIONS_GROUPED}
+              value={exportSetupIndustries}
+              onChange={setExportSetupIndustries}
+              placeholder="All Industries"
+              grouped
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 mt-6 pt-5 border-t border-gray-100">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleExport}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors text-sm"
+          >
+            <Package className="w-4 h-4" />
+            Export CSV
+          </button>
+        </div>
+
       </div>
     </div>
   );
