@@ -1,6 +1,6 @@
 import { Building2, Calendar, CheckCircle2, XCircle, TrendingUp, Clock, FileText, RefreshCw, ChevronLeft, PhilippinePeso } from 'lucide-react';
 import {Link } from "@inertiajs/react";
-export default function ProjectRefundDetailsView({ project, months, summary }) {
+export default function UserDetails({ project, months, summary }) {
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-PH', {

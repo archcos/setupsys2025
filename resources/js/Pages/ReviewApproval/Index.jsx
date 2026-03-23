@@ -287,7 +287,7 @@ export default function Index({ projects, filters, years, statusCounts }) {
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       <button onClick={() => handleSort('project_title')} className="flex items-center gap-2 hover:text-blue-600 transition-colors">
                         <FileText className="w-4 h-4" />
-                        Project
+                        PROJECT
                         {getSortIcon('project_title')}
                       </button>
                     </th>
@@ -295,7 +295,7 @@ export default function Index({ projects, filters, years, statusCounts }) {
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       <button onClick={() => handleSort('year_obligated')} className="flex items-center gap-2 hover:text-blue-600 transition-colors">
                         <Calendar className="w-4 h-4" />
-                        Year
+                        YEAR
                         {getSortIcon('year_obligated')}
                       </button>
                     </th>

@@ -91,7 +91,7 @@ class RestructureController extends Controller
 
         $offices = OfficeModel::orderBy('office_name')->get();
 
-        return Inertia::render('Restructures/RestructureList', [
+        return Inertia::render('Restructures/Index', [
             'applyRestructs' => $applyRestructs,
             'offices'        => $offices,
             'statusCounts'   => $statusCounts,
@@ -126,7 +126,7 @@ class RestructureController extends Controller
 
         $restructures = $restructuresQuery->latest()->get();
 
-        return Inertia::render('Restructures/VerifyRestructure', [
+        return Inertia::render('Restructures/Checklist', [
             'applyRestruct' => $applyRestruct,
             'project'       => $project,
             'restructures'  => $restructures,

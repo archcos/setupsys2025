@@ -146,7 +146,7 @@ class ComplianceController extends Controller
             }
         }
 
-        return Inertia::render('ReviewApproval/Compliance', [
+        return Inertia::render('ReviewApproval/Checklist', [
             'project'    => $project,
             'compliance' => $compliance,
             'userRole'   => $user->role ?? null,

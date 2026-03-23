@@ -177,10 +177,10 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
         <div className="mb-4 md:mb-8">
           <div className="flex flex-col gap-3 md:gap-4">
             <div>
-              <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+              <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text">
                 Apply Restructuring
               </h1>
-              <p className="text-xs md:text-base text-slate-600 mt-1">Manage project restructuring applications</p>
+              <p className="text-xs md:text-base mt-1">Manage project restructuring applications</p>
             </div>
             <button
               onClick={() => {

@@ -435,13 +435,13 @@ useEffect(() => {
       <div className="max-w-7xl mx-auto p-3 md:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-4 md:mb-6">
-          <Link
-            href="/verify-restructure"
+          <button
+            onClick={() => window.history.back()}
             className="inline-flex items-center gap-2 text-xs md:text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-3 group"
           >
             <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
             Back to List
-          </Link>
+          </button>
           <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
             Verify Restructuring
           </h1>

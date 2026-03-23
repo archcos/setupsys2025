@@ -9,7 +9,7 @@ import RefundPagination from './components/RefundPagination';
 import UnpaidMonthsWarningModal from './components/UnpaidMonthsWarningModal';
 import { useRefundData } from './hooks/useRefundData';
 
-export default function Refund({ projects, selectedMonth, selectedYear, search, selectedStatus }) {
+export default function Index({ projects, selectedMonth, selectedYear, search, selectedStatus }) {
   const { flash, userRole } = usePage().props;
   const isRPMO = ['rpmo', 'au'].includes(userRole);
 

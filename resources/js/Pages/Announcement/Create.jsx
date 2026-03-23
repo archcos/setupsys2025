@@ -21,13 +21,13 @@ export default function Create({ office_id }) {
       <div className="max-w-3xl mx-auto p-3 md:p-6">
         {/* Header Section */}
         <div className="mb-4 md:mb-8">
-          <Link
-            href="/announcements"
+          <button
+            onClick={() => window.history.back()}
             className="inline-flex items-center gap-2 text-xs md:text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-3 group"
           >
             <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
             Back
-          </Link>
+          </button>
           <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
             <div className="p-2 md:p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg md:rounded-xl shadow-lg flex-shrink-0">
               <Plus className="w-5 h-5 md:w-6 md:h-6 text-white" />

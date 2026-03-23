@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
 import { Search, FileText, Download, Building2, User, Calendar, Users, X, ArrowUpDown, Upload, FileCheck, AlertCircle, Eye } from 'lucide-react';
 
-export default function MOAIndex({ moas, filters }) {
+export default function Index({ moas, filters }) {
   const [search, setSearch] = useState(filters?.search || '');
   const [perPage, setPerPage] = useState(filters?.perPage || 10);
   const [sortBy, setSortBy] = useState(filters?.sortBy || 'created_at');
@@ -196,7 +196,7 @@ export default function MOAIndex({ moas, filters }) {
                       className="flex items-center gap-2 hover:text-blue-600 transition-colors"
                     >
                       <FileText className="w-4 h-4" />
-                      Project
+                      PROJECT
                       {getSortIcon('project_cost')}
                     </button>
                   </th>
@@ -224,7 +224,7 @@ export default function MOAIndex({ moas, filters }) {
                       className="flex items-center gap-2 hover:text-blue-600 transition-colors"
                     >
                       <Calendar className="w-4 h-4" />
-                      Date Created
+                      DATE CREATED
                       {getSortIcon('created_at')}
                     </button>
                   </th>

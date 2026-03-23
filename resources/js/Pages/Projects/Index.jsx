@@ -393,19 +393,19 @@ export default function Index({ projects, filters, offices, allYears }) {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <SortButton field="year_obligated" label="Year" icon={Calendar} />
+                    <SortButton field="year_obligated" label="YEAR OBLIGATED" icon={Calendar} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <SortButton field="project_id" label="Code" icon={FileText} />
+                    <SortButton field="project_id" label="PROJECT CODE" icon={FileText} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <SortButton field="project_title" label="Project & Proponent" icon={Building2} />
+                    <SortButton field="project_title" label="PROJECT & PROPONENT" icon={Building2} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <SortButton field="project_cost" label="Cost" icon={PhilippinePeso} />
+                    <SortButton field="project_cost" label="COST" icon={PhilippinePeso} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <SortButton field="fund_release" label="Fund Release" icon={Calendar} />
+                    <SortButton field="fund_release" label="FUND RELEASE" icon={Calendar} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>

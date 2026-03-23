@@ -30,13 +30,13 @@ export default function Edit({ activity, projects }) {
       <div className="max-w-5xl mx-auto">
         {/* Header Section */}
         <div className="mb-6 md:mb-8">
-          <Link
-            href="/activities"
+          <button
+            onClick={() => window.history.back()}
             className="inline-flex items-center gap-2 text-xs md:text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-3 md:mb-4 group"
           >
             <ChevronLeft className="w-3 h-3 md:w-4 md:h-4 transition-transform group-hover:-translate-x-1" />
             Back to Activities
-          </Link>
+          </button>
           <div className="flex items-start md:items-center gap-2 md:gap-4">
             <div className="p-2 md:p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg md:rounded-xl shadow-lg flex-shrink-0">
               <Edit2 className="w-5 h-5 md:w-6 md:h-6 text-white" />

@@ -2,7 +2,7 @@ import { useForm, router, Head } from '@inertiajs/react';
 import { FileText, Building2, FolderOpen, Users, Download, Loader2, AlertCircle, CheckCircle, FileSignature } from 'lucide-react';
 
 
-export default function GenerateDocxForm({ companies, selectedCompany, projects, filters }) {
+export default function DraftMoa({ companies, selectedCompany, projects, filters }) {
   const { data, setData, post, reset, errors, processing } = useForm({
     company_id: filters?.company_id || '',
     project_id: '',

@@ -3,7 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Building2, Calendar, CheckCircle2, XCircle, TrendingUp, Clock, FileText, RefreshCw, ChevronLeft, Lock, PhilippinePeso } from 'lucide-react';
 import UnpaidMonthsWarningModal from './components/UnpaidMonthsWarningModal';
 
-export default function ProjectRefundDetails({ project, months, summary }) {
+export default function Details({ project, months, summary }) {
   const { userRole, flash } = usePage().props;
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [bulkStatus, setBulkStatus] = useState('');

@@ -137,13 +137,13 @@ export default function Create({ project, objects, equipments, nonequipments, re
       <div className="max-w-6xl mx-auto">
         {/* Back & Title */}
         <div className="mb-6 md:mb-8">
-          <Link
-            href={route("reports.index")}
+          <button
+            onClick={() => window.history.back()}
             className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-3 md:mb-4 group"
           >
             <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
             Back to Reports
-          </Link>
+          </button>
           <div className="flex items-start gap-3 md:gap-4">
             <div className="p-2 md:p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg md:rounded-xl shadow-lg flex-shrink-0">
               <FileText className="w-5 h-5 md:w-6 md:h-6 text-white" />

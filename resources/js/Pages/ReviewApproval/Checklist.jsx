@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Head, useForm, router, Link } from "@inertiajs/react";
 import { CheckCircle, Calendar, User, AlertTriangle, AlertCircle, X, ChevronLeft } from "lucide-react";
 
-export default function Compliance({ project, compliance, errors, userRole }) {
+export default function ComplianceChecklist({ project, compliance, errors, userRole }) {
   const { data, setData, post, processing } = useForm({
     project_id: project.project_id,
     links: {
@@ -136,10 +136,10 @@ export default function Compliance({ project, compliance, errors, userRole }) {
             
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4">
               <div className="min-w-0 flex-1">
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                <h1 className="text-2xl md:text-3xl font-bold ">
                   Project Compliance
                 </h1>
-                <p className="text-xs md:text-base text-gray-600 mt-1 line-clamp-2">
+                <p className="text-xs md:text-base mt-1 line-clamp-2">
                   {project.project_title}
                 </p>
               </div>

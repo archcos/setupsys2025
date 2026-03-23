@@ -636,7 +636,7 @@ public function showForm(Request $request)
         }
     }
 
-    return Inertia::render('MOA/GenerateDocxForm', [
+    return Inertia::render('MOA/DraftMoa', [
         'companies' => $companies,
         'selectedCompany' => $selectedCompany,
         'projects' => $projects,

@@ -453,18 +453,6 @@ export default function Checklist({ implementation, approvedItems }) {
         {renderStatus(implementation.liquidation)}
       </div>
 
-      {/* Progress reminder */}
-      <div className="mb-4 md:mb-6 p-3 md:p-4 bg-gray-50 rounded-xl border border-gray-200">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs md:text-sm font-medium text-gray-700">Tagging Progress</span>
-          <span className={`text-xs md:text-sm font-bold ${canUploadLiquidation ? 'text-green-600' : 'text-blue-600'}`}>{percentage.toFixed(1)}%</span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-          <div className={`h-full transition-all duration-500 ease-out ${canUploadLiquidation ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-blue-500 to-blue-600'}`}
-            style={{ width: `${Math.min(percentage, 100)}%` }} />
-        </div>
-      </div>
-
       {!canUploadLiquidation && (
         <div className="mb-4 md:mb-6 p-3 md:p-4 bg-yellow-50 rounded-lg md:rounded-xl border border-yellow-200">
           <div className="flex items-start gap-2 md:gap-3">
@@ -542,11 +530,13 @@ export default function Checklist({ implementation, approvedItems }) {
 
           {/* Header */}
           <div className="mb-4 md:mb-8">
-            <Link href="/implementation"
-              className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors mb-2 md:mb-4 group">
+            <button
+              onClick={() => window.history.back()}
+              className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors mb-2 md:mb-4 group"
+            >
               <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
               Back to Implementation
-            </Link>
+            </button>
             <div className="flex items-start gap-2 md:gap-4">
               <div className="p-2 md:p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg md:rounded-xl shadow-lg flex-shrink-0">
                 <ClipboardList className="w-5 h-5 md:w-6 md:h-6 text-white" />

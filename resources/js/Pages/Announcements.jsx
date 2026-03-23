@@ -36,12 +36,12 @@ export default function Announcements({ announcements = [], old_announcements = 
 
       {/* Header */}
       <div className="relative px-4 py-6 sm:py-8">
-        <Link
-          href="/"
+        <button
+          onClick={() => window.history.back()}
           className="absolute top-4 left-4 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
         >
           <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </Link>
+        </button>
 
         <div className="flex flex-col items-center justify-center gap-3 sm:gap-4">
           <Link href="/" className="flex items-center gap-2 sm:gap-4 hover:scale-105 transition-transform">

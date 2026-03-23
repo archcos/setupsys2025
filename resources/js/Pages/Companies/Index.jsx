@@ -346,7 +346,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                             className="flex items-center gap-2 hover:text-blue-600 transition-colors"
                           >
                             <Building className="w-4 h-4" />
-                            Proponent
+                            PROPONENT
                             <ArrowUpDown className="w-3 h-3" />
                           </button>
                         </th>
@@ -444,13 +444,13 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                                             onClick={() => {
                                               handleUpdateAddedBy(company.company_id, user.user_id);
                                             }}
-                                            className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0"
+                                            className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 text-black"
                                           >
                                             {user.first_name} {user.last_name}
                                           </button>
                                         ))
                                       ) : (
-                                        <div className="px-3 py-2 text-xs text-gray-500">No users found</div>
+                                        <div className="px-3 py-2 text-xs text-black">No users found</div>
                                       )}
                                     </div>
                                   )}

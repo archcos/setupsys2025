@@ -312,7 +312,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
                     <tr className="bg-gray-50 border-b border-gray-200">
                       <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         <button onClick={handleSortToggle} className="flex items-center gap-1">
-                          <span className={isSorted ? 'text-blue-600' : ''}>Project Code</span>
+                          <span className={isSorted ? 'text-blue-600' : ''}>PROJECT CODE</span>
                           <ArrowUpDown className={`w-3 h-3 ${isSorted ? 'text-blue-600' : 'text-gray-400'}`} />
                         </button>
                       </th>
