@@ -2,7 +2,7 @@ import { Link, router, Head } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Eye, Edit3, Trash2, Building, User, Mail, Phone, MapPin, Factory, Package, X, Filter, ArrowUpDown, AlertCircle } from 'lucide-react';
 import IndustrySelect from './components/IndustrySelect';
-import MultiSelect from './components/MultiSelect';
+import MultiSelect from '../../components/MultiSelect';
 import { INDUSTRY_OPTIONS_GROUPED, INDUSTRY_TYPE_OPTIONS } from './components/industryOptions.js';
 
 

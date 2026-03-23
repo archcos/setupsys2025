@@ -21,8 +21,13 @@ export default function Edit({ project, companies }) {
     refund_initial: formatDateToMonth(project.refund_initial),
     refund_end: formatDateToMonth(project.refund_end),
     refund_amount: project.refund_amount || '',
-    last_refund: project.last_refund || '',     
+    last_refund: project.last_refund || '',
     project_cost: project.project_cost || '',
+    counterpart: project.counterpart || '',
+    latitude: project.latitude || '',
+    longitude: project.longitude || '',
+    fund_release: project.fund_release || '',       // NEW
+    released_amount: project.released_amount || '',   // NEW
     year_obligated: project.year_obligated || '',
     revenue: project.revenue || '',
     net_income: project.net_income || '',
@@ -49,7 +54,6 @@ export default function Edit({ project, companies }) {
       <Head title="Edit Project" />
 
       <div className="max-w-5xl mx-auto">
-        {/* Header Section */}
         <div className="mb-6 md:mb-8">
           <Link
             href="/projects"
@@ -70,45 +74,19 @@ export default function Edit({ project, companies }) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 md:space-y-8">
-          <BasicInfoSection 
-            data={data} 
-            setData={setData} 
-            errors={errors} 
+          <BasicInfoSection
+            data={data}
+            setData={setData}
+            errors={errors}
             companies={companies}
             isCreate={false}
           />
+          <TimelineSection data={data} setData={setData} errors={errors} />
+          <FinancialSection data={data} setData={setData} errors={errors} />
+          <WorkforceSection data={data} setData={setData} errors={errors} />
+          <ItemsSection data={data} setData={setData} errors={errors} />
+          <ObjectivesSection data={data} setData={setData} errors={errors} />
 
-          <TimelineSection 
-            data={data} 
-            setData={setData} 
-            errors={errors}
-          />
-
-          <FinancialSection 
-            data={data} 
-            setData={setData} 
-            errors={errors}
-          />
-
-          <WorkforceSection 
-            data={data} 
-            setData={setData} 
-            errors={errors}
-          />
-
-          <ItemsSection 
-            data={data} 
-            setData={setData} 
-            errors={errors}
-          />
-
-          <ObjectivesSection 
-            data={data} 
-            setData={setData} 
-            errors={errors}
-          />
-
-          {/* Submit Section */}
           <div className="bg-white rounded-xl md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
               <div>

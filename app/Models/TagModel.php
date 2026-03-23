@@ -17,13 +17,15 @@ class TagModel extends Model
 
     protected $fillable = [
         'implement_id',
+        'tag_level',
         'tag_name',
         'tag_amount',
+        'details',
         'approved_at', 
     ];
 
     protected $casts = [
-        'created_at'  => 'datetime',
+        'created_at'  => 'date',
         'updated_at'  => 'datetime',
         'approved_at' => 'datetime', 
     ];

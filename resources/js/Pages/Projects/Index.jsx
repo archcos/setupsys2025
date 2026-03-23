@@ -1,7 +1,7 @@
-
 import { Link, router, Head, usePage } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award, Users, TrendingUp, ChevronDown, ClipboardList } from 'lucide-react';
+import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award, Users, TrendingUp, ChevronDown, ClipboardList, MapPin } from 'lucide-react';
+import MultiSelect from '../../components/MultiSelect';
 
 // Helper to format date string
 function formatDate(dateStr) {
@@ -86,8 +86,8 @@ export default function Index({ projects, filters, offices, allYears }) {
   const filterTimeoutRef = useRef(null);
   const { auth } = usePage().props;
   const role = auth?.user?.role;
+  const [showExportModal, setShowExportModal] = useState(false);
 
-  // Extract unique years from projects for filter dropdown
   const uniqueYears = allYears && allYears.length > 0 
     ? allYears 
     : Array.from(new Set(projects.data.map(p => p.year_obligated).filter(Boolean))).sort((a, b) => b - a);
@@ -183,9 +183,7 @@ export default function Index({ projects, filters, offices, allYears }) {
 
   const handleStatusChange = (projectId, newStatus) => {
     if (updatingStatus) return;
-    
     setUpdatingStatus(projectId);
-    
     router.post(`/projects/${projectId}/update-status`, {
       progress: newStatus
     }, {
@@ -257,23 +255,36 @@ export default function Index({ projects, filters, offices, allYears }) {
                 </div>
                 <h2 className="text-base md:text-xl font-semibold text-gray-900">Projects</h2>
               </div>
+              <div className="flex items-center gap-2 md:gap-3 md:ml-auto flex-wrap">
                 <button
-                onClick={() => router.post('/projects/sync')}
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm md:text-base"
-                title="Sync from CSV"
-              >
-                <Package className="w-4 h-4" />
-                <span className="hidden sm:inline">Sync CSV</span>
-                <span className="sm:hidden">Sync</span>
-              </button>
-              <Link
-                href="/projects/create"
-                className="flex items-center justify-center gap-2 bg-blue-500 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:bg-blue-600 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Add Project</span>
-                <span className="sm:hidden">Add</span>
-              </Link>
+                  onClick={() => router.post('/projects/sync')}
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
+                  title="Sync from CSV"
+                >
+                  <Package className="w-4 h-4" />
+                  <span className="hidden sm:inline">Sync CSV</span>
+                  <span className="sm:hidden">Sync</span>
+                </button>
+
+                <button
+                  onClick={() => setShowExportModal(true)}
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
+                  title="Export to CSV"
+                >
+                  <Package className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export CSV</span>
+                  <span className="sm:hidden">Export</span>
+                </button>
+
+                <Link
+                  href="/projects/create"
+                  className="flex items-center justify-center gap-2 bg-blue-500 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:bg-blue-600 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Add Project</span>
+                  <span className="sm:hidden">Add</span>
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -569,6 +580,16 @@ export default function Index({ projects, filters, offices, allYears }) {
         <ProjectModal project={selectedProject} isOpen={!!selectedProject} onClose={() => setSelectedProject(null)} />
       )}
 
+      {showExportModal && (
+        <ProjectExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          offices={offices}
+          availableYears={uniqueYears}
+          userRole={role}
+        />
+      )}
+
       {showDeleteModal && projectToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg md:rounded-2xl shadow-2xl max-w-md w-full p-4 md:p-6">
@@ -628,6 +649,7 @@ function ProjectModal({ project, isOpen, onClose }) {
 
         {/* Content */}
         <div className="p-4 md:p-6 space-y-6">
+
           {/* Project Information */}
           <div className="bg-blue-50 rounded-lg md:rounded-xl p-4 border border-blue-200">
             <div className="flex items-center gap-2 md:gap-3 mb-4">
@@ -660,6 +682,45 @@ function ProjectModal({ project, isOpen, onClose }) {
               </div>
             </div>
           </div>
+
+          {/* Location & Coordinates */}
+          <div className="bg-teal-50 rounded-lg md:rounded-xl p-4 border border-teal-200">
+            <div className="flex items-center gap-2 md:gap-3 mb-4">
+              <div className="p-2 bg-teal-500 rounded-lg">
+                <MapPin className="w-5 h-5 text-white" />
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900">Location & Coordinates</h4>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-white rounded p-3 border border-teal-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Latitude</p>
+                <p className="text-sm font-semibold text-teal-700 font-mono">
+                  {project.latitude != null ? project.latitude : '-'}
+                </p>
+              </div>
+              <div className="bg-white rounded p-3 border border-teal-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Longitude</p>
+                <p className="text-sm font-semibold text-teal-700 font-mono">
+                  {project.longitude != null ? project.longitude : '-'}
+                </p>
+              </div>
+              {project.latitude && project.longitude && (
+                <div className="bg-white rounded p-3 border border-teal-100 md:col-span-2">
+                  <a
+                    href={`https://www.google.com/maps?q=${project.latitude},${project.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-teal-600 hover:text-teal-800 font-medium transition-colors"
+                  >
+                    <MapPin className="w-4 h-4" />
+                    View on Google Maps
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Timeline Data */}
           <div className="bg-amber-50 rounded-lg md:rounded-xl p-4 border border-amber-200">
             <div className="flex items-center gap-2 md:gap-3 mb-4">
@@ -699,18 +760,31 @@ function ProjectModal({ project, isOpen, onClose }) {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Row 1: Project Cost + Counterpart */}
               <div className="bg-white rounded p-3 border border-green-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Project Cost (DOST Assistance)</p>
                 <p className="text-sm font-semibold text-green-600">{formatCurrency(project.project_cost)}</p>
               </div>
               <div className="bg-white rounded p-3 border border-green-100">
-                <p className="text-xs font-medium text-gray-600 mb-1">Refund Amount</p>
+                <p className="text-xs font-medium text-gray-600 mb-1">Counterpart</p>
+                <p className="text-sm font-semibold text-green-600">{formatCurrency(project.counterpart)}</p>
+              </div>
+              <div className="bg-white rounded p-3 border border-green-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Released Amount</p>
+                <p className="text-sm font-semibold text-green-600">{formatCurrency(project.released_amount)}</p>
+              </div>
+
+              {/* Row 3: Monthly Refund + Last Refund */}
+              <div className="bg-white rounded p-3 border border-green-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Monthly Refund Amount</p>
                 <p className="text-sm font-semibold text-gray-900">{formatCurrency(project.refund_amount)}</p>
               </div>
               <div className="bg-white rounded p-3 border border-green-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Last Refund</p>
                 <p className="text-sm font-semibold text-gray-900">{formatCurrency(project.last_refund)}</p>
               </div>
+
+              {/* Row 3+: Before SETUP financials */}
               <div className="bg-white rounded p-3 border border-green-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Revenue (Before SETUP)</p>
                 <p className="text-sm text-gray-900">{formatCurrency(project.revenue)}</p>
@@ -854,6 +928,78 @@ function ProjectModal({ project, isOpen, onClose }) {
               Edit Project
             </Link>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectExportModal({ isOpen, onClose, offices = [], availableYears = [], userRole }) {
+  const [exportYears, setExportYears] = useState([]);
+  const [exportOffices, setExportOffices] = useState([]);
+  const [exportStatuses, setExportStatuses] = useState([]);
+
+  if (!isOpen) return null;
+
+  const yearOptions = availableYears.map((y) => ({ value: String(y), label: String(y) }));
+  const officeOptions = offices.map((o) => ({ value: String(o.office_id), label: o.office_name }));
+  const statusOptions = progressOptions.map((p) => ({ value: p.value, label: p.label }));
+
+  const handleExport = () => {
+    const params = new URLSearchParams();
+    exportYears.forEach((y) => params.append('year[]', y));
+    exportOffices.forEach((o) => params.append('office[]', o));
+    exportStatuses.forEach((s) => params.append('progress[]', s));
+    window.location.href = `/projects/export?${params.toString()}`;
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Package className="w-5 h-5 text-green-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Export Projects</h3>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        <p className="text-sm text-gray-500 mb-5">
+          Select one or more filters. Leave blank to export all records.
+        </p>
+
+        <div className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Year Obligated</label>
+            <MultiSelect options={yearOptions} value={exportYears} onChange={setExportYears} placeholder="All Years" />
+          </div>
+
+          {(userRole === 'rpmo' || userRole === 'staff') && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Office</label>
+              <MultiSelect options={officeOptions} value={exportOffices} onChange={setExportOffices} placeholder="All Offices" />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Project Status</label>
+            <MultiSelect options={statusOptions} value={exportStatuses} onChange={setExportStatuses} placeholder="All Statuses" />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6 pt-5 border-t border-gray-100">
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm">
+            Cancel
+          </button>
+          <button onClick={handleExport} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors text-sm">
+            <Package className="w-4 h-4" />
+            Export CSV
+          </button>
         </div>
       </div>
     </div>

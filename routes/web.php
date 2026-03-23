@@ -74,9 +74,9 @@ Route::middleware(['log-suspicious'])->group(function () {
 
     // DEVELOPMENT
     Route::middleware(['auth'])->group(function () {
-        Route::get('/proponents/export', [CompanyController::class, 'export'])->name('proponents.export'); // ← ADD THIS FIRST
-        
-        Route::resource('proponents', CompanyController::class)->except(['show']); // ← except show since you don't have it
+        Route::get('/proponents/export', [CompanyController::class, 'export'])->name('proponents.export');
+        Route::get('/projects/export', [ProjectController::class, 'export'])->name('projects.export');
+        Route::resource('proponents', CompanyController::class)->except(['show']);
         Route::resource('projects', ProjectController::class)->middleware('role:head,staff,rpmo')
             ->except(['destroy', 'show']);
         Route::delete('/projects/{id}', [ProjectController::class, 'destroy'])

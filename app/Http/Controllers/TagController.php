@@ -45,7 +45,9 @@ class TagController extends Controller
             'implement_id' => 'required|exists:tbl_implements,implement_id',
             'tag_name'     => 'required|string|max:255',
             'tag_amount'   => 'required|numeric|min:0',
-            'approved_at'  => 'nullable|date_format:Y-m-d H:i|before_or_equal:now',
+            'tag_level'    => 'required|integer|between:1,5',
+            'details'      => 'nullable|string',
+            'approved_at'  => 'nullable|date_format:Y-m-d|before_or_equal:today',
         ]);
 
         $remaining = $this->getRemainingAmount($validated['implement_id']);
@@ -60,9 +62,11 @@ class TagController extends Controller
         $tag->implement_id = $validated['implement_id'];
         $tag->tag_name     = $validated['tag_name'];
         $tag->tag_amount   = $validated['tag_amount'];
+        $tag->tag_level    = $validated['tag_level'];
+        $tag->details      = $validated['details'] ?? null;
         $tag->approved_at  = !empty($validated['approved_at'])
-            ? Carbon::createFromFormat('Y-m-d H:i', $validated['approved_at'])
-            : now();
+            ? Carbon::createFromFormat('Y-m-d', $validated['approved_at'])->toDateString()
+            : Carbon::today()->toDateString();
 
         $tag->save();
         $this->updateProjectProgress($tag->implement_id);
@@ -75,7 +79,9 @@ class TagController extends Controller
         $validated = $request->validate([
             'tag_name'    => 'required|string|max:255',
             'tag_amount'  => 'required|numeric|min:0',
-            'approved_at' => 'nullable|date_format:Y-m-d H:i|before_or_equal:now',
+            'tag_level'   => 'required|integer|between:1,5',
+            'details'     => 'nullable|string',
+            'approved_at' => 'nullable|date_format:Y-m-d|before_or_equal:today',
         ]);
 
         $tag = TagModel::findOrFail($tagId);
@@ -88,11 +94,15 @@ class TagController extends Controller
             ])->withInput();
         }
 
-        $tag->tag_name    = $validated['tag_name'];
-        $tag->tag_amount  = $validated['tag_amount'];
-        $tag->approved_at = !empty($validated['approved_at'])
-            ? Carbon::createFromFormat('Y-m-d H:i', $validated['approved_at'])
-            : $tag->approved_at; // keep existing if not provided
+        $tag->tag_name   = $validated['tag_name'];
+        $tag->tag_amount = $validated['tag_amount'];
+        $tag->tag_level  = $validated['tag_level'];
+        $tag->details    = $validated['details'] ?? null;
+
+        if (!empty($validated['approved_at'])) {
+            $tag->approved_at = Carbon::createFromFormat('Y-m-d', $validated['approved_at'])->toDateString();
+        }
+        // If approved_at not provided, keep the existing value
 
         $tag->save();
         $this->updateProjectProgress($tag->implement_id);

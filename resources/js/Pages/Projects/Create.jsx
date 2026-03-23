@@ -20,6 +20,11 @@ export default function Create({ companies, nextProjectCode }) {
     refund_initial: '',
     refund_end: '',
     project_cost: '',
+    counterpart: '',
+    latitude: '',
+    longitude: '',
+    fund_release: '',          // NEW
+    released_amount: '',        // NEW
     refund_amount: '',
     last_refund: '',
     progress: 'Project Created',
@@ -44,17 +49,15 @@ export default function Create({ companies, nextProjectCode }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
     setTimeout(() => {
-      post('/projects', { 
-        preserveScroll: true, 
+      post('/projects', {
+        preserveScroll: true,
         data,
         onFinish: () => setIsSubmitting(false)
       });
     }, 1000);
   };
 
-  // Auto-fill release/refund end dates
   useEffect(() => {
     if (data.release_initial) {
       const [year, month] = data.release_initial.split('-').map(Number);
@@ -81,7 +84,6 @@ export default function Create({ companies, nextProjectCode }) {
       <Head title="Create Project" />
 
       <div className="max-w-5xl mx-auto">
-        {/* Header Section */}
         <div className="mb-4 md:mb-8">
           <Link
             href="/projects"
@@ -102,45 +104,19 @@ export default function Create({ companies, nextProjectCode }) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 md:space-y-8">
-          <BasicInfoSection 
-            data={data} 
-            setData={setData} 
-            errors={errors} 
+          <BasicInfoSection
+            data={data}
+            setData={setData}
+            errors={errors}
             companies={companies}
             isCreate={true}
           />
+          <TimelineSection data={data} setData={setData} errors={errors} />
+          <FinancialSection data={data} setData={setData} errors={errors} />
+          <WorkforceSection data={data} setData={setData} errors={errors} />
+          <ItemsSection data={data} setData={setData} errors={errors} />
+          <ObjectivesSection data={data} setData={setData} errors={errors} />
 
-          <TimelineSection 
-            data={data} 
-            setData={setData} 
-            errors={errors}
-          />
-
-          <FinancialSection 
-            data={data} 
-            setData={setData} 
-            errors={errors}
-          />
-
-          <WorkforceSection 
-            data={data} 
-            setData={setData} 
-            errors={errors}
-          />
-
-          <ItemsSection 
-            data={data} 
-            setData={setData} 
-            errors={errors}
-          />
-
-          <ObjectivesSection 
-            data={data} 
-            setData={setData} 
-            errors={errors}
-          />
-
-          {/* Submit Section */}
           <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="min-w-0">

@@ -74,6 +74,49 @@ function StatusPill({ isComplete }) {
   );
 }
 
+// ─── Untagging Progress Cell ──────────────────────────────────────────────────
+
+function UntaggingProgress({ totalTags, projectCost }) {
+  const pct     = projectCost > 0 ? Math.min((totalTags / projectCost) * 100, 100) : 0;
+  const reached = pct >= 100;
+
+  // colour ramp: red → amber → blue → green
+  const barColor =
+    pct === 0   ? 'bg-gray-200' :
+    pct < 50    ? 'bg-rose-400' :
+    pct < 100   ? 'bg-amber-400' :
+                  'bg-emerald-500';
+
+  const pctColor =
+    pct === 0   ? 'text-gray-400' :
+    pct < 50    ? 'text-rose-600' :
+    pct < 100   ? 'text-amber-600' :
+                  'text-emerald-600';
+
+  return (
+    <div className="w-full min-w-[130px] space-y-1">
+      {/* bar + percentage */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <span className={`text-xs font-bold tabular-nums w-10 text-right ${pctColor}`}>
+          {pct.toFixed(1)}%
+        </span>
+      </div>
+      {/* amounts */}
+      <p className="text-[10px] text-gray-400 leading-none tabular-nums">
+        ₱{totalTags.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+        <span className="mx-0.5 text-gray-300">/</span>
+        ₱{projectCost.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+      </p>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ImplementationIndex({ implementations, filters, offices, userRole }) {
@@ -113,26 +156,16 @@ export default function ImplementationIndex({ implementations, filters, offices,
   }, []);
 
   const getUntaggingStatus = useCallback((impl) => {
-    const totalTags           = impl.tags?.reduce((sum, tag) => sum + parseFloat(tag.tag_amount || 0), 0) || 0;
-    const projectCost         = parseFloat(impl.project?.project_cost || 0);
-    const firstUntaggedThreshold = projectCost * 0.5;
-    return {
-      firstUntagged: totalTags >= firstUntaggedThreshold,
-      finalUntagged: totalTags >= projectCost,
-      totalTags,
-      projectCost,
-    };
+    const totalTags  = impl.tags?.reduce((sum, tag) => sum + parseFloat(tag.tag_amount || 0), 0) || 0;
+    const projectCost = parseFloat(impl.project?.project_cost || 0);
+    return { totalTags, projectCost };
   }, []);
 
   const total    = implementations.total          || 0;
   const complete = implementations.complete_count || 0;
   const pending  = implementations.pending_count  || 0;
 
-  const statusCounts = {
-    all:      total,
-    pending:  pending,
-    complete: complete,
-  };
+  const statusCounts = { all: total, pending, complete };
 
   const hasActiveFilters = !!(search || officeFilter || (statusFilter && statusFilter !== 'pending'));
 
@@ -158,10 +191,8 @@ export default function ImplementationIndex({ implementations, filters, offices,
           {/* Filters */}
           <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100 space-y-3">
 
-            {/* Status Tabs */}
             <StatusTabs statusFilter={statusFilter ?? 'all'} counts={statusCounts} onChange={handleStatusFilter} />
 
-            {/* Search */}
             <div className="flex flex-col gap-2 md:gap-4 md:flex-row">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -191,7 +222,6 @@ export default function ImplementationIndex({ implementations, filters, offices,
               </div>
             </div>
 
-            {/* Office + Sort + Clear */}
             <div className="flex flex-col gap-2 md:gap-4 md:flex-row md:items-center flex-wrap">
               {(userRole === 'rpmo' || userRole === 'RPMO') && offices?.length > 0 && (
                 <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm flex-1 md:flex-initial md:min-w-[200px]">
@@ -231,7 +261,6 @@ export default function ImplementationIndex({ implementations, filters, offices,
               )}
             </div>
 
-            {/* Result count */}
             {implementations.data && (
               <p className="text-xs text-gray-500">
                 Showing{' '}
@@ -276,7 +305,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
             </div>
           ) : (
             <>
-              {/* Desktop Table */}
+              {/* ── Desktop Table ── */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -291,16 +320,15 @@ export default function ImplementationIndex({ implementations, filters, offices,
                       <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                       <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Signboard</th>
                       <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">PDC</th>
-                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">First Tag</th>
-                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Final Tag</th>
+                      <th className="px-3 py-3 md:py-4 text-left   text-xs font-semibold text-gray-600 uppercase tracking-wider">Untagging Progress</th>
                       <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Liquidation</th>
                       <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
                     {implementations.data.map((impl) => {
-                      const untaggingStatus = getUntaggingStatus(impl);
-                      const isComplete      = !!impl.liquidation;
+                      const { totalTags, projectCost } = getUntaggingStatus(impl);
+                      const isComplete = !!impl.liquidation;
                       return (
                         <tr key={impl.implement_id} className="hover:bg-blue-50/30 transition-all duration-200">
                           <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-gray-600">
@@ -319,19 +347,23 @@ export default function ImplementationIndex({ implementations, filters, offices,
                             <StatusPill isComplete={isComplete} />
                           </td>
                           <td className="px-4 md:px-6 py-3 md:py-4 text-center">
-                            {impl.tarp ? <CheckCircle className="w-5 h-5 text-blue-600 mx-auto" /> : <Clock className="w-5 h-5 text-gray-300 mx-auto" />}
+                            {impl.tarp
+                              ? <CheckCircle className="w-5 h-5 text-blue-600 mx-auto" />
+                              : <Clock       className="w-5 h-5 text-gray-300 mx-auto" />}
                           </td>
                           <td className="px-4 md:px-6 py-3 md:py-4 text-center">
-                            {impl.pdc ? <CheckCircle className="w-5 h-5 text-blue-600 mx-auto" /> : <Clock className="w-5 h-5 text-gray-300 mx-auto" />}
+                            {impl.pdc
+                              ? <CheckCircle className="w-5 h-5 text-blue-600 mx-auto" />
+                              : <Clock       className="w-5 h-5 text-gray-300 mx-auto" />}
+                          </td>
+                          {/* ── Untagging Progress ── */}
+                          <td className="px-4 md:px-6 py-3 md:py-4">
+                            <UntaggingProgress totalTags={totalTags} projectCost={projectCost} />
                           </td>
                           <td className="px-4 md:px-6 py-3 md:py-4 text-center">
-                            {untaggingStatus.firstUntagged ? <CheckCircle className="w-5 h-5 text-blue-600 mx-auto" /> : <Clock className="w-5 h-5 text-gray-300 mx-auto" />}
-                          </td>
-                          <td className="px-4 md:px-6 py-3 md:py-4 text-center">
-                            {untaggingStatus.finalUntagged ? <CheckCircle className="w-5 h-5 text-blue-600 mx-auto" /> : <Clock className="w-5 h-5 text-gray-300 mx-auto" />}
-                          </td>
-                          <td className="px-4 md:px-6 py-3 md:py-4 text-center">
-                            {impl.liquidation ? <CheckCircle className="w-5 h-5 text-blue-600 mx-auto" /> : <Clock className="w-5 h-5 text-gray-300 mx-auto" />}
+                            {impl.liquidation
+                              ? <CheckCircle className="w-5 h-5 text-blue-600 mx-auto" />
+                              : <Clock       className="w-5 h-5 text-gray-300 mx-auto" />}
                           </td>
                           <td className="px-4 md:px-6 py-3 md:py-4 text-center">
                             <Link
@@ -348,11 +380,11 @@ export default function ImplementationIndex({ implementations, filters, offices,
                 </table>
               </div>
 
-              {/* Mobile Cards */}
+              {/* ── Mobile Cards ── */}
               <div className="md:hidden divide-y divide-gray-100">
                 {implementations.data.map((impl) => {
-                  const untaggingStatus = getUntaggingStatus(impl);
-                  const isComplete      = !!impl.liquidation;
+                  const { totalTags, projectCost } = getUntaggingStatus(impl);
+                  const isComplete = !!impl.liquidation;
                   return (
                     <div key={impl.implement_id} className="p-3 space-y-3">
                       <div className="flex items-start justify-between">
@@ -369,22 +401,26 @@ export default function ImplementationIndex({ implementations, filters, offices,
                         <StatusPill isComplete={isComplete} />
                       </div>
 
-                      <div className="bg-gray-50 rounded-lg p-2.5 space-y-1.5">
+                      <div className="bg-gray-50 rounded-lg p-2.5 space-y-2">
+                        {/* Signboard & PDC */}
                         {[
-                          { label: 'Signboard', value: impl.tarp },
-                          { label: 'PDC', value: impl.pdc },
-                          { label: 'First Untagging', value: untaggingStatus.firstUntagged },
-                          { label: 'Final Untagging', value: untaggingStatus.finalUntagged },
+                          { label: 'Signboard',   value: impl.tarp },
+                          { label: 'PDC',         value: impl.pdc  },
                           { label: 'Liquidation', value: impl.liquidation },
                         ].map(({ label, value }) => (
                           <div key={label} className="flex items-center justify-between text-xs">
                             <span className="text-gray-600">{label}</span>
                             {value
                               ? <CheckCircle className="w-4 h-4 text-green-600" />
-                              : <Clock className="w-4 h-4 text-gray-300" />
-                            }
+                              : <Clock       className="w-4 h-4 text-gray-300" />}
                           </div>
                         ))}
+
+                        {/* Untagging progress */}
+                        <div className="pt-1 border-t border-gray-200">
+                          <p className="text-xs text-gray-500 font-medium mb-1.5">Untagging Progress</p>
+                          <UntaggingProgress totalTags={totalTags} projectCost={projectCost} />
+                        </div>
                       </div>
 
                       <Link
