@@ -12,6 +12,7 @@ import { useRefundData } from './hooks/useRefundData';
 export default function Index({ projects, selectedMonth, selectedYear, search, selectedStatus }) {
   const { flash, userRole } = usePage().props;
   const isRPMO = ['rpmo', 'au'].includes(userRole);
+  const [perPage, setPerPage] = useState(10);
 
   // State management
   const [savingProject, setSavingProject] = useState(null);
@@ -101,13 +102,20 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
   }, [flash]);
 
   // Memoized handlers
-  const handleFilterChange = useCallback((month, year, searchValue, statusValue = statusFilter) => {
-    router.get('/refunds', 
-      { month, year, search: searchValue, status: statusValue }, 
-      { preserveScroll: true }
+  const handleFilterChange = useCallback((month, year, searchValue, statusValue = statusFilter, perPageValue = perPage) => {
+    router.get('/refunds',
+      { month, year, search: searchValue, status: statusValue, perPage: perPageValue },
+      { preserveScroll: true,
+        preserveState: true,
+       }
     );
-  }, [statusFilter]);
+  }, [statusFilter, perPage]);
 
+  const handlePerPageChange = useCallback((value) => {
+    setPerPage(value);
+    handleFilterChange(selectedMonth, selectedYear, searchInput, statusFilter, value);
+  }, [selectedMonth, selectedYear, searchInput, statusFilter, handleFilterChange]);
+ 
   const handleStatusChange = useCallback((projectId, newStatus) => {
     setData(`status_${projectId}`, newStatus);
     
@@ -269,6 +277,7 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
             selectedYear={selectedYear}
             searchInput={searchInput}
             statusFilter={statusFilter}
+            perPage={perPage}    
             months={MONTHS}
             years={years}
             projects={projects}
@@ -277,6 +286,7 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
             onYearChange={(year) => handleFilterChange(selectedMonth, year, searchInput)}
             onSearchChange={setSearchInput}
             onStatusChange={(status) => setStatusFilter(status)}
+            onPerPageChange={handlePerPageChange} 
           />
 
           {/* Desktop Table */}
@@ -379,7 +389,12 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
 
           {/* Pagination */}
           {projects.links && projects.links.length > 1 && (
-            <RefundPagination links={projects.links} />
+            <RefundPagination
+              links={projects.links}
+              from={projects.from}
+              to={projects.to}
+              total={projects.total}
+            />
           )}
         </div>
       </div>

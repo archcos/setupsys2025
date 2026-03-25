@@ -91,7 +91,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
 
           ...(role === 'staff'
             ? [
-                { label: 'Apply for Restructuring', href: '/apply-restructuring', icon: <BookOpen size={16} /> },
+                { label: 'Apply for Restructuring', href: '/apply-restruct', icon: <BookOpen size={16} /> },
               ]
             : []),
 

@@ -29,7 +29,7 @@ class RestructureController extends Controller
         $search       = $request->input('search', '');
         $perPage      = $request->input('perPage', 10);
         $officeFilter = $request->input('officeFilter', '');
-        $statusFilter = $request->input('statusFilter', 'all');
+        $statusFilter = $request->input('statusFilter', 'pending');
         $sortBy       = $request->input('sortBy', 'desc');
 
         // ── Base query (role-scope only, no status/search/office filters yet) ──

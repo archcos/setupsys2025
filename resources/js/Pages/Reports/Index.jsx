@@ -113,7 +113,7 @@ export default function Index({ projects, filters }) {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Search company or project..."
+                  placeholder="Search proponent or project..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
@@ -150,7 +150,7 @@ export default function Index({ projects, filters }) {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Project Title</th>
-                  <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Company</th>
+                  <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Proponent</th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Reports</th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
                 </tr>
@@ -272,7 +272,7 @@ export default function Index({ projects, filters }) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1">{project.project_title}</h3>
-                    <p className="text-xs text-gray-600">{project.company?.company_name || "No company"}</p>
+                    <p className="text-xs text-gray-600">{project.company?.company_name || "No proponent"}</p>
                   </div>
                   <button
                     onClick={() => setOpenDropdown(openDropdown === project.project_id ? null : project.project_id)}

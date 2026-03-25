@@ -69,9 +69,10 @@ class ComplianceController extends Controller
         // ── Compute status counts BEFORE applying status filter ───────────────
         $statusCounts = [
             'all'         => (clone $baseQuery)->count(),
-            'pending'     => (clone $baseQuery)->whereHas('compliance', fn($q) => $q->where('status', 'pending'))
-                                               ->orWhereDoesntHave('compliance')
-                                               ->count(),
+            'pending' => (clone $baseQuery)->where(function ($q) {
+                            $q->whereDoesntHave('compliance')
+                            ->orWhereHas('compliance', fn($q) => $q->where('status', 'pending'));
+                        })->count(),
             'recommended' => (clone $baseQuery)->whereHas('compliance', fn($q) => $q->where('status', 'recommended'))->count(),
             'approved'    => (clone $baseQuery)->whereHas('compliance', fn($q) => $q->where('status', 'approved'))->count(),
         ];
@@ -115,7 +116,7 @@ class ComplianceController extends Controller
 
         $years = $yearsQuery->orderBy('year_obligated', 'desc')->pluck('year_obligated')->toArray();
 
-        return Inertia::render('ReviewApproval/Index', [
+        return Inertia::render('Compliance/Index', [
             'projects'     => $projects,
             'years'        => $years,
             'statusCounts' => $statusCounts,
@@ -146,7 +147,7 @@ class ComplianceController extends Controller
             }
         }
 
-        return Inertia::render('ReviewApproval/Checklist', [
+        return Inertia::render('Compliance/Checklist', [
             'project'    => $project,
             'compliance' => $compliance,
             'userRole'   => $user->role ?? null,

@@ -26,11 +26,11 @@ class AuthController extends Controller
 {
     public function index()
     {
-        $announcements = AnnouncementModel::with('office')
-            ->whereDate('start_date', '<=', now()) 
-            ->whereDate('end_date', '>=', now()) 
-            ->orderBy('start_date', 'desc')
-            ->get(['announce_id', 'title', 'office_id']);
+        $announcements = AnnouncementModel::with(['office:office_id,office_name'])
+        ->whereDate('start_date', '<=', now())
+        ->whereDate('end_date', '>=', now())
+        ->orderBy('start_date', 'desc')
+        ->get(['announce_id', 'title', 'office_id', 'details', 'created_at']);
 
         return inertia('Login', [
             'announcements' => $announcements

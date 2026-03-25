@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { CheckCircle, ExternalLink, FileText, Calendar, User, Search, X, Building2, Clock, ArrowUp, ArrowDown, Stamp } from 'lucide-react';
+import {
+  CheckCircle, Eye, FileText, Calendar, User, Search, X,
+  Building2, Clock, ArrowUp, ArrowDown, Stamp, Download,
+} from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -37,6 +40,13 @@ const STATUS_CONFIG = {
 
 const STATUS_KEYS = ['all', 'pending', 'raised', 'approved'];
 
+const DOC_META = [
+  { key: 'proponent', label: 'Proponent', cls: 'text-blue-700 bg-blue-100 hover:bg-blue-200'     },
+  { key: 'psto',      label: 'PSTO',      cls: 'text-green-700 bg-green-100 hover:bg-green-200'   },
+  { key: 'annexc',    label: 'Annex C',   cls: 'text-purple-700 bg-purple-100 hover:bg-purple-200' },
+  { key: 'annexd',    label: 'Annex D',   cls: 'text-orange-700 bg-orange-100 hover:bg-orange-200' },
+];
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function StatusTabs({ statusFilter, counts, onChange }) {
@@ -46,7 +56,6 @@ function StatusTabs({ statusFilter, counts, onChange }) {
         const cfg      = STATUS_CONFIG[key];
         const isActive = statusFilter === key;
         const count    = counts?.[key] ?? 0;
-
         return (
           <button
             key={key}
@@ -81,6 +90,95 @@ function StatusPill({ status }) {
   );
 }
 
+// ─── Doc buttons — open preview modal ────────────────────────────────────────
+
+function DocButtons({ item, onPreview, small = false }) {
+  const hasAny = DOC_META.some(({ key }) => item[key]);
+  if (!hasAny) return <span className="text-xs text-slate-400 italic">No documents</span>;
+
+  const btnCls = `inline-flex items-center gap-1 font-medium rounded transition-colors ${small ? 'px-2 py-1 text-xs' : 'px-2.5 py-1 text-xs'}`;
+  const row1 = DOC_META.slice(0, 2); // Proponent, PSTO
+  const row2 = DOC_META.slice(2);    // Annex C, Annex D
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex gap-1.5">
+        {row1.map(({ key, label, cls }) => {
+          const val = item[key];
+          if (!val) return null;
+          return (
+            <button key={key} onClick={() => onPreview(val, label)} className={`${btnCls} ${cls}`}>
+              <Eye className="w-3 h-3" />{label}
+            </button>
+          );
+        })}
+      </div>
+      {row2.some(({ key }) => item[key]) && (
+        <div className="flex gap-1.5">
+          {row2.map(({ key, label, cls }) => {
+            const val = item[key];
+            if (!val) return null;
+            return (
+              <button key={key} onClick={() => onPreview(val, label)} className={`${btnCls} ${cls}`}>
+                <Eye className="w-3 h-3" />{label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── File Preview Modal ───────────────────────────────────────────────────────
+
+function FilePreviewModal({ preview, onClose }) {
+  if (!preview.show) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 md:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal header */}
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-slate-200 flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
+            <h3 className="text-sm md:text-base font-semibold text-slate-900 truncate">{preview.label}</h3>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+            <a
+              href={route('apply_restruct.download_file') + `?path=${encodeURIComponent(preview.raw)}`}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" /> Download
+            </a>
+            <button
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Modal body */}
+        <div className="flex-1 overflow-auto bg-slate-50 p-2 md:p-4">
+          {preview.type === 'image'
+            ? <img src={preview.url} alt={preview.label} className="max-w-full max-h-[72vh] mx-auto rounded-lg shadow object-contain block" />
+            : <iframe src={preview.url} className="w-full h-[72vh] rounded-lg border border-slate-200 bg-white" title={preview.label} />
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function VerifyRestructureList({ applyRestructs, auth, offices, filters: initialFilters, statusCounts }) {
@@ -89,9 +187,21 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
   const [search,       setSearch]       = useState(initialFilters?.search       || '');
   const [perPage,      setPerPage]      = useState(initialFilters?.perPage      || 10);
   const [officeFilter, setOfficeFilter] = useState(initialFilters?.officeFilter || '');
-  const [statusFilter, setStatusFilter] = useState(initialFilters?.statusFilter || 'all');
+  const [statusFilter, setStatusFilter] = useState(initialFilters?.statusFilter || 'pending');
   const [sortBy,       setSortBy]       = useState(initialFilters?.sortBy       || 'desc');
 
+  // ── Preview modal state ──
+  const [preview, setPreview] = useState({ show: false, url: null, type: null, label: null, raw: null });
+
+  const openPreview = (val, label) => {
+    const url  = route('apply_restruct.view_file') + `?path=${encodeURIComponent(val)}`;
+    const ext  = val.split('.').pop().toLowerCase();
+    const type = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext) ? 'image' : 'pdf';
+    setPreview({ show: true, url, type, label, raw: val });
+  };
+  const closePreview = () => setPreview({ show: false, url: null, type: null, label: null, raw: null });
+
+  // ── Router helpers ──
   const pushRouter = (overrides = {}) =>
     router.get(
       '/verify-restructure',
@@ -99,8 +209,7 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
       { preserveState: true, replace: true }
     );
 
-  // Debounce search + office
-  useEffect(() => {
+  React.useEffect(() => {
     const timer = setTimeout(() => pushRouter(), 500);
     return () => clearTimeout(timer);
   }, [search, officeFilter]);
@@ -163,10 +272,8 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
           {/* Filters */}
           <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100 space-y-3">
 
-            {/* Status Tabs */}
             <StatusTabs statusFilter={statusFilter} counts={statusCounts} onChange={handleStatusFilter} />
 
-            {/* Search + Per Page */}
             <div className="flex flex-col gap-2 md:gap-4 md:flex-row">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -193,7 +300,6 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
               </div>
             </div>
 
-            {/* Office + Sort + Clear */}
             <div className="flex flex-col gap-2 md:gap-4 md:flex-row md:items-center flex-wrap">
               {offices && offices.length > 0 && (
                 <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm flex-1 md:flex-initial md:min-w-[200px]">
@@ -224,7 +330,6 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
               )}
             </div>
 
-            {/* Result count */}
             {paginationData && (
               <p className="text-xs text-gray-500">
                 Showing <span className="font-semibold text-gray-900">{paginationData.from || 0}</span>–
@@ -243,7 +348,7 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">#</th>
+                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Project Code</th>
                     <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       <div className="flex items-center gap-2"><FileText className="w-4 h-4" />Project</div>
                     </th>
@@ -264,13 +369,14 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                 <tbody className="bg-white divide-y divide-gray-100">
                   {data.map((item, index) => (
                     <tr key={item.apply_id} className="hover:bg-blue-50/30 transition-all duration-200">
-                      <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-400">
-                        {paginationData ? paginationData.from + index : index + 1}
+                      <td className="px-4 md:px-6 py-3 md:py-4">
+                        <span className="text-xs font-mono font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                          {item.project_id}
+                        </span>
                       </td>
                       <td className="px-4 md:px-6 py-3 md:py-4">
                         <div className="text-xs md:text-sm font-semibold text-gray-900 line-clamp-1">{item.project?.project_title || '-'}</div>
                         <div className="text-xs text-gray-500">{item.project?.company?.company_name || 'No company'}</div>
-                        <div className="text-xs text-gray-400">ID: {item.project_id}</div>
                       </td>
                       <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-600">
                         {item.project?.company?.office?.office_name || '-'}
@@ -285,12 +391,7 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                         <StatusPill status={item.restructure?.status || 'pending'} />
                       </td>
                       <td className="px-4 md:px-6 py-3 md:py-4">
-                        <div className="flex flex-wrap gap-2">
-                          {item.proponent && <DocLink href={item.proponent} label="Proponent" color="blue" />}
-                          {item.psto     && <DocLink href={item.psto}      label="PSTO"      color="green" />}
-                          {item.annexc   && <DocLink href={item.annexc}    label="Annex C"   color="purple" />}
-                          {item.annexd   && <DocLink href={item.annexd}    label="Annex D"   color="orange" />}
-                        </div>
+                        <DocButtons item={item} onPreview={openPreview} />
                       </td>
                       <td className="px-4 md:px-6 py-3 md:py-4 text-center">
                         {(userRole === 'rpmo' || userRole === 'rd') ? (
@@ -318,7 +419,7 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                 <div key={item.apply_id} className="p-3 space-y-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs text-gray-400">#{paginationData ? paginationData.from + index : index + 1}</div>
+                      <div className="text-xs font-mono font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded w-fit">{item.project_id}</div>
                       <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{item.project?.project_title || '-'}</h3>
                       <p className="text-xs text-gray-600 mt-0.5">{item.project?.company?.company_name || 'No company'}</p>
                     </div>
@@ -342,14 +443,7 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                     </div>
                   </div>
 
-                  {(item.proponent || item.psto || item.annexc || item.annexd) && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {item.proponent && <DocLink href={item.proponent} label="Proponent" color="blue"   small />}
-                      {item.psto      && <DocLink href={item.psto}      label="PSTO"      color="green"  small />}
-                      {item.annexc    && <DocLink href={item.annexc}    label="Annex C"   color="purple" small />}
-                      {item.annexd    && <DocLink href={item.annexd}    label="Annex D"   color="orange" small />}
-                    </div>
-                  )}
+                  <DocButtons item={item} onPreview={openPreview} small />
 
                   {(userRole === 'rpmo' || userRole === 'rd') ? (
                     <Link href={`/verify-restructure/${item.apply_id}`}
@@ -374,51 +468,35 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                   <span className="font-medium">{paginationData.total || 0}</span> results
                 </p>
                 <div className="flex gap-1 overflow-x-auto">
-                  {paginationData.links.map((link, index) => {
-                    const pageNum = link.url ? new URL(link.url).searchParams.get('page') : null;
-                    return (
-                      <button
-                        key={index}
-                        disabled={!link.url}
-                        onClick={() => handlePageChange(link)}
-                        className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all flex-shrink-0 ${
-                          link.active
-                            ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
-                            : link.url
-                            ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                            : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                        }`}
-                        dangerouslySetInnerHTML={{ __html: link.label }}
-                      />
-                    );
-                  })}
+                  {paginationData.links.map((link, index) => (
+                    <button
+                      key={index}
+                      disabled={!link.url}
+                      onClick={() => handlePageChange(link)}
+                      className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all flex-shrink-0 ${
+                        link.active
+                          ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
+                          : link.url
+                          ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                      }`}
+                      dangerouslySetInnerHTML={{ __html: link.label }}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal preview={preview} onClose={closePreview} />
     </main>
   );
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const DOC_COLORS = {
-  blue:   'text-blue-700 bg-blue-100 hover:bg-blue-200',
-  green:  'text-green-700 bg-green-100 hover:bg-green-200',
-  purple: 'text-purple-700 bg-purple-100 hover:bg-purple-200',
-  orange: 'text-orange-700 bg-orange-100 hover:bg-orange-200',
-};
-
-function DocLink({ href, label, color, small = false }) {
-  return (
-    <a href={href} target="_blank" rel="noreferrer"
-      className={`inline-flex items-center gap-1 font-medium rounded transition-colors ${DOC_COLORS[color]} ${small ? 'px-2 py-1 text-xs' : 'px-2.5 py-1 text-xs'}`}>
-      <ExternalLink className="w-3 h-3" />{label}
-    </a>
-  );
-}
 
 function EmptyState({ hasActiveFilters, statusFilter, onClear, mobile = false }) {
   return (

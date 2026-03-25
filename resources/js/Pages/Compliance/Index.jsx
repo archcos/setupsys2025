@@ -209,11 +209,11 @@ export default function Index({ projects, filters, years, statusCounts }) {
           {/* Filters */}
           <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100 space-y-3">
 
-            {/* Status Tabs */}
+            {/* Row 1: Status Tabs */}
             <StatusTabs statusFilter={statusFilter} statusCounts={statusCounts} onChange={handleStatusFilter} />
 
-            {/* Search + Year + Per Page + Clear */}
-            <div className="flex flex-col md:flex-row gap-2 md:gap-3">
+            {/* Row 2: Search + Per Page */}
+            <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
@@ -230,7 +230,22 @@ export default function Index({ projects, filters, years, statusCounts }) {
                 )}
               </div>
 
-              <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm w-fit">
+              {/* Per page */}
+              <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm flex-shrink-0">
+                <select
+                  value={perPage}
+                  onChange={handlePerPage}
+                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer py-2 md:py-2.5"
+                >
+                  {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <span className="text-xs text-gray-500 hidden md:inline">entries</span>
+              </div>
+            </div>
+
+            {/* Row 3: Year + Clear Filters */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm">
                 <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 <select
                   value={year}
@@ -242,24 +257,13 @@ export default function Index({ projects, filters, years, statusCounts }) {
                 </select>
               </div>
 
-              <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm w-fit">
-                <select
-                  value={perPage}
-                  onChange={handlePerPage}
-                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer py-2 md:py-2.5"
-                >
-                  {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-                <span className="text-xs text-gray-500 hidden md:inline">entries</span>
-              </div>
-
               {hasFilters && (
                 <button
                   onClick={handleClear}
                   className="flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors text-xs md:text-sm font-medium"
                 >
                   <X className="w-4 h-4" />
-                  <span className="hidden md:inline">Clear filters</span>
+                  <span>Clear filters</span>
                 </button>
               )}
             </div>

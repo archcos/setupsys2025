@@ -9,395 +9,458 @@ use App\Models\ProjectModel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use App\Mail\ApplyRestructureMail;
+use App\Services\SupabaseUpload;
 
 class ApplyRestructController extends Controller
 {
-public function index()
-{
-    try {
-        $user = Auth::user();
-        
-        Log::info('ApplyRestruct index accessed', [
-            'user_id' => $user->user_id,
-            'office_id' => $user->office_id ?? 'NULL'
-        ]);
-        
-        // Check if user has office_id
-        if (!$user->office_id) {
-            Log::warning('User has no office_id assigned', [
-                'user_id' => $user->user_id
+    /* ══════════════════════════════════════════
+     |  INDEX  (search + status filter + sort + pagination)
+     ══════════════════════════════════════════ */
+    public function index(Request $request)
+    {
+        try {
+            $user         = Auth::user();
+            $search       = trim($request->input('search', ''));
+            $statusFilter = $request->input('statusFilter', '');
+            $perPage      = (int) $request->input('perPage', 10);
+            $direction    = in_array($request->input('direction'), ['asc', 'desc'])
+                            ? $request->input('direction') : 'desc';
+
+            if (!$user->office_id) {
+                return Inertia::render('Restructures/Application/Index', [
+                    'applyRestructs' => [],
+                    'filters'        => compact('search', 'statusFilter', 'perPage', 'direction'),
+                    'flash'          => ['error' => 'Your account is not assigned to an office.'],
+                ]);
+            }
+
+            // Base query (office-scoped)
+            $base = ApplyRestructModel::with([
+                    'project.company',
+                    'addedBy',
+                    'restructures' => fn($q) => $q->orderBy('created_at', 'desc'),
+                ])
+                ->whereHas('project.company', fn($q) => $q->where('office_id', $user->office_id));
+
+            // Search
+            if ($search) {
+                $base->whereHas('project', fn($q) =>
+                    $q->where('project_title', 'like', "%{$search}%")
+                );
+            }
+
+            // Status counts (before status filter so tabs always show real numbers)
+            $allIds     = (clone $base)->pluck('apply_id');
+            $statusRows = \DB::table('tbl_restructures')
+                ->selectRaw('status, apply_id')
+                ->whereIn('apply_id', $allIds)
+                ->orderByDesc('created_at')
+                ->get()
+                ->groupBy('apply_id')
+                ->map(fn($rows) => $rows->first()->status ?? 'pending');
+
+            $totalCount    = $allIds->count();
+            $pendingCount  = $statusRows->filter(fn($s) => strtolower($s) === 'pending')->count()
+                           + ($totalCount - $statusRows->count()); // records with no restructure = pending
+            $approvedCount = $statusRows->filter(fn($s) => strtolower($s) === 'approved')->count();
+            $raisedCount   = $statusRows->filter(fn($s) => strtolower($s) === 'raised')->count();
+
+            // Apply status filter
+            if ($statusFilter && $statusFilter !== 'all') {
+                if ($statusFilter === 'pending') {
+                    // pending = has no restructure OR latest restructure is pending
+                    $base->where(function ($q) {
+                        $q->whereDoesntHave('restructures')
+                          ->orWhereHas('restructures', function ($q2) {
+                              $q2->where('status', 'pending')
+                                 ->whereNotExists(function ($sub) {
+                                     $sub->from('tbl_restructures as r2')
+                                         ->whereColumn('r2.apply_id', 'tbl_restructures.apply_id')
+                                         ->where('r2.created_at', '>', \DB::raw('tbl_restructures.created_at'));
+                                 });
+                          });
+                    });
+                } else {
+                    $base->whereHas('restructures', function ($q) use ($statusFilter) {
+                        $q->where('status', $statusFilter)
+                          ->whereNotExists(function ($sub) {
+                              $sub->from('tbl_restructures as r2')
+                                  ->whereColumn('r2.apply_id', 'tbl_restructures.apply_id')
+                                  ->where('r2.created_at', '>', \DB::raw('tbl_restructures.created_at'));
+                          });
+                    });
+                }
+            }
+
+            $base->orderBy('created_at', $direction);
+
+            $applyRestructs = $base->paginate($perPage)
+                ->through(function ($item) {
+                    $latest            = $item->restructures->first();
+                    $item->status      = $latest?->status      ?? 'pending';
+                    $item->restruct_id = $latest?->restruct_id ?? null;
+                    return $item;
+                })
+                ->withQueryString();
+
+            // Attach counts to paginator array
+            $data                  = $applyRestructs->toArray();
+            $data['total_count']   = $totalCount;
+            $data['pending_count'] = $pendingCount;
+            $data['approved_count']= $approvedCount;
+            $data['raised_count']  = $raisedCount;
+
+            return Inertia::render('Restructures/Application/Index', [
+                'applyRestructs' => $data,
+                'filters'        => compact('search', 'statusFilter', 'perPage', 'direction'),
             ]);
-            
-            return Inertia::render('Restructures/ApplyRestructure', [
+
+        } catch (\Exception $e) {
+            Log::error('ApplyRestruct index error', ['error' => $e->getMessage()]);
+            return Inertia::render('Restructures/Application/Index', [
                 'applyRestructs' => [],
-                'projects' => [],
-                'flash' => [
-                    'error' => 'Your account is not assigned to an office. Please contact the administrator.'
-                ]
+                'filters'        => ['search' => '', 'statusFilter' => '', 'perPage' => 10, 'direction' => 'desc'],
+                'flash'          => ['error' => 'An error occurred while loading the data.'],
             ]);
         }
-        
-        // Filter apply restructs based on user's office_id through company
-        // Eager load restructures to get status
-        $applyRestructs = ApplyRestructModel::with([
-                'project.company', 
-                'addedBy', 
-                'restructures' => function($query) {
-                    $query->orderBy('created_at', 'desc'); // Use orderBy instead of latest() in relationship
-                }
-            ])
-            ->whereHas('project.company', function ($query) use ($user) {
-                $query->where('office_id', $user->office_id);
-            })
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($item) {
-                // Log the raw restructures relationship data
-                Log::info('ApplyRestruct raw restructures data', [
-                    'apply_id' => $item->apply_id,
-                    'restructures_count' => $item->restructures->count(),
-                    'restructures_exists' => $item->restructures->isNotEmpty(),
-                    'all_restructures' => $item->restructures->map(function($r) {
-                        return [
-                            'restruct_id' => $r->restruct_id ?? 'NULL',
-                            'status' => $r->status ?? 'NULL',
-                            'created_at' => $r->created_at ?? 'NULL'
-                        ];
-                    })->toArray()
-                ]);
-                
-                // Get the latest restructure status
-                $latestRestructure = $item->restructures->first();
-                
-                // Log whether we found a latest restructure
-                Log::info('Latest restructure lookup', [
-                    'apply_id' => $item->apply_id,
-                    'has_latest_restructure' => $latestRestructure !== null,
-                    'latest_restructure_data' => $latestRestructure ? [
-                        'restruct_id' => $latestRestructure->restruct_id,
-                        'status' => $latestRestructure->status,
-                        'created_at' => $latestRestructure->created_at
-                    ] : null
-                ]);
-                
-                $item->status = $latestRestructure ? $latestRestructure->status : 'pending';
-                $item->restruct_id = $latestRestructure ? $latestRestructure->restruct_id : null;
-                
-                // Debug log - final assigned values
-                Log::info('ApplyRestruct final status assignment', [
-                    'apply_id' => $item->apply_id,
-                    'assigned_status' => $item->status,
-                    'assigned_restruct_id' => $item->restruct_id,
-                    'total_restructures' => $item->restructures->count()
-                ]);
-                
-                return $item;
-            });
+    }
 
-        // Filter projects based on user's office_id through company
+    /* ══════════════════════════════════════════
+     |  CREATE  (render page)
+     ══════════════════════════════════════════ */
+    public function create()
+    {
+        $user     = Auth::user();
         $projects = ProjectModel::select('project_id', 'project_title')
-            ->whereHas('company', function ($query) use ($user) {
-                $query->where('office_id', $user->office_id);
-            })
+            ->whereHas('company', fn($q) => $q->where('office_id', $user->office_id))
+            ->orderBy('project_title', 'asc')
             ->get();
 
-        Log::info('ApplyRestruct index data fetched', [
-            'apply_restructs_count' => $applyRestructs->count(),
-            'projects_count' => $projects->count(),
-            'apply_restructs_summary' => $applyRestructs->map(function($item) {
-                return [
-                    'apply_id' => $item->apply_id,
-                    'status' => $item->status,
-                    'restruct_id' => $item->restruct_id
-                ];
-            })->toArray()
-        ]);
-
-        return Inertia::render('Restructures/ApplyRestructure', [
-            'applyRestructs' => $applyRestructs,
+        return Inertia::render('Restructures/Application/Create', [
             'projects' => $projects,
         ]);
-    } catch (\Exception $e) {
-        Log::error('Error in ApplyRestruct index', [
-            'error' => $e->getMessage(),
-            'line' => $e->getLine(),
-            'file' => $e->getFile(),
-            'trace' => $e->getTraceAsString(),
-            'user_id' => Auth::id()
-        ]);
-        
-        return Inertia::render('Restructures/ApplyRestructure', [
-            'applyRestructs' => [],
-            'projects' => [],
-            'flash' => [
-                'error' => 'An error occurred while loading the data. Please try again.'
-            ]
-        ]);
     }
-}
-public function store(Request $request)
-{
-    try {
-        $user = Auth::user();
-        
-        Log::info('ApplyRestruct store initiated', [
-            'project_id' => $request->project_id,
-            'user_id' => $user->user_id,
-            'office_id' => $user->office_id
-        ]);
 
-        $request->validate([
-            'project_id' => 'required|exists:tbl_projects,project_id',
-            'proponent' => [
-                'required',
-                'string',
-                'regex:/^https:\/\/(drive|docs)\.google\.com\/.+|^https:\/\/(onedrive\.live\.com|1drv\.ms)\/.+/'
-            ],
-            'psto' => [
-                'required',
-                'string',
-                'regex:/^https:\/\/(drive|docs)\.google\.com\/.+|^https:\/\/(onedrive\.live\.com|1drv\.ms)\/.+/'
-            ],
-            'annexc' => [
-                'required',
-                'string',
-                'regex:/^https:\/\/(drive|docs)\.google\.com\/.+|^https:\/\/(onedrive\.live\.com|1drv\.ms)\/.+/'
-            ],
-            'annexd' => [
-                'required',
-                'string',
-                'regex:/^https:\/\/(drive|docs)\.google\.com\/.+|^https:\/\/(onedrive\.live\.com|1drv\.ms)\/.+/'
-            ],
-        ], [
-            'proponent.required' => 'Proponent is required',
-            'proponent.regex' => 'Proponent must be a valid Google Drive or OneDrive link',
-            'psto.required' => 'PSTO is required',
-            'psto.regex' => 'PSTO must be a valid Google Drive or OneDrive link',
-            'annexc.required' => 'Annex C is required',
-            'annexc.regex' => 'Annex C must be a valid Google Drive or OneDrive link',
-            'annexd.required' => 'Annex D is required',
-            'annexd.regex' => 'Annex D must be a valid Google Drive or OneDrive link',
-        ]);
+    /* ══════════════════════════════════════════
+     |  STORE  — creates an empty record, then
+     |  redirects to the edit/upload page
+     ══════════════════════════════════════════ */
+    public function store(Request $request)
+    {
+        try {
+            $user = Auth::user();
 
-        // Verify the project belongs to user's office through company
-        $project = ProjectModel::with('company')->findOrFail($request->project_id);
-        if ($project->company->office_id !== $user->office_id) {
-            Log::warning('Unauthorized project access attempt', [
-                'user_id' => $user->user_id,
-                'user_office_id' => $user->office_id,
-                'project_id' => $request->project_id,
-                'project_office_id' => $project->company->office_id
+            $request->validate([
+                'project_id' => 'required|exists:tbl_projects,project_id',
             ]);
-            return redirect()->back()->with('error', 'You do not have permission to create an application for this project.');
+
+            $project = ProjectModel::with('company')->findOrFail($request->project_id);
+            if ($project->company->office_id !== $user->office_id) {
+                return back()->with('error', 'You do not have permission to use this project.');
+            }
+
+            $applyRestruct = ApplyRestructModel::create([
+                'project_id' => $request->project_id,
+                'added_by'   => $user->user_id,
+            ]);
+
+            Log::info('ApplyRestruct record created (empty)', ['apply_id' => $applyRestruct->apply_id]);
+
+            // Redirect straight to the edit/upload page so the user can upload files
+            return redirect()->route('apply_restruct.edit', $applyRestruct->apply_id)
+                ->with('success', 'Application created. Please upload the required documents.');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('ApplyRestruct store error', ['error' => $e->getMessage()]);
+            return back()->with('error', 'An error occurred while creating the application.');
+        }
+    }
+
+    /* ══════════════════════════════════════════
+     |  EDIT  (render page — also the upload page)
+     ══════════════════════════════════════════ */
+    public function edit($apply_id)
+    {
+        $user          = Auth::user();
+        $applyRestruct = ApplyRestructModel::with('project.company')->findOrFail($apply_id);
+
+        if ($applyRestruct->project->company->office_id !== $user->office_id) {
+            abort(403, 'Unauthorized');
         }
 
-        $applyRestruct = ApplyRestructModel::create([
-            'project_id' => $request->project_id,
-            'added_by' => $user->user_id,
-            'proponent' => $request->proponent,
-            'psto' => $request->psto,
-            'annexc' => $request->annexc,
-            'annexd' => $request->annexd,
+        $projects = ProjectModel::select('project_id', 'project_title')
+            ->whereHas('company', fn($q) => $q->where('office_id', $user->office_id))
+            ->orderBy('project_title', 'asc')
+            ->get();
+
+        return Inertia::render('Restructures/Application/Edit', [
+            'applyRestruct' => $applyRestruct,
+            'projects'      => $projects,
+        ]);
+    }
+
+    /* ══════════════════════════════════════════
+     |  UPLOAD FILE
+     |  Mirrors ImplementationController exactly.
+     |  apply_id is always known at this point.
+     |
+     |  Folder: {year}/{project_id}/restructure/restructure_{apply_id}/
+     ══════════════════════════════════════════ */
+    public function uploadFile(Request $request, $field)
+    {
+        $validFields = ['proponent', 'psto', 'annexc', 'annexd'];
+        if (!in_array($field, $validFields)) {
+            abort(400, 'Invalid field');
+        }
+
+        $request->validate([
+            'apply_id' => 'required|exists:tbl_apply_restruct,apply_id',
+            $field     => 'required|file|mimes:pdf,png,jpg,jpeg|max:10240',
         ]);
 
-        Log::info('ApplyRestruct created successfully', [
-            'apply_id' => $applyRestruct->apply_id,
-            'project_id' => $applyRestruct->project_id,
-            'office_id' => $user->office_id
+        if (!$request->hasFile($field)) {
+            return back()->withErrors(['upload' => 'No file uploaded.']);
+        }
+
+        $file          = $request->file($field);
+        $applyRestruct = ApplyRestructModel::with('project.company')->findOrFail($request->apply_id);
+        $user          = Auth::user();
+
+        // Auth check
+        if ($applyRestruct->project->company->office_id !== $user->office_id) {
+            abort(403, 'Unauthorized');
+        }
+
+        try {
+            $extension      = $file->getClientOriginalExtension();
+            $safeName       = substr(preg_replace('/[^A-Za-z0-9\-]/', '_',
+                pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)), 0, 50);
+            $timestamp      = now()->format('Y-m-d_His');
+            $fileName       = "{$field}_{$safeName}_{$timestamp}.{$extension}";
+            $year           = now()->year;
+            $projectId      = $applyRestruct->project_id;
+            $applyId        = $applyRestruct->apply_id;
+
+            $folderPath     = "{$year}/{$projectId}/restructure/restructure_{$applyId}";
+
+            // 1. Store locally
+            $path = $file->storeAs($folderPath, $fileName, 'private');
+
+            if (!$path) {
+                throw new \Exception('Failed to store file locally.');
+            }
+
+            Log::info("ApplyRestruct file stored [{$field}]", [
+                'apply_id'   => $applyId,
+                'local_path' => $path,
+            ]);
+
+            // 2. Upload to Supabase (best-effort)
+            try {
+                $absolutePath = storage_path("app/private/{$path}");
+                $fileContent  = file_get_contents($absolutePath);
+                $supabasePath = "backup/{$year}/{$projectId}/restructure/restructure_{$applyId}/{$fileName}";
+
+                $uploader = new SupabaseUpload();
+                if ($uploader->upload($supabasePath, $fileContent)) {
+                    Log::info("Supabase upload OK [{$field}]", ['path' => $supabasePath]);
+                } else {
+                    Log::warning("Supabase upload failed [{$field}], continuing anyway.");
+                }
+            } catch (\Exception $e) {
+                Log::error("Supabase error [{$field}]: " . $e->getMessage());
+            }
+
+            // 3. Update DB
+            $applyRestruct->update([$field => $path]);
+
+            return back()->with('success', ucfirst($field) . ' uploaded successfully.');
+
+        } catch (\Exception $e) {
+            Log::error("ApplyRestruct upload error [{$field}]", ['error' => $e->getMessage()]);
+            return back()->withErrors(['upload' => 'Upload failed: ' . $e->getMessage()]);
+        }
+    }
+
+    /* ══════════════════════════════════════════
+     |  DELETE FILE
+     ══════════════════════════════════════════ */
+    public function deleteFile(Request $request, $field)
+    {
+        $validFields = ['proponent', 'psto', 'annexc', 'annexd'];
+        if (!in_array($field, $validFields)) {
+            abort(400, 'Invalid field');
+        }
+
+        $request->validate([
+            'apply_id' => 'required|exists:tbl_apply_restruct,apply_id',
         ]);
 
-        // Send email to 2 specific recipients
-        $recipients = [
-            'arjay.charcos25@gmail.com',
-            'rain.shigatsu@gmail.com'
-        ];
+        $applyRestruct = ApplyRestructModel::with('project.company')->findOrFail($request->apply_id);
+        $user          = Auth::user();
 
-        Log::info('Starting to send emails', [
-            'apply_id' => $applyRestruct->apply_id,
-            'recipients' => $recipients
+        if ($applyRestruct->project->company->office_id !== $user->office_id) {
+            abort(403, 'Unauthorized');
+        }
+
+        $filePath = $applyRestruct->$field;
+        if (!$filePath) {
+            return back()->withErrors(['delete' => 'No file found to delete.']);
+        }
+
+        try {
+            if (Storage::disk('private')->exists($filePath)) {
+                Storage::disk('private')->delete($filePath);
+            }
+
+            $applyRestruct->update([$field => null]);
+
+            Log::info("ApplyRestruct file deleted [{$field}]", ['apply_id' => $applyRestruct->apply_id]);
+
+            return back()->with('success', ucfirst($field) . ' deleted successfully.');
+
+        } catch (\Exception $e) {
+            Log::error("ApplyRestruct delete error [{$field}]", ['error' => $e->getMessage()]);
+            return back()->withErrors(['delete' => 'Failed to delete file.']);
+        }
+    }
+
+    /* ══════════════════════════════════════════
+     |  VIEW FILE (inline)
+     ══════════════════════════════════════════ */
+    public function viewFile(Request $request)
+    {
+        $filePath = $request->query('path');
+        if (!$filePath)                                        abort(400, 'No file path provided.');
+        if (!Storage::disk('private')->exists($filePath))     abort(404, 'File not found.');
+
+        $filename    = basename($filePath);
+        $fileContent = Storage::disk('private')->get($filePath);
+        $mimeType    = mime_content_type(Storage::disk('private')->path($filePath)) ?: 'application/octet-stream';
+
+        return response($fileContent, 200, [
+            'Content-Type'        => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
         ]);
+    }
+
+    /* ══════════════════════════════════════════
+     |  DOWNLOAD FILE
+     ══════════════════════════════════════════ */
+    public function downloadFile(Request $request)
+    {
+        $filePath = $request->query('path');
+        if (!$filePath)                                        abort(400, 'No file path provided.');
+        if (!Storage::disk('private')->exists($filePath))     abort(404, 'File not found.');
+
+        $filename    = basename($filePath);
+        $fileContent = Storage::disk('private')->get($filePath);
+        $mimeType    = mime_content_type(Storage::disk('private')->path($filePath)) ?: 'application/octet-stream';
+
+        return response($fileContent, 200, [
+            'Content-Type'        => $mimeType,
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
+    /* ══════════════════════════════════════════
+     |  UPDATE  (project change + optional final submit)
+     ══════════════════════════════════════════ */
+    public function update(Request $request, $apply_id)
+    {
+        try {
+            $user = Auth::user();
+
+            $request->validate([
+                'project_id' => 'required|exists:tbl_projects,project_id',
+            ]);
+
+            $applyRestruct = ApplyRestructModel::with('project.company')->findOrFail($apply_id);
+
+            if ($applyRestruct->project->company->office_id !== $user->office_id) {
+                return back()->with('error', 'You do not have permission to update this application.');
+            }
+
+            $newProject = ProjectModel::with('company')->findOrFail($request->project_id);
+            if ($newProject->company->office_id !== $user->office_id) {
+                return back()->with('error', 'You do not have permission to assign this project.');
+            }
+
+            $applyRestruct->update(['project_id' => $request->project_id]);
+
+            Log::info('ApplyRestruct updated', ['apply_id' => $apply_id]);
+
+            // Final submit: send emails and go back to index
+            if ($request->boolean('submit')) {
+                $fresh = $applyRestruct->fresh();
+                if ($fresh->proponent && $fresh->psto && $fresh->annexc && $fresh->annexd) {
+                    $this->sendNotificationEmails($fresh);
+                }
+                return redirect()->route('apply_restruct.index')
+                    ->with('success', 'Application submitted successfully.');
+            }
+
+            // Just a project change — stay on the page
+            return back()->with('success', 'Project updated.');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('ApplyRestruct update error', ['error' => $e->getMessage()]);
+            return back()->with('error', 'An error occurred while updating the application.');
+        }
+    }
+
+    /* ══════════════════════════════════════════
+     |  DESTROY
+     ══════════════════════════════════════════ */
+    public function destroy($apply_id)
+    {
+        try {
+            $user          = Auth::user();
+            $applyRestruct = ApplyRestructModel::with('project.company')->findOrFail($apply_id);
+
+            if ($applyRestruct->project->company->office_id !== $user->office_id) {
+                return back()->with('error', 'You do not have permission to delete this application.');
+            }
+
+            foreach (['proponent', 'psto', 'annexc', 'annexd'] as $field) {
+                $path = $applyRestruct->$field;
+                if ($path && Storage::disk('private')->exists($path)) {
+                    Storage::disk('private')->delete($path);
+                }
+            }
+
+            $applyRestruct->delete();
+
+            Log::info('ApplyRestruct deleted', ['apply_id' => $apply_id]);
+            return back()->with('success', 'Application deleted successfully.');
+
+        } catch (\Exception $e) {
+            Log::error('ApplyRestruct destroy error', ['error' => $e->getMessage()]);
+            return back()->with('error', 'An error occurred while deleting the application.');
+        }
+    }
+
+    /* ══════════════════════════════════════════
+     |  PRIVATE HELPERS
+     ══════════════════════════════════════════ */
+    private function sendNotificationEmails(ApplyRestructModel $applyRestruct): void
+    {
+        $recipients = ['arjay.charcos25@gmail.com', 'rain.shigatsu@gmail.com'];
 
         foreach ($recipients as $email) {
             try {
                 Mail::to($email)->send(new ApplyRestructureMail($applyRestruct));
-                Log::info('Email sent successfully', [
-                    'apply_id' => $applyRestruct->apply_id,
-                    'recipient' => $email
-                ]);
+                Log::info('ApplyRestruct email sent', ['to' => $email, 'apply_id' => $applyRestruct->apply_id]);
             } catch (\Exception $e) {
-                Log::error('Failed to send email', [
-                    'apply_id' => $applyRestruct->apply_id,
-                    'recipient' => $email,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
+                Log::error('ApplyRestruct email failed', ['to' => $email, 'error' => $e->getMessage()]);
             }
         }
-
-        Log::info('ApplyRestruct store completed successfully', [
-            'apply_id' => $applyRestruct->apply_id
-        ]);
-
-        return redirect()->back()->with('success', 'Apply Restructure added successfully.');
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        Log::warning('Validation failed in store', [
-            'errors' => $e->errors(),
-            'user_id' => Auth::id()
-        ]);
-        throw $e;
-    } catch (\Exception $e) {
-        Log::error('Error in ApplyRestruct store', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-            'user_id' => Auth::id()
-        ]);
-        return redirect()->back()->with('error', 'An error occurred while creating the restructure application.');
     }
-}
-
-public function update(Request $request, $apply_id)
-{
-    try {
-        $user = Auth::user();
-        
-        Log::info('ApplyRestruct update initiated', [
-            'apply_id' => $apply_id,
-            'user_id' => $user->user_id,
-            'office_id' => $user->office_id
-        ]);
-
-        $request->validate([
-            'project_id' => 'required|exists:tbl_projects,project_id',
-            'proponent' => [
-                'required',
-                'string',
-                'regex:/^https:\/\/(drive|docs)\.google\.com\/.+|^https:\/\/(onedrive\.live\.com|1drv\.ms)\/.+/'
-            ],
-            'psto' => [
-                'required',
-                'string',
-                'regex:/^https:\/\/(drive|docs)\.google\.com\/.+|^https:\/\/(onedrive\.live\.com|1drv\.ms)\/.+/'
-            ],
-            'annexc' => [
-                'required',
-                'string',
-                'regex:/^https:\/\/(drive|docs)\.google\.com\/.+|^https:\/\/(onedrive\.live\.com|1drv\.ms)\/.+/'
-            ],
-            'annexd' => [
-                'required',
-                'string',
-                'regex:/^https:\/\/(drive|docs)\.google\.com\/.+|^https:\/\/(onedrive\.live\.com|1drv\.ms)\/.+/'
-            ],
-        ], [
-            'proponent.required' => 'Proponent is required',
-            'proponent.regex' => 'Proponent must be a valid Google Drive or OneDrive link',
-            'psto.required' => 'PSTO is required',
-            'psto.regex' => 'PSTO must be a valid Google Drive or OneDrive link',
-            'annexc.required' => 'Annex C is required',
-            'annexc.regex' => 'Annex C must be a valid Google Drive or OneDrive link',
-            'annexd.required' => 'Annex D is required',
-            'annexd.regex' => 'Annex D must be a valid Google Drive or OneDrive link',
-        ]);
-
-        $applyRestruct = ApplyRestructModel::with('project.company')->findOrFail($apply_id);
-        
-        // Verify the apply restruct belongs to user's office through company
-        if ($applyRestruct->project->company->office_id !== $user->office_id) {
-            Log::warning('Unauthorized update attempt', [
-                'user_id' => $user->user_id,
-                'user_office_id' => $user->office_id,
-                'apply_id' => $apply_id,
-                'project_office_id' => $applyRestruct->project->company->office_id
-            ]);
-            return redirect()->back()->with('error', 'You do not have permission to update this application.');
-        }
-
-        // Verify the new project belongs to user's office through company
-        $newProject = ProjectModel::with('company')->findOrFail($request->project_id);
-        if ($newProject->company->office_id !== $user->office_id) {
-            Log::warning('Unauthorized project change attempt', [
-                'user_id' => $user->user_id,
-                'user_office_id' => $user->office_id,
-                'new_project_id' => $request->project_id,
-                'new_project_office_id' => $newProject->company->office_id
-            ]);
-            return redirect()->back()->with('error', 'You do not have permission to assign this project.');
-        }
-        
-        $applyRestruct->update([
-            'project_id' => $request->project_id,
-            'proponent' => $request->proponent,
-            'psto' => $request->psto,
-            'annexc' => $request->annexc,
-            'annexd' => $request->annexd,
-        ]);
-
-        Log::info('ApplyRestruct updated successfully', [
-            'apply_id' => $apply_id,
-            'project_id' => $applyRestruct->project_id,
-            'office_id' => $user->office_id
-        ]);
-
-        return redirect()->back()->with('success', 'Apply Restructure updated successfully.');
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        Log::warning('Validation failed in update', [
-            'apply_id' => $apply_id,
-            'errors' => $e->errors(),
-            'user_id' => Auth::id()
-        ]);
-        throw $e;
-    } catch (\Exception $e) {
-        Log::error('Error in ApplyRestruct update', [
-            'apply_id' => $apply_id,
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-            'user_id' => Auth::id()
-        ]);
-        return redirect()->back()->with('error', 'An error occurred while updating the restructure application.');
-    }
-}
-
-public function destroy($apply_id)
-{
-    try {
-        $user = Auth::user();
-        
-        Log::info('ApplyRestruct delete initiated', [
-            'apply_id' => $apply_id,
-            'user_id' => $user->user_id,
-            'office_id' => $user->office_id
-        ]);
-
-        $applyRestruct = ApplyRestructModel::with('project.company')->findOrFail($apply_id);
-        
-        // Verify the apply restruct belongs to user's office through company
-        if ($applyRestruct->project->company->office_id !== $user->office_id) {
-            Log::warning('Unauthorized delete attempt', [
-                'user_id' => $user->user_id,
-                'user_office_id' => $user->office_id,
-                'apply_id' => $apply_id,
-                'project_office_id' => $applyRestruct->project->company->office_id
-            ]);
-            return redirect()->back()->with('error', 'You do not have permission to delete this application.');
-        }
-        
-        $applyRestruct->delete();
-
-        Log::info('ApplyRestruct deleted successfully', [
-            'apply_id' => $apply_id,
-            'office_id' => $user->office_id
-        ]);
-
-        return redirect()->back()->with('success', 'Apply Restructure deleted successfully.');
-    } catch (\Exception $e) {
-        Log::error('Error in ApplyRestruct destroy', [
-            'apply_id' => $apply_id,
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-            'user_id' => Auth::id()
-        ]);
-        return redirect()->back()->with('error', 'An error occurred while deleting the restructure application.');
-    }
-}
 }

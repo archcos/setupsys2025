@@ -27,7 +27,7 @@ class ApprovalController extends Controller
             $user = Auth::user();
 
             if (!$user || !in_array($user->role, ['staff', 'rpmo'])) {
-                return Inertia::render('ReviewApproval/ApprovedProjects', [
+                return Inertia::render('Approval/Index', [
                     'projects'    => [],
                     'offices'     => [],
                     'filters'     => [],
@@ -51,7 +51,7 @@ class ApprovalController extends Controller
             // Role-based scope
             if ($user->role === 'staff') {
                 if (!$user->office_id) {
-                    return Inertia::render('ReviewApproval/ApprovedProjects', [
+                    return Inertia::render('Approval/Index', [
                         'projects'     => [],
                         'offices'      => [],
                         'filters'      => [],
@@ -115,7 +115,7 @@ class ApprovalController extends Controller
                 $offices = OfficeModel::where('office_id', $user->office_id)->get();
             }
 
-            return Inertia::render('ReviewApproval/ApprovedProjects', [
+            return Inertia::render('Approval/Index', [
                 'projects'     => $projects,
                 'offices'      => $offices,
                 'statusCounts' => $statusCounts,
@@ -132,7 +132,7 @@ class ApprovalController extends Controller
         } catch (\Exception $e) {
             Log::error('Error fetching approved projects: ' . $e->getMessage());
 
-            return Inertia::render('ReviewApproval/ApprovedProjects', [
+            return Inertia::render('Approval/Index', [
                 'projects'     => [],
                 'offices'      => [],
                 'filters'      => [],

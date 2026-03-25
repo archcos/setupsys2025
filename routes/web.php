@@ -218,17 +218,22 @@ Route::middleware(['log-suspicious'])->group(function () {
 
 
     //APPLY-RESTRUCT
-    Route::middleware(['auth', 'role:staff'])->group(function () {
-        // Only staff
-            Route::get('/apply-restructuring', [ApplyRestructController::class, 'index'])
-                ->name('apply_restruct.index');
-            Route::post('/apply-restruct/store', [ApplyRestructController::class, 'store'])
-                ->name('apply_restruct.store');
-            Route::put('/apply-restruct/{apply_id}', [ApplyRestructController::class, 'update'])
-                ->name('apply_restruct.update');
-            Route::delete('/apply-restruct/{apply_id}', [ApplyRestructController::class, 'destroy'])
-                ->name('apply_restruct.destroy');
+    Route::prefix('apply-restruct')->name('apply_restruct.')->group(function () {
+    
+        Route::get('/',                [ApplyRestructController::class, 'index'])       ->name('index');
+        Route::get('/create',          [ApplyRestructController::class, 'create'])      ->name('create');
+        Route::post('/',               [ApplyRestructController::class, 'store'])       ->name('store');
+        Route::get('/{apply_id}/edit', [ApplyRestructController::class, 'edit'])        ->name('edit');
+        Route::put('/{apply_id}',      [ApplyRestructController::class, 'update'])      ->name('update');
+        Route::delete('/{apply_id}',   [ApplyRestructController::class, 'destroy'])     ->name('destroy');
+    
+        // File operations (field = proponent | psto | annexc | annexd)
+        Route::post('/upload/{field}',  [ApplyRestructController::class, 'uploadFile']) ->name('upload_file');
+        Route::delete('/delete/{field}',[ApplyRestructController::class, 'deleteFile']) ->name('delete_file');
+        Route::get('/view-file',        [ApplyRestructController::class, 'viewFile'])   ->name('view_file');
+        Route::get('/download-file',    [ApplyRestructController::class, 'downloadFile'])->name('download_file');
     });
+
 
     // RESTRUCT
     Route::middleware(['auth',  'role:rpmo,rd'])->group(function () {

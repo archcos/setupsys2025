@@ -321,7 +321,7 @@ export default function Index({ projects, filters, offices, allYears }) {
                       <option key={n} value={n}>{n}</option>
                     ))}
                   </select>
-                  <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">items</span>
+                  <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">entries</span>
                 </div>
               </div>
 

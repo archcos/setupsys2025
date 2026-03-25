@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Eye, Edit3, Trash2, Building, User, Mail, Phone, MapPin, Factory, Package, X, Filter, ArrowUpDown, AlertCircle } from 'lucide-react';
 import IndustrySelect from './components/IndustrySelect';
 import MultiSelect from '../../components/MultiSelect';
-import { INDUSTRY_OPTIONS_GROUPED, INDUSTRY_TYPE_OPTIONS } from './components/industryOptions.js';
+import { INDUSTRY_OPTIONS_GROUPED, INDUSTRY_TYPE_OPTIONS } from './components/IndustryOptions';
 
 
 
@@ -267,7 +267,7 @@ export default function Index({ companies, filters, allUsers = [], allOffices = 
                         <option key={n} value={n}>{n}</option>
                       ))}
                     </select>
-                    <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">items</span>
+                    <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">entries</span>
                   </div>
                 </div>
 
