@@ -38,7 +38,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <Head title="Login - DOST SETUP" />
+      <Head title="SIMS LOGIN" />
 
       {/* ── Loading Overlay ── */}
       {isAuthenticating && (

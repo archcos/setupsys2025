@@ -28,68 +28,88 @@ use App\Services\SupabaseUpload;
 class ReportController extends Controller
 {
      use AuthorizesRequests;
-    public function index(Request $request)
-    {
+
+    public function index(Request $request){
         $userId = Auth::id();
         $user   = UserModel::where('user_id', $userId)->firstOrFail();
 
-        $search  = $request->input('search');
-        $perPage = $request->input('perPage', 10);
+        $search     = $request->input('search');
+        $perPage    = $request->input('perPage', 10);
+        $office     = $request->input('office');
+        $year       = $request->input('year');
+        $sortBy     = $request->input('sortBy', 'project_id');
+        $sortOrder  = $request->input('sortOrder', 'desc');
 
-        Log::info('Reports Index Accessed', [
-            'user_id'   => $userId,
-            'role'      => $user->role ?? null,
-            'office_id' => $user->office_id ?? null,
-            'search'    => $search,
-            'perPage'   => $perPage,
-        ]);
-
+        // ── Base query ────────────────────────────────────────────────────────────
         $query = ProjectModel::with([
             'company:company_id,company_name,office_id,added_by',
+            'company.office:office_id,office_name',   // eager-load office for the new column
             'reports' => function ($q) {
                 $q->select('report_id', 'project_id', 'created_at', 'file_path', 'status')
-                  ->orderBy('created_at', 'desc');
+                ->orderBy('created_at', 'desc');
             }
-        ])->select('project_id', 'project_title', 'company_id');
+        ])->select('project_id', 'project_title', 'company_id', 'year_obligated');
 
-        // Role-based filtering
+        // ── Role-based filtering ──────────────────────────────────────────────────
         if ($user->role === 'user') {
-            Log::debug('Filtering projects for USER role', ['user_id' => $user->user_id]);
             $companyIds = CompanyModel::where('added_by', $user->user_id)->pluck('company_id');
             $query->whereIn('company_id', $companyIds);
         } elseif ($user->role === 'staff') {
-            Log::debug('Filtering projects for STAFF role', ['office_id' => $user->office_id]);
-            $query->whereHas('company', function ($q) use ($user) {
-                $q->where('office_id', $user->office_id);
-            });
-        } elseif ($user->role === 'head') {
-            Log::debug('HEAD role detected - no restrictions applied');
-        } else {
-            Log::warning('Unknown role - applying no filters', ['role' => $user->role]);
+            $query->whereHas('company', fn($q) => $q->where('office_id', $user->office_id));
         }
+        // 'head' → no restrictions
 
+        // ── Search ────────────────────────────────────────────────────────────────
         if (!empty($search)) {
-            Log::debug('Applying search filter', ['search' => $search]);
             $query->where(function ($q) use ($search) {
                 $q->where('project_title', 'like', "%{$search}%")
-                  ->orWhereHas('company', function ($q) use ($search) {
-                      $q->where('company_name', 'like', "%{$search}%");
-                  });
+                ->orWhereHas('company', fn($q) => $q->where('company_name', 'like', "%{$search}%"));
             });
         }
 
-        $projects = $query->orderBy('project_title')
-                          ->paginate($perPage)
-                          ->withQueryString();
+        // ── Office filter ─────────────────────────────────────────────────────────
+        if (!empty($office)) {
+            $query->whereHas('company', fn($q) => $q->where('office_id', $office));
+        }
 
-        Log::info('Projects retrieved', [
-            'count' => $projects->count(),
-            'total' => $projects->total(),
-        ]);
+        // ── Year filter ───────────────────────────────────────────────────────────
+        if (!empty($year)) {
+            $query->where('year_obligated', $year);
+        }
+
+        // ── Sorting ───────────────────────────────────────────────────────────────
+        $allowedSorts = ['project_id', 'project_title', 'company_name', 'year_obligated'];
+        $sortBy       = in_array($sortBy, $allowedSorts) ? $sortBy : 'project_title';
+        $sortOrder    = in_array($sortOrder, ['asc', 'desc']) ? $sortOrder : 'asc';
+
+        if ($sortBy === 'company_name') {
+            // Join for company name sorting
+            $query->join('tbl_companies', 'tbl_projects.company_id', '=', 'tbl_companies.company_id')
+                ->orderBy('tbl_companies.company_name', $sortOrder)
+                ->select('tbl_projects.*'); // avoid column ambiguity
+        } else {
+            $query->orderBy($sortBy, $sortOrder);
+        }
+
+        $projects = $query->paginate($perPage)->withQueryString();
+
+        // ── Offices list (for the filter dropdown) ────────────────────────────────
+        // Adjust the model/table name to match your actual Office model
+        $offices = \App\Models\OfficeModel::select('office_id', 'office_name')
+                        ->orderBy('office_name')
+                        ->get();
+
+        // ── Years list (distinct years from projects) ─────────────────────────────
+        $years = ProjectModel::whereNotNull('year_obligated')
+                    ->distinct()
+                    ->orderBy('year_obligated', 'desc')
+                    ->pluck('year_obligated');
 
         return Inertia::render('Reports/Index', [
             'projects' => $projects,
-            'filters'  => $request->only('search', 'perPage'),
+            'offices'  => $offices,
+            'years'    => $years,
+            'filters'  => $request->only('search', 'perPage', 'office', 'year', 'sortBy', 'sortOrder'),
         ]);
     }
 

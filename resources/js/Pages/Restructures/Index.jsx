@@ -370,7 +370,7 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                   {data.map((item, index) => (
                     <tr key={item.apply_id} className="hover:bg-blue-50/30 transition-all duration-200">
                       <td className="px-4 md:px-6 py-3 md:py-4">
-                        <span className="text-xs font-mono font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                        <span className="text-xs font-semibold text-black px-2 py-1 rounded">
                           {item.project_id}
                         </span>
                       </td>
@@ -419,7 +419,7 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                 <div key={item.apply_id} className="p-3 space-y-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-mono font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded w-fit">{item.project_id}</div>
+                      <div className="text-xs font-semibold text-black px-1.5 py-0.5 rounded w-fit">{item.project_id}</div>
                       <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{item.project?.project_title || '-'}</h3>
                       <p className="text-xs text-gray-600 mt-0.5">{item.project?.company?.company_name || 'No company'}</p>
                     </div>
