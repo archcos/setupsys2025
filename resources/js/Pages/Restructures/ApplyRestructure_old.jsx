@@ -40,7 +40,7 @@ export default function ApplyRestructIndex({ applyRestructs, projects }) {
         border: 'border-green-200',
         label: 'Approved'
       },
-      raised: {
+      recommended: {
         bg: 'bg-blue-100',
         text: 'text-blue-800',
         border: 'border-blue-200',

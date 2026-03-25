@@ -23,7 +23,7 @@ const STATUS_CONFIG = {
     pillStyle: 'bg-amber-100 text-amber-800 border border-amber-200',
     icon:      Clock,
   },
-   raised: {
+   recommended: {
     label:     'Recommended',
     tab:       'bg-blue-500 text-white',
     badge:     'bg-white/25 text-white',
@@ -40,7 +40,7 @@ const STATUS_CONFIG = {
  
 };
 
-const STATUS_KEYS = ['all', 'pending', 'raised', 'approved'];
+const STATUS_KEYS = ['all', 'pending', 'recommended', 'approved'];
 
 // ─── Status Tabs ──────────────────────────────────────────────────────────────
 
@@ -189,7 +189,7 @@ export default function ApplyRestructIndex({ applyRestructs, filters }) {
     all:      applyRestructs?.total_count    ?? total,
     pending:  applyRestructs?.pending_count  ?? 0,
     approved: applyRestructs?.approved_count ?? 0,
-    raised:   applyRestructs?.raised_count   ?? 0,
+    recommended:   applyRestructs?.recommended_count   ?? 0,
   };
 
   return (

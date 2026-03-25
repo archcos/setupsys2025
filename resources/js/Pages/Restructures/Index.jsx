@@ -22,7 +22,7 @@ const STATUS_CONFIG = {
     pillStyle:  'bg-yellow-100 text-yellow-800 border border-yellow-200',
     icon:       Clock,
   },
-  raised: {
+  recommended: {
     label:      'Recommended',
     tab:        'bg-blue-500 text-white',
     badge:      'bg-white/25 text-white',
@@ -38,7 +38,7 @@ const STATUS_CONFIG = {
   },
 };
 
-const STATUS_KEYS = ['all', 'pending', 'raised', 'approved'];
+const STATUS_KEYS = ['all', 'pending', 'recommended', 'approved'];
 
 const DOC_META = [
   { key: 'proponent', label: 'Proponent', cls: 'text-blue-700 bg-blue-100 hover:bg-blue-200'     },

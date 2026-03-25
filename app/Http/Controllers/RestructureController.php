@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\RestructureApprovedMail;
-use App\Mail\RestructureRaisedMail;
+use App\Mail\RestructureRecommendedMail;
 use App\Mail\RestructureDeniedMail;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -36,7 +36,7 @@ class RestructureController extends Controller
         $baseQuery = ApplyRestructModel::with(['project.company.office', 'addedBy', 'restructure']);
 
         if ($user->role === 'rd') {
-            $projectIds = RestructureModel::whereIn('status', ['raised', 'approved'])
+            $projectIds = RestructureModel::whereIn('status', ['recommended', 'approved'])
                 ->distinct()
                 ->pluck('project_id')
                 ->toArray();
@@ -50,7 +50,7 @@ class RestructureController extends Controller
                                 $q->doesntHave('restructure')
                                   ->orWhereHas('restructure', fn($sq) => $sq->where('status', 'pending'));
                             })->count(),
-            'raised'   => (clone $baseQuery)->whereHas('restructure', fn($q) => $q->where('status', 'raised'))->count(),
+            'recommended'   => (clone $baseQuery)->whereHas('restructure', fn($q) => $q->where('status', 'recommended'))->count(),
             'approved' => (clone $baseQuery)->whereHas('restructure', fn($q) => $q->where('status', 'approved'))->count(),
         ];
 
@@ -121,7 +121,7 @@ class RestructureController extends Controller
             }]);
 
         if ($user->role === 'rd') {
-            $restructuresQuery->whereIn('status', ['raised', 'approved']);
+            $restructuresQuery->whereIn('status', ['recommended', 'approved']);
         }
 
         $restructures = $restructuresQuery->latest()->get();
@@ -167,7 +167,7 @@ class RestructureController extends Controller
                 'type'                        => 'required|string|max:50',
                 'restruct_start'              => 'required|string',
                 'restruct_end'                => 'required|string',
-                'status'                      => 'required|in:approved,raised,pending',
+                'status'                      => 'required|in:approved,recommended,pending',
                 'remarks'                     => 'required|string',
                 'new_refund_end'              => 'nullable|string',
                 'updates'                     => 'nullable|array',
@@ -261,7 +261,7 @@ class RestructureController extends Controller
 
             Log::info('Restructure created successfully:', ['id' => $restructure->restruct_id]);
 
-            if (in_array($request->status, ['raised', 'pending'])) {
+            if (in_array($request->status, ['recommended', 'pending'])) {
                 try {
                     $restructure = RestructureModel::with(['project.company', 'addedBy'])->findOrFail($restructure->restruct_id);
                     $this->sendStatusUpdateEmailsSync($restructure, $request->status, $request->remarks);
@@ -271,7 +271,7 @@ class RestructureController extends Controller
                 }
             }
 
-            $statusMessage = $request->status === 'raised' ? 'raised' : 'added';
+            $statusMessage = $request->status === 'recommended' ? 'recommended' : 'added';
             return redirect()->back()->with('success', "Restructuring {$statusMessage} successfully. Email notifications have been sent.");
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -292,7 +292,7 @@ class RestructureController extends Controller
                 'type'                        => 'required|string|max:50',
                 'restruct_start'              => 'required|string',
                 'restruct_end'                => 'required|string',
-                'status'                      => 'required|in:approved,raised,pending',
+                'status'                      => 'required|in:approved,recommended,pending',
                 'remarks'                     => 'required|string',
                 'new_refund_end'              => 'nullable|string',
                 'updates'                     => 'nullable|array',
@@ -387,7 +387,7 @@ class RestructureController extends Controller
 
             Log::info('Restructure updated successfully:', $restructure->toArray());
 
-            if (in_array($request->status, ['raised', 'pending'])) {
+            if (in_array($request->status, ['recommended', 'pending'])) {
                 try {
                     $restructure = RestructureModel::with(['project.company', 'addedBy'])->findOrFail($restructure->restruct_id);
                     $this->sendStatusUpdateEmailsSync($restructure, $request->status, $request->remarks);
@@ -397,7 +397,7 @@ class RestructureController extends Controller
                 }
             }
 
-            $statusMessage = $request->status === 'raised' ? 'raised' : 'updated';
+            $statusMessage = $request->status === 'recommended' ? 'recommended' : 'updated';
             return redirect()->back()->with('success', "Restructuring {$statusMessage} successfully. Email notifications have been sent.");
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -430,7 +430,7 @@ class RestructureController extends Controller
             Log::info('=== STATUS UPDATE STARTED ===', ['restruct_id' => $restruct_id, 'user_role' => Auth::user()->role ?? 'unknown']);
 
             $validated = $request->validate([
-                'status'  => 'required|in:raised,pending,approved',
+                'status'  => 'required|in:recommended,pending,approved',
                 'remarks' => 'required|string',
             ]);
 
@@ -438,11 +438,11 @@ class RestructureController extends Controller
             $userRole    = Auth::user()->role;
 
             if ($userRole === 'rpmo') {
-                if (!in_array($validated['status'], ['raised', 'pending'])) {
+                if (!in_array($validated['status'], ['recommended', 'pending'])) {
                     return redirect()->back()->withErrors(['error' => 'RPMO can only recommend or deny restructuring requests.']);
                 }
             } elseif ($userRole === 'rd') {
-                if ($restructure->status !== 'raised') {
+                if ($restructure->status !== 'recommended') {
                     return redirect()->back()->withErrors(['error' => 'Only recommended restructuring requests can be approved or denied.']);
                 }
                 if (!in_array($validated['status'], ['approved', 'pending'])) {
@@ -473,7 +473,7 @@ class RestructureController extends Controller
 
             sleep(2);
 
-            $statusMessage = $validated['status'] === 'approved' ? 'approved' : ($validated['status'] === 'raised' ? 'raised' : 'denied');
+            $statusMessage = $validated['status'] === 'approved' ? 'approved' : ($validated['status'] === 'recommended' ? 'recommended' : 'denied');
             return redirect()->back()->with('success', "Restructuring request has been {$statusMessage} successfully. Email notifications have been sent.");
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -486,8 +486,8 @@ class RestructureController extends Controller
 
     private function sendStatusUpdateEmailsSync(RestructureModel $restructure, $status, $remarks)
     {
-        if ($status === 'raised') {
-            $this->sendRaisedEmailsSync($restructure, $remarks);
+        if ($status === 'recommended') {
+            $this->sendRecommendedEmailsSync($restructure, $remarks);
         } elseif ($status === 'approved') {
             $this->sendApprovedEmailsSync($restructure, $remarks);
         } elseif ($status === 'pending') {
@@ -495,16 +495,16 @@ class RestructureController extends Controller
         }
     }
 
-    private function sendRaisedEmailsSync(RestructureModel $restructure, $remarks)
+    private function sendRecommendedEmailsSync(RestructureModel $restructure, $remarks)
     {
         $directors = DirectorModel::where('office_id', 1)->whereNotNull('email')->get();
         foreach ($directors as $director) {
             try {
                 $recipientName = $director->honorific . ' ' . $director->last_name;
-                Mail::to($director->email)->send(new RestructureRaisedMail($restructure, $recipientName, $remarks));
-                Log::info('✓ Raised email sent', ['to' => $director->email]);
+                Mail::to($director->email)->send(new RestructureRecommendedMail($restructure, $recipientName, $remarks));
+                Log::info('✓ Recommended email sent', ['to' => $director->email]);
             } catch (\Exception $e) {
-                Log::error('✗ Failed to send raised email', ['to' => $director->email, 'error' => $e->getMessage()]);
+                Log::error('✗ Failed to send recommended email', ['to' => $director->email, 'error' => $e->getMessage()]);
             }
         }
     }

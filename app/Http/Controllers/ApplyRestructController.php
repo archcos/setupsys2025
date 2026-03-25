@@ -66,7 +66,7 @@ class ApplyRestructController extends Controller
             $pendingCount  = $statusRows->filter(fn($s) => strtolower($s) === 'pending')->count()
                            + ($totalCount - $statusRows->count()); // records with no restructure = pending
             $approvedCount = $statusRows->filter(fn($s) => strtolower($s) === 'approved')->count();
-            $raisedCount   = $statusRows->filter(fn($s) => strtolower($s) === 'raised')->count();
+            $recommendedCount   = $statusRows->filter(fn($s) => strtolower($s) === 'recommended')->count();
 
             // Apply status filter
             if ($statusFilter && $statusFilter !== 'all') {
@@ -111,7 +111,7 @@ class ApplyRestructController extends Controller
             $data['total_count']   = $totalCount;
             $data['pending_count'] = $pendingCount;
             $data['approved_count']= $approvedCount;
-            $data['raised_count']  = $raisedCount;
+            $data['recommended_count']  = $recommendedCount;
 
             return Inertia::render('Restructures/Application/Index', [
                 'applyRestructs' => $data,

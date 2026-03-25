@@ -36,7 +36,7 @@ return new class extends Migration
 
             // Type of restructure (e.g. text description)
             $table->string('type', 50)->nullable(); 
-            $table->enum('status', ['approved','raised','pending']);
+            $table->enum('status', ['approved','recommended','pending']);
             $table->text('remarks')->nullable();
             
             // Start and end dates (date type includes year, month, and day)

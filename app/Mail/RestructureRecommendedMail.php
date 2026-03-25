@@ -6,7 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class RestructureRaisedMail extends Mailable
+class RestructureRecommendedMail extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -40,8 +40,8 @@ class RestructureRaisedMail extends Mailable
 
         $projectTitle = $this->project->project_title ?? 'N/A';
         $companyName = $this->company->company_name ?? 'N/A';
-        $raisedBy = $this->restructure->addedBy->name ?? 'Unknown User';
-        $raisedDate = $this->restructure->created_at->format('F d, Y \a\t h:i A');
+        $recommendedBy = $this->restructure->addedBy->name ?? 'Unknown User';
+        $recommendedDate = $this->restructure->created_at->format('F d, Y \a\t h:i A');
         $restructureType = $this->restructure->type ?? 'N/A';
         $startDate = \Carbon\Carbon::parse($this->restructure->restruct_start)->format('F Y');
         $endDate = \Carbon\Carbon::parse($this->restructure->restruct_end)->format('F Y');
@@ -61,7 +61,7 @@ class RestructureRaisedMail extends Mailable
                     <div style='background: linear-gradient(135deg, #FF6B35 0%, #D84315 100%); padding: 20px; text-align: center;'>
                         <img src='cid:setup_logo.png' alt='SETUP Logo' style='max-width: 120px; height: auto; margin: 0 auto 15px; display: block;'>
                         <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;'>Restructuring Request Recommended</h1>
-                        <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;'>Submitted on {$raisedDate}</p>
+                        <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;'>Submitted on {$recommendedDate}</p>
                     </div>
 
                     <!-- Main Content -->
@@ -107,7 +107,7 @@ class RestructureRaisedMail extends Mailable
 
                             <div style='margin-bottom: 15px;'>
                                 <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Recommended By</p>
-                                <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$raisedBy}</p>
+                                <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$recommendedBy}</p>
                             </div>
 
                             <div>
