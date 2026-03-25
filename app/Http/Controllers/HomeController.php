@@ -15,7 +15,7 @@ class HomeController extends Controller
         $year = $request->input('year') ?? date('Y');
         $user = Auth::user();
 
-        $query = ProjectModel::with('company.office');
+        $query = ProjectModel::with('proponent.office');
 
         // Only filter by year if not 'all'
         if ($year !== 'all') {
@@ -25,7 +25,7 @@ class HomeController extends Controller
         // Filter projects based on user role
         if ($user && $user->role === 'staff') {
             // Staff users only see projects from their office
-            $query->whereHas('company', function ($q) use ($user) {
+            $query->whereHas('proponent', function ($q) use ($user) {
                 $q->where('office_id', $user->office_id);
             });
         } elseif ($user && $user->role === 'user') {
@@ -38,7 +38,7 @@ class HomeController extends Controller
 
         // Group projects by office for the "Projects Per Office" card and sort alphabetically
         $projectsPerOffice = $projects
-            ->groupBy(fn($p) => $p->company->office->office_name ?? 'No Office')
+            ->groupBy(fn($p) => $p->proponent->office->office_name ?? 'No Office')
             ->map(fn($group) => $group->count())
             ->sortKeys(); // Sort offices alphabetically
 
@@ -62,8 +62,8 @@ class HomeController extends Controller
                 return [
                     'project_id' => $project->project_id,
                     'project_title' => $project->project_title,
-                    'company_name' => $project->company->company_name ?? '',
-                    'office_name' => $project->company->office->office_name ?? '',
+                    'company_name' => $project->proponent->company_name ?? '',
+                    'office_name' => $project->proponent->office->office_name ?? '',
                     'progress' => $project->progress ?? '', // Can be: internal_rtec, internal_compliance, external_rtec, external_compliance, or standard stages, or Terminated, Withdrawn, Disapproved
                 ];
             }),

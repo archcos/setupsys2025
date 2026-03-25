@@ -16,9 +16,9 @@ class ProjectModel extends Model
     public $incrementing = false;  // Important!
     protected $keyType = 'bigInteger';
     protected $fillable = [
-        'project_id',
+    'project_id',
         'project_title',
-        'company_id',
+        'proponent_id',
         'fund_release',
         'released_amount',
         'release_initial',
@@ -68,9 +68,9 @@ class ProjectModel extends Model
         $this->attributes['refund_end'] = $value ? $value . '-01' : null;
     }
 
-    public function company()
+    public function proponent()
     {
-        return $this->belongsTo(CompanyModel::class, 'company_id', 'company_id');
+        return $this->belongsTo(ProponentModel::class, 'proponent_id', 'proponent_id');
     }
 
     public function addedBy()

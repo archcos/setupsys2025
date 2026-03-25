@@ -38,7 +38,7 @@ const RefundMobileCard = React.memo(({
       {/* Project Info */}
       <div>
         <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1">{project.project_title}</h3>
-        <p className="text-xs text-gray-600 mb-0.5">{project.company.company_name}</p>
+        <p className="text-xs text-gray-600 mb-0.5">{project.proponent.company_name}</p>
         <p className="text-xs text-gray-500">ID: {project.project_id}</p>
       </div>
 

@@ -17,9 +17,9 @@ Schema::create('tbl_notifications', function (Blueprint $table) {
     $table->boolean('is_read')->default(0);
     $table->timestamp('created_at')->useCurrent();
     $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
-    $table->unsignedBigInteger('company_id')->nullable();
+    $table->unsignedBigInteger('proponent_id')->nullable();
     $table->foreign('office_id')->references('office_id')->on('tbl_offices')->onDelete('cascade');
-    $table->foreign('company_id')->references('company_id')->on('tbl_companies')->onDelete('set null')->onUpdate('cascade');
+    $table->foreign('proponent_id')->references('proponent_id')->on('tbl_proponents')->onDelete('set null')->onUpdate('cascade');
 });
 
     }

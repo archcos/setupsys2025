@@ -1,7 +1,7 @@
 import { Info, AlertCircle, Hash } from 'lucide-react';
 import FormCard from '../FormCard';
 
-export default function BasicInfoSection({ data, setData, errors, companies, isCreate = true, nextProjectCode = '' }) {
+export default function BasicInfoSection({ data, setData, errors, proponents, isCreate = true, nextProjectCode = '' }) {
   return (
     <FormCard icon={Info} title="Basic Information" iconBgColor="bg-blue-100" iconColor="text-blue-600">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
@@ -59,26 +59,26 @@ export default function BasicInfoSection({ data, setData, errors, companies, isC
           </div>
         )}
 
-        {/* Select Company */}
+        {/* Select proponent */}
         <div>
-          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Select Company</label>
+          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Select proponent</label>
           <select
             className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
-            value={data.company_id}
-            onChange={(e) => setData('company_id', e.target.value)}
+            value={data.proponent_id}
+            onChange={(e) => setData('proponent_id', e.target.value)}
             required
           >
-            <option value="">Choose a company</option>
-            {companies.map((company) => (
-              <option key={company.company_id} value={company.company_id}>
-                {company.company_name}
+            <option value="">Choose a proponent</option>
+            {proponents.map((proponent) => (
+              <option key={proponent.proponent_id} value={proponent.proponent_id}>
+                {proponent.company_name}
               </option>
             ))}
           </select>
-          {errors.company_id && (
+          {errors.proponent_id && (
             <div className="text-red-500 text-xs md:text-sm mt-1 flex items-center gap-1">
               <AlertCircle className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
-              {errors.company_id}
+              {errors.proponent_id}
             </div>
           )}
         </div>

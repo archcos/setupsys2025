@@ -39,11 +39,11 @@ class ApplyRestructController extends Controller
 
             // Base query (office-scoped)
             $base = ApplyRestructModel::with([
-                    'project.company',
+                    'project.proponent',
                     'addedBy',
                     'restructures' => fn($q) => $q->orderBy('created_at', 'desc'),
                 ])
-                ->whereHas('project.company', fn($q) => $q->where('office_id', $user->office_id));
+                ->whereHas('project.proponent', fn($q) => $q->where('office_id', $user->office_id));
 
             // Search
             if ($search) {
@@ -135,7 +135,7 @@ class ApplyRestructController extends Controller
     {
         $user     = Auth::user();
         $projects = ProjectModel::select('project_id', 'project_title')
-            ->whereHas('company', fn($q) => $q->where('office_id', $user->office_id))
+            ->whereHas('proponent', fn($q) => $q->where('office_id', $user->office_id))
             ->orderBy('project_title', 'asc')
             ->get();
 
@@ -157,8 +157,8 @@ class ApplyRestructController extends Controller
                 'project_id' => 'required|exists:tbl_projects,project_id',
             ]);
 
-            $project = ProjectModel::with('company')->findOrFail($request->project_id);
-            if ($project->company->office_id !== $user->office_id) {
+            $project = ProjectModel::with('proponent')->findOrFail($request->project_id);
+            if ($project->proponent->office_id !== $user->office_id) {
                 return back()->with('error', 'You do not have permission to use this project.');
             }
 
@@ -187,14 +187,14 @@ class ApplyRestructController extends Controller
     public function edit($apply_id)
     {
         $user          = Auth::user();
-        $applyRestruct = ApplyRestructModel::with('project.company')->findOrFail($apply_id);
+        $applyRestruct = ApplyRestructModel::with('project.proponent')->findOrFail($apply_id);
 
-        if ($applyRestruct->project->company->office_id !== $user->office_id) {
+        if ($applyRestruct->project->proponent->office_id !== $user->office_id) {
             abort(403, 'Unauthorized');
         }
 
         $projects = ProjectModel::select('project_id', 'project_title')
-            ->whereHas('company', fn($q) => $q->where('office_id', $user->office_id))
+            ->whereHas('proponent', fn($q) => $q->where('office_id', $user->office_id))
             ->orderBy('project_title', 'asc')
             ->get();
 
@@ -228,11 +228,11 @@ class ApplyRestructController extends Controller
         }
 
         $file          = $request->file($field);
-        $applyRestruct = ApplyRestructModel::with('project.company')->findOrFail($request->apply_id);
+        $applyRestruct = ApplyRestructModel::with('project.proponent')->findOrFail($request->apply_id);
         $user          = Auth::user();
 
         // Auth check
-        if ($applyRestruct->project->company->office_id !== $user->office_id) {
+        if ($applyRestruct->project->proponent->office_id !== $user->office_id) {
             abort(403, 'Unauthorized');
         }
 
@@ -301,10 +301,10 @@ class ApplyRestructController extends Controller
             'apply_id' => 'required|exists:tbl_apply_restruct,apply_id',
         ]);
 
-        $applyRestruct = ApplyRestructModel::with('project.company')->findOrFail($request->apply_id);
+        $applyRestruct = ApplyRestructModel::with('project.proponent')->findOrFail($request->apply_id);
         $user          = Auth::user();
 
-        if ($applyRestruct->project->company->office_id !== $user->office_id) {
+        if ($applyRestruct->project->proponent->office_id !== $user->office_id) {
             abort(403, 'Unauthorized');
         }
 
@@ -380,14 +380,14 @@ class ApplyRestructController extends Controller
                 'project_id' => 'required|exists:tbl_projects,project_id',
             ]);
 
-            $applyRestruct = ApplyRestructModel::with('project.company')->findOrFail($apply_id);
+            $applyRestruct = ApplyRestructModel::with('project.proponent')->findOrFail($apply_id);
 
-            if ($applyRestruct->project->company->office_id !== $user->office_id) {
+            if ($applyRestruct->project->proponent->office_id !== $user->office_id) {
                 return back()->with('error', 'You do not have permission to update this application.');
             }
 
-            $newProject = ProjectModel::with('company')->findOrFail($request->project_id);
-            if ($newProject->company->office_id !== $user->office_id) {
+            $newProject = ProjectModel::with('proponent')->findOrFail($request->project_id);
+            if ($newProject->proponent->office_id !== $user->office_id) {
                 return back()->with('error', 'You do not have permission to assign this project.');
             }
 
@@ -423,9 +423,9 @@ class ApplyRestructController extends Controller
     {
         try {
             $user          = Auth::user();
-            $applyRestruct = ApplyRestructModel::with('project.company')->findOrFail($apply_id);
+            $applyRestruct = ApplyRestructModel::with('project.proponent')->findOrFail($apply_id);
 
-            if ($applyRestruct->project->company->office_id !== $user->office_id) {
+            if ($applyRestruct->project->proponent->office_id !== $user->office_id) {
                 return back()->with('error', 'You do not have permission to delete this application.');
             }
 

@@ -20,17 +20,17 @@ class DashboardController extends Controller
         $user = Auth::user();
 
         $projects = ProjectModel::with([
-            'company',
+            'proponent',
             'implementation.tags',
             'refunds'
         ])
         ->when($user->role === 'user', function ($q) use ($user) {
-            $q->whereHas('company', function ($sub) use ($user) {
+            $q->whereHas('proponent', function ($sub) use ($user) {
                 $sub->where('added_by', $user->user_id);
             });
         })
         ->when($user->role === 'staff', function ($q) use ($user) {
-            $q->whereHas('company', function ($sub) use ($user) {
+            $q->whereHas('proponent', function ($sub) use ($user) {
                 $sub->where('office_id', $user->office_id);
             });
         })
@@ -119,8 +119,8 @@ class DashboardController extends Controller
                     'progress' => $project->progress ?? '',
                     'project_cost' => $projectCost,
                     'created_at' => $project->created_at,
-                    'company' => [
-                        'created_at' => $project->company->created_at ?? null,
+                    'proponent' => [
+                        'created_at' => $project->proponent->created_at ?? null,
                     ],
                     'last_activity_date' => $lastActivities->get($project->project_id) ?? null,
                     'moa' => [
@@ -174,7 +174,7 @@ class DashboardController extends Controller
                     ]
                 ];
             }),
-            'userCompanyName' => $user->companies->first()?->company_name ?? 'Your Company',
+            'userproponentName' => $user->proponents->first()?->company_name ?? 'Your proponent',
         ]);
     }
 

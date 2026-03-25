@@ -13,7 +13,7 @@ function formatDate(dateStr) {
 
 // Progress status options
 const progressOptions = [
-  { value: 'Company Details', label: 'Company Details', icon: Clock, color: 'blue' },
+  { value: 'Proponent Details', label: 'Proponent Details', icon: Clock, color: 'blue' },
   { value: 'Project Created', label: 'Project Created', icon: FileText, color: 'cyan' },
   { value: 'internal_rtec', label: 'Internal RTEC', icon: FileText, color: 'yellow' },
   { value: 'internal_compliance', label: 'Internal Compliance', icon: FileText, color: 'yellow' },
@@ -419,7 +419,7 @@ export default function Index({ projects, filters, offices, allYears }) {
                     <td className="px-6 py-4">
                       <div>
                         <div className="text-sm font-semibold text-gray-900">{project.project_title}</div>
-                        <div className="text-xs text-gray-600 mt-1">{project.company?.company_name || 'No proponent'}</div>
+                        <div className="text-xs text-gray-600 mt-1">{project.proponent?.company_name || 'No proponent'}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
@@ -494,7 +494,7 @@ export default function Index({ projects, filters, offices, allYears }) {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 text-sm truncate">{project.project_title}</h3>
-                    <p className="text-xs text-gray-600 mt-1">{project.company?.company_name || 'No proponent'}</p>
+                    <p className="text-xs text-gray-600 mt-1">{project.proponent?.company_name || 'No proponent'}</p>
                   </div>
                   <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                     <button onClick={() => setSelectedProject(project)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
@@ -674,7 +674,7 @@ function ProjectModal({ project, isOpen, onClose }) {
               </div>
               <div className="bg-white rounded p-3 border border-blue-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Proponent</p>
-                <p className="text-sm text-gray-900">{project.company?.company_name || 'N/A'}</p>
+                <p className="text-sm text-gray-900">{project.proponent?.company_name || 'N/A'}</p>
               </div>
               <div className="bg-white rounded p-3 border border-blue-100 md:col-span-2">
                 <p className="text-xs font-medium text-gray-600 mb-1">Fund Release Date</p>

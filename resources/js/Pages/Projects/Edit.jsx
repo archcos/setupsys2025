@@ -9,13 +9,13 @@ import WorkforceSection from './components/sections/WorkforceSection';
 import ItemsSection from './components/sections/ItemsSection';
 import ObjectivesSection from './components/sections/ObjectivesSection';
 
-export default function Edit({ project, companies }) {
+export default function Edit({ project, proponents }) {
   const formatDateToMonth = (dateStr) => (dateStr ? dateStr.slice(0, 7) : '');
 
   const { data, setData, put, processing, errors } = useForm({
     project_id: project.project_id,
     project_title: project.project_title || '',
-    company_id: project.company_id || '',
+    proponent_id: project.proponent_id || '',
     release_initial: formatDateToMonth(project.release_initial),
     release_end: formatDateToMonth(project.release_end),
     refund_initial: formatDateToMonth(project.refund_initial),
@@ -78,7 +78,7 @@ export default function Edit({ project, companies }) {
             data={data}
             setData={setData}
             errors={errors}
-            companies={companies}
+            proponents={proponents}
             isCreate={false}
           />
           <TimelineSection data={data} setData={setData} errors={errors} />

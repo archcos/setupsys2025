@@ -10,7 +10,7 @@ use Inertia\Inertia;
 use Carbon\Carbon;
 use PhpOffice\PhpWord\TemplateProcessor;
 use App\Models\ProjectModel;
-use App\Models\CompanyModel;
+use App\Models\ProponentModel;
 use App\Models\OfficeModel;
 use App\Models\DirectorModel;
 use App\Models\ComplianceModel;
@@ -45,7 +45,7 @@ class ApprovalController extends Controller
             $allowedStatuses = ['Implementation', 'Approved', 'Completed', 'Refund', 'Liquidation'];
 
             // Base query — always scoped to the 5 allowed statuses
-            $baseQuery = ProjectModel::with(['company.office'])
+            $baseQuery = ProjectModel::with(['proponent.office'])
                 ->whereIn('progress', $allowedStatuses);
 
             // Role-based scope
@@ -59,7 +59,7 @@ class ApprovalController extends Controller
                         'error'        => 'No office assigned to your account.'
                     ]);
                 }
-                $baseQuery->whereHas('company', function ($q) use ($user) {
+                $baseQuery->whereHas('proponent', function ($q) use ($user) {
                     $q->where('office_id', $user->office_id);
                 });
             }
@@ -82,7 +82,7 @@ class ApprovalController extends Controller
 
             // Office filter (rpmo only)
             if (!empty($officeFilter) && $user->role === 'rpmo') {
-                $query->whereHas('company', function ($q) use ($officeFilter) {
+                $query->whereHas('proponent', function ($q) use ($officeFilter) {
                     $q->where('office_id', $officeFilter);
                 });
             }
@@ -91,7 +91,7 @@ class ApprovalController extends Controller
             if (!empty($search)) {
                 $query->where(function ($q) use ($search) {
                     $q->where('project_title', 'like', "%{$search}%")
-                      ->orWhereHas('company', function ($q) use ($search) {
+                      ->orWhereHas('proponent', function ($q) use ($search) {
                           $q->where('company_name', 'like', "%{$search}%")
                             ->orWhere('owner_name', 'like', "%{$search}%");
                       });
@@ -153,17 +153,17 @@ class ApprovalController extends Controller
                 'position'       => 'required|string|max:255',
             ]);
 
-            $project = ProjectModel::with(['company.office'])->findOrFail($project_id);
-            $company = $project->company;
+            $project = ProjectModel::with(['proponent.office'])->findOrFail($project_id);
+            $proponent = $project->proponent;
 
-            if (!$company) {
-                return response()->json(['error' => 'Company information not found for this project.'], 422);
+            if (!$proponent) {
+                return response()->json(['error' => 'proponent information not found for this project.'], 422);
             }
 
-            $office = $company->office;
+            $office = $proponent->office;
 
             if (!$office) {
-                return response()->json(['error' => 'Office information not found for this company.'], 422);
+                return response()->json(['error' => 'Office information not found for this proponent.'], 422);
             }
 
             $director = DirectorModel::where('office_id', $office->office_id)->first();
@@ -185,16 +185,16 @@ class ApprovalController extends Controller
                 $pdPosition    = $director->title;
             }
 
-            $addressParts    = array_filter([$company->street, $company->barangay, $company->municipality]);
-            $companyLocation = implode(', ', $addressParts) ?: 'N/A';
+            $addressParts    = array_filter([$proponent->street, $proponent->barangay, $proponent->municipality]);
+            $proponentLocation = implode(', ', $addressParts) ?: 'N/A';
             $amountWords     = $this->convertNumberToWords($project->project_cost);
 
             $template->setValues([
                 'CURRENT_DATE'     => $currentDate,
-                'OWNER_NAME'       => $company->owner_name ? strtoupper($company->owner_name) : 'N/A',
+                'OWNER_NAME'       => $proponent->owner_name ? strtoupper($proponent->owner_name) : 'N/A',
                 'POSITION'         => $validated['position'],
-                'COMPANY_NAME'     => $company->company_name ?? 'N/A',
-                'COMPANY_LOCATION' => $companyLocation,
+                'COMPANY_NAME'     => $proponent->company_name ?? 'N/A',
+                'proponent_LOCATION' => $proponentLocation,
                 'PD_NAME'          => $pdFullName,
                 'PD_POSITION'      => $pdPosition,
                 'OFFICE_NAME'      => $office->office_name ?? 'N/A',

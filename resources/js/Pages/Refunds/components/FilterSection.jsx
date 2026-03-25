@@ -29,7 +29,7 @@ const FilterSection = React.memo(({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search company or project..."
+            placeholder="Search proponent or project..."
             value={searchInput}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full pl-9 md:pl-10 pr-8 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white shadow-sm"

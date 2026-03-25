@@ -2,20 +2,20 @@ import { useForm, router, Head } from '@inertiajs/react';
 import { FileText, Building2, FolderOpen, Users, Download, Loader2, AlertCircle, CheckCircle, FileSignature } from 'lucide-react';
 
 
-export default function DraftMoa({ companies, selectedCompany, projects, filters }) {
+export default function DraftMoa({ proponents, selectedProponent, projects, filters }) {
   const { data, setData, post, reset, errors, processing } = useForm({
-    company_id: filters?.company_id || '',
+    proponent_id: filters?.proponent_id || '',
     project_id: '',
     owner_name: '',
     owner_position: '',
     witness: '', 
   });
 
-  const handleSelectCompany = (company_id) => {
-    router.get(route('docx.form', { company_id }), {}, {
+  const handleSelectProponent = (proponent_id) => {
+    router.get(route('docx.form', { proponent_id }), {}, {
       preserveState: true,
       preserveScroll: true,
-      only: ['selectedCompany', 'projects', 'filters']
+      only: ['selectedProponent', 'projects', 'filters']
     });
   };
 
@@ -28,7 +28,7 @@ export default function DraftMoa({ companies, selectedCompany, projects, filters
     });
   };
 
-  const isFormValid = data.company_id && data.project_id && data.witness.trim();
+  const isFormValid = data.proponent_id && data.project_id && data.witness.trim();
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen">
@@ -50,7 +50,7 @@ export default function DraftMoa({ companies, selectedCompany, projects, filters
 
           <div onSubmit={handleSubmit}>
             <div className="p-4 md:p-8 space-y-4 md:space-y-8">
-              {/* Company Selection */}
+              {/* Proponent Selection */}
               <div className="space-y-3 md:space-y-4">
                 <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-gray-700">
                   <Building2 className="w-3 h-3 md:w-4 md:h-4 text-blue-600 flex-shrink-0" />
@@ -62,43 +62,43 @@ export default function DraftMoa({ companies, selectedCompany, projects, filters
                     Select Proponent <span className="text-red-500">*</span>
                   </label>
                   <select
-                    value={data.company_id}
+                    value={data.proponent_id}
                     onChange={(e) => {
-                      setData('company_id', e.target.value);
-                      handleSelectCompany(e.target.value);
+                      setData('proponent_id', e.target.value);
+                      handleSelectProponent(e.target.value);
                     }}
                     className="w-full px-3 md:px-4 py-2 md:py-3 text-sm md:text-base border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                   >
                     <option value="">Choose a proponent...</option>
-                    {companies.map((c) => (
-                      <option key={c.company_id} value={c.company_id}>
+                    {proponents.map((c) => (
+                      <option key={c.proponent_id} value={c.proponent_id}>
                         {c.company_name}
                       </option>
                     ))}
                   </select>
-                  {errors.company_id && (
+                  {errors.proponent_id && (
                     <div className="text-red-500 text-xs md:text-sm mt-2 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
-                      {errors.company_id}
+                      {errors.proponent_id}
                     </div>
                   )}
                 </div>
 
-                {selectedCompany && (
+                {selectedProponent && (
                   <div className="p-2 md:p-3 bg-green-50 rounded-lg border border-green-200">
                     <div className="flex items-center gap-2 text-xs md:text-sm text-green-700">
                       <CheckCircle className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
-                      <span className="font-medium truncate">{selectedCompany.company_name}</span>
+                      <span className="font-medium truncate">{selectedProponent.company_name}</span>
                     </div>
-                    {selectedCompany.owner_name && (
-                      <p className="text-xs text-green-600 mt-1 truncate">Owner: {selectedCompany.owner_name}</p>
+                    {selectedProponent.owner_name && (
+                      <p className="text-xs text-green-600 mt-1 truncate">Owner: {selectedProponent.owner_name}</p>
                     )}
                   </div>
                 )}
               </div>
 
               {/* Project Selection */}
-              {data.company_id && (
+              {data.proponent_id && (
                 <div className="space-y-3 md:space-y-4 pt-3 md:pt-4 border-t border-gray-100">
                   <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-gray-700">
                     <FolderOpen className="w-3 h-3 md:w-4 md:h-4 text-green-600 flex-shrink-0" />
@@ -190,7 +190,7 @@ export default function DraftMoa({ companies, selectedCompany, projects, filters
                         type="text"
                         value={data.owner_name}
                         onChange={(e) => setData('owner_name', e.target.value)}
-                        placeholder={`Leave blank to use ${selectedCompany?.owner_name || 'company owner name'}`}
+                        placeholder={`Leave blank to use ${selectedProponent?.owner_name || 'Proponent owner name'}`}
                         className="w-full px-3 md:px-4 py-2 md:py-3 text-sm md:text-base border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                       />
                     </div>

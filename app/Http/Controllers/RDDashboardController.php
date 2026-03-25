@@ -19,11 +19,11 @@ class RDDashboardController extends Controller
     public function index()
     {
         // Get projects with complete compliances (2/2 links)
-        $projects = ProjectModel::with(['compliance', 'company'])
+        $projects = ProjectModel::with(['compliance', 'proponent'])
             ->select(
                 'project_id',
                 'project_title',
-                'company_id',
+                'proponent_id',
                 'progress',
                 'created_at'
             )
@@ -60,7 +60,7 @@ class RDDashboardController extends Controller
             'remark' => 'nullable|string|min:5|max:500',
         ]);
 
-        $project = ProjectModel::with('company')->findOrFail($projectId);
+        $project = ProjectModel::with('proponent')->findOrFail($projectId);
         $project->progress = $request->status;
         $project->save();
 
@@ -124,7 +124,7 @@ class RDDashboardController extends Controller
     }
 
     /**
-     * Send approval email to company email, staff with same office_id, and RPMO users
+     * Send approval email to proponent email, staff with same office_id, and RPMO users
      */
     private function sendApprovalEmail($project, $user)
     {
@@ -132,18 +132,18 @@ class RDDashboardController extends Controller
             $recipients = [];
             $sentEmails = [];
 
-            // Add company email if it exists
-            if ($project->company->email && filter_var($project->company->email, FILTER_VALIDATE_EMAIL)) {
+            // Add proponent email if it exists
+            if ($project->proponent->email && filter_var($project->proponent->email, FILTER_VALIDATE_EMAIL)) {
                 $recipients[] = (object)[
-                    'email' => $project->company->email,
-                    'name' => $project->company->company_name
+                    'email' => $project->proponent->email,
+                    'name' => $project->proponent->company_name
                 ];
-                $sentEmails[] = $project->company->email;
+                $sentEmails[] = $project->proponent->email;
             }
 
-            // Add staff users with same office_id as company
+            // Add staff users with same office_id as proponent
             $staffUsers = UserModel::where('role', 'staff')
-                ->where('office_id', $project->company->office_id)
+                ->where('office_id', $project->proponent->office_id)
                 ->where('status', 'active')
                 ->get();
 
@@ -178,7 +178,7 @@ class RDDashboardController extends Controller
     }
 
     /**
-     * Send disapproval email with remarks to company email, staff with same office_id, and RPMO users
+     * Send disapproval email with remarks to proponent email, staff with same office_id, and RPMO users
      */
     private function sendDisapprovalEmail($project, $user, $remark)
     {
@@ -186,18 +186,18 @@ class RDDashboardController extends Controller
             $recipients = [];
             $sentEmails = [];
 
-            // Add company email if it exists
-            if ($project->company->email && filter_var($project->company->email, FILTER_VALIDATE_EMAIL)) {
+            // Add proponent email if it exists
+            if ($project->proponent->email && filter_var($project->proponent->email, FILTER_VALIDATE_EMAIL)) {
                 $recipients[] = (object)[
-                    'email' => $project->company->email,
-                    'name' => $project->company->company_name
+                    'email' => $project->proponent->email,
+                    'name' => $project->proponent->company_name
                 ];
-                $sentEmails[] = $project->company->email;
+                $sentEmails[] = $project->proponent->email;
             }
 
-            // Add staff users with same office_id as company
+            // Add staff users with same office_id as proponent
             $staffUsers = UserModel::where('role', 'staff')
-                ->where('office_id', $project->company->office_id)
+                ->where('office_id', $project->proponent->office_id)
                 ->where('status', 'active')
                 ->get();
 
@@ -233,7 +233,7 @@ class RDDashboardController extends Controller
 
     public function show($projectId)
     {
-        $project = ProjectModel::with(['compliance', 'company'])->findOrFail($projectId);
+        $project = ProjectModel::with(['compliance', 'proponent'])->findOrFail($projectId);
         $compliance = $project->compliance;
 
         // Check if all links are filled

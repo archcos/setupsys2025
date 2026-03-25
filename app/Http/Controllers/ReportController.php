@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\CompanyModel;
+use App\Models\proponentModel;
 use App\Models\ImplementationModel;
 use App\Models\ItemModel;
 use App\Models\MarketModel;
@@ -42,20 +42,20 @@ class ReportController extends Controller
 
         // ── Base query ────────────────────────────────────────────────────────────
         $query = ProjectModel::with([
-            'company:company_id,company_name,office_id,added_by',
-            'company.office:office_id,office_name',   // eager-load office for the new column
+            'proponent:proponent_id,company_name,office_id,added_by',
+            'proponent.office:office_id,office_name',   // eager-load office for the new column
             'reports' => function ($q) {
                 $q->select('report_id', 'project_id', 'created_at', 'file_path', 'status')
                 ->orderBy('created_at', 'desc');
             }
-        ])->select('project_id', 'project_title', 'company_id', 'year_obligated');
+        ])->select('project_id', 'project_title', 'proponent_id', 'year_obligated');
 
         // ── Role-based filtering ──────────────────────────────────────────────────
         if ($user->role === 'user') {
-            $companyIds = CompanyModel::where('added_by', $user->user_id)->pluck('company_id');
-            $query->whereIn('company_id', $companyIds);
+            $proponentIds = proponentModel::where('added_by', $user->user_id)->pluck('proponent_id');
+            $query->whereIn('proponent_id', $proponentIds);
         } elseif ($user->role === 'staff') {
-            $query->whereHas('company', fn($q) => $q->where('office_id', $user->office_id));
+            $query->whereHas('proponent', fn($q) => $q->where('office_id', $user->office_id));
         }
         // 'head' → no restrictions
 
@@ -63,13 +63,13 @@ class ReportController extends Controller
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
                 $q->where('project_title', 'like', "%{$search}%")
-                ->orWhereHas('company', fn($q) => $q->where('company_name', 'like', "%{$search}%"));
+                ->orWhereHas('proponent', fn($q) => $q->where('company_name', 'like', "%{$search}%"));
             });
         }
 
         // ── Office filter ─────────────────────────────────────────────────────────
         if (!empty($office)) {
-            $query->whereHas('company', fn($q) => $q->where('office_id', $office));
+            $query->whereHas('proponent', fn($q) => $q->where('office_id', $office));
         }
 
         // ── Year filter ───────────────────────────────────────────────────────────
@@ -83,9 +83,9 @@ class ReportController extends Controller
         $sortOrder    = in_array($sortOrder, ['asc', 'desc']) ? $sortOrder : 'asc';
 
         if ($sortBy === 'company_name') {
-            // Join for company name sorting
-            $query->join('tbl_companies', 'tbl_projects.company_id', '=', 'tbl_companies.company_id')
-                ->orderBy('tbl_companies.company_name', $sortOrder)
+            // Join for proponent name sorting
+            $query->join('tbl_proponents', 'tbl_projects.proponent_id', '=', 'tbl_proponents.proponent_id')
+                ->orderBy('tbl_proponents.company_name', $sortOrder)
                 ->select('tbl_projects.*'); // avoid column ambiguity
         } else {
             $query->orderBy($sortBy, $sortOrder);
@@ -137,7 +137,7 @@ class ReportController extends Controller
 public function viewReport($report_id)
 {
     // Load all required relationships for policy check
-    $report = ReportModel::with(['project.company'])->findOrFail($report_id);
+    $report = ReportModel::with(['project.proponent'])->findOrFail($report_id);
     
     // Authorize AFTER loading relationships
     $this->authorize('view', $report);
@@ -154,7 +154,7 @@ public function viewReport($report_id)
 public function downloadReport($report_id)
 {
     // Load all required relationships for policy check
-    $report = ReportModel::with(['project.company'])->findOrFail($report_id);
+    $report = ReportModel::with(['project.proponent'])->findOrFail($report_id);
     
     // Authorize AFTER loading relationships
     $this->authorize('view', $report);
@@ -176,9 +176,9 @@ public function downloadReport($report_id)
 private function generateReportFile($report_id)
 {
     // Fetch the report (with relations)
-    $report = ReportModel::with(['project.company'])->findOrFail($report_id);
+    $report = ReportModel::with(['project.proponent'])->findOrFail($report_id);
     $project = $report->project;
-    $company = $project->company;
+    $proponent = $project->proponent;
 
     $implementIds = ImplementationModel::where('project_id', $project->project_id)->pluck('implement_id');
     $sum_cost = TagModel::whereIn('implement_id', $implementIds)->sum('tag_amount');
@@ -201,7 +201,7 @@ private function generateReportFile($report_id)
     $backwardTotal = $ibMale + $ibFemale;
     $overallTotal  = $forwardTotal + $backwardTotal;
 
-    $ownerName = $company->owner_name ?? 'N/A';
+    $ownerName = $proponent->owner_name ?? 'N/A';
 
     // Phase One (Release Dates)
     $releaseInitial = $project->release_initial ? Carbon::parse($project->release_initial)->format('F Y') : 'N/A';
@@ -783,7 +783,7 @@ private function cleanupTempDirectory($dir)
         ]);
 
         $project->load([
-            'company',
+            'proponent',
             'objectives' => function ($q) {
                 $q->where('report', 'approved');
             },

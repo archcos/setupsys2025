@@ -203,7 +203,7 @@ export default function Details({ project, months, summary }) {
                 <h1 className="text-lg md:text-2xl font-bold mb-1 line-clamp-2">{project.project_title}</h1>
                 <div className="flex items-center gap-2 text-blue-100 text-xs md:text-sm">
                   <Building2 className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate">{project.company.company_name}</span>
+                  <span className="truncate">{project.proponent.company_name}</span>
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
@@ -501,10 +501,10 @@ export default function Details({ project, months, summary }) {
               <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Last Month Refund</label>
               <p className="text-base md:text-lg font-bold text-gray-900 mt-1 truncate">{formatCurrency(project.last_refund)}</p>
             </div>
-            {project.company.email && (
+            {project.proponent.email && (
               <div className="md:col-span-2">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Company Email</label>
-                <p className="text-base text-gray-900 mt-1 break-all">{project.company.email}</p>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Proponent Email</label>
+                <p className="text-base text-gray-900 mt-1 break-all">{project.proponent.email}</p>
               </div>
             )}
           </div>

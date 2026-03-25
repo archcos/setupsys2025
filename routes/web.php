@@ -4,7 +4,7 @@ use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RegisterController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\ProponentController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\Admin\UserManagementController;
@@ -19,7 +19,6 @@ use App\Http\Controllers\FrequencyController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImplementationController;
 use App\Http\Controllers\MOAController;
-use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\RDDashboardController;
 use App\Http\Controllers\RefundController;
@@ -74,9 +73,9 @@ Route::middleware(['log-suspicious'])->group(function () {
 
     // DEVELOPMENT
     Route::middleware(['auth'])->group(function () {
-        Route::get('/proponents/export', [CompanyController::class, 'export'])->name('proponents.export');
+        Route::get('/proponents/export', [ProponentController::class, 'export'])->name('proponents.export');
         Route::get('/projects/export', [ProjectController::class, 'export'])->name('projects.export');
-        Route::resource('proponents', CompanyController::class)->except(['show']);
+        Route::resource('proponents', ProponentController::class)->except(['show']);
         Route::resource('projects', ProjectController::class)->middleware('role:head,staff,rpmo')
             ->except(['destroy', 'show']);
         Route::delete('/projects/{id}', [ProjectController::class, 'destroy'])
@@ -86,8 +85,8 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/projects/{id}/update-status', [ProjectController::class, 'updateStatus'])->name('projects.updateStatus')->middleware('role:rpmo');
         Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly')->middleware('role:user');
         Route::get('/activity-list', [ActivityController::class, 'readonly'])->name('activities.readonly')->middleware('role:user');
-        Route::post('/proponents/sync', [CompanyController::class, 'syncFromCSV'])->name('proponents.sync')->middleware('role:rpmo');
-        Route::post('/proponents/{id}/update-added-by', [CompanyController::class, 'updateAddedBy'])->middleware('role:rpmo')->name('proponents.update-added-by');
+        Route::post('/proponents/sync', [ProponentController::class, 'syncFromCSV'])->name('proponents.sync')->middleware('role:rpmo');
+        Route::post('/proponents/{id}/update-added-by', [ProponentController::class, 'updateAddedBy'])->middleware('role:rpmo')->name('proponents.update-added-by');
         Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])
             ->middleware('role:rpmo')
             ->name('projects.sync');
@@ -135,12 +134,6 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::get('/rd/dashboard', [RDDashboardController::class, 'index'])->name('rd-dashboard.index');
         Route::post('/rd/dashboard/{projectId}/update-status', [RDDashboardController::class, 'updateStatus'])->name('rd-dashboard.update-status');
         Route::get('/rd/dashboard/{projectId}', [RDDashboardController::class, 'show'])->name('rd-dashboard.show');
-    });
-
-    //NOTIFICATION
-    Route::middleware(['auth'])->group(function () {
-        Route::post('/notifications/read/{id}', [NotificationController::class, 'markAsRead']);
-        Route::get('/api/notifications/check', [NotificationController::class, 'checkUnread']);
     });
 
     //IMPLEMENTATION

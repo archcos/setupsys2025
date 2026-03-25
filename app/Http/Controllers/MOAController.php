@@ -6,7 +6,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use App\Models\MoaModel;
 use App\Models\ProjectModel;
-use App\Models\CompanyModel;
+use App\Models\ProponentModel;
 use App\Models\DirectorModel;
 use App\Models\UserModel;
 use Carbon\Carbon;
@@ -38,7 +38,7 @@ public function index(Request $request)
 
 
     // Eager load approved_by_user relationship
-    $query = MoaModel::with(['project.company.office', 'approvedByUser']);
+    $query = MoaModel::with(['project.proponent.office', 'approvedByUser']);
 
     if ($search) {
         $query->where(function ($q) use ($search) {
@@ -51,7 +51,7 @@ public function index(Request $request)
     }
 
     if ($user && $user->role === 'staff') {
-        $query->whereHas('project.company', function ($q) use ($user) {
+        $query->whereHas('project.proponent', function ($q) use ($user) {
             $q->where('office_id', $user->office_id);
         });
     } elseif ($user && $user->role !== 'rpmo') {
@@ -76,7 +76,7 @@ public function index(Request $request)
 
 
 public function uploadApprovedFile(Request $request, $moa_id){
-        $moa = MoaModel::with('project.company')->findOrFail($moa_id);
+        $moa = MoaModel::with('project.proponent')->findOrFail($moa_id);
         $this->authorize('uploadApprovedFile', $moa);
 
         $validator = Validator::make($request->all(), [
@@ -104,11 +104,11 @@ public function uploadApprovedFile(Request $request, $moa_id){
             $projectTitle = preg_replace('/[^A-Za-z0-9\-]/', '_', $moa->project->project_title);
             $projectTitle = substr($projectTitle, 0, 50);
             
-            $companyName = preg_replace('/[^A-Za-z0-9\-]/', '_', $moa->project->company->company_name);
-            $companyName = substr($companyName, 0, 50);
+            $proponentName = preg_replace('/[^A-Za-z0-9\-]/', '_', $moa->project->proponent->company_name);
+            $proponentName = substr($proponentName, 0, 50);
             
             $timestamp = now()->format('Y-m-d_His');
-            $fileName = "MOA_{$projectTitle}_{$companyName}_{$timestamp}.{$extension}";
+            $fileName = "MOA_{$projectTitle}_{$proponentName}_{$timestamp}.{$extension}";
             
             $currentYear = now()->year;
             $projectId = $moa->project_id;
@@ -189,7 +189,7 @@ public function uploadApprovedFile(Request $request, $moa_id){
             ]);
 
             // 4. Send notifications
-            $officeUsers = UserModel::where('office_id', $moa->project->company->office_id)
+            $officeUsers = UserModel::where('office_id', $moa->project->proponent->office_id)
                 ->whereIn('role', ['rpmo', 'staff'])
                 ->get();
 
@@ -201,7 +201,7 @@ public function uploadApprovedFile(Request $request, $moa_id){
                         new \App\Mail\MoaNotificationMail(
                             $actionType,
                             $moa->project->project_title,
-                            $moa->project->company->company_name,
+                            $moa->project->proponent->company_name,
                             $user->name
                         )
                     );
@@ -292,11 +292,11 @@ public function downloadApprovedFile($moa_id){
 public function generateFromMoa($moa_id)
 {
     // Load MOA with all necessary relationships
-    $moa = MoaModel::with(['project.company.office', 'project.items', 'project.activities'])->findOrFail($moa_id);
+    $moa = MoaModel::with(['project.proponent.office', 'project.items', 'project.activities'])->findOrFail($moa_id);
     $this->authorize('generate', $moa);
     $project = $moa->project;
-    $company = $project->company;
-    $office = $company->office;
+    $proponent = $project->proponent;
+    $office = $proponent->office;
 
     // Load template
     $templatePath = storage_path('../public/templates/template.docx');
@@ -310,11 +310,11 @@ public function generateFromMoa($moa_id)
     //     'ratio' => true,
     // ]);
 
-    $companyAddress = collect([
-        $company->street,
-        $company->barangay,
-        $company->municipality,
-        $company->province,
+    $proponentAddress = collect([
+        $proponent->street,
+        $proponent->barangay,
+        $proponent->municipality,
+        $proponent->province,
     ])->filter()->implode(', ');
 
     $releaseInitial = $project->release_initial ? Carbon::parse($project->release_initial)->format('F Y') : 'N/A';
@@ -330,8 +330,8 @@ public function generateFromMoa($moa_id)
     $templateProcessor->setValue('OWNER_NAME', $moa->owner_name);
     $templateProcessor->setValue('position', $moa->owner_position);
     $templateProcessor->setValue('witness', $moa->witness);
-    $templateProcessor->setValue('COMPANY_NAME', $company->company_name);
-    $templateProcessor->setValue('COMPANY_LOCATION', $companyAddress);
+    $templateProcessor->setValue('company_NAME', $proponent->company_name);
+    $templateProcessor->setValue('proponent_LOCATION', $proponentAddress);
     $templateProcessor->setValue('office_name', $office->office_name ?? 'N/A');
     $templateProcessor->setValue('PROJECT_TITLE', $project->project_title);
     $templateProcessor->setValue('phase_one', $phaseOne);
@@ -600,60 +600,60 @@ public function showForm(Request $request)
     $user = Auth::user();
 
 
-    // Build company query based on user role
-    $companiesQuery = CompanyModel::select('company_id', 'company_name')
+    // Build proponent query based on user role
+    $proponentsQuery = ProponentModel::select('proponent_id', 'company_name')
         ->whereHas('projects', function($query) {
             $query->whereIn('progress', ['internal_rtec', 'internal_compliance', 'external_rtec', 'external_compliance', 'Awaiting Approval', 'Project Review', 'Approved']);
         });
     
     if ($user->role === 'staff') {
-        $companiesQuery->where('office_id', $user->office_id);
+        $proponentsQuery->where('office_id', $user->office_id);
     } elseif ($user->role !== 'rpmo') {
-        $companiesQuery->whereRaw('0 = 1'); // No access
+        $proponentsQuery->whereRaw('0 = 1'); // No access
     }
     
-    $companies = $companiesQuery->get();
+    $proponents = $proponentsQuery->get();
     
-    $companyId = $request->query('company_id');
-    $selectedCompany = null;
+    $proponentId = $request->query('proponent_id');
+    $selectedproponent = null;
     $projects = collect([]);
 
-    if ($companyId) {
-        $selectedCompany = CompanyModel::with('office')->find($companyId);
+    if ($proponentId) {
+        $selectedproponent = ProponentModel::with('office')->find($proponentId);
         
-        if ($selectedCompany) {
+        if ($selectedproponent) {
             // Verify access
-            if ($user->role === 'staff' && $selectedCompany->office_id !== $user->office_id) {
-                abort(403, 'Unauthorized access to this company.');
+            if ($user->role === 'staff' && $selectedproponent->office_id !== $user->office_id) {
+                abort(403, 'Unauthorized access to this proponent.');
             }
 
             // Only show projects with Approved or Draft MOA status
-            $projects = ProjectModel::where('company_id', $companyId)
+            $projects = ProjectModel::where('proponent_id', $proponentId)
                 ->whereIn('progress', ['Awaiting Approval', 'Project Review', 'internal_rtec', 'internal_compliance', 'external_rtec', 'external_compliance','Approved'])
                 ->with(['activities', 'items'])
-                ->select('project_id', 'project_title', 'company_id')
+                ->select('project_id', 'project_title', 'proponent_id')
                 ->get();
         }
     }
 
     return Inertia::render('MOA/DraftMoa', [
-        'companies' => $companies,
-        'selectedCompany' => $selectedCompany,
+        'proponents' => $proponents,
+        'selectedproponent' => $selectedproponent,
         'projects' => $projects,
         'filters' => [
-            'company_id' => $companyId,
+            'proponent_id' => $proponentId,
         ]
     ]);
 }
-public function getCompanyDetails($id)
+public function getproponentDetails($id)
 {
     try {
-        $company = CompanyModel::with([
+        $proponent = ProponentModel::with([
             'projects.activities', // assuming you have correct relations
             'office'
         ])->findOrFail($id);
 
-        return response()->json($company);
+        return response()->json($proponent);
     } catch (\Exception $e) {
         return response()->json([
             'error' => 'Server error',
@@ -675,17 +675,17 @@ public function generateDocx(Request $request)
         ]);
 
         // Load project with relationships
-        $project = ProjectModel::with(['company.office'])
+        $project = ProjectModel::with(['proponent.office'])
             ->findOrFail($request->project_id);
         
-        $company = $project->company;
-        $officeId = $company->office_id;
+        $proponent = $project->proponent;
+        $officeId = $proponent->office_id;
 
         // Get owner details
         $inputName = trim($request->input('owner_name', ''));
         $inputPosition = trim($request->input('owner_position', ''));
         
-        $ownerName = !empty($inputName) ? $inputName : ($company->owner_name ?? 'N/A');
+        $ownerName = !empty($inputName) ? $inputName : ($proponent->owner_name ?? 'N/A');
         $ownerPosition = !empty($inputPosition) ? $inputPosition : 'Owner';
         $witness = $request->input('witness');
 
@@ -694,7 +694,7 @@ public function generateDocx(Request $request)
             ->format($project->project_cost);
         $costInWords = ucwords($costInWords);
 
-        // Get director details using the office_id from company
+        // Get director details using the office_id from proponent
         $director = DirectorModel::where('office_id', $officeId)->first();
         
         $pdName = 'N/A';

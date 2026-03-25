@@ -13,7 +13,7 @@ Schema::create('tbl_projects', function (Blueprint $table) {
             $table->unsignedBigInteger('project_id')->primary();
             
             $table->text('project_title')->nullable();
-            $table->unsignedBigInteger('company_id')->nullable();
+            $table->unsignedBigInteger('proponent_id')->nullable();
             $table->decimal('project_cost', 11, 2)->nullable();
             $table->decimal('counterpart', 11, 2)->nullable();
             $table->date('fund_release')->nullable();
@@ -45,7 +45,7 @@ Schema::create('tbl_projects', function (Blueprint $table) {
             $table->decimal('latitude', 10, 7)->nullable();
             $table->decimal('longitude', 11, 7)->nullable();
             $table->timestamps();
-    $table->foreign('company_id')->references('company_id')->on('tbl_companies')->onDelete('cascade')->onUpdate('cascade');
+    $table->foreign('proponent_id')->references('proponent_id')->on('tbl_proponents')->onDelete('cascade')->onUpdate('cascade');
     $table->foreign('added_by')->references('user_id')->on('tbl_users')->onDelete('set null');
 });
 

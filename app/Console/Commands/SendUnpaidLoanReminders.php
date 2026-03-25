@@ -14,7 +14,7 @@ use App\Mail\UnpaidRefundReminderMail;
 class SendUnpaidLoanReminders extends Command
 {
     protected $signature = 'refunds:send-unpaid-reminders';
-    protected $description = 'Send email reminders to companies with unpaid refunds for the current month';
+    protected $description = 'Send email reminders to proponents with unpaid refunds for the current month';
 
     /**
      * Helper method to get the refund amount for a specific month considering restructures
@@ -127,7 +127,7 @@ class SendUnpaidLoanReminders extends Command
 
         // Get projects with unpaid refunds
         $projectsWithUnpaid = ProjectModel::with([
-                'company',
+                'proponent',
                 'refunds' => function ($q) use ($month, $year) {
                     $q->whereMonth('month_paid', $month)
                       ->whereYear('month_paid', $year)
@@ -136,7 +136,7 @@ class SendUnpaidLoanReminders extends Command
             ])
             ->whereDate('refund_initial', '<=', $today)
             ->whereDate('refund_end', '>=', $today)
-            ->whereHas('company', function ($q) {
+            ->whereHas('proponent', function ($q) {
                 $q->whereNotNull('email')->where('email', '!=', '');
             })
             ->whereHas('refunds', function ($q) use ($month, $year) {
@@ -147,10 +147,10 @@ class SendUnpaidLoanReminders extends Command
             ->get();
 
         // Get projects that should be paying this month but have no refund record
-        $projectsWithoutRecord = ProjectModel::with(['company'])
+        $projectsWithoutRecord = ProjectModel::with(['proponent'])
             ->whereDate('refund_initial', '<=', $today)
             ->whereDate('refund_end', '>=', $today)
-            ->whereHas('company', function ($q) {
+            ->whereHas('proponent', function ($q) {
                 $q->whereNotNull('email')->where('email', '!=', '');
             })
             ->whereDoesntHave('refunds', function ($q) use ($month, $year) {
@@ -173,8 +173,8 @@ class SendUnpaidLoanReminders extends Command
         }
 
         foreach ($projects as $project) {
-            $companyEmail = $project->company->email;
-            if (!$companyEmail) {
+            $proponentEmail = $project->proponent->email;
+            if (!$proponentEmail) {
                 Log::info("Skipping project {$project->project_id} - no email");
                 continue;
             }
@@ -185,9 +185,9 @@ class SendUnpaidLoanReminders extends Command
                 // Get the correct refund amount for this month (considering restructures)
                 $refundAmount = $this->getRefundAmountForMonth($project, $today);
                 
-                Mail::to($companyEmail)->send(
+                Mail::to($proponentEmail)->send(
                     new UnpaidRefundReminderMail(
-                        $project->company->company_name,
+                        $project->proponent->company_name,
                         $project->project_title,
                         $refundAmount,
                         $monthFormatted,
@@ -196,11 +196,11 @@ class SendUnpaidLoanReminders extends Command
                     )
                 );
 
-                Log::info("Reminder sent to {$companyEmail} for project {$project->project_id} (Amount: ₱{$refundAmount})");
-                $this->info("✓ Sent reminder to {$companyEmail} (₱" . number_format($refundAmount, 2) . ")");
+                Log::info("Reminder sent to {$proponentEmail} for project {$project->project_id} (Amount: ₱{$refundAmount})");
+                $this->info("✓ Sent reminder to {$proponentEmail} (₱" . number_format($refundAmount, 2) . ")");
             } catch (\Exception $e) {
-                Log::error("Failed to send email to {$companyEmail}: " . $e->getMessage());
-                $this->error("✗ Failed to send to {$companyEmail}");
+                Log::error("Failed to send email to {$proponentEmail}: " . $e->getMessage());
+                $this->error("✗ Failed to send to {$proponentEmail}");
             }
         }
 

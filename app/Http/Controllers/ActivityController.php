@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityModel;
-use App\Models\NotificationModel;
 use App\Models\ProjectModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,7 +19,7 @@ class ActivityController extends Controller
         $sortBy = $request->input('sortBy', 'activity_id');
         $sortOrder = $request->input('sortOrder', 'desc');
 
-        $query = ActivityModel::with('project.company');
+        $query = ActivityModel::with('project.proponent');
 
         if ($search) {
             $query->where('activity_name', 'like', "%$search%")
@@ -33,7 +32,7 @@ class ActivityController extends Controller
         if ($user) {
             if ($user->role === 'staff') {
                 // Staff users see only their office's data
-                $query->whereHas('project.company', function ($q) use ($user) {
+                $query->whereHas('project.proponent', function ($q) use ($user) {
                     $q->where('office_id', $user->office_id);
                 });
             }
@@ -64,14 +63,14 @@ class ActivityController extends Controller
         $sortBy = $request->input('sortBy', 'activity_id');
         $sortOrder = $request->input('sortOrder', 'desc');
 
-        $query = ActivityModel::with('project.company')
+        $query = ActivityModel::with('project.proponent')
             ->when($user && $user->role === 'user', function ($q) use ($user) {
-                $q->whereHas('project.company', function ($q2) use ($user) {
+                $q->whereHas('project.proponent', function ($q2) use ($user) {
                     $q2->where('added_by', $user->user_id);
                 });
             })
             ->when($user && $user->role === 'staff', function ($q) use ($user) {
-                $q->whereHas('project.company', function ($q2) use ($user) {
+                $q->whereHas('project.proponent', function ($q2) use ($user) {
                     $q2->where('office_id', $user->office_id);
                 });
             });
@@ -103,11 +102,11 @@ class ActivityController extends Controller
     public function create()
     {
         $user = Auth::user();
-        $query = ProjectModel::with('company');
+        $query = ProjectModel::with('proponent');
 
         // Staff users only see projects in their office
         if ($user && $user->role === 'staff') {
-            $query->whereHas('company', function ($q) use ($user) {
+            $query->whereHas('proponent', function ($q) use ($user) {
                 $q->where('office_id', $user->office_id);
             });
         }
@@ -128,10 +127,10 @@ class ActivityController extends Controller
             'activities.*.end_date' => 'required|date|after_or_equal:activities.*.start_date',
         ]);
 
-        $project = ProjectModel::with('company.office')->findOrFail($validated['project_id']);
+        $project = ProjectModel::with('proponent.office')->findOrFail($validated['project_id']);
 
         // Authorization check for staff users
-        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $project->company->office_id) {
+        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $project->proponent->office_id) {
             abort(403, 'Unauthorized to create activities for this project.');
         }
 
@@ -144,32 +143,25 @@ class ActivityController extends Controller
             ]);
         }
 
-        $office = $project->company->office;
-
-        NotificationModel::create([
-            'title' => 'Company Project Updated',
-            'message' => "CREATED: A company project for '{$project->company->company_name}' has been completed, titled '{$project->project_title}'. Please contact PSTO {$office->office_name} for verification.",
-            'office_id' => 1,
-            'company_id' => $project->company_id,
-        ]);
+        $office = $project->proponent->office;
 
         return redirect('/activities')->with('success', 'Activities created!');
     }
 
     public function edit($id)
     {
-        $activity = ActivityModel::with('project.company')->findOrFail($id);
+        $activity = ActivityModel::with('project.proponent')->findOrFail($id);
 
         // Authorization check for staff users
-        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $activity->project->company->office_id) {
+        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $activity->project->proponent->office_id) {
             abort(403, 'Unauthorized to edit this activity.');
         }
 
-        $query = ProjectModel::with('company');
+        $query = ProjectModel::with('proponent');
 
         // Staff users only see projects in their office
         if (Auth::user()->role === 'staff') {
-            $query->whereHas('company', function ($q) {
+            $query->whereHas('proponent', function ($q) {
                 $q->where('office_id', Auth::user()->office_id);
             });
         }
@@ -182,10 +174,10 @@ class ActivityController extends Controller
 
     public function update(Request $request, $id)
     {
-        $activity = ActivityModel::with('project.company')->findOrFail($id);
+        $activity = ActivityModel::with('project.proponent')->findOrFail($id);
 
         // Authorization check for staff users
-        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $activity->project->company->office_id) {
+        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $activity->project->proponent->office_id) {
             abort(403, 'Unauthorized to update this activity.');
         }
 
@@ -198,25 +190,19 @@ class ActivityController extends Controller
 
         $activity->update($validated);
 
-        $project = ProjectModel::with('company.office')->findOrFail($validated['project_id']);
-        $office = $project->company->office;
+        $project = ProjectModel::with('proponent.office')->findOrFail($validated['project_id']);
+        $office = $project->proponent->office;
 
-        NotificationModel::create([
-            'title' => 'Company Project Updated',
-            'message' => "UPDATED: A company project for '{$project->company->company_name}' has been updated, titled '{$project->project_title}'. Please contact PSTO {$office->office_name} for verification.",
-            'office_id' => 1,
-            'company_id' => $project->company_id,
-        ]);
 
         return redirect('/activities')->with('success', 'Activity updated!');
     }
 
     public function destroy($id)
     {
-        $activity = ActivityModel::with('project.company')->findOrFail($id);
+        $activity = ActivityModel::with('project.proponent')->findOrFail($id);
 
         // Authorization check for staff users
-        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $activity->project->company->office_id) {
+        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $activity->project->proponent->office_id) {
             abort(403, 'Unauthorized to delete this activity.');
         }
 

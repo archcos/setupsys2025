@@ -20,7 +20,7 @@ class ReportReviewController extends Controller
         $perPage = $request->input('perPage', 10);
 
         $query = ReportModel::with([
-            'project.company:company_id,company_name,office_id,added_by'
+            'project.proponent:proponent_id,company_name,office_id,added_by'
         ])
             ->select('report_id', 'project_id', 'created_at', 'file_path', 'status');
 
@@ -39,7 +39,7 @@ class ReportReviewController extends Controller
                 $q->whereHas('project', function ($q) use ($search) {
                     $q->where('project_title', 'like', "%{$search}%");
                 })
-                    ->orWhereHas('project.company', function ($q) use ($search) {
+                    ->orWhereHas('project.proponent', function ($q) use ($search) {
                         $q->where('company_name', 'like', "%{$search}%");
                     });
             });

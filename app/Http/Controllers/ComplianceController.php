@@ -27,7 +27,7 @@ class ComplianceController extends Controller
         $perPage     = $request->input('perPage', 10);
 
         // Valid sort columns
-        $validSortColumns = ['project_id', 'project_title', 'company_id', 'year_obligated', 'created_at', 'progress'];
+        $validSortColumns = ['project_id', 'project_title', 'proponent_id', 'year_obligated', 'created_at', 'progress'];
         if (!in_array($sortBy, $validSortColumns)) {
             $sortBy = 'project_id';
         }
@@ -37,13 +37,13 @@ class ComplianceController extends Controller
         $user = Auth::user();
 
         // ── Base query ────────────────────────────────────────────────────────
-        $baseQuery = ProjectModel::with(['compliance', 'company'])
-            ->select('project_id', 'project_title', 'company_id', 'year_obligated', 'progress', 'created_at');
+        $baseQuery = ProjectModel::with(['compliance', 'proponent'])
+            ->select('project_id', 'project_title', 'proponent_id', 'year_obligated', 'progress', 'created_at');
 
         // Role-based scope
         if ($user) {
             if ($user->role === 'staff' && $user->office_id) {
-                $baseQuery->whereHas('company', function ($q) use ($user) {
+                $baseQuery->whereHas('proponent', function ($q) use ($user) {
                     $q->where('office_id', $user->office_id);
                 });
             } elseif ($user->role !== 'rpmo') {
@@ -55,7 +55,7 @@ class ComplianceController extends Controller
         if ($search) {
             $baseQuery->where(function ($q) use ($search) {
                 $q->where('project_title', 'like', "%{$search}%")
-                  ->orWhereHas('company', function ($q) use ($search) {
+                  ->orWhereHas('proponent', function ($q) use ($search) {
                       $q->where('company_name', 'like', "%{$search}%");
                   });
             });
@@ -92,10 +92,10 @@ class ComplianceController extends Controller
         // 'all' → no additional filter
 
         // ── Sorting ───────────────────────────────────────────────────────────
-        if ($sortBy === 'company_id') {
-            $query->join('tbl_companies', 'tbl_projects.company_id', '=', 'tbl_companies.company_id')
-                  ->select('tbl_projects.*', 'tbl_companies.company_name')
-                  ->orderBy('tbl_companies.company_name', $sortOrder);
+        if ($sortBy === 'proponent_id') {
+            $query->join('tbl_proponents', 'tbl_projects.proponent_id', '=', 'tbl_proponents.proponent_id')
+                  ->select('tbl_projects.*', 'tbl_proponents.company_name')
+                  ->orderBy('tbl_proponents.company_name', $sortOrder);
         } else {
             $query->orderBy($sortBy, $sortOrder);
         }
@@ -108,7 +108,7 @@ class ComplianceController extends Controller
 
         if ($user) {
             if ($user->role === 'staff' && $user->office_id) {
-                $yearsQuery->whereHas('company', fn($q) => $q->where('office_id', $user->office_id));
+                $yearsQuery->whereHas('proponent', fn($q) => $q->where('office_id', $user->office_id));
             } elseif ($user->role !== 'rpmo') {
                 $yearsQuery->whereRaw('1 = 0');
             }
@@ -139,7 +139,7 @@ class ComplianceController extends Controller
         $user = Auth::user();
         if ($user) {
             if ($user->role === 'staff' && $user->office_id) {
-                if ($project->company->office_id !== $user->office_id) {
+                if ($project->proponent->office_id !== $user->office_id) {
                     abort(403, 'Unauthorized access to this project.');
                 }
             } elseif ($user->role !== 'rpmo') {
@@ -166,7 +166,7 @@ class ComplianceController extends Controller
 
         if ($user) {
             if ($user->role === 'staff' && $user->office_id) {
-                if ($project->company->office_id !== $user->office_id) {
+                if ($project->proponent->office_id !== $user->office_id) {
                     abort(403, 'Unauthorized to update this project.');
                 }
             } elseif ($user->role !== 'rpmo') {

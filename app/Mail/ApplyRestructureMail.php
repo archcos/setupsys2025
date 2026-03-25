@@ -20,7 +20,7 @@ class ApplyRestructureMail extends Mailable
     public function build()
     {
         $projectTitle = $this->applyRestruct->project?->project_title ?? 'N/A';
-        $companyName = $this->applyRestruct->project?->company->company_name ?? 'N/A';
+        $companyName = $this->applyRestruct->project?->proponent->company_name ?? 'N/A';
         $submittedBy = $this->applyRestruct->addedBy?->name ?? 'Unknown User';
         $submittedDate = $this->applyRestruct->created_at->format('F d, Y \a\t h:i A');
         $currentYear = \Carbon\Carbon::now()->year;
@@ -69,7 +69,7 @@ class ApplyRestructureMail extends Mailable
                             </div>
 
                             <div style='margin-bottom: 15px;'>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Company Name</p>
+                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>proponent Name</p>
                                 <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$companyName}</p>
                             </div>
 
@@ -151,7 +151,7 @@ class ApplyRestructureMail extends Mailable
 
                     <!-- Footer -->
                     <div style='background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;'>
-                        <img src='cid:logo.png' alt='Company Logo' style='max-width: 100px; height: auto; margin: 0 auto 15px; display: block;'>
+                        <img src='cid:logo.png' alt='proponent Logo' style='max-width: 100px; height: auto; margin: 0 auto 15px; display: block;'>
                         <p style='margin: 0 0 10px 0; color: #666; font-size: 13px;'>
                             This is an automated notification from SETUP Information Management System (SIMS)
                         </p>

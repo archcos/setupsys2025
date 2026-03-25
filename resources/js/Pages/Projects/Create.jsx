@@ -10,11 +10,11 @@ import WorkforceSection from './components/sections/WorkforceSection';
 import ItemsSection from './components/sections/ItemsSection';
 import ObjectivesSection from './components/sections/ObjectivesSection';
 
-export default function Create({ companies, nextProjectCode }) {
+export default function Create({ proponents, nextProjectCode }) {
   const { data, setData, post, processing, errors } = useForm({
     project_id: nextProjectCode || '',
     project_title: '',
-    company_id: '',
+    proponent_id: '',
     release_initial: '',
     release_end: '',
     refund_initial: '',
@@ -108,7 +108,7 @@ export default function Create({ companies, nextProjectCode }) {
             data={data}
             setData={setData}
             errors={errors}
-            companies={companies}
+            proponents={proponents}
             isCreate={true}
           />
           <TimelineSection data={data} setData={setData} errors={errors} />

@@ -376,10 +376,10 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                       </td>
                       <td className="px-4 md:px-6 py-3 md:py-4">
                         <div className="text-xs md:text-sm font-semibold text-gray-900 line-clamp-1">{item.project?.project_title || '-'}</div>
-                        <div className="text-xs text-gray-500">{item.project?.company?.company_name || 'No company'}</div>
+                        <div className="text-xs text-gray-500">{item.project?.proponent?.company_name || 'No proponent'}</div>
                       </td>
                       <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-600">
-                        {item.project?.company?.office?.office_name || '-'}
+                        {item.project?.proponent?.office?.office_name || '-'}
                       </td>
                       <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-600">
                         {item.added_by?.name || '-'}
@@ -421,7 +421,7 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-semibold text-black px-1.5 py-0.5 rounded w-fit">{item.project_id}</div>
                       <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{item.project?.project_title || '-'}</h3>
-                      <p className="text-xs text-gray-600 mt-0.5">{item.project?.company?.company_name || 'No company'}</p>
+                      <p className="text-xs text-gray-600 mt-0.5">{item.project?.proponent?.company_name || 'No proponent'}</p>
                     </div>
                     <StatusPill status={item.restructure?.status || 'pending'} />
                   </div>
@@ -429,7 +429,7 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="bg-gray-50 rounded p-2">
                       <span className="text-gray-500">Office</span>
-                      <p className="font-medium text-gray-900 truncate mt-0.5">{item.project?.company?.office?.office_name || '-'}</p>
+                      <p className="font-medium text-gray-900 truncate mt-0.5">{item.project?.proponent?.office?.office_name || '-'}</p>
                     </div>
                     <div className="bg-gray-50 rounded p-2">
                       <span className="text-gray-500">Added By</span>

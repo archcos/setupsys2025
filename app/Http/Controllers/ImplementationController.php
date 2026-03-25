@@ -41,7 +41,7 @@ class ImplementationController extends Controller
         }
 
         $baseQuery = ImplementationModel::with([
-            'project.company.office',
+            'project.proponent.office',
             'tags',
             'tarpUploadedBy',
             'pdcUploadedBy',
@@ -56,13 +56,13 @@ class ImplementationController extends Controller
         }
 
         if (!$canViewAll && $isStaff) {
-            $baseQuery->whereHas('project.company', function ($q) use ($user) {
+            $baseQuery->whereHas('project.proponent', function ($q) use ($user) {
                 $q->where('office_id', $user->office_id);
             });
         }
 
         if ($officeFilter && $canViewAll) {
-            $baseQuery->whereHas('project.company', function ($q) use ($officeFilter) {
+            $baseQuery->whereHas('project.proponent', function ($q) use ($officeFilter) {
                 $q->where('office_id', $officeFilter);
             });
         }
@@ -70,7 +70,7 @@ class ImplementationController extends Controller
         if ($search) {
             $baseQuery->whereHas('project', function ($q) use ($search) {
                 $q->where('project_title', 'like', "%{$search}%")
-                  ->orWhereHas('company', function ($qc) use ($search) {
+                  ->orWhereHas('proponent', function ($qc) use ($search) {
                       $qc->where('company_name', 'like', "%{$search}%");
                   });
             });
@@ -159,7 +159,7 @@ class ImplementationController extends Controller
     {
         $user           = Auth::user();
         $implementation = ImplementationModel::with([
-            'project.company',
+            'project.proponent',
             'tags',
             'tarpUploadedBy',
             'pdcUploadedBy',
@@ -171,7 +171,7 @@ class ImplementationController extends Controller
         $isStaff    = in_array(strtolower($userRole), ['staff']);
 
         if (!$canViewAll && $isStaff) {
-            if ($implementation->project->company->office_id !== $user->office_id) {
+            if ($implementation->project->proponent->office_id !== $user->office_id) {
                 abort(403, 'Unauthorized');
             }
         } elseif (!$canViewAll && !$isStaff) {
@@ -201,7 +201,7 @@ class ImplementationController extends Controller
             'implementation' => [
                 ...$cleaned,
                 'project_title'         => $implementation->project->project_title,
-                'company_name'          => $implementation->project->company->company_name,
+                'company_name'          => $implementation->project->proponent->company_name,
                 'tarpUploadedBy'        => $implementation->tarpUploadedBy
                     ? $implementation->tarpUploadedBy->only(['user_id', 'first_name', 'middle_name', 'last_name', 'username', 'name'])
                     : null,
@@ -343,15 +343,15 @@ private function sendLiquidationNotification(
     string $fileName
 ): void {
     try {
-        $implementation->load('project.company.office.director', 'liquidationUploadedBy');
+        $implementation->load('project.proponent.office.director', 'liquidationUploadedBy');
 
         $project      = $implementation->project;
-        $company      = $project->company;
-        $office       = $company->office;
-        $officeId     = $company->office_id;
+        $proponent      = $project->proponent;
+        $office       = $proponent->office;
+        $officeId     = $proponent->office_id;
         $officeName   = $office->office_name ?? 'Office';
         $projectTitle = $project->project_title;
-        $companyName  = $company->company_name;
+        $proponentName  = $proponent->company_name;
         $absolutePath = storage_path("app/private/{$storedPath}");
 
         // Uploader name
@@ -394,7 +394,7 @@ private function sendLiquidationNotification(
                 ->cc(array_filter($hardcodedCc))
                 ->send(new LiquidationNotificationMail(
                     $projectTitle,
-                    $companyName,
+                    $proponentName,
                     $directorGreetingName,
                     $absolutePath,
                     $fileName,
@@ -410,7 +410,7 @@ private function sendLiquidationNotification(
                     ->cc(array_filter($hardcodedCc))
                     ->send(new LiquidationNotificationMail(
                         $projectTitle,
-                        $companyName,
+                        $proponentName,
                         $directorGreetingName,
                         $absolutePath,
                         $fileName,

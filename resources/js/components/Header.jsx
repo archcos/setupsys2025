@@ -3,7 +3,6 @@ import { Menu, X, Sun, Moon } from "lucide-react";
 import { usePage } from "@inertiajs/react";
 import { useTheme } from "@/contexts/ThemeContext";
 import profile from '../../assets/profile.png';
-import NotificationDropdown from "./NotificationDropdown";
 import ProfileDropdown from "./ProfileDropdown";
 
 export default function Header({ sidebarOpen, toggleSidebar }) {
@@ -18,7 +17,7 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
   const mediumText = "  SETUP Information Management System";
   const shortText = "  SIMS";
 
-  const { auth, notifications = [] } = usePage().props;
+  const { auth } = usePage().props;
 
   const fullName = auth?.user
     ? `${auth.user.first_name} ${auth.user.last_name}`
@@ -70,30 +69,6 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
     }, 500);
     return () => clearInterval(blinkInterval);
   }, []);
-
-  // Check notifications
-  useEffect(() => {
-    const checkNotifications = async () => {
-      try {
-        const response = await fetch('/api/notifications/check');
-        if (response.status === 401) {
-          window.location.href = '/login';
-          return;
-        }
-      } catch (error) {
-        console.error('Failed to check notifications:', error);
-      }
-    };
-
-    checkNotifications();
-    const interval = setInterval(checkNotifications, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleToggleNotification = () => {
-    setNotifOpen(!notifOpen);
-    setDropdownOpen(false);
-  };
 
   const handleToggleProfile = () => {
     setDropdownOpen(!dropdownOpen);
@@ -163,12 +138,6 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
             }
           </span>
         </button>
-
-        {/* <NotificationDropdown
-          notifOpen={notifOpen}
-          onToggle={handleToggleNotification}
-          notifications={notifications}
-        /> */}
 
         <ProfileDropdown
           dropdownOpen={dropdownOpen}

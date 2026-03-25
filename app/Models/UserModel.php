@@ -46,9 +46,9 @@ class UserModel extends Authenticatable
         return $this->belongsTo(OfficeModel::class, 'office_id', 'office_id');
     }
 
-    public function companies()
+    public function proponents()
     {
-        return $this->hasMany(CompanyModel::class, 'added_by', 'user_id');
+        return $this->hasMany(ProponentModel::class, 'added_by', 'user_id');
     }
 
     /**

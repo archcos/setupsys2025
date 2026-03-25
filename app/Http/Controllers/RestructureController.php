@@ -33,7 +33,7 @@ class RestructureController extends Controller
         $sortBy       = $request->input('sortBy', 'desc');
 
         // ── Base query (role-scope only, no status/search/office filters yet) ──
-        $baseQuery = ApplyRestructModel::with(['project.company.office', 'addedBy', 'restructure']);
+        $baseQuery = ApplyRestructModel::with(['project.proponent.office', 'addedBy', 'restructure']);
 
         if ($user->role === 'rd') {
             $projectIds = RestructureModel::whereIn('status', ['recommended', 'approved'])
@@ -62,14 +62,14 @@ class RestructureController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->whereHas('project', function ($pq) use ($search) {
                     $pq->where('project_title', 'like', "%{$search}%")
-                       ->orWhereHas('company', fn($cq) => $cq->where('company_name', 'like', "%{$search}%"));
+                       ->orWhereHas('proponent', fn($cq) => $cq->where('company_name', 'like', "%{$search}%"));
                 });
             });
         }
 
         // Office
         if (!empty($officeFilter)) {
-            $query->whereHas('project.company', fn($q) => $q->where('office_id', $officeFilter));
+            $query->whereHas('project.proponent', fn($q) => $q->where('office_id', $officeFilter));
         }
 
         // Status
@@ -263,7 +263,7 @@ class RestructureController extends Controller
 
             if (in_array($request->status, ['recommended', 'pending'])) {
                 try {
-                    $restructure = RestructureModel::with(['project.company', 'addedBy'])->findOrFail($restructure->restruct_id);
+                    $restructure = RestructureModel::with(['project.proponent', 'addedBy'])->findOrFail($restructure->restruct_id);
                     $this->sendStatusUpdateEmailsSync($restructure, $request->status, $request->remarks);
                     sleep(2);
                 } catch (\Exception $emailError) {
@@ -389,7 +389,7 @@ class RestructureController extends Controller
 
             if (in_array($request->status, ['recommended', 'pending'])) {
                 try {
-                    $restructure = RestructureModel::with(['project.company', 'addedBy'])->findOrFail($restructure->restruct_id);
+                    $restructure = RestructureModel::with(['project.proponent', 'addedBy'])->findOrFail($restructure->restruct_id);
                     $this->sendStatusUpdateEmailsSync($restructure, $request->status, $request->remarks);
                     sleep(2);
                 } catch (\Exception $emailError) {
@@ -454,7 +454,7 @@ class RestructureController extends Controller
 
             $restructure->update(['status' => $validated['status'], 'remarks' => $validated['remarks']]);
 
-            $restructure = RestructureModel::with(['project.company', 'addedBy'])->findOrFail($restruct_id);
+            $restructure = RestructureModel::with(['project.proponent', 'addedBy'])->findOrFail($restruct_id);
 
             if ($validated['status'] === 'approved') {
                 $this->createRestructuredRefundEntries($restructure);
@@ -511,15 +511,15 @@ class RestructureController extends Controller
 
     private function sendApprovedEmailsSync(RestructureModel $restructure, $remarks)
     {
-        $projectOfficeId = $restructure->project->company->office_id;
-        $companyEmail    = $restructure->project->company->email;
+        $projectOfficeId = $restructure->project->proponent->office_id;
+        $proponentEmail    = $restructure->project->proponent->email;
 
         $rpmoUsers  = UserModel::where('role', 'rpmo')->whereNotNull('email')->get();
         $staffUsers = UserModel::where('role', 'staff')->where('office_id', $projectOfficeId)->whereNotNull('email')->get();
 
         foreach ($rpmoUsers as $user) {
             try {
-                Mail::to($user->email)->send(new RestructureApprovedMail($restructure, $restructure->project->company->company_name, Auth::user()->name, $remarks));
+                Mail::to($user->email)->send(new RestructureApprovedMail($restructure, $restructure->project->proponent->company_name, Auth::user()->name, $remarks));
                 Log::info('✓ Approved email sent to RPMO', ['to' => $user->email]);
             } catch (\Exception $e) {
                 Log::error('✗ Failed approved email to RPMO', ['to' => $user->email, 'error' => $e->getMessage()]);
@@ -535,19 +535,19 @@ class RestructureController extends Controller
             }
         }
 
-        if ($companyEmail) {
+        if ($proponentEmail) {
             try {
-                Mail::to($companyEmail)->send(new RestructureApprovedMail($restructure, $restructure->project->company->company_name, Auth::user()->name, $remarks));
-                Log::info('✓ Approved email sent to company', ['to' => $companyEmail]);
+                Mail::to($proponentEmail)->send(new RestructureApprovedMail($restructure, $restructure->project->proponent->company_name, Auth::user()->name, $remarks));
+                Log::info('✓ Approved email sent to proponent', ['to' => $proponentEmail]);
             } catch (\Exception $e) {
-                Log::error('✗ Failed approved email to company', ['to' => $companyEmail, 'error' => $e->getMessage()]);
+                Log::error('✗ Failed approved email to proponent', ['to' => $proponentEmail, 'error' => $e->getMessage()]);
             }
         }
     }
 
     private function sendDeniedEmailsSync(RestructureModel $restructure, $remarks)
     {
-        $projectOfficeId = $restructure->project->company->office_id;
+        $projectOfficeId = $restructure->project->proponent->office_id;
 
         $rpmoUsers  = UserModel::where('role', 'rpmo')->whereNotNull('email')->get();
         $staffUsers = UserModel::where('role', 'staff')->where('office_id', $projectOfficeId)->whereNotNull('email')->get();

@@ -43,18 +43,6 @@ class AppServiceProvider extends ServiceProvider
     //             'user' => $userId ? UserModel::find($userId) : null,
     //         ];
     //     },
-    //     'notifications' => function () {
-    //         $userId = Session::get('user_id');
-    //         $user = $userId ? UserModel::find($userId) : null;
-
-    //         if ($user && $user->role !== 'user') {
-    //             return NotificationModel::where('office_id', $user->office_id)
-    //                 ->where('is_read', false)
-    //                 ->latest()
-    //                 ->take(5)
-    //                 ->get();
-    //         }
-
     //         return [];
     //     },
     // ]);

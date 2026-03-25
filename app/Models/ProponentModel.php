@@ -5,12 +5,12 @@ namespace App\Models;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 
-class CompanyModel extends Model
+class ProponentModel extends Model
 {
 
     use LogsActivity;
-    protected $table = 'tbl_companies';
-    protected $primaryKey = 'company_id';
+    protected $table = 'tbl_proponents';
+    protected $primaryKey = 'proponent_id';
     public $timestamps = true;
 
     protected $fillable = [
@@ -35,7 +35,7 @@ class CompanyModel extends Model
     // One company has many projects
     public function projects()
     {
-        return $this->hasMany(ProjectModel::class, 'company_id', 'company_id');
+        return $this->hasMany(ProjectModel::class, 'proponent_id', 'proponent_id');
     }
 
     // A company belongs to an office
