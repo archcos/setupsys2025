@@ -31,9 +31,10 @@ export default function DraftMoa({ proponents, selectedProponent, projects, filt
   const isFormValid = data.proponent_id && data.project_id && data.witness.trim();
 
   return (
-    <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen">
-      <Head title="Generate MOA" />
-      <div className="max-w-4xl mx-auto">
+    <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
+      <Head title="Draft MOA" />
+      
+      <div className="max-w-7xl mx-auto">
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
           {/* Card Header */}
           <div className="bg-gradient-to-r from-gray-50 to-white p-3 md:p-6 border-b border-gray-100">
@@ -42,8 +43,8 @@ export default function DraftMoa({ proponents, selectedProponent, projects, filt
                 <FileSignature className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Generate Draft MOA</h2>
-                <p className="text-xs md:text-sm text-gray-600 mt-1">Create Memorandum of Agreement documents for your projects</p>
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Draft MOA</h2>
+                <p className="text-xs md:text-sm text-gray-600 mt-1">Automated creation of Memorandum of Agreement documents for projects</p>
               </div>
             </div>
           </div>

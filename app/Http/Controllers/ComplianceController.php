@@ -7,6 +7,7 @@ use Inertia\Inertia;
 use App\Models\ComplianceModel;
 use App\Models\ProjectModel;
 use App\Models\DirectorModel;
+use App\Models\OfficeModel;
 use App\Models\UserModel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -19,12 +20,13 @@ class ComplianceController extends Controller
 {
     public function index(Request $request)
     {
-        $search      = $request->input('search', '');
-        $year        = $request->input('year', '');
-        $sortBy      = $request->input('sortBy', 'project_id');
-        $sortOrder   = $request->input('sortOrder', 'desc');
+        $search       = $request->input('search', '');
+        $year         = $request->input('year', '');
+        $officeFilter = $request->input('officeFilter', '');
+        $sortBy       = $request->input('sortBy', 'project_id');
+        $sortOrder    = $request->input('sortOrder', 'desc');
         $statusFilter = $request->input('statusFilter', 'pending');
-        $perPage     = $request->input('perPage', 10);
+        $perPage      = $request->input('perPage', 10);
 
         // Valid sort columns
         $validSortColumns = ['project_id', 'project_title', 'proponent_id', 'year_obligated', 'created_at', 'progress'];
@@ -66,13 +68,20 @@ class ComplianceController extends Controller
             $baseQuery->where('year_obligated', $year);
         }
 
+        // Office filter (rpmo only — staff is already scoped to their office)
+        if (!empty($officeFilter) && $user && $user->role === 'rpmo') {
+            $baseQuery->whereHas('proponent', function ($q) use ($officeFilter) {
+                $q->where('office_id', $officeFilter);
+            });
+        }
+
         // ── Compute status counts BEFORE applying status filter ───────────────
         $statusCounts = [
             'all'         => (clone $baseQuery)->count(),
-            'pending' => (clone $baseQuery)->where(function ($q) {
-                            $q->whereDoesntHave('compliance')
-                            ->orWhereHas('compliance', fn($q) => $q->where('status', 'pending'));
-                        })->count(),
+            'pending'     => (clone $baseQuery)->where(function ($q) {
+                                $q->whereDoesntHave('compliance')
+                                  ->orWhereHas('compliance', fn($q) => $q->where('status', 'pending'));
+                             })->count(),
             'recommended' => (clone $baseQuery)->whereHas('compliance', fn($q) => $q->where('status', 'recommended'))->count(),
             'approved'    => (clone $baseQuery)->whereHas('compliance', fn($q) => $q->where('status', 'approved'))->count(),
         ];
@@ -81,7 +90,6 @@ class ComplianceController extends Controller
         $query = clone $baseQuery;
 
         if ($statusFilter === 'pending') {
-            // pending = no compliance record OR compliance.status = 'pending'
             $query->where(function ($q) {
                 $q->whereDoesntHave('compliance')
                   ->orWhereHas('compliance', fn($q) => $q->where('status', 'pending'));
@@ -116,13 +124,21 @@ class ComplianceController extends Controller
 
         $years = $yearsQuery->orderBy('year_obligated', 'desc')->pluck('year_obligated')->toArray();
 
+        // ── Offices dropdown (rpmo only) ──────────────────────────────────────
+        $offices = [];
+        if ($user && $user->role === 'rpmo') {
+            $offices = OfficeModel::orderBy('office_name')->get();
+        }
+
         return Inertia::render('Compliance/Index', [
             'projects'     => $projects,
             'years'        => $years,
+            'offices'      => $offices,
             'statusCounts' => $statusCounts,
             'filters'      => [
                 'search'       => $search,
                 'year'         => $year,
+                'officeFilter' => $officeFilter,
                 'sortBy'       => $sortBy,
                 'sortOrder'    => $sortOrder,
                 'statusFilter' => $statusFilter,

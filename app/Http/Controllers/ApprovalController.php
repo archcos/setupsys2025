@@ -28,23 +28,27 @@ class ApprovalController extends Controller
 
             if (!$user || !in_array($user->role, ['staff', 'rpmo'])) {
                 return Inertia::render('Approval/Index', [
-                    'projects'    => [],
-                    'offices'     => [],
-                    'filters'     => [],
-                    'statusCounts'=> [],
-                    'error'       => 'You do not have permission to access this resource.'
+                    'projects'      => [],
+                    'offices'       => [],
+                    'filters'       => [],
+                    'statusCounts'  => [],
+                    'availableYears'=> [],
+                    'error'         => 'You do not have permission to access this resource.'
                 ]);
             }
 
-            $search       = $request->input('search', '');
-            $perPage      = $request->input('perPage', 10);
-            $officeFilter = $request->input('officeFilter', '');
-            $sortBy       = $request->input('sortBy', 'recent');
-            $statusTab    = $request->input('statusTab', 'All');
+            $search        = $request->input('search', '');
+            $perPage       = $request->input('perPage', 10);
+            $officeFilter  = $request->input('officeFilter', '');
+            $yearFilter    = $request->input('yearFilter', '');
+            $sortField     = $request->input('sortField', '');
+            $sortDirection = $request->input('sortDirection', 'asc');
+            $statusTab     = $request->input('statusTab', 'All');
 
-            $allowedStatuses = ['Implementation', 'Approved', 'Completed', 'Refund', 'Liquidation'];
+            $allowedStatuses   = ['Implementation', 'Approved', 'Completed', 'Refund', 'Liquidation'];
+            $allowedSortFields = ['project_id', 'project_title', 'project_cost'];
 
-            // Base query — always scoped to the 5 allowed statuses
+            // ── Base query — always scoped to the 5 allowed statuses ──────────
             $baseQuery = ProjectModel::with(['proponent.office'])
                 ->whereIn('progress', $allowedStatuses);
 
@@ -52,11 +56,12 @@ class ApprovalController extends Controller
             if ($user->role === 'staff') {
                 if (!$user->office_id) {
                     return Inertia::render('Approval/Index', [
-                        'projects'     => [],
-                        'offices'      => [],
-                        'filters'      => [],
-                        'statusCounts' => [],
-                        'error'        => 'No office assigned to your account.'
+                        'projects'      => [],
+                        'offices'       => [],
+                        'filters'       => [],
+                        'statusCounts'  => [],
+                        'availableYears'=> [],
+                        'error'         => 'No office assigned to your account.'
                     ]);
                 }
                 $baseQuery->whereHas('proponent', function ($q) use ($user) {
@@ -64,32 +69,32 @@ class ApprovalController extends Controller
                 });
             }
 
-            // Compute per-status counts BEFORE applying tab/search filters
-            $statusCounts = ['All' => 0];
-            foreach ($allowedStatuses as $s) {
-                $count = (clone $baseQuery)->where('progress', $s)->count();
-                $statusCounts[$s] = $count;
-                $statusCounts['All'] += $count;
-            }
+            // ── Collect available years for the dropdown ──────────────────────
+            $availableYears = (clone $baseQuery)
+                ->whereNotNull('year_obligated')
+                ->distinct()
+                ->orderBy('year_obligated', 'desc')
+                ->pluck('year_obligated')
+                ->toArray();
 
-            // Clone for the actual paginated query
-            $query = clone $baseQuery;
-
-            // Status tab filter
-            if ($statusTab && $statusTab !== 'All' && in_array($statusTab, $allowedStatuses)) {
-                $query->where('progress', $statusTab);
-            }
+            // ── Apply shared filters (office, year, search) ───────────────────
+            $filteredBase = clone $baseQuery;
 
             // Office filter (rpmo only)
             if (!empty($officeFilter) && $user->role === 'rpmo') {
-                $query->whereHas('proponent', function ($q) use ($officeFilter) {
+                $filteredBase->whereHas('proponent', function ($q) use ($officeFilter) {
                     $q->where('office_id', $officeFilter);
                 });
             }
 
+            // Year obligated filter
+            if (!empty($yearFilter)) {
+                $filteredBase->where('year_obligated', $yearFilter);
+            }
+
             // Search
             if (!empty($search)) {
-                $query->where(function ($q) use ($search) {
+                $filteredBase->where(function ($q) use ($search) {
                     $q->where('project_title', 'like', "%{$search}%")
                       ->orWhereHas('proponent', function ($q) use ($search) {
                           $q->where('company_name', 'like', "%{$search}%")
@@ -98,16 +103,34 @@ class ApprovalController extends Controller
                 });
             }
 
-            // Sort
-            match ($sortBy) {
-                'oldest' => $query->orderBy('created_at', 'asc'),
-                'title'  => $query->orderBy('project_title', 'asc'),
-                default  => $query->orderBy('created_at', 'desc'),
-            };
+            // ── Status counts — computed from $filteredBase (no tab filter) ───
+            $statusCounts = ['All' => 0];
+            foreach ($allowedStatuses as $s) {
+                $count = (clone $filteredBase)->where('progress', $s)->count();
+                $statusCounts[$s] = $count;
+                $statusCounts['All'] += $count;
+            }
+
+            // ── Paginated query — add tab filter on top of $filteredBase ──────
+            $query = clone $filteredBase;
+
+            if ($statusTab && $statusTab !== 'All' && in_array($statusTab, $allowedStatuses)) {
+                $query->where('progress', $statusTab);
+            }
+
+            // ── Sort ──────────────────────────────────────────────────────────
+            // Only allow whitelisted fields; fall back to created_at desc.
+            $direction = $sortDirection === 'asc' ? 'asc' : 'desc';
+
+            if (!empty($sortField) && in_array($sortField, $allowedSortFields)) {
+                $query->orderBy($sortField, $direction);
+            } else {
+                $query->orderBy('created_at', 'desc');
+            }
 
             $projects = $query->paginate($perPage)->withQueryString();
 
-            // Offices for dropdown
+            // ── Offices for dropdown ──────────────────────────────────────────
             $offices = [];
             if ($user->role === 'rpmo') {
                 $offices = OfficeModel::orderBy('office_name')->get();
@@ -116,15 +139,18 @@ class ApprovalController extends Controller
             }
 
             return Inertia::render('Approval/Index', [
-                'projects'     => $projects,
-                'offices'      => $offices,
-                'statusCounts' => $statusCounts,
-                'filters'      => [
-                    'search'       => $search,
-                    'perPage'      => $perPage,
-                    'officeFilter' => $officeFilter,
-                    'sortBy'       => $sortBy,
-                    'statusTab'    => $statusTab,
+                'projects'      => $projects,
+                'offices'       => $offices,
+                'statusCounts'  => $statusCounts,
+                'availableYears'=> $availableYears,
+                'filters'       => [
+                    'search'        => $search,
+                    'perPage'       => $perPage,
+                    'officeFilter'  => $officeFilter,
+                    'yearFilter'    => $yearFilter,
+                    'sortField'     => $sortField,
+                    'sortDirection' => $sortDirection,
+                    'statusTab'     => $statusTab,
                 ],
                 'userRole' => $user->role,
             ]);
@@ -133,11 +159,12 @@ class ApprovalController extends Controller
             Log::error('Error fetching approved projects: ' . $e->getMessage());
 
             return Inertia::render('Approval/Index', [
-                'projects'     => [],
-                'offices'      => [],
-                'filters'      => [],
-                'statusCounts' => [],
-                'error'        => 'Unable to load projects. Please try again later.'
+                'projects'      => [],
+                'offices'       => [],
+                'filters'       => [],
+                'statusCounts'  => [],
+                'availableYears'=> [],
+                'error'         => 'Unable to load projects. Please try again later.'
             ]);
         }
     }
@@ -185,23 +212,23 @@ class ApprovalController extends Controller
                 $pdPosition    = $director->title;
             }
 
-            $addressParts    = array_filter([$proponent->street, $proponent->barangay, $proponent->municipality]);
+            $addressParts      = array_filter([$proponent->street, $proponent->barangay, $proponent->municipality]);
             $proponentLocation = implode(', ', $addressParts) ?: 'N/A';
-            $amountWords     = $this->convertNumberToWords($project->project_cost);
+            $amountWords       = $this->convertNumberToWords($project->project_cost);
 
             $template->setValues([
-                'CURRENT_DATE'     => $currentDate,
-                'OWNER_NAME'       => $proponent->owner_name ? strtoupper($proponent->owner_name) : 'N/A',
-                'POSITION'         => $validated['position'],
-                'COMPANY_NAME'     => $proponent->company_name ?? 'N/A',
+                'CURRENT_DATE'       => $currentDate,
+                'OWNER_NAME'         => $proponent->owner_name ? strtoupper($proponent->owner_name) : 'N/A',
+                'POSITION'           => $validated['position'],
+                'COMPANY_NAME'       => $proponent->company_name ?? 'N/A',
                 'proponent_LOCATION' => $proponentLocation,
-                'PD_NAME'          => $pdFullName,
-                'PD_POSITION'      => $pdPosition,
-                'OFFICE_NAME'      => $office->office_name ?? 'N/A',
-                'OWNER_LASTNAME'   => $validated['owner_lastname'],
-                'PROJECT_TITLE'    => $project->project_title,
-                'PROJECT_COST'     => number_format($project->project_cost, 2),
-                'AMOUNT_WORDS'     => ucwords($amountWords),
+                'PD_NAME'            => $pdFullName,
+                'PD_POSITION'        => $pdPosition,
+                'OFFICE_NAME'        => $office->office_name ?? 'N/A',
+                'OWNER_LASTNAME'     => $validated['owner_lastname'],
+                'PROJECT_TITLE'      => $project->project_title,
+                'PROJECT_COST'       => number_format($project->project_cost, 2),
+                'AMOUNT_WORDS'       => ucwords($amountWords),
             ]);
 
             $signaturePath = public_path('templates/e-signature.png');
@@ -238,8 +265,8 @@ class ApprovalController extends Controller
             Log::info('Approval document stored locally', ['project_id' => $project_id, 'path' => $fullPath]);
 
             try {
-                $fileContent  = file_get_contents($fullPath);
-                $supabasePath = "backup/{$currentYear}/{$project_id}/approval/{$fileName}";
+                $fileContent    = file_get_contents($fullPath);
+                $supabasePath   = "backup/{$currentYear}/{$project_id}/approval/{$fileName}";
                 $supabaseUpload = new SupabaseUpload();
                 $uploaded       = $supabaseUpload->upload($supabasePath, $fileContent);
 

@@ -1,6 +1,6 @@
 import { Link, router, Head } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Eye, Edit3, Trash2, Building, User, Mail, Phone, MapPin, Factory, Package, X, Filter, ArrowUpDown, AlertCircle } from 'lucide-react';
+import { Search, Plus, Eye, Edit3, Trash2, Building, User, Mail, Phone, MapPin, Factory, Package, X, Filter, ArrowUpDown, AlertCircle, Building2, Hand, User2 } from 'lucide-react';
 import IndustrySelect from './components/IndustrySelect';
 import MultiSelect from '../../components/MultiSelect';
 import { INDUSTRY_OPTIONS_GROUPED, INDUSTRY_TYPE_OPTIONS } from './components/IndustryOptions';
@@ -183,7 +183,7 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto">
       <Head title="Proponents" />
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-8xl mx-auto">
         {/* Main Content Card */}
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
         {/* Card Header */}
@@ -276,7 +276,7 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                   {/* Office Filter - Only show for rpmo role */}
                   {showOfficeFilter && (
                     <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
-                      <Building className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
                       <select
                         value={officeFilter}
                         onChange={handleOfficeChange}
@@ -377,13 +377,16 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                         {canEditAddedBy && (
                           <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                             <div className="flex items-center gap-2">
-                              <User className="w-4 h-4" />
+                              <User2 className="w-4 h-4" />
                               User
                             </div>
                           </th>
                         )}
                         <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Actions
+                          <div className="flex items-center gap-2">
+                            <Hand className="w-4 h-4" />
+                            Actions
+                          </div>
                         </th>
                       </tr>
                     </thead>
@@ -607,7 +610,7 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
 
       {/* proponent Modal */}
       {selectedproponent && (
-        <proponentModal
+        <ProponentModal
           proponent={selectedproponent}
           isOpen={!!selectedproponent}
           onClose={() => setSelectedproponent(null)}
@@ -666,7 +669,7 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
   );
 }
 
-function proponentModal({ proponent, isOpen, onClose }) {
+function ProponentModal({ proponent, isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (

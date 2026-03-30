@@ -18,11 +18,17 @@ class AnnouncementModel extends Model
         'office_id',
         'start_date',
         'end_date',
+        'added_by',
     ];
 
-        public function office()
+    public function office()
     {
         return $this->belongsTo(OfficeModel::class, 'office_id', 'office_id');
+    }
+
+    public function addedBy()
+    {
+        return $this->belongsTo(UserModel::class, 'added_by', 'user_id');
     }
 
 }

@@ -69,7 +69,7 @@ export default function Index({ moas, filters }) {
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen">
       <Head title="MOA List" />
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-8xl mx-auto">
 
         {/* Flash Messages */}
         {flash?.success && (

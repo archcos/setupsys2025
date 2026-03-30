@@ -253,7 +253,7 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
       <Head title="Verify Restructuring" />
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-8xl mx-auto">
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
 
           {/* Header */}
@@ -329,15 +329,6 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                 </button>
               )}
             </div>
-
-            {paginationData && (
-              <p className="text-xs text-gray-500">
-                Showing <span className="font-semibold text-gray-900">{paginationData.from || 0}</span>–
-                <span className="font-semibold text-gray-900">{paginationData.to || 0}</span> of{' '}
-                <span className="font-semibold text-gray-900">{paginationData.total || 0}</span> results
-                {statusFilter !== 'all' && <span className="ml-1">· {STATUS_CONFIG[statusFilter]?.label}</span>}
-              </p>
-            )}
           </div>
 
           {/* Desktop Table */}

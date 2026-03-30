@@ -174,7 +174,7 @@ class DashboardController extends Controller
                     ]
                 ];
             }),
-            'userproponentName' => $user->proponents->first()?->company_name ?? 'Your proponent',
+            'usercompanyName' => $user->proponents->first()?->company_name ?? 'Your proponent',
         ]);
     }
 

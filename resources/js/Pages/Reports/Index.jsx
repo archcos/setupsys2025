@@ -176,7 +176,7 @@ export default function Index({ projects, filters, offices, years }) {
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
       <Head title="Reports" />
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-8xl mx-auto">
         <div className="bg-white rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
 
           {/* ── Header ── */}
@@ -267,16 +267,6 @@ export default function Index({ projects, filters, offices, years }) {
                 </button>
               )}
             </div>
-
-            {/* Result summary */}
-            {pagination && (
-              <p className="text-xs text-gray-500">
-                Showing{' '}
-                <span className="font-semibold text-gray-900">{pagination.from || 0}</span>–
-                <span className="font-semibold text-gray-900">{pagination.to || 0}</span> of{' '}
-                <span className="font-semibold text-gray-900">{pagination.total || 0}</span> project{pagination.total !== 1 ? 's' : ''}
-              </p>
-            )}
           </div>
 
           {/* ── Desktop Table ── */}
@@ -379,12 +369,12 @@ export default function Index({ projects, filters, offices, years }) {
 
                       {/* Proponent */}
                       <td className="px-4 py-3.5 text-sm text-gray-700">
-                        {project.company?.company_name || <span className="text-gray-400">—</span>}
+                        {project.proponent?.company_name || <span className="text-gray-400">—</span>}
                       </td>
 
                       {/* Office */}
                       <td className="px-4 py-3.5 text-sm text-gray-600">
-                        {project.company?.office?.office_name || <span className="text-gray-400">—</span>}
+                        {project.proponent?.office?.office_name || <span className="text-gray-400">—</span>}
                       </td>
 
                       {/* Reports count */}
@@ -429,9 +419,9 @@ export default function Index({ projects, filters, offices, years }) {
                     </span>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{project.project_title}</h3>
-                      <p className="text-xs text-gray-600 mt-0.5">{project.company?.company_name || "No proponent"}</p>
-                      {project.company?.office?.office_name && (
-                        <p className="text-xs text-gray-400">{project.company.office.office_name}</p>
+                      <p className="text-xs text-gray-600 mt-0.5">{project.proponent?.company_name || "No proponent"}</p>
+                      {project.proponent?.office?.office_name && (
+                        <p className="text-xs text-gray-400">{project.proponent.office.office_name}</p>
                       )}
                     </div>
                     <button

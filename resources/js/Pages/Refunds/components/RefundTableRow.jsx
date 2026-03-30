@@ -141,10 +141,10 @@ const RefundTableRow = React.memo(({
         <div className="flex items-center justify-center gap-2">
           <Link
             href={`/refunds/project/${project.project_id}`}
-            className="p-2 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 shadow-sm hover:shadow-lg"
+            className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-all"
             title="View Full Details"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-5 h-5" />
           </Link>
           {renderSaveButton(project.project_id)}
         </div>

@@ -205,8 +205,8 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
         disabled: false
       },
       default: {
-        className: 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-sm hover:shadow-lg',
-        content: <Save className="w-4 h-4" />,
+        className: 'p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all',
+        content: <Save className="w-5 h-5" />,
         disabled: false
       }
     };
@@ -228,7 +228,7 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
       <Head title="Refund Management" />
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-8xl mx-auto">
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
           
           {/* Header */}

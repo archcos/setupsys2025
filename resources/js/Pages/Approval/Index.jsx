@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { router, usePage } from '@inertiajs/react';
-import { Search, X, Building2, ArrowUpDown, Award } from 'lucide-react';
+import { router, usePage, Head } from '@inertiajs/react';
+import { Search, X, Building2, ArrowUpDown, Award, Calendar } from 'lucide-react';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -30,9 +30,9 @@ function StatusTabs({ statusTab, statusCounts, onChange }) {
   return (
     <div className="flex gap-1.5 overflow-x-auto pb-1">
       {ALL_STATUSES.map((status) => {
-        const isActive     = statusTab === status;
-        const count        = statusCounts?.[status] ?? 0;
-        const activeStyle  = status === 'All'
+        const isActive    = statusTab === status;
+        const count       = statusCounts?.[status] ?? 0;
+        const activeStyle = status === 'All'
           ? 'bg-gray-700 text-white'
           : (STATUS_STYLES[status]?.tab ?? 'bg-gray-500 text-white');
 
@@ -59,19 +59,34 @@ function StatusTabs({ statusTab, statusCounts, onChange }) {
   );
 }
 
+function SortButton({ field, label, sortField, sortDirection, onSort }) {
+  const isActive = sortField === field;
+
+  return (
+    <button
+      onClick={() => onSort(field)}
+      className="flex items-center gap-1 hover:text-blue-600 transition-colors group"
+    >
+      {label}
+      <ArrowUpDown className={`w-3 h-3 transition-colors ${
+        isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-400'
+      }`} />
+    </button>
+  );
+}
+
 function DownloadButton({ onClick, disabled, fullWidth = false }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center justify-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white text-xs font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+      className={`p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all ${
         fullWidth ? 'w-full py-2 mt-1' : ''
       }`}
     >
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
-      Download
     </button>
   );
 }
@@ -92,12 +107,14 @@ function EmptyState({ hasActiveFilters, mobile = false }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function ApprovedProjects({ projects, offices, filters, statusCounts, error: serverError }) {
-  const [search,        setSearch]        = useState(filters?.search       || '');
-  const [perPage,       setPerPage]       = useState(filters?.perPage      || 10);
-  const [officeFilter,  setOfficeFilter]  = useState(filters?.officeFilter || '');
-  const [sortBy,        setSortBy]        = useState(filters?.sortBy       || 'recent');
-  const [statusTab,     setStatusTab]     = useState(filters?.statusTab    || 'All');
+export default function ApprovedProjects({ projects, offices, filters, statusCounts, availableYears, error: serverError }) {
+  const [search,        setSearch]        = useState(filters?.search        || '');
+  const [perPage,       setPerPage]       = useState(filters?.perPage       || 10);
+  const [officeFilter,  setOfficeFilter]  = useState(filters?.officeFilter  || '');
+  const [yearFilter,    setYearFilter]    = useState(filters?.yearFilter    || '');
+  const [sortField,     setSortField]     = useState(filters?.sortField     || '');
+  const [sortDirection, setSortDirection] = useState(filters?.sortDirection || 'asc');
+  const [statusTab,     setStatusTab]     = useState(filters?.statusTab     || 'All');
   const [selected,      setSelected]      = useState(null);
   const [showModal,     setShowModal]     = useState(false);
   const [formData,      setFormData]      = useState({ owner_lastname: '', position: '' });
@@ -107,24 +124,31 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
 
   const { errors: pageErrors } = usePage().props;
 
-  // Debounced push for text-input-driven filters
+  // Debounced push for search input only
   useEffect(() => {
     const timer = setTimeout(() => {
       router.get(
         route('approvals.index'),
-        { search, perPage, officeFilter, sortBy, statusTab },
+        { search, perPage, officeFilter, yearFilter, sortField, sortDirection, statusTab },
         { preserveState: true, replace: true }
       );
     }, 500);
     return () => clearTimeout(timer);
-  }, [search, officeFilter, sortBy]);
+  }, [search]);
 
   const pushRouter = (overrides = {}) =>
     router.get(
       route('approvals.index'),
-      { search, perPage, officeFilter, sortBy, statusTab, ...overrides },
+      { search, perPage, officeFilter, yearFilter, sortField, sortDirection, statusTab, ...overrides },
       { preserveScroll: true, preserveState: true }
     );
+
+  const handleSort = (field) => {
+    const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
+    setSortField(field);
+    setSortDirection(newDirection);
+    pushRouter({ sortField: field, sortDirection: newDirection });
+  };
 
   const handlePerPageChange = (e) => {
     const val = e.target.value;
@@ -132,10 +156,16 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
     pushRouter({ perPage: val });
   };
 
-  const handleSortChange = (e) => {
+  const handleOfficeChange = (e) => {
     const val = e.target.value;
-    setSortBy(val);
-    pushRouter({ sortBy: val });
+    setOfficeFilter(val);
+    pushRouter({ officeFilter: val });
+  };
+
+  const handleYearChange = (e) => {
+    const val = e.target.value;
+    setYearFilter(val);
+    pushRouter({ yearFilter: val });
   };
 
   const handleStatusTab = (tab) => {
@@ -146,7 +176,9 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
   const handleClearFilters = () => {
     setSearch('');
     setOfficeFilter('');
-    setSortBy('recent');
+    setYearFilter('');
+    setSortField('');
+    setSortDirection('asc');
     setStatusTab('All');
     router.get(route('approvals.index'), { perPage }, { preserveState: true });
   };
@@ -232,13 +264,15 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
     }
   };
 
-  const hasActiveFilters = !!(search || officeFilter || statusTab !== 'All');
+  const hasActiveFilters = !!(search || officeFilter || yearFilter || statusTab !== 'All');
   const data             = projects?.data || [];
   const paginationData   = projects?.data ? projects : null;
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto p-3 md:p-6">
+    <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
+        <Head title="Approved Projects" />
+  
+        <div className="max-w-8xl mx-auto">
         <div className="bg-white rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
 
           {/* Header */}
@@ -269,7 +303,6 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
           {/* Filters */}
           <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100 space-y-3">
 
-            {/* Status tabs */}
             <StatusTabs statusTab={statusTab} statusCounts={statusCounts} onChange={handleStatusTab} />
 
             {/* Search + per-page */}
@@ -302,14 +335,14 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
               </div>
             </div>
 
-            {/* Office + Sort + Clear */}
-            <div className="flex flex-col md:flex-row gap-2 md:gap-4">
+            {/* Office + Year + Clear */}
+            <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-wrap">
               {offices && offices.length > 0 && (
                 <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm flex-1 md:flex-initial md:min-w-[200px]">
                   <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <select
                     value={officeFilter}
-                    onChange={(e) => setOfficeFilter(e.target.value)}
+                    onChange={handleOfficeChange}
                     className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2"
                   >
                     <option value="">All Offices</option>
@@ -320,18 +353,21 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
                 </div>
               )}
 
-              <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm flex-1 md:flex-initial md:min-w-[180px]">
-                <ArrowUpDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <select
-                  value={sortBy}
-                  onChange={handleSortChange}
-                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2"
-                >
-                  <option value="recent">Newest</option>
-                  <option value="oldest">Oldest</option>
-                  <option value="title">Title (A-Z)</option>
-                </select>
-              </div>
+              {availableYears && availableYears.length > 0 && (
+                <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm flex-1 md:flex-initial md:min-w-[160px]">
+                  <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <select
+                    value={yearFilter}
+                    onChange={handleYearChange}
+                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2"
+                  >
+                    <option value="">All Years</option>
+                    {availableYears.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {hasActiveFilters && (
                 <button
@@ -353,28 +389,50 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">#</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Project</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <SortButton
+                        field="project_id"
+                        label="PROJECT CODE"
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                        onSort={handleSort}
+                      />
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <SortButton
+                        field="project_title"
+                        label="PROJECT"
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                        onSort={handleSort}
+                      />
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Proponent</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Owner</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Office</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cost</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <SortButton
+                        field="project_cost"
+                        label="COST"
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                        onSort={handleSort}
+                      />
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-                  {data.map((project, index) => (
+                  {data.map((project) => (
                     <tr key={project.project_id} className="hover:bg-blue-50/30 transition-colors">
-                      <td className="px-6 py-4 text-sm text-gray-500 font-medium">
-                        {paginationData ? paginationData.from + index : index + 1}
+                      <td className="px-6 py-4 text-sm text-gray-500 font-mono font-medium whitespace-nowrap">
+                        {project.project_id ?? project.project_id}
                       </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900 max-w-xs">
-                        <span className="line-clamp-2">{project.project_title}</span>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        <span className="whitespace-normal break-words">{project.project_title}</span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{project.company?.company_name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{project.company?.owner_name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{project.company?.office?.office_name}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{project.proponent?.company_name}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{project.proponent?.owner_name}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                         ₱{Number(project.project_cost).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
@@ -396,27 +454,34 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
             {data.length === 0 ? (
               <EmptyState hasActiveFilters={hasActiveFilters} mobile />
             ) : (
-              data.map((project, index) => (
+              data.map((project) => (
                 <div key={project.project_id} className="p-3 space-y-2">
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs text-gray-500">#{paginationData ? paginationData.from + index : index + 1}</span>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-xs text-gray-500 font-mono font-medium bg-gray-100 px-1.5 py-0.5 rounded">
+                          {project.project_id ?? project.project_id}
+                        </span>
                         <ProgressBadge status={project.progress} />
+                        {project.year_obligated && (
+                          <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                            {project.year_obligated}
+                          </span>
+                        )}
                       </div>
                       <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{project.project_title}</h3>
-                      <p className="text-xs text-gray-600 mt-0.5">{project.company?.company_name}</p>
+                      <p className="text-xs text-gray-600 mt-0.5">{project.proponent?.company_name}</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="bg-gray-50 rounded p-2">
                       <span className="text-gray-500 block font-medium">Owner</span>
-                      <p className="font-medium text-gray-900 mt-0.5 truncate">{project.company?.owner_name}</p>
+                      <p className="font-medium text-gray-900 mt-0.5 truncate">{project.proponent?.owner_name}</p>
                     </div>
                     <div className="bg-gray-50 rounded p-2">
                       <span className="text-gray-500 block font-medium">Office</span>
-                      <p className="font-medium text-gray-900 mt-0.5 truncate">{project.company?.office?.office_name}</p>
+                      <p className="font-medium text-gray-900 mt-0.5 truncate">{project.proponent?.office?.office_name}</p>
                     </div>
                     <div className="bg-gray-50 rounded p-2 col-span-2">
                       <span className="text-gray-500 block font-medium">Cost</span>
@@ -443,7 +508,6 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
                 </p>
                 <div className="flex gap-1 overflow-x-auto">
                   {paginationData.links.map((link, index) => {
-                    // Extract the page number from the paginator URL
                     const pageNum = link.url
                       ? new URL(link.url).searchParams.get('page')
                       : null;
@@ -456,7 +520,7 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
                           if (!pageNum) return;
                           router.get(
                             route('approvals.index'),
-                            { search, perPage, officeFilter, sortBy, statusTab, page: pageNum },
+                            { search, perPage, officeFilter, yearFilter, sortField, sortDirection, statusTab, page: pageNum },
                             { preserveState: true, preserveScroll: false }
                           );
                         }}
@@ -583,6 +647,6 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

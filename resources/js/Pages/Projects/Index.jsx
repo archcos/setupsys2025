@@ -1,6 +1,6 @@
 import { Link, router, Head, usePage } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award, Users, TrendingUp, ChevronDown, ClipboardList, MapPin } from 'lucide-react';
+import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award, Users, TrendingUp, ChevronDown, ClipboardList, MapPin, Building, Clipboard, Hand, LucideTrendingUp } from 'lucide-react';
 import MultiSelect from '../../components/MultiSelect';
 
 // Helper to format date string
@@ -244,7 +244,7 @@ export default function Index({ projects, filters, offices, allYears }) {
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto">
       <Head title="Projects" />
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-8xl mx-auto">
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
           {/* Card Header */}
           <div className="bg-gray-50 p-3 md:p-6 border-b border-gray-100">
@@ -399,7 +399,7 @@ export default function Index({ projects, filters, offices, allYears }) {
                     <SortButton field="project_id" label="PROJECT CODE" icon={FileText} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <SortButton field="project_title" label="PROJECT & PROPONENT" icon={Building2} />
+                    <SortButton field="project_title" label="PROJECT & PROPONENT" icon={ClipboardList} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <SortButton field="project_cost" label="COST" icon={PhilippinePeso} />
@@ -407,9 +407,17 @@ export default function Index({ projects, filters, offices, allYears }) {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <SortButton field="fund_release" label="FUND RELEASE" icon={Calendar} />
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                </tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">  
+                    <div className="flex items-center gap-2">
+                        <LucideTrendingUp className="w-4 h-4" /> Status 
+                      </div> 
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">  
+                    <div className="flex items-center gap-2">
+                        <Hand className="w-4 h-4" /> Action 
+                      </div> 
+                  </th>                
+                  </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {projects.data.map((project) => (

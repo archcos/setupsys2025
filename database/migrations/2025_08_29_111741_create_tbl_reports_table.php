@@ -13,8 +13,6 @@ return new class extends Migration
             
             $table->unsignedBigInteger('project_id')->nullable();
             $table->text('status')->nullable();
-            $table->text('actual_accom')->nullable();
-            $table->text('actual_remarks')->nullable();
             $table->text('util_remarks')->nullable();
             $table->integer('new_male')->nullable();
             $table->integer('new_female')->nullable();

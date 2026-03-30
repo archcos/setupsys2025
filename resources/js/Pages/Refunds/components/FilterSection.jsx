@@ -102,13 +102,6 @@ const FilterSection = React.memo(({
         </div>
       </div>
 
-      {/* Results summary */}
-      <p className="text-xs text-gray-500">
-        {projects.data.length > 0
-          ? `Showing ${projects.data.length} project${projects.data.length !== 1 ? 's' : ''} for ${MONTHS.find(m => m.value == selectedMonth)?.label} ${selectedYear}`
-          : 'No projects found for the selected period'}
-      </p>
-
       {/* Flash messages */}
       {flash?.success && (
         <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-xs md:text-sm text-green-800">

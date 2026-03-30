@@ -346,12 +346,12 @@ private function sendLiquidationNotification(
         $implementation->load('project.proponent.office.director', 'liquidationUploadedBy');
 
         $project      = $implementation->project;
-        $proponent      = $project->proponent;
+        $proponent    = $project->proponent;
         $office       = $proponent->office;
         $officeId     = $proponent->office_id;
         $officeName   = $office->office_name ?? 'Office';
         $projectTitle = $project->project_title;
-        $proponentName  = $proponent->company_name;
+        $companyName  = $proponent->company_name;
         $absolutePath = storage_path("app/private/{$storedPath}");
 
         // Uploader name
@@ -394,7 +394,7 @@ private function sendLiquidationNotification(
                 ->cc(array_filter($hardcodedCc))
                 ->send(new LiquidationNotificationMail(
                     $projectTitle,
-                    $proponentName,
+                    $companyName,
                     $directorGreetingName,
                     $absolutePath,
                     $fileName,
@@ -410,7 +410,7 @@ private function sendLiquidationNotification(
                     ->cc(array_filter($hardcodedCc))
                     ->send(new LiquidationNotificationMail(
                         $projectTitle,
-                        $proponentName,
+                        $companyName,
                         $directorGreetingName,
                         $absolutePath,
                         $fileName,

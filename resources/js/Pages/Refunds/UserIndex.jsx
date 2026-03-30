@@ -41,7 +41,7 @@ export default function UserIndex({ projects, search, years, selectedYear }) {
     return (
         <main className="flex-1 overflow-y-auto p-3 md:p-6 space-y-6 md:space-y-8 w-full">
             <Head title="My Refunds" />
-            <div className="max-w-7xl mx-auto w-full">
+            <div className="max-w-8xl mx-auto w-full">
                 {/* Stats Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
                     {/* Total Projects */}

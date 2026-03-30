@@ -1,39 +1,126 @@
-import { Link, router, Head, usePage } from "@inertiajs/react";
+import { Link, router, usePage, Head } from "@inertiajs/react";
 import { useState, useEffect } from "react";
-import { Search, CheckCircle, XCircle, Eye, AlertTriangle, ChevronDown, ChevronUp, Clock, Building2, X, ThumbsUp, FileCheck2 } from 'lucide-react';
+import { Search, CheckCircle, XCircle, Eye, AlertTriangle, ChevronDown, ChevronUp, Building2, X, ThumbsUp, FileCheck2, ArrowUpDown } from 'lucide-react';
 
-function formatSubmissionDate(dateStr) {
-  if (!dateStr) return "-";
-  const date = new Date(dateStr);
-  const options = { year: "numeric", month: "long", day: "numeric" };
-  const formatted = date.toLocaleDateString("en-US", options);
-  const time = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-  return `${formatted} at ${time}`;
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const STATUS_CONFIG = {
+  all: {
+    label:      'All',
+    tab:        'bg-gray-700 text-white',
+    badgeStyle: 'bg-gray-100 text-gray-700 border border-gray-200',
+  },
+  submitted: {
+    label:      'Pending Review',
+    tab:        'bg-amber-500 text-white',
+    badgeStyle: 'bg-amber-100 text-amber-800 border border-amber-200',
+  },
+  recommended: {
+    label:      'Recommended',
+    tab:        'bg-blue-500 text-white',
+    badgeStyle: 'bg-blue-100 text-blue-800 border border-blue-200',
+  },
+  reviewed: {
+    label:      'Reviewed',
+    tab:        'bg-green-500 text-white',
+    badgeStyle: 'bg-green-100 text-green-800 border border-green-200',
+  },
+  denied: {
+    label:      'Denied',
+    tab:        'bg-red-500 text-white',
+    badgeStyle: 'bg-red-100 text-red-800 border border-red-200',
+  },
+};
+
+const STATUS_KEYS = ['all', 'submitted', 'recommended', 'reviewed', 'denied'];
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function StatusTabs({ statusFilter, statusCounts, onChange }) {
+  return (
+    <div className="flex gap-1.5 overflow-x-auto pb-1">
+      {STATUS_KEYS.map((key) => {
+        const cfg      = STATUS_CONFIG[key];
+        const isActive = statusFilter === key;
+        const count    = statusCounts?.[key] ?? 0;
+
+        return (
+          <button
+            key={key}
+            onClick={() => onChange(key)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+              isActive
+                ? `${cfg.tab} shadow-sm`
+                : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            {cfg.label}
+            <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-xs font-bold ${
+              isActive ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-600'
+            }`}>
+              {count}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
-function getStatusDisplay(status) {
-  if (status === 'submitted') return 'Pending Review';
-  if (status === 'recommended') return 'Recommended';
-  if (status === 'reviewed') return 'Reviewed';
+function StatusBadge({ status }) {
+  let displayStatus = status;
   if (status?.startsWith('denied:')) {
-    const reason = status.replace('denied:', '').trim();
-    return { type: 'denied', reason };
+    displayStatus = 'denied';
+  } else if (status === 'recommended') {
+    displayStatus = 'recommended';
+  } else if (status === 'reviewed') {
+    displayStatus = 'reviewed';
+  } else if (status === 'submitted') {
+    displayStatus = 'submitted';
   }
-  return status;
+  
+  const cfg = STATUS_CONFIG[displayStatus] ?? STATUS_CONFIG.submitted;
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${cfg.badgeStyle}`}>
+      {cfg.label}
+    </span>
+  );
 }
 
-export default function Review({ reports, filters }) {
-  const [search, setSearch] = useState(filters.search || "");
-  const [perPage, setPerPage] = useState(filters.perPage || 10);
+function EmptyState({ statusFilter, hasFilters, onClear, mobile = false }) {
+  return (
+    <div className={`px-4 text-center ${mobile ? 'py-8' : 'py-12'}`}>
+      <FileCheck2 className={`mx-auto text-gray-400 mb-3 ${mobile ? 'w-10 h-10' : 'w-12 h-12'}`} />
+      <h3 className="text-sm font-medium text-gray-900">No reports found</h3>
+      <p className="mt-1 text-xs text-gray-500">
+        {hasFilters ? 'Try adjusting your filters or search terms.' : 'No reports available at this time.'}
+      </p>
+      {hasFilters && (
+        <button onClick={onClear} className="mt-3 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors">
+          Clear Filters
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export default function Review({ reports, filters, statusCounts }) {
+  const [search,        setSearch]         = useState(filters.search || "");
+  const [sortBy,        setSortBy]         = useState(filters.sortBy || 'created_at');
+  const [sortOrder,     setSortOrder]      = useState(filters.sortOrder || 'desc');
+  const [statusFilter,  setStatusFilter]   = useState(filters.statusFilter || 'all');
+  const [perPage,       setPerPage]        = useState(filters.perPage || 10);
   const [expandedReport, setExpandedReport] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [modalUrl, setModalUrl] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [showDenyModal, setShowDenyModal] = useState(false);
-  const [denyingReport, setDenyingReport] = useState(null);
-  const [denyReason, setDenyReason] = useState("");
+  const [showModal,     setShowModal]      = useState(false);
+  const [modalUrl,      setModalUrl]       = useState(null);
+  const [loading,       setLoading]        = useState(false);
+  const [showDenyModal, setShowDenyModal]  = useState(false);
+  const [denyingReport, setDenyingReport]  = useState(null);
+  const [denyReason,    setDenyReason]     = useState("");
   const [showWarningModal, setShowWarningModal] = useState(false);
-  const [warningAction, setWarningAction] = useState(null);
+  const [warningAction, setWarningAction]  = useState(null);
   const [warningReportId, setWarningReportId] = useState(null);
 
   const { auth } = usePage().props;
@@ -42,12 +129,18 @@ export default function Review({ reports, filters }) {
   const isRpmo = role === 'rpmo';
   const canTakeAction = isStaff || isRpmo;
 
+  const pushRouter = (overrides = {}) =>
+    router.get(
+      route("review-reports.index"),
+      { search, sortBy, sortOrder, statusFilter, perPage, ...overrides },
+      { preserveState: true, preserveScroll: false }
+    );
+
+  // Debounce search
   useEffect(() => {
-    const delay = setTimeout(() => {
-      router.get(route("review-reports.index"), { search, perPage }, { preserveState: true, replace: true });
-    }, 400);
-    return () => clearTimeout(delay);
-  }, [search, perPage]);
+    const timer = setTimeout(() => pushRouter(), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     const handleEsc = (e) => {
@@ -60,6 +153,30 @@ export default function Review({ reports, filters }) {
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
+
+  const handleStatusFilter = (val) => {
+    setStatusFilter(val);
+    pushRouter({ statusFilter: val, page: 1 });
+  };
+
+  const handlePerPage = (e) => {
+    const val = e.target.value;
+    setPerPage(val);
+    pushRouter({ perPage: val, page: 1 });
+  };
+
+  const handleClear = () => {
+    setSearch('');
+    setStatusFilter('all');
+    setPerPage(10);
+    router.get(route('review-reports.index'), {}, { preserveState: true });
+  };
+
+  const handlePageChange = (link) => {
+    if (!link.url) return;
+    const pageNum = new URL(link.url).searchParams.get('page');
+    if (pageNum) pushRouter({ page: pageNum });
+  };
 
   const handleWarningClick = (action, reportId) => {
     setWarningAction(action);
@@ -97,21 +214,33 @@ export default function Review({ reports, filters }) {
     setDenyReason("");
   };
 
+  const formatSubmissionDate = (dateStr) => {
+    if (!dateStr) return "-";
+    const date = new Date(dateStr);
+    const options = { year: "numeric", month: "short", day: "numeric" };
+    return date.toLocaleDateString("en-US", options);
+  };
+
+  const hasFilters = !!(search || statusFilter !== 'all');
+  const data = reports?.data || [];
+  const pagination = reports?.data ? reports : null;
+
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
       <Head title="Review Reports" />
-      <div className="max-w-7xl mx-auto">
-        {/* Main Content Card */}
-        <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
-          {/* Card Header */}
-          <div className="bg-gray-50 p-3 md:p-6 border-b border-gray-100">
+
+      <div className="max-w-8xl mx-auto">
+        <div className="bg-white rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
+
+          {/* Header */}
+          <div className="bg-gray-50 p-4 md:p-6 border-b border-gray-100">
             <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
+              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
                 <FileCheck2 className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">Review Reports</h2>
-                <p className="text-xs md:text-sm text-gray-600 mt-0.5">
+                <p className="text-xs md:text-sm text-gray-600 mt-0.5 md:mt-1">
                   {isStaff && "Review and recommend quarterly report submissions"}
                   {isRpmo && "Review recommended quarterly reports"}
                 </p>
@@ -120,229 +249,250 @@ export default function Review({ reports, filters }) {
           </div>
 
           {/* Filters */}
-          <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
-            <div className="flex flex-col gap-3 md:gap-4">
-              {/* Search Bar */}
+          <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100 space-y-3">
+
+            {/* Status Tabs */}
+            <StatusTabs statusFilter={statusFilter} statusCounts={statusCounts} onChange={handleStatusFilter} />
+
+            {/* Search + Per Page */}
+            <div className="flex flex-col md:flex-row gap-2 md:gap-4">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Search by project or proponent..."
+                  placeholder="Search project, proponent..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                  className="w-full pl-9 md:pl-10 pr-8 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white shadow-sm"
                 />
                 {search && (
-                  <button
-                    onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
+                  <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
 
-              {/* Per Page */}
-              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
+              <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm w-fit">
                 <select
                   value={perPage}
-                  onChange={(e) => setPerPage(e.target.value)}
-                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
+                  onChange={handlePerPage}
+                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer py-2"
                 >
-                  {[10, 20, 50, 100].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
+                  {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
-                <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">per page</span>
+                <span className="text-xs text-gray-500 hidden md:inline">entries</span>
               </div>
             </div>
+
+            {/* Clear Filters */}
+            {hasFilters && (
+              <div className="flex">
+                <button
+                  onClick={handleClear}
+                  className="flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors text-xs md:text-sm font-medium"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Clear filters</span>
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Desktop Table View */}
+          {/* Desktop Table */}
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Project</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Proponent</th>
-                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Submitted</th>
-                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {reports.data.map((report) => {
-                  const statusDisplay = getStatusDisplay(report.status);
-                  const isDenied = typeof statusDisplay === 'object' && statusDisplay.type === 'denied';
-                  
-                  return (
-                    <tr key={report.report_id} className="hover:bg-amber-50/40 transition-colors duration-200">
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => setExpandedReport(expandedReport === report.report_id ? null : report.report_id)}
-                          className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold transition"
-                        >
-                          {report.project.project_title}
-                          {expandedReport === report.report_id ? (
-                            <ChevronUp className="w-4 h-4" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4" />
-                          )}
-                        </button>
-
-                        {expandedReport === report.report_id && (
-                          <div className="mt-4 ml-4 p-4 bg-gradient-to-r from-blue-50 to-transparent border-l-4 border-blue-400 rounded space-y-2">
-                            <div className="text-sm text-gray-700">
-                              <span className="font-semibold text-gray-900">Report ID:</span> {report.report_id}
-                            </div>
-                            {isDenied && (
-                              <div className="text-sm text-red-800 bg-red-50 p-2 rounded border border-red-200">
-                                <span className="font-semibold">Denial Reason:</span>
-                                <p className="mt-1">{statusDisplay.reason}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-gray-700">
-                          <Building2 className="w-4 h-4 text-gray-400" />
-                          {report.project.company?.company_name || "Unknown"}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4 text-center">
-                        <div className="text-sm text-gray-600">
-                          {formatSubmissionDate(report.created_at)}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2 justify-center flex-wrap">
+            {data.length === 0 ? (
+              <EmptyState statusFilter={statusFilter} hasFilters={hasFilters} onClear={handleClear} />
+            ) : (
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Project</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Proponent</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Submitted</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {data.map((report) => {
+                    const isDenied = report.status?.startsWith('denied:');
+                    
+                    return (
+                      <tr key={report.report_id} className="hover:bg-blue-50/30 transition-colors">
+                        <td className="px-6 py-4">
                           <button
-                            onClick={() => {
-                              setLoading(true);
-                              setModalUrl(route("reports.view", report.report_id));
-                              setShowModal(true);
-                            }}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium text-sm shadow-md hover:shadow-lg"
+                            onClick={() => setExpandedReport(expandedReport === report.report_id ? null : report.report_id)}
+                            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold transition"
                           >
-                            <Eye className="w-4 h-4" />
-                            <span className="hidden sm:inline">View</span>
+                            <span className="line-clamp-2">{report.project.project_title}</span>
+                            {expandedReport === report.report_id ? (
+                              <ChevronUp className="w-4 h-4 flex-shrink-0" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 flex-shrink-0" />
+                            )}
                           </button>
 
-                          {canTakeAction && report.status === 'submitted' && (
-                            <>
-                              <button
-                                onClick={() => handleWarningClick('recommend', report.report_id)}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm shadow-md hover:shadow-lg"
-                              >
-                                <ThumbsUp className="w-4 h-4" />
-                                <span className="hidden sm:inline">Recommend</span>
-                              </button>
-
-                              <button
-                                onClick={() => handleDenyClick(report.report_id)}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium text-sm shadow-md hover:shadow-lg"
-                              >
-                                <XCircle className="w-4 h-4" />
-                                <span className="hidden sm:inline">Deny</span>
-                              </button>
-                            </>
+                          {expandedReport === report.report_id && (
+                            <div className="mt-4 ml-4 p-4 bg-gradient-to-r from-blue-50 to-transparent border-l-4 border-blue-400 rounded space-y-2">
+                              <div className="text-sm text-gray-700">
+                                <span className="font-semibold text-gray-900">Report ID:</span> {report.report_id}
+                              </div>
+                              {isDenied && (
+                                <div className="text-sm text-red-800 bg-red-50 p-2 rounded border border-red-200">
+                                  <span className="font-semibold">Denial Reason:</span>
+                                  <p className="mt-1">{report.status.replace('denied: ', '')}</p>
+                                </div>
+                              )}
+                            </div>
                           )}
+                        </td>
 
-                          {canTakeAction && report.status?.startsWith('recommended') && (
-                            <>
-                              <button
-                                onClick={() => handleWarningClick('reviewed', report.report_id)}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-sm shadow-md hover:shadow-lg"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                                <span className="hidden sm:inline">Reviewed</span>
-                              </button>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 text-gray-700">
+                            <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <span className="truncate">{report.project.proponent?.company_name || "—"}</span>
+                          </div>
+                        </td>
 
-                              <button
-                                onClick={() => handleDenyClick(report.report_id)}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium text-sm shadow-md hover:shadow-lg"
-                              >
-                                <XCircle className="w-4 h-4" />
-                                <span className="hidden sm:inline">Deny</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {formatSubmissionDate(report.created_at)}
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <StatusBadge status={report.status} />
+                        </td>
+
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex gap-2 justify-center flex-wrap">
+                            <button
+                              onClick={() => {
+                                setLoading(true);
+                                setModalUrl(route("reports.view", report.report_id));
+                                setShowModal(true);
+                              }}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium text-xs"
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span className="hidden sm:inline">View</span>
+                            </button>
+
+                            {canTakeAction && report.status === 'submitted' && (
+                              <>
+                                <button
+                                  onClick={() => handleWarningClick('recommend', report.report_id)}
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition font-medium text-xs"
+                                >
+                                  <ThumbsUp className="w-4 h-4" />
+                                  <span className="hidden sm:inline">Recommend</span>
+                                </button>
+
+                                <button
+                                  onClick={() => handleDenyClick(report.report_id)}
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium text-xs"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  <span className="hidden sm:inline">Deny</span>
+                                </button>
+                              </>
+                            )}
+
+                            {canTakeAction && report.status?.startsWith('recommended') && (
+                              <>
+                                <button
+                                  onClick={() => handleWarningClick('reviewed', report.report_id)}
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium text-xs"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                  <span className="hidden sm:inline">Reviewed</span>
+                                </button>
+
+                                <button
+                                  onClick={() => handleDenyClick(report.report_id)}
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium text-xs"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  <span className="hidden sm:inline">Deny</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
 
-          {/* Mobile Card View */}
-          <div className="md:hidden divide-y divide-gray-100">
-            {reports.data.map((report) => {
-              const statusDisplay = getStatusDisplay(report.status);
-              const isDenied = typeof statusDisplay === 'object' && statusDisplay.type === 'denied';
+          {/* Mobile Cards */}
+          <div className="md:hidden divide-y divide-gray-100 bg-white">
+            {data.length === 0 ? (
+              <EmptyState statusFilter={statusFilter} hasFilters={hasFilters} onClear={handleClear} mobile />
+            ) : (
+              data.map((report) => {
+                const isDenied = report.status?.startsWith('denied:');
 
-              return (
-                <div key={report.report_id} className="p-4 space-y-4 bg-white">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <button
-                        onClick={() => setExpandedReport(expandedReport === report.report_id ? null : report.report_id)}
-                        className="flex items-center gap-2 font-bold text-gray-900 hover:text-blue-600 transition"
-                      >
-                        <span className="text-sm line-clamp-2">{report.project.project_title}</span>
-                        {expandedReport === report.report_id ? (
-                          <ChevronUp className="w-5 h-5 flex-shrink-0" />
-                        ) : (
-                          <ChevronDown className="w-5 h-5 flex-shrink-0" />
-                        )}
-                      </button>
-                      <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
-                        <Building2 className="w-3 h-3" />
-                        {report.project.company?.company_name || "Unknown"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-gray-600 bg-gray-50 p-3 rounded-lg">
-                    <span className="font-semibold text-gray-900">Submitted:</span> {formatSubmissionDate(report.created_at)}
-                  </div>
-
-                  {expandedReport === report.report_id && (
-                    <div className="p-3 bg-blue-50 border-l-4 border-blue-400 rounded space-y-2">
-                      <div className="text-xs text-gray-700">
-                        <span className="font-semibold">Report ID:</span> {report.report_id}
+                return (
+                  <div key={report.report_id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <button
+                          onClick={() => setExpandedReport(expandedReport === report.report_id ? null : report.report_id)}
+                          className="flex items-center gap-2 font-bold text-gray-900 hover:text-blue-600 transition"
+                        >
+                          <span className="text-sm line-clamp-2">{report.project.project_title}</span>
+                          {expandedReport === report.report_id ? (
+                            <ChevronUp className="w-5 h-5 flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="w-5 h-5 flex-shrink-0" />
+                          )}
+                        </button>
+                        <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
+                          <Building2 className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{report.project.proponent?.company_name || "Unknown"}</span>
+                        </p>
                       </div>
-                      {isDenied && (
-                        <div className="text-xs text-red-800 bg-red-50 p-2 rounded border border-red-200">
-                          <span className="font-semibold">Denial Reason:</span>
-                          <p className="mt-1">{statusDisplay.reason}</p>
-                        </div>
-                      )}
                     </div>
-                  )}
 
-                  {canTakeAction && report.status === 'submitted' && (
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => {
-                          setLoading(true);
-                          setModalUrl(route("reports.view", report.report_id));
-                          setShowModal(true);
-                        }}
-                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium text-sm"
-                      >
-                        <Eye className="w-4 h-4" />
-                        View Report
-                      </button>
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gray-600">
+                        <span className="font-semibold">Submitted:</span> {formatSubmissionDate(report.created_at)}
+                      </div>
+                      <StatusBadge status={report.status} />
+                    </div>
 
+                    {expandedReport === report.report_id && (
+                      <div className="p-3 bg-blue-50 border-l-4 border-blue-400 rounded space-y-2">
+                        <div className="text-xs text-gray-700">
+                          <span className="font-semibold">Report ID:</span> {report.report_id}
+                        </div>
+                        {isDenied && (
+                          <div className="text-xs text-red-800 bg-red-50 p-2 rounded border border-red-200">
+                            <span className="font-semibold">Denial Reason:</span>
+                            <p className="mt-1">{report.status.replace('denied: ', '')}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setLoading(true);
+                        setModalUrl(route("reports.view", report.report_id));
+                        setShowModal(true);
+                      }}
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium text-sm"
+                    >
+                      <Eye className="w-4 h-4" />
+                      View Report
+                    </button>
+
+                    {canTakeAction && report.status === 'submitted' && (
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => handleWarningClick('recommend', report.report_id)}
-                          className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm"
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition font-medium text-xs"
                         >
                           <ThumbsUp className="w-4 h-4" />
                           Recommend
@@ -350,33 +500,19 @@ export default function Review({ reports, filters }) {
 
                         <button
                           onClick={() => handleDenyClick(report.report_id)}
-                          className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium text-sm"
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium text-xs"
                         >
                           <XCircle className="w-4 h-4" />
                           Deny
                         </button>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {canTakeAction && report.status?.startsWith('recommended') && (
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => {
-                          setLoading(true);
-                          setModalUrl(route("reports.view", report.report_id));
-                          setShowModal(true);
-                        }}
-                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium text-sm"
-                      >
-                        <Eye className="w-4 h-4" />
-                        View Report
-                      </button>
-
+                    {canTakeAction && report.status?.startsWith('recommended') && (
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => handleWarningClick('reviewed', report.report_id)}
-                          className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-sm"
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium text-xs"
                         >
                           <CheckCircle className="w-4 h-4" />
                           Reviewed
@@ -384,72 +520,49 @@ export default function Review({ reports, filters }) {
 
                         <button
                           onClick={() => handleDenyClick(report.report_id)}
-                          className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium text-sm"
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium text-xs"
                         >
                           <XCircle className="w-4 h-4" />
                           Deny
                         </button>
                       </div>
-                    </div>
-                  )}
-
-                  {!canTakeAction && (
-                    <button
-                      onClick={() => {
-                        setLoading(true);
-                        setModalUrl(route("reports.view", report.report_id));
-                        setShowModal(true);
-                      }}
-                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium text-sm"
-                    >
-                      <Eye className="w-4 h-4" />
-                      View Report
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
 
-          {/* Empty State */}
-          {reports.data.length === 0 && (
-            <div className="text-center py-12 px-4">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                <Clock className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1">No Reports</h3>
-              <p className="text-sm text-gray-600">There are no reports at this time.</p>
-            </div>
-          )}
-
           {/* Pagination */}
-          {reports.links && reports.links.length > 1 && (
+          {pagination && pagination.links && pagination.links.length > 3 && (
             <div className="bg-gray-50/50 px-3 md:px-6 py-3 md:py-4 border-t border-gray-100">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
-                <div className="text-xs md:text-sm text-gray-600">
-                  Showing {reports.from || 1} to {reports.to || reports.data.length} of {reports.total || reports.data.length} results
-                </div>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <p className="text-xs md:text-sm text-gray-600">
+                  Showing <span className="font-medium">{pagination.from || 0}</span>–
+                  <span className="font-medium">{pagination.to || 0}</span> of{' '}
+                  <span className="font-medium">{pagination.total || 0}</span> reports
+                </p>
                 <div className="flex gap-1 overflow-x-auto">
-                  {reports.links.map((link, index) => (
+                  {pagination.links.map((link, i) => (
                     <button
-                      key={index}
+                      key={i}
                       disabled={!link.url}
-                      onClick={() => link.url && router.visit(link.url)}
-                      className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all duration-200 flex-shrink-0 ${
+                      onClick={() => handlePageChange(link)}
+                      className={`px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm rounded-lg border transition-all flex-shrink-0 ${
                         link.active
-                          ? "bg-blue-500 text-white border-transparent shadow-md"
+                          ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
                           : link.url
-                          ? "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                          : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                          ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                       }`}
-                    >
-                      {link.label === "&laquo; Previous" ? "←" : link.label === "Next &raquo;" ? "→" : link.label}
-                    </button>
+                      dangerouslySetInnerHTML={{ __html: link.label }}
+                    />
                   ))}
                 </div>
               </div>
             </div>
           )}
+
         </div>
       </div>
 

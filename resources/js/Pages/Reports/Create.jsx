@@ -255,7 +255,7 @@ export default function Create({ project, objects, equipments, nonequipments, re
                         <div>
                           <label className="text-xs text-gray-500 block mb-1">Item Name</label>
                           <input
-                            className="w-full px-2 md:px-4 py-2 md:py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                            className="w-full px-2 md:px-4 py-2 md:py-2 text-xs text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                             placeholder="Item name"
                             value={data.equipments_actual[index]?.item_name || item.item_name}
                             onChange={(e) =>
@@ -629,132 +629,163 @@ export default function Create({ project, objects, equipments, nonequipments, re
             </div>
           </div>
 
-          {/* 7. Employment */}
-          <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100">
-            <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-              <div className="p-1.5 md:p-2 bg-green-100 rounded-lg flex-shrink-0">
-                <Users className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+        {/* 7. Employment */}
+        <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100">
+          <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+            <div className="p-1.5 md:p-2 bg-green-100 rounded-lg flex-shrink-0">
+              <Users className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+            </div>
+            <h2 className="text-lg md:text-xl font-semibold text-gray-900">
+              New Employment
+            </h2>
+          </div>
+
+          <div className="space-y-4 md:space-y-6">
+            {/* Direct Employment */}
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2 md:mb-3 text-sm md:text-base">
+                New Direct Employment:
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
+                <div className="flex flex-col">
+                  <label className="text-xs md:text-sm text-gray-600 font-medium mb-1">
+                    Male
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="New Male"
+                    className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    value={data.new_male}
+                    onChange={(e) =>
+                      setData(
+                        "new_male",
+                        e.target.value === "" ? 0 : Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-xs md:text-sm text-gray-600 font-medium mb-1">
+                    Female
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="New Female"
+                    className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    value={data.new_female}
+                    onChange={(e) =>
+                      setData(
+                        "new_female",
+                        e.target.value === "" ? 0 : Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="px-2 md:px-4 py-2 md:py-3 bg-green-100 rounded-lg md:rounded-xl text-center font-semibold text-green-700 text-sm">
+                  Total: {newEmploymentTotal}
+                </div>
               </div>
-              <h2 className="text-lg md:text-xl font-semibold text-gray-900">New Employment</h2>
             </div>
 
-            <div className="space-y-4 md:space-y-6">
-              {/* Direct Employment */}
-              <div>
-                <h3 className="font-semibold text-gray-700 mb-2 md:mb-3 text-sm md:text-base">New Direct Employment:</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
-                  <div className="flex flex-col">
-                    <label className="text-xs md:text-sm text-gray-600 font-medium mb-1">Male</label>
-                    <input
-                      type="number"
-                      placeholder="New Male"
-                      className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
-                      value={data.new_male ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setData("new_male", val === "" ? "" : Number(val));
-                      }}
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <label className="text-xs md:text-sm text-gray-600 font-medium mb-1">Female</label>
-                    <input
-                      type="number"
-                      placeholder="New Female"
-                      className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
-                      value={data.new_female ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setData("new_female", val === "" ? "" : Number(val));
-                      }}
-                    />
-                  </div>
-                  <div className="px-2 md:px-4 py-2 md:py-3 bg-green-100 rounded-lg md:rounded-xl text-center font-semibold text-green-700 text-sm">
-                    Total: {newEmploymentTotal}
-                  </div>
+            {/* Indirect Employment - Forward */}
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2 md:mb-3 text-sm md:text-base">
+                New Indirect Employment (Forward):
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
+                <div className="flex flex-col">
+                  <label className="text-xs md:text-sm text-gray-600 font-medium mb-1">
+                    Male
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="New IF Male"
+                    className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    value={data.new_ifmale}
+                    onChange={(e) =>
+                      setData(
+                        "new_ifmale",
+                        e.target.value === "" ? 0 : Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-xs md:text-sm text-gray-600 font-medium mb-1">
+                    Female
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="New IF Female"
+                    className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    value={data.new_iffemale}
+                    onChange={(e) =>
+                      setData(
+                        "new_iffemale",
+                        e.target.value === "" ? 0 : Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="px-2 md:px-4 py-2 md:py-3 bg-blue-100 rounded-lg md:rounded-xl text-center font-semibold text-blue-700 text-sm">
+                  Total: {newIndirectMaleTotal}
                 </div>
               </div>
+            </div>
 
-              {/* Indirect Employment - Forward */}
-              <div>
-                <h3 className="font-semibold text-gray-700 mb-2 md:mb-3 text-sm md:text-base">New Indirect Employment (Forward):</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
-                  <div className="flex flex-col">
-                    <label className="text-xs md:text-sm text-gray-600 font-medium mb-1">Male</label>
-                    <input
-                      type="number"
-                      placeholder="New IF Male"
-                      className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
-                      value={data.new_ifmale ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setData("new_ifmale", val === "" ? "" : Number(val));
-                      }}
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <label className="text-xs md:text-sm text-gray-600 font-medium mb-1">Female</label>
-                    <input
-                      type="number"
-                      placeholder="New IF Female"
-                      className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
-                      value={data.new_iffemale ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setData("new_iffemale", val === "" ? "" : Number(val));
-                      }}
-                    />
-                  </div>
-                  <div className="px-2 md:px-4 py-2 md:py-3 bg-blue-100 rounded-lg md:rounded-xl text-center font-semibold text-blue-700 text-sm">
-                    Total: {newIndirectMaleTotal}
-                  </div>
+            {/* Indirect Employment - Backward */}
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2 md:mb-3 text-sm md:text-base">
+                New Indirect Employment (Backward):
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
+                <div className="flex flex-col">
+                  <label className="text-xs md:text-sm text-gray-600 font-medium mb-1">
+                    Male
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="New IB Male"
+                    className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    value={data.new_ibmale}
+                    onChange={(e) =>
+                      setData(
+                        "new_ibmale",
+                        e.target.value === "" ? 0 : Number(e.target.value)
+                      )
+                    }
+                  />
                 </div>
-              </div>
 
-              {/* Indirect Employment - Backward */}
-              <div>
-                <h3 className="font-semibold text-gray-700 mb-2 md:mb-3 text-sm md:text-base">New Indirect Employment (Backward):</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
-                  <div className="flex flex-col">
-                    <label className="text-xs md:text-sm text-gray-600 font-medium mb-1">Male</label>
-                    <input
-                      type="number"
-                      placeholder="New IB Male"
-                      className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
-                      value={data.new_ibmale ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setData("new_ibmale", val === "" ? "" : Number(val));
-                      }}
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <label className="text-xs md:text-sm text-gray-600 font-medium mb-1">Female</label>
-                    <input
-                      type="number"
-                      placeholder="New IB Female"
-                      className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
-                      value={data.new_ibfemale ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setData("new_ibfemale", val === "" ? "" : Number(val));
-                      }}
-                    />
-                  </div>
-                  <div className="px-2 md:px-4 py-2 md:py-3 bg-indigo-100 rounded-lg md:rounded-xl text-center font-semibold text-indigo-700 text-sm">
-                    Total: {newIndirectFemaleTotal}
-                  </div>
+                <div className="flex flex-col">
+                  <label className="text-xs md:text-sm text-gray-600 font-medium mb-1">
+                    Female
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="New IB Female"
+                    className="px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 bg-gray-50"
+                    value={data.new_ibfemale}
+                    onChange={(e) =>
+                      setData(
+                        "new_ibfemale",
+                        e.target.value === "" ? 0 : Number(e.target.value)
+                      )
+                    }
+                  />
                 </div>
-              </div>
 
-              {/* Overall Total */}
-              <div className="bg-gradient-to-r from-green-100 to-blue-100 p-3 md:p-4 rounded-lg md:rounded-xl">
-                <p className="text-center text-base md:text-lg font-bold text-gray-800">
-                  Overall Employment Total: {overallTotal}
-                </p>
+                <div className="px-2 md:px-4 py-2 md:py-3 bg-indigo-100 rounded-lg md:rounded-xl text-center font-semibold text-indigo-700 text-sm">
+                  Total: {newIndirectFemaleTotal}
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
           {/* 8. Markets */}
           <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl p-4 md:p-8 border border-gray-100">

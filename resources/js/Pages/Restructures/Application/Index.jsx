@@ -196,7 +196,7 @@ export default function ApplyRestructIndex({ applyRestructs, filters }) {
     <div className="min-h-screen">
       <Head title="Apply for Restructuring" />
 
-      <div className="max-w-7xl mx-auto p-3 md:p-6 lg:p-8">
+      <div className="max-w-8xl mx-auto p-3 md:p-6 lg:p-8">
 
         {/* Flash */}
         {props.flash?.success && (

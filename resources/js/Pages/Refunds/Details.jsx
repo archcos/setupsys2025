@@ -177,13 +177,13 @@ export default function Details({ project, months, summary }) {
       
       <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
         {/* Back Button */}
-        <Link
-          href="/refunds"
-          className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 group"
-        >
-          <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-          Back to Projects
-        </Link>
+          <button
+            onClick={() => window.history.back()}
+            className="inline-flex items-center gap-2 text-xs md:text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-3 md:mb-4 group"
+          >
+            <ChevronLeft className="w-3 h-3 md:w-4 md:h-4 transition-transform group-hover:-translate-x-1" />
+            Back to Refund Management
+          </button>
 
           {!isRPMO && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg md:rounded-xl p-3 md:p-4 flex items-start gap-3">

@@ -126,13 +126,13 @@ export default function ComplianceChecklist({ project, compliance, errors, userR
         <div className="max-w-4xl mx-auto p-3 md:p-6 lg:p-8">
           {/* Header */}
           <div className="mb-4 md:mb-8">
-            <Link
-              href="/compliance"
-              className="inline-flex items-center gap-2 text-xs md:text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-3 group"
-            >
-              <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-              Back to List
-            </Link>
+          <button
+            onClick={() => window.history.back()}
+            className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors duration-200 mb-3 md:mb-4 group"
+          >
+            <ChevronLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+            Back to Compliance Review List
+          </button>
             
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4">
               <div className="min-w-0 flex-1">

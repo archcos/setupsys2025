@@ -1,5 +1,5 @@
 import { useForm, Link, Head } from '@inertiajs/react';
-import { ChevronLeft, Save, Info, Loader2, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Save, Info, Loader2, AlertCircle, User, Calendar } from 'lucide-react';
 
 export default function Edit({ announcement }) {
   const { data, setData, put, processing, errors } = useForm({
@@ -8,6 +8,17 @@ export default function Edit({ announcement }) {
     start_date: announcement.start_date || '',
     end_date: announcement.end_date || '',
   });
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -37,6 +48,37 @@ export default function Edit({ announcement }) {
               <p className="text-xs md:text-sm mt-0.5 md:mt-1">
                 Update your announcement details and save changes
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Info Section */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg md:rounded-xl p-4 md:p-5 mb-4 md:mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Created Date */}
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0 mt-0.5">
+                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-blue-700">Created</p>
+                <p className="text-xs md:text-sm text-blue-900 font-semibold">
+                  {formatDate(announcement.created_at)}
+                </p>
+              </div>
+            </div>
+
+            {/* Added By */}
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0 mt-0.5">
+                <User className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-blue-700">Last Modified By</p>
+                <p className="text-xs md:text-sm text-blue-900 font-semibold">
+                  {announcement.added_by?.name || "Unknown"}
+                </p>
+              </div>
             </div>
           </div>
         </div>

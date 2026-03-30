@@ -104,11 +104,11 @@ public function uploadApprovedFile(Request $request, $moa_id){
             $projectTitle = preg_replace('/[^A-Za-z0-9\-]/', '_', $moa->project->project_title);
             $projectTitle = substr($projectTitle, 0, 50);
             
-            $proponentName = preg_replace('/[^A-Za-z0-9\-]/', '_', $moa->project->proponent->company_name);
-            $proponentName = substr($proponentName, 0, 50);
+            $companyName = preg_replace('/[^A-Za-z0-9\-]/', '_', $moa->project->proponent->company_name);
+            $companyName = substr($companyName, 0, 50);
             
             $timestamp = now()->format('Y-m-d_His');
-            $fileName = "MOA_{$projectTitle}_{$proponentName}_{$timestamp}.{$extension}";
+            $fileName = "MOA_{$projectTitle}_{$companyName}_{$timestamp}.{$extension}";
             
             $currentYear = now()->year;
             $projectId = $moa->project_id;
@@ -310,7 +310,7 @@ public function generateFromMoa($moa_id)
     //     'ratio' => true,
     // ]);
 
-    $proponentAddress = collect([
+    $companyAddress = collect([
         $proponent->street,
         $proponent->barangay,
         $proponent->municipality,
@@ -330,8 +330,8 @@ public function generateFromMoa($moa_id)
     $templateProcessor->setValue('OWNER_NAME', $moa->owner_name);
     $templateProcessor->setValue('position', $moa->owner_position);
     $templateProcessor->setValue('witness', $moa->witness);
-    $templateProcessor->setValue('company_NAME', $proponent->company_name);
-    $templateProcessor->setValue('proponent_LOCATION', $proponentAddress);
+    $templateProcessor->setValue('COMPANY_NAME', $proponent->company_name);
+    $templateProcessor->setValue('COMPANY_LOCATION', $companyAddress);
     $templateProcessor->setValue('office_name', $office->office_name ?? 'N/A');
     $templateProcessor->setValue('PROJECT_TITLE', $project->project_title);
     $templateProcessor->setValue('phase_one', $phaseOne);

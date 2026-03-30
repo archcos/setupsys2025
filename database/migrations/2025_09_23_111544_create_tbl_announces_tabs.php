@@ -15,6 +15,7 @@ return new class extends Migration
             $table->text('details')->nullable();
             $table->date('start_date')->nullable();
             $table->date('end_date')->nullable();
+            $table->unsignedBigInteger('added_by')->nullable();
             $table->timestamps();
 
             // Foreign Key
@@ -23,6 +24,8 @@ return new class extends Migration
                   ->on('tbl_offices')
                   ->onDelete('cascade')
                   ->onUpdate('cascade');
+            $table->foreign('added_by')->references('user_id')->on('tbl_users')->onDelete('set null');
+
         });
     }
 

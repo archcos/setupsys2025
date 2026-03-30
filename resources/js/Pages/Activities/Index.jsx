@@ -85,9 +85,10 @@ export default function Index({ activities, filters }) {
   }, {});
 
   return (
-    <div className="p-3 md:p-6 overflow-y-auto w-full">
-      <Head title="Activities" />
-      <div className="max-w-7xl mx-auto">
+    <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
+        <Head title="Activities" />
+  
+        <div className="max-w-8xl mx-auto">
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
 
           {/* Card Header */}
@@ -400,6 +401,6 @@ export default function Index({ activities, filters }) {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

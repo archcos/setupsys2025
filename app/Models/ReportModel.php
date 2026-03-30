@@ -16,8 +16,6 @@ class ReportModel extends Model
 
     protected $fillable = [
         'project_id',
-        'actual_accom',
-        'actual_remarks',
         'util_remarks',
         'new_male',
         'new_female',
