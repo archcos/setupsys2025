@@ -17,23 +17,17 @@ export default function LoginPage() {
     password: '',
   });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setIsAuthenticating(true);
 
-    try {
-      await fetch('/sanctum/csrf-cookie', { credentials: 'same-origin' });
-
-      post('/signin', {
-        onError: (errors) => {
-          console.error(errors.message);
-          setIsAuthenticating(false);
-        },
-      });
-    } catch (error) {
-      console.error("CSRF refresh failed:", error);
-      setIsAuthenticating(false);
-    }
+    // Inertia handles CSRF automatically via the XSRF-TOKEN cookie —
+    // no need for a manual /sanctum/csrf-cookie fetch on every submit.
+    post('/signin', {
+      onError: () => {
+        setIsAuthenticating(false);
+      },
+    });
   };
 
   return (
@@ -86,7 +80,6 @@ export default function LoginPage() {
       {/* ── Announcements Side Bookmark ── */}
       {announcements.length > 0 && (
         <>
-          {/* Backdrop — clicking outside closes the panel */}
           {announcementsOpen && (
             <div
               className="fixed inset-0 z-40"
@@ -94,13 +87,6 @@ export default function LoginPage() {
             />
           )}
 
-          {/*
-            The whole assembly is anchored flush to the right edge via `right-0`.
-            `top-0 h-full` makes it span the full viewport height so the tab
-            stays vertically centred without floating awkwardly.
-            `pointer-events-none` on the outer shell means only the visible
-            elements (tab + panel) actually receive clicks.
-          */}
           <div className="fixed top-0 right-0 h-full z-50 flex items-center pointer-events-none">
             <div className="flex items-center pointer-events-auto">
 
@@ -120,13 +106,11 @@ export default function LoginPage() {
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="flex-shrink-0 mb-1">
                   <path d="M2 2h12v12l-6-3-6 3V2z" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
                 </svg>
-
                 {'ANNOUNCEMENTS'.split('').map((char, i) => (
                   <span key={i} className="text-[11px] font-bold leading-none uppercase">
                     {char}
                   </span>
                 ))}
-
                 <span className="mt-1.5 flex-shrink-0 bg-yellow-400 text-yellow-900 text-[10px] font-extrabold w-[18px] h-[18px] rounded-full flex items-center justify-center leading-none">
                   {announcements.length}
                 </span>
@@ -261,17 +245,10 @@ export default function LoginPage() {
             </div>
 
             {/* Flash messages */}
-            {flash.success && (
+            {(flash.success || flash.message) && (
               <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
                 <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
-                <span>{flash.success}</span>
-              </div>
-            )}
-
-            {flash.message && (
-              <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
-                <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
-                <span>{flash.message}</span>
+                <span>{flash.success || flash.message}</span>
               </div>
             )}
 
@@ -298,7 +275,8 @@ export default function LoginPage() {
                     value={data.login}
                     onChange={(e) => setData('login', e.target.value)}
                     placeholder="Enter your username or email"
-                    disabled={isAuthenticating}
+                    disabled={processing || isAuthenticating}
+                    autoComplete="username"
                     className={`w-full border pl-10 pr-4 py-3.5 rounded-xl transition-colors ${
                       errors.login
                         ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
@@ -328,7 +306,8 @@ export default function LoginPage() {
                     value={data.password}
                     onChange={(e) => setData('password', e.target.value)}
                     placeholder="Enter your password"
-                    disabled={isAuthenticating}
+                    disabled={processing || isAuthenticating}
+                    autoComplete="current-password"
                     className={`w-full border pl-10 pr-12 py-3.5 rounded-xl transition-colors ${
                       errors.password
                         ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
@@ -339,8 +318,9 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    disabled={isAuthenticating}
+                    disabled={processing || isAuthenticating}
                     className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none disabled:cursor-not-allowed"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
