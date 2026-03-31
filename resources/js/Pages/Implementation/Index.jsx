@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, router, Head } from '@inertiajs/react';
 import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, ArrowUpDown, Hammer, List } from 'lucide-react';
+import { cleanParams } from '@/utils/cleanParams';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -122,19 +123,28 @@ function UntaggingProgress({ totalTags, projectCost }) {
 export default function ImplementationIndex({ implementations, filters, offices, userRole }) {
   const [search,        setSearch]        = useState(filters?.search        || '');
   const [perPage,       setPerPage]       = useState(filters?.perPage       || 10);
-  const [statusFilter,  setStatusFilter]  = useState(filters?.statusFilter  ?? 'pending');
+  const [statusFilter,  setStatusFilter]  = useState(filters?.statusFilter  ?? null);
   const [officeFilter,  setOfficeFilter]  = useState(filters?.officeFilter  || '');
   const [sortDirection, setSortDirection] = useState(filters?.direction     || 'desc');
   const [isSorted,      setIsSorted]      = useState(!!filters?.direction);
   const debounceTimer = useRef(null);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
     debounceTimer.current = setTimeout(() => {
       router.get(
         '/implementation',
-        { search, perPage, statusFilter, officeFilter, page: 1, sort: 'project_id', direction: sortDirection },
+        cleanParams(
+          { search, perPage, statusFilter, officeFilter, page: 1, sort: 'project_id', direction: sortDirection },
+          { perPage: 10, sort: 'project_id', direction: 'desc' }
+        ),
         { preserveState: true, preserveScroll: true, replace: true }
       );
     }, 400);
@@ -167,7 +177,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
 
   const statusCounts = { all: total, pending, complete };
 
-  const hasActiveFilters = !!(search || officeFilter || (statusFilter && statusFilter !== 'pending'));
+  const hasActiveFilters = !!(search || officeFilter || (statusFilter && statusFilter !== 'all'));
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
@@ -252,7 +262,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
 
               {hasActiveFilters && (
                 <button
-                  onClick={() => { setSearch(''); setOfficeFilter(''); setStatusFilter('pending'); setSortDirection('desc'); setIsSorted(false); }}
+                  onClick={() => { setSearch(''); setOfficeFilter(''); setStatusFilter(null); setSortDirection('desc'); setIsSorted(false); }}
                   className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors text-xs md:text-sm font-medium"
                 >
                   <X className="w-4 h-4" />
@@ -283,7 +293,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
                 </div>
                 {hasActiveFilters && (
                   <button
-                    onClick={() => { setSearch(''); setOfficeFilter(''); setStatusFilter('pending'); }}
+                    onClick={() => { setSearch(''); setOfficeFilter(''); setStatusFilter('all'); }}
                     className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     Clear Filters

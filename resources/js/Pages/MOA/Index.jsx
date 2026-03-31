@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
 import { Search, FileText, Download, Building2, User, Calendar, Users, X, ArrowUpDown, Upload, FileCheck, AlertCircle, Eye } from 'lucide-react';
+import { cleanParams } from '@/utils/cleanParams';
 
 export default function Index({ moas, filters }) {
   const [search, setSearch] = useState(filters?.search || '');
@@ -8,32 +9,42 @@ export default function Index({ moas, filters }) {
   const [sortBy, setSortBy] = useState(filters?.sortBy || 'created_at');
   const [sortOrder, setSortOrder] = useState(filters?.sortOrder || 'desc');
   const [uploadingMoaId, setUploadingMoaId] = useState(null);
+  const isFirstRender = useRef(true);
+  const debounceTimer = useRef(null);
 
   const { auth, flash } = usePage().props;
   const canUpload = auth?.user?.role === 'staff' || auth?.user?.role === 'rpmo';
 
+  const pushRouter = (overrides = {}) =>
+    router.get('/moa',
+      cleanParams(
+        { search, perPage, sortBy, sortOrder, ...overrides },
+        { perPage: 10, sortBy: 'created_at', sortOrder: 'desc' }
+      ),
+      { preserveState: true, preserveScroll: true, replace: true }
+    );
+
   useEffect(() => {
-    const delaySearch = setTimeout(() => {
-      router.get('/moa', { search, sortBy, sortOrder, perPage }, { preserveState: true, replace: true });
-    }, 400);
-    return () => clearTimeout(delaySearch);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => pushRouter(), 400);
+    return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
   }, [search]);
 
   const handlePerPageChange = (e) => {
     const newPerPage = e.target.value;
     setPerPage(newPerPage);
-    router.get('/moa', { search, perPage: newPerPage, sortBy, sortOrder }, {
-      preserveScroll: true, preserveState: true,
-    });
+    pushRouter({ perPage: newPerPage, page: 1 });
   };
 
   const handleSort = (column) => {
     const newSortOrder = sortBy === column && sortOrder === 'asc' ? 'desc' : 'asc';
     setSortBy(column);
     setSortOrder(newSortOrder);
-    router.get('/moa', { search, perPage, sortBy: column, sortOrder: newSortOrder }, {
-      preserveScroll: true, preserveState: true,
-    });
+    pushRouter({ sortBy: column, sortOrder: newSortOrder });
   };
 
   const handleFileUpload = (moaId, e) => {
@@ -341,7 +352,7 @@ export default function Index({ moas, filters }) {
                 <div className="flex gap-1 overflow-x-auto">
                   {moas.links.map((link, index) => (
                     <button key={index} disabled={!link.url}
-                      onClick={() => link.url && router.visit(link.url)}
+                      onClick={() => link.url && router.visit(link.url, { preserveState: true, replace: true })}
                       className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all duration-200 flex-shrink-0 ${
                         link.active
                           ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-transparent shadow-md'

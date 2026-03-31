@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
 import { Search, X, Building2, ArrowUpDown, Award, Calendar } from 'lucide-react';
+import { cleanParams } from '@/utils/cleanParams';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -121,27 +122,29 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
   const [errors,        setErrors]        = useState({});
   const [isSubmitting,  setIsSubmitting]  = useState(false);
   const [downloadProgress, setDownloadProgress] = useState('');
-
+  const isFirstRender = useRef(true);
+  const debounceTimer = useRef(null);
   const { errors: pageErrors } = usePage().props;
-
-  // Debounced push for search input only
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      router.get(
-        route('approvals.index'),
-        { search, perPage, officeFilter, yearFilter, sortField, sortDirection, statusTab },
-        { preserveState: true, replace: true }
-      );
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [search]);
 
   const pushRouter = (overrides = {}) =>
     router.get(
       route('approvals.index'),
-      { search, perPage, officeFilter, yearFilter, sortField, sortDirection, statusTab, ...overrides },
-      { preserveScroll: true, preserveState: true }
-    );
+      cleanParams(
+        { search, perPage, officeFilter, yearFilter, sortField, sortDirection, statusTab, ...overrides },
+        { perPage: 10, sortDirection: 'asc', statusTab: 'All' }
+      ),
+      { preserveScroll: true, preserveState: true, replace: true }
+  );
+  // Debounced push for search input only
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => pushRouter(), 400);
+    return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
+  }, [search]);
 
   const handleSort = (field) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
@@ -180,7 +183,7 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
     setSortField('');
     setSortDirection('asc');
     setStatusTab('All');
-    router.get(route('approvals.index'), { perPage }, { preserveState: true });
+    router.get(route('approvals.index'), {}, { preserveState: true, replace: true });
   };
 
   const handleOpenModal = (projectId) => {
@@ -517,12 +520,7 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
                         key={index}
                         disabled={!link.url}
                         onClick={() => {
-                          if (!pageNum) return;
-                          router.get(
-                            route('approvals.index'),
-                            { search, perPage, officeFilter, yearFilter, sortField, sortDirection, statusTab, page: pageNum },
-                            { preserveState: true, preserveScroll: false }
-                          );
+                          if (link.url) router.visit(link.url, { preserveState: true, replace: true });
                         }}
                         className={`px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm rounded-lg border transition-all flex-shrink-0 ${
                           link.active

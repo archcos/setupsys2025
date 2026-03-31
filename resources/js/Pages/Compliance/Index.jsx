@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
-import { Search, FileText, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, Eye, ClipboardCheck, Building2 } from 'lucide-react';
+import { Search, FileText, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, Eye, ClipboardCheck, Building2, Hand, TrendingUpDown, TrendingUp } from 'lucide-react';
+import { cleanParams } from '@/utils/cleanParams';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ function ViewButton({ onClick, disabled = false }) {
       disabled={disabled}
       className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
     >
-      <Eye className="w-5  h-5" />
+      <Eye className="w-5 h-5" />
     </button>
   );
 }
@@ -131,18 +132,26 @@ export default function Index({ projects, filters, years, statusCounts, offices 
   const [sortOrder,     setSortOrder]     = useState(filters?.sortOrder     || 'desc');
   const [statusFilter,  setStatusFilter]  = useState(filters?.statusFilter  || 'all');
   const [perPage,       setPerPage]       = useState(filters?.perPage       || 10);
+  const isFirstRender = useRef(true);
 
   const { flash } = usePage().props;
 
   const pushRouter = (overrides = {}) =>
     router.get(
       route('compliance.index'),
-      { search, year, officeFilter, sortBy, sortOrder, statusFilter, perPage, ...overrides },
-      { preserveState: true, preserveScroll: false }
+      cleanParams(
+        { search, year, officeFilter, sortBy, sortOrder, statusFilter, perPage, ...overrides },
+        { sortBy: 'project_id', sortOrder: 'desc', statusFilter: 'all', perPage: 10 }
+      ),
+      { preserveState: true, preserveScroll: true, replace: true }
     );
 
   // Debounce search + year
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     const timer = setTimeout(() => pushRouter(), 400);
     return () => clearTimeout(timer);
   }, [search, year]);
@@ -182,8 +191,7 @@ export default function Index({ projects, filters, years, statusCounts, offices 
 
   const handlePageChange = (link) => {
     if (!link.url) return;
-    const pageNum = new URL(link.url).searchParams.get('page');
-    if (pageNum) pushRouter({ page: pageNum });
+    router.visit(link.url, { preserveState: true, preserveScroll: false, replace: true });
   };
 
   const hasFilters = !!(search || year || officeFilter || statusFilter !== 'all');
@@ -311,27 +319,37 @@ export default function Index({ projects, filters, years, statusCounts, offices 
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       <SortButton
                         field="project_id"
-                        label="PROJECT CODE"
+                        label={<span className="flex items-center gap-2"><FileText className="w-4 h-4" />PROJECT CODE</span>}
                         sortBy={sortBy}
                         onSort={handleSort}
                       />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       <SortButton
                         field="project_title"
-                        label="PROJECT"
+                        label={<span className="flex items-center gap-2"><ClipboardCheck className="w-4 h-4" />PROJECT</span>}
                         sortBy={sortBy}
                         onSort={handleSort}
                       />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Proponent</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Year</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Links</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2"><Building2 className="w-4 h-4" />Proponent</div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2"><Calendar className="w-4 h-4" />Year</div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2"><FileText className="w-4 h-4" />Files  </div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4" />Status</div>
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center justify-center gap-2"><Hand className="w-4 h-4" />Action</div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">

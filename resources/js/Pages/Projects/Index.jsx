@@ -2,6 +2,7 @@ import { Link, router, Head, usePage } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
 import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award, Users, TrendingUp, ChevronDown, ClipboardList, MapPin, Building, Clipboard, Hand, LucideTrendingUp } from 'lucide-react';
 import MultiSelect from '../../components/MultiSelect';
+import { cleanParams } from '@/utils/cleanParams';
 
 // Helper to format date string
 function formatDate(dateStr) {
@@ -82,65 +83,34 @@ export default function Index({ projects, filters, offices, allYears }) {
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(null);
   const [openStatusDropdown, setOpenStatusDropdown] = useState(null);
-  const prevFiltersRef = useRef(null);
+  const isFirstRender = useRef(true);
   const filterTimeoutRef = useRef(null);
   const { auth } = usePage().props;
   const role = auth?.user?.role;
   const [showExportModal, setShowExportModal] = useState(false);
+
+  const pushRouter = (overrides = {}) => {
+    router.get('/projects',
+      cleanParams(
+        { search, perPage, sortField, sortDirection, officeFilter, progressFilter, yearFilter, ...overrides },
+        { perPage: 10, sortField: 'project_id', sortDirection: 'desc' }  // ← match actual defaults
+      ),
+      { preserveState: true, preserveScroll: true, replace: true }
+    );
+  };
 
   const uniqueYears = allYears && allYears.length > 0 
     ? allYears 
     : Array.from(new Set(projects.data.map(p => p.year_obligated).filter(Boolean))).sort((a, b) => b - a);
 
   useEffect(() => {
-    prevFiltersRef.current = {
-      search: filters.search || '',
-      office: filters.officeFilter || '',
-      progress: filters.progressFilter || '',
-      year: filters.yearFilter || '',
-    };
-  }, []);
-
-  useEffect(() => {
-    const currentFilters = {
-      search,
-      office: officeFilter,
-      progress: progressFilter,
-      year: yearFilter,
-    };
-
-    const filtersChanged =
-      currentFilters.search !== prevFiltersRef.current?.search ||
-      currentFilters.office !== prevFiltersRef.current?.office ||
-      currentFilters.progress !== prevFiltersRef.current?.progress ||
-      currentFilters.year !== prevFiltersRef.current?.year;
-
-    if (!filtersChanged) return;
-
-    prevFiltersRef.current = currentFilters;
-
-    if (filterTimeoutRef.current) {
-      clearTimeout(filterTimeoutRef.current);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
-
-    filterTimeoutRef.current = setTimeout(() => {
-      router.get('/projects', { 
-        search, 
-        perPage,
-        sortField,
-        sortDirection,
-        officeFilter,
-        progressFilter,
-        yearFilter
-      }, { 
-        preserveState: true, 
-        replace: true 
-      });
-    }, 400);
-
-    return () => {
-      if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
-    };
+    if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
+    filterTimeoutRef.current = setTimeout(() => pushRouter({ page: 1 }), 400);
+    return () => { if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current); };
   }, [search, officeFilter, progressFilter, yearFilter]);
 
   useEffect(() => {
@@ -158,19 +128,7 @@ export default function Index({ projects, filters, offices, allYears }) {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
     setSortField(field);
     setSortDirection(newDirection);
-    
-    router.get('/projects', {
-      search,
-      perPage,
-      sortField: field,
-      sortDirection: newDirection,
-      officeFilter,
-      progressFilter,
-      yearFilter
-    }, {
-      preserveScroll: true,
-      preserveState: true,
-    });
+    pushRouter({ sortField: field, sortDirection: newDirection });
   };
 
   const SortButton = ({ field, label, icon: Icon }) => (
@@ -220,18 +178,7 @@ export default function Index({ projects, filters, offices, allYears }) {
   const handlePerPageChange = (e) => {
     const newPerPage = e.target.value;
     setPerPage(newPerPage);
-    router.get('/projects', {
-      search,
-      perPage: newPerPage,
-      sortField,
-      sortDirection,
-      officeFilter,
-      progressFilter,
-      yearFilter
-    }, {
-      preserveScroll: true,
-      preserveState: true,
-    });
+    pushRouter({ perPage: newPerPage, page: 1 });
   };
 
   const clearFilters = () => {
@@ -239,6 +186,7 @@ export default function Index({ projects, filters, offices, allYears }) {
     setOfficeFilter('');
     setProgressFilter('');
     setYearFilter('');
+    router.get('/projects', {}, { preserveState: true, replace: true });
   };
 
   return (

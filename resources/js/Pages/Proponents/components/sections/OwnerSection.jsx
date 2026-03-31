@@ -50,7 +50,7 @@ export default function OwnerSection({ data, setData, errors }) {
           <input
             type="tel"
             maxLength={11}
-            className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
+            className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm text-black"
             placeholder="09XXXXXXXXX"
             value={data.contact_number}
             onChange={(e) => setData('contact_number', e.target.value)}

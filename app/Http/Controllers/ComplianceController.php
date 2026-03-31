@@ -25,7 +25,7 @@ class ComplianceController extends Controller
         $officeFilter = $request->input('officeFilter', '');
         $sortBy       = $request->input('sortBy', 'project_id');
         $sortOrder    = $request->input('sortOrder', 'desc');
-        $statusFilter = $request->input('statusFilter', 'pending');
+        $statusFilter = $request->input('statusFilter', 'all');
         $perPage      = $request->input('perPage', 10);
 
         // Valid sort columns
@@ -167,6 +167,7 @@ class ComplianceController extends Controller
             'project'    => $project,
             'compliance' => $compliance,
             'userRole'   => $user->role ?? null,
+            'backUrl'    => url()->previous(),
         ]);
     }
 

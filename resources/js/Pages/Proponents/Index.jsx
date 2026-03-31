@@ -4,8 +4,7 @@ import { Search, Plus, Eye, Edit3, Trash2, Building, User, Mail, Phone, MapPin, 
 import IndustrySelect from './components/IndustrySelect';
 import MultiSelect from '../../components/MultiSelect';
 import { INDUSTRY_OPTIONS_GROUPED, INDUSTRY_TYPE_OPTIONS } from './components/IndustryOptions';
-
-
+import { cleanParams } from '@/utils/cleanParams';
 
 export default function Index({ proponents, filters, allUsers = [], allOffices = [], canEditAddedBy = false, userRole = 'user', availableYears = [] }) {
   const [search, setSearch] = useState(filters.search || '');
@@ -24,48 +23,34 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
   const dropdownRef = useRef(null);
   const [showExportModal, setShowExportModal] = useState(false);
 
+  const showFilters = userRole !== 'user';
+  const showOfficeFilter = userRole === 'rpmo';
 
-  // Determine filter visibility based on role
-  const showFilters = userRole !== 'user'; // Hide filters only for 'user' role
-  const showOfficeFilter = userRole === 'rpmo'; // Show office filter only for 'rpmo' role
+  const pushRouter = (overrides = {}) => {
+    router.get('/proponents',
+      cleanParams(
+        { search, office: officeFilter, setup_industry: setupIndustryFilter, industry_type: industryTypeFilter, sort: filters.sort || 'proponent_id', direction: filters.direction || 'desc', perPage, ...overrides },
+        { sort: 'proponent_id', direction: 'desc', perPage: 10 }
+      ),
+      { preserveScroll: true, preserveState: true, replace: true }
+    );
+  };
 
-  // FIXED: Updated to include perPage and removed 'only' option
   useEffect(() => {
-    // Skip on initial render
     if (isInitialRenderRef.current) {
       isInitialRenderRef.current = false;
       return;
     }
 
-    if (filterTimeoutRef.current) {
-      clearTimeout(filterTimeoutRef.current);
-    }
+    if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
 
-    filterTimeoutRef.current = setTimeout(() => {
-      router.get('/proponents', { 
-        search,
-        office: officeFilter,
-        setup_industry: setupIndustryFilter,
-        industry_type: industryTypeFilter,
-        sort: filters.sort || 'proponent_id',
-        direction: filters.direction || 'desc',
-        perPage,
-        page: 1
-      }, { 
-        preserveScroll: true, 
-        preserveState: true,
-        replace: true 
-      });
-    }, 400);
+    filterTimeoutRef.current = setTimeout(() => pushRouter({ page: 1 }), 400);
 
     return () => {
-      if (filterTimeoutRef.current) {
-        clearTimeout(filterTimeoutRef.current);
-      }
+      if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
     };
   }, [search, officeFilter, setupIndustryFilter, industryTypeFilter, perPage]);
 
-  // Handle Escape key
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === "Escape") {
@@ -74,26 +59,20 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
         setShowUserDropdown(false);
       }
     };
-
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setShowUserDropdown(false);
       }
     };
-
-    if (showUserDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
+    if (showUserDropdown) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showUserDropdown]);
-  
+
   const handleDeleteClick = (proponent) => {
     setproponentToDelete(proponent);
     setShowDeleteModal(true);
@@ -115,54 +94,24 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
   const handlePerPageChange = (e) => {
     const newPerPage = e.target.value;
     setPerPage(newPerPage);
-    router.get('/proponents', {
-      search,
-      perPage: newPerPage,
-      office: officeFilter,
-      setup_industry: setupIndustryFilter,
-      industry_type: industryTypeFilter,
-      sort: filters.sort || 'proponent_id',
-      direction: filters.direction || 'desc',
-    }, {
-      preserveScroll: true,
-      replace: true,
-    });
+    pushRouter({ perPage: newPerPage, page: 1 });
   };
 
   const handleSortToggle = () => {
-    const newDirection = (filters.direction === 'asc') ? 'desc' : 'asc';
-    router.get('/proponents', {
-      search,
-      perPage,
-      office: officeFilter,
-      setup_industry: setupIndustryFilter,
-      industry_type: industryTypeFilter,
-      sort: 'company_name',
-      direction: newDirection,
-    }, {
-      preserveScroll: true,
-      replace: true,
-    });
+    const newDirection = filters.direction === 'asc' ? 'desc' : 'asc';
+    pushRouter({ sort: 'company_name', direction: newDirection });
   };
 
-  const handleOfficeChange = (e) => {
-    setOfficeFilter(e.target.value);
-  };
-
-  const handleSetupIndustryChange = (e) => {
-    setSetupIndustryFilter(e.target.value);
-  };
-
-  const handleIndustryTypeChange = (e) => {
-    setIndustryTypeFilter(e.target.value);
-  };
+  const handleOfficeChange = (e) => setOfficeFilter(e.target.value);
+  const handleSetupIndustryChange = (e) => setSetupIndustryFilter(e.target.value);
+  const handleIndustryTypeChange = (e) => setIndustryTypeFilter(e.target.value);
 
   const clearFilters = () => {
     setSearch('');
     setOfficeFilter('');
     setSetupIndustryFilter('');
     setIndustryTypeFilter('');
-    router.get('/proponents', { perPage }, { preserveScroll: true });
+    router.get('/proponents', {}, { preserveScroll: true, replace: true });
   };
 
   const handleUpdateAddedBy = (proponentId, userId) => {
@@ -184,58 +133,53 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
     <main className="flex-1 p-3 md:p-6 overflow-y-auto">
       <Head title="Proponents" />
       <div className="max-w-8xl mx-auto">
-        {/* Main Content Card */}
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
-        {/* Card Header */}
-        <div className="bg-gradient-to-r from-gray-50 to-white p-3 md:p-6 border-b border-gray-100">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
-            {/* Title - left side */}
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
-                <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+
+          {/* Card Header */}
+          <div className="bg-gradient-to-r from-gray-50 to-white p-3 md:p-6 border-b border-gray-100">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
+                  <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                </div>
+                <h2 className="text-base md:text-xl font-semibold text-gray-900">Proponents</h2>
               </div>
-              <h2 className="text-base md:text-xl font-semibold text-gray-900">Proponents</h2>
-            </div>
 
-            {/* Action buttons - right side, grouped */}
-            <div className="flex items-center gap-2 md:gap-3 md:ml-auto flex-wrap">
-              <button
-                onClick={() => router.post('/proponents/sync')}
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
-                title="Sync from CSV"
-              >
-                <Package className="w-4 h-4" />
-                <span className="hidden sm:inline">Sync CSV</span>
-                <span className="sm:hidden">Sync</span>
-              </button>
+              <div className="flex items-center gap-2 md:gap-3 md:ml-auto flex-wrap">
+                <button
+                  onClick={() => router.post('/proponents/sync')}
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
+                >
+                  <Package className="w-4 h-4" />
+                  <span className="hidden sm:inline">Sync CSV</span>
+                  <span className="sm:hidden">Sync</span>
+                </button>
 
-              <button
-                onClick={() => setShowExportModal(true)}
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
-                title="Export to CSV"
-              >
-                <Package className="w-4 h-4" />
-                <span className="hidden sm:inline">Export CSV</span>
-                <span className="sm:hidden">Export</span>
-              </button>
+                <button
+                  onClick={() => setShowExportModal(true)}
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
+                >
+                  <Package className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export CSV</span>
+                  <span className="sm:hidden">Export</span>
+                </button>
 
-              <Link
-                href="/proponents/create"
-                className="flex items-center justify-center gap-2 bg-blue-500 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:bg-blue-600 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Add Proponent</span>
-                <span className="sm:hidden">Add</span>
-              </Link>
+                <Link
+                  href="/proponents/create"
+                  className="flex items-center justify-center gap-2 bg-blue-500 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:bg-blue-600 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Add Proponent</span>
+                  <span className="sm:hidden">Add</span>
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
 
-          {/* Filters Section - Hide only for user role */}
+          {/* Filters */}
           {showFilters && (
             <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
               <div className="flex flex-col gap-3 md:gap-4">
-                {/* Search Bar and Per Page */}
                 <div className="flex flex-col gap-2 md:gap-4 md:flex-row">
                   <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -247,16 +191,12 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                       className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                     />
                     {search && (
-                      <button
-                        onClick={() => setSearch('')}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
+                      <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
                         <X className="w-4 h-4" />
                       </button>
                     )}
                   </div>
 
-                  {/* Per Page Selector */}
                   <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
                     <select
                       value={perPage}
@@ -271,9 +211,7 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                   </div>
                 </div>
 
-                {/* Filter Row */}
                 <div className="flex flex-col gap-2 md:gap-4 md:flex-row md:items-center flex-wrap">
-                  {/* Office Filter - Only show for rpmo role */}
                   {showOfficeFilter && (
                     <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
                       <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -284,15 +222,12 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                       >
                         <option value="">All Offices</option>
                         {allOffices.map((office) => (
-                          <option key={office.office_id} value={office.office_id}>
-                            {office.office_name}
-                          </option>
+                          <option key={office.office_id} value={office.office_id}>{office.office_name}</option>
                         ))}
                       </select>
                     </div>
                   )}
 
-                  {/* Industry Type Filter */}
                   <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
                     <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <select
@@ -307,7 +242,6 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                     </select>
                   </div>
 
-                  {/* Setup Industry Filter */}
                   <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
                     <Factory className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <IndustrySelect
@@ -316,7 +250,7 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                       className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
                     />
                   </div>
-                  {/* Clear Filters Button */}
+
                   {(search || officeFilter || setupIndustryFilter || industryTypeFilter) && (
                     <button
                       onClick={clearFilters}
@@ -331,7 +265,7 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
             </div>
           )}
 
-          {/* Table Section - Responsive */}
+          {/* Table */}
           <div>
             {proponents.data.length > 0 ? (
               <>
@@ -341,52 +275,31 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                     <thead>
                       <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <button
-                            onClick={handleSortToggle}
-                            className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                          >
+                          <button onClick={handleSortToggle} className="flex items-center gap-2 hover:text-blue-600 transition-colors">
                             <Building className="w-4 h-4" />
                             PROPONENT
                             <ArrowUpDown className="w-3 h-3" />
                           </button>
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <div className="flex items-center gap-2">
-                            <User className="w-4 h-4" />
-                            Owner
-                          </div>
+                          <div className="flex items-center gap-2"><User className="w-4 h-4" />Owner</div>
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <div className="flex items-center gap-2">
-                            <Mail className="w-4 h-4" />
-                            Contact
-                          </div>
+                          <div className="flex items-center gap-2"><Mail className="w-4 h-4" />Contact</div>
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4" />
-                            Location
-                          </div>
+                          <div className="flex items-center gap-2"><MapPin className="w-4 h-4" />Location</div>
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <div className="flex items-center gap-2">
-                            <Factory className="w-4 h-4" />
-                            Industry
-                          </div>
+                          <div className="flex items-center gap-2"><Factory className="w-4 h-4" />Industry</div>
                         </th>
                         {canEditAddedBy && (
                           <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            <div className="flex items-center gap-2">
-                              <User2 className="w-4 h-4" />
-                              User
-                            </div>
+                            <div className="flex items-center gap-2"><User2 className="w-4 h-4" />User</div>
                           </th>
                         )}
                         <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <div className="flex items-center gap-2">
-                            <Hand className="w-4 h-4" />
-                            Actions
-                          </div>
+                          <div className="flex items-center gap-2"><Hand className="w-4 h-4" />Actions</div>
                         </th>
                       </tr>
                     </thead>
@@ -394,10 +307,8 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                       {proponents.data.map((proponent) => (
                         <tr key={proponent.proponent_id} className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group">
                           <td className="px-6 py-4">
-                            <div>
-                              <div className="text-sm font-semibold text-gray-900">{proponent.company_name}</div>
-                              <div className="text-xs text-gray-500">ID: {proponent.proponent_id}</div>
-                            </div>
+                            <div className="text-sm font-semibold text-gray-900">{proponent.company_name}</div>
+                            <div className="text-xs text-gray-500">ID: {proponent.proponent_id}</div>
                           </td>
                           <td className="px-6 py-4">
                             <span className="text-sm text-gray-900 font-medium">{proponent.owner_name}</span>
@@ -418,35 +329,31 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                             <div>{proponent.street}, {proponent.barangay}</div>
                             <div className="text-gray-600">{proponent.municipality}, {proponent.province}</div>
                           </td>
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 truncate max-w-[120px]" title={proponent.setup_industry || 'N/A'}>
-                            {proponent.setup_industry || 'N/A'}
-                          </span>
-                        </td>
+                          <td className="px-6 py-4">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 truncate max-w-[120px]" title={proponent.setup_industry || 'N/A'}>
+                              {proponent.setup_industry || 'N/A'}
+                            </span>
+                          </td>
                           {canEditAddedBy && (
                             <td className="px-6 py-4">
                               {editingAddedBy === proponent.proponent_id ? (
                                 <div ref={dropdownRef} className="relative">
-                                  <div className="flex items-center gap-2">
-                                    <input
-                                      type="text"
-                                      placeholder="Search users..."
-                                      value={userSearch}
-                                      onChange={(e) => setUserSearch(e.target.value)}
-                                      onFocus={() => setShowUserDropdown(true)}
-                                      className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                      autoFocus
-                                    />
-                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="Search users..."
+                                    value={userSearch}
+                                    onChange={(e) => setUserSearch(e.target.value)}
+                                    onFocus={() => setShowUserDropdown(true)}
+                                    className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    autoFocus
+                                  />
                                   {showUserDropdown && (
                                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-40 overflow-y-auto">
                                       {filteredUsers.length > 0 ? (
                                         filteredUsers.map((user) => (
                                           <button
                                             key={user.user_id}
-                                            onClick={() => {
-                                              handleUpdateAddedBy(proponent.proponent_id, user.user_id);
-                                            }}
+                                            onClick={() => handleUpdateAddedBy(proponent.proponent_id, user.user_id)}
                                             className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 text-black"
                                           >
                                             {user.first_name} {user.last_name}
@@ -460,11 +367,7 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                                 </div>
                               ) : (
                                 <button
-                                  onClick={() => {
-                                    setEditingAddedBy(proponent.proponent_id);
-                                    setUserSearch('');
-                                    setShowUserDropdown(true);
-                                  }}
+                                  onClick={() => { setEditingAddedBy(proponent.proponent_id); setUserSearch(''); setShowUserDropdown(true); }}
                                   className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer"
                                 >
                                   {proponent.added_by_user?.name || 'Unassigned'}
@@ -477,31 +380,22 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                               <button
                                 onClick={() => setSelectedproponent(proponent)}
                                 className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200"
-                                title="View Details"
                               >
                                 <Eye className="w-4 h-4" />
                               </button>
-
                               <Link
                                 href={`/proponents/${proponent.proponent_id}/edit`}
                                 className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                                title="Edit proponent"
                               >
                                 <Edit3 className="w-4 h-4" />
                               </Link>
-
-                             <button
+                              <button
                                 onClick={() => !proponent.projects_count && handleDeleteClick(proponent)}
-                                className={`p-2 rounded-lg transition-all duration-200 ${
-                                  proponent.projects_count
-                                    ? 'text-gray-300 cursor-not-allowed'
-                                    : 'text-red-600 hover:text-red-700 hover:bg-red-50'
-                                }`}
-                                title={proponent.projects_count ? 'Cannot delete: has associated projects' : 'Delete proponent'}
                                 disabled={!!proponent.projects_count}
+                                className={`p-2 rounded-lg transition-all duration-200 ${proponent.projects_count ? 'text-gray-300 cursor-not-allowed' : 'text-red-600 hover:text-red-700 hover:bg-red-50'}`}
                               >
                                 <Trash2 className="w-4 h-4" />
-                            </button>
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -510,7 +404,7 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                   </table>
                 </div>
 
-                {/* Mobile Simple List View */}
+                {/* Mobile List */}
                 <div className="md:hidden divide-y divide-gray-100">
                   {proponents.data.map((proponent) => (
                     <div key={proponent.proponent_id} className="flex items-center justify-between px-4 py-4 hover:bg-gray-50 transition-colors">
@@ -521,36 +415,20 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                           <p className="text-xs text-amber-600 font-medium mt-1">Added by: {proponent.added_by_user?.name || 'Unassigned'}</p>
                         )}
                       </div>
-
                       <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                        <button
-                          onClick={() => setSelectedproponent(proponent)}
-                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200"
-                          title="View Details"
-                        >
+                        <button onClick={() => setSelectedproponent(proponent)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200">
                           <Eye className="w-4 h-4" />
                         </button>
-
-                        <Link
-                          href={`/proponents/${proponent.proponent_id}/edit`}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                          title="Edit proponent"
-                        >
+                        <Link href={`/proponents/${proponent.proponent_id}/edit`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">
                           <Edit3 className="w-4 h-4" />
                         </Link>
-
-                       <button
-                        onClick={() => !proponent.projects_count && handleDeleteClick(proponent)}
-                        className={`p-2 rounded-lg transition-all duration-200 ${
-                          proponent.projects_count
-                            ? 'text-gray-300 cursor-not-allowed'
-                            : 'text-red-600 hover:bg-red-50'
-                        }`}
-                        title={proponent.projects_count ? 'Cannot delete: has associated projects' : 'Delete proponent'}
-                        disabled={!!proponent.projects_count}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        <button
+                          onClick={() => !proponent.projects_count && handleDeleteClick(proponent)}
+                          disabled={!!proponent.projects_count}
+                          className={`p-2 rounded-lg transition-all duration-200 ${proponent.projects_count ? 'text-gray-300 cursor-not-allowed' : 'text-red-600 hover:bg-red-50'}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -566,10 +444,7 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                     <h3 className="text-base md:text-lg font-medium text-gray-900 mb-1">No proponent found</h3>
                     <p className="text-xs md:text-sm text-gray-500">Get started by adding your first proponent</p>
                   </div>
-                  <Link
-                    href="/proponents/create"
-                    className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 md:px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium text-sm"
-                  >
+                  <Link href="/proponents/create" className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 md:px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium text-sm">
                     <Plus className="w-4 h-4" />
                     Add Proponent
                   </Link>
@@ -590,7 +465,7 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                     <button
                       key={index}
                       disabled={!link.url}
-                      onClick={() => link.url && router.visit(link.url)}
+                      onClick={() => link.url && router.visit(link.url, { preserveState: true, replace: true })}
                       className={`px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm rounded-lg border transition-all duration-200 flex-shrink-0 ${
                         link.active
                           ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-transparent shadow-md'
@@ -605,29 +480,19 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
               </div>
             </div>
           )}
+
         </div>
       </div>
 
-      {/* proponent Modal */}
+      {/* Modals */}
       {selectedproponent && (
-        <ProponentModal
-          proponent={selectedproponent}
-          isOpen={!!selectedproponent}
-          onClose={() => setSelectedproponent(null)}
-        />
+        <ProponentModal proponent={selectedproponent} isOpen={!!selectedproponent} onClose={() => setSelectedproponent(null)} />
       )}
 
       {showExportModal && (
-        <ExportModal
-          isOpen={showExportModal}
-          onClose={() => setShowExportModal(false)}
-          allOffices={allOffices}
-          userRole={userRole}
-          availableYears={availableYears} 
-        />
+        <ExportModal isOpen={showExportModal} onClose={() => setShowExportModal(false)} allOffices={allOffices} userRole={userRole} availableYears={availableYears} />
       )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteModal && proponentToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl max-w-md w-full p-4 md:p-6">
@@ -636,29 +501,18 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                 <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-red-600" />
               </div>
               <div className="flex-1">
-                <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2">
-                  Delete Proponent
-                </h3>
+                <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2">Delete Proponent</h3>
                 <p className="text-xs md:text-sm text-gray-600 mb-2">
                   Are you sure you want to delete <span className="font-semibold">{proponentToDelete.company_name}</span>?
                 </p>
-                <p className="text-xs md:text-sm text-red-600 font-medium">
-                  This action cannot be undone.
-                </p>
+                <p className="text-xs md:text-sm text-red-600 font-medium">This action cannot be undone.</p>
               </div>
             </div>
-            
             <div className="flex gap-3 mt-4 md:mt-6">
-              <button
-                onClick={cancelDelete}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm"
-              >
+              <button onClick={cancelDelete} className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm">
                 Cancel
               </button>
-              <button
-                onClick={confirmDelete}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors text-sm"
-              >
+              <button onClick={confirmDelete} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors text-sm">
                 Delete
               </button>
             </div>
@@ -675,7 +529,6 @@ function ProponentModal({ proponent, isOpen, onClose }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4">
       <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-2xl md:max-w-4xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 md:p-6 text-white sticky top-0 z-10">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
@@ -687,84 +540,55 @@ function ProponentModal({ proponent, isOpen, onClose }) {
                 <p className="text-xs md:text-sm text-blue-100">Information & overview</p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-200 flex-shrink-0"
-            >
+            <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-200 flex-shrink-0">
               <X className="w-5 h-5 text-white" />
             </button>
           </div>
         </div>
 
-      {/* Content */}
         <div className="p-4 md:p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
-            {/* proponent Info */}
             <div className="space-y-4 md:space-y-6">
               <div className="bg-gradient-to-r from-blue-50 to-blue-100/50 rounded-lg md:rounded-xl p-4 md:p-5 border border-blue-200">
                 <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
-                  <div className="p-2 bg-blue-500 rounded-lg">
-                    <Building className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                  </div>
+                  <div className="p-2 bg-blue-500 rounded-lg"><Building className="w-4 h-4 md:w-5 md:h-5 text-white" /></div>
                   <h4 className="text-base md:text-lg font-semibold text-gray-900">Proponent Info</h4>
                 </div>
-                
                 <div className="space-y-3 md:space-y-4">
-                  <div className="flex items-start gap-3">
-                    <Building className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs md:text-sm font-medium text-gray-600">Proponent Name</p>
-                      <p className="text-sm md:text-base text-gray-900 font-semibold truncate">{proponent.company_name}</p>
+                  {[
+                    { icon: Building, label: 'Proponent Name', value: proponent.company_name, bold: true },
+                    { icon: Mail,     label: 'Email',          value: proponent.email },
+                    { icon: Phone,    label: 'Phone',          value: proponent.contact_number },
+                  ].map(({ icon: Icon, label, value, bold }) => (
+                    <div key={label} className="flex items-start gap-3">
+                      <Icon className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs md:text-sm font-medium text-gray-600">{label}</p>
+                        <p className={`text-xs md:text-sm text-gray-900 truncate ${bold ? 'font-semibold' : ''}`}>{value}</p>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <Mail className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs md:text-sm font-medium text-gray-600">Email</p>
-                      <p className="text-xs md:text-sm text-gray-900 truncate">{proponent.email}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <Phone className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs md:text-sm font-medium text-gray-600">Phone</p>
-                      <p className="text-xs md:text-sm text-gray-900">{proponent.contact_number}</p>
-                    </div>
-                  </div>
-
+                  ))}
                   <div className="flex items-start gap-3">
                     <MapPin className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs md:text-sm font-medium text-gray-600">Address</p>
-                      <p className="text-xs md:text-sm text-gray-900">
-                        {proponent.street}, {proponent.barangay}<br />
-                        {proponent.municipality}, {proponent.province}
-                      </p>
+                      <p className="text-xs md:text-sm text-gray-900">{proponent.street}, {proponent.barangay}<br />{proponent.municipality}, {proponent.province}</p>
                     </div>
                   </div>
-
                   <div className="flex items-start gap-3">
                     <Factory className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs md:text-sm font-medium text-gray-600">Industry Type</p>
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 mt-1">
-                        {proponent.industry_type || 'N/A'}
-                      </span>
+                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 mt-1">{proponent.industry_type || 'N/A'}</span>
                     </div>
                   </div>
-
                   <div className="flex items-start gap-3">
                     <Factory className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs md:text-sm font-medium text-gray-600">Setup Industry</p>
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">
-                        {proponent.setup_industry || 'N/A'}
-                      </span>
+                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">{proponent.setup_industry || 'N/A'}</span>
                     </div>
                   </div>
-
                   <div className="flex items-start gap-3">
                     <Package className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div className="min-w-0">
@@ -776,25 +600,20 @@ function ProponentModal({ proponent, isOpen, onClose }) {
               </div>
             </div>
 
-            {/* Owner Info */}
             <div className="space-y-4 md:space-y-6">
               <div className="bg-gradient-to-r from-green-50 to-green-100/50 rounded-lg md:rounded-xl p-4 md:p-5 border border-green-200">
                 <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
-                  <div className="p-2 bg-green-500 rounded-lg">
-                    <User className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                  </div>
+                  <div className="p-2 bg-green-500 rounded-lg"><User className="w-4 h-4 md:w-5 md:h-5 text-white" /></div>
                   <h4 className="text-base md:text-lg font-semibold text-gray-900">Owner</h4>
                 </div>
-                
                 <div className="space-y-3 md:space-y-4">
                   <div className="flex items-start gap-3">
                     <User className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
-                    <div className="min-w-0">
+                    <div>
                       <p className="text-xs md:text-sm font-medium text-gray-600">Name</p>
                       <p className="text-sm md:text-base text-gray-900 font-semibold">{proponent.owner_name}</p>
                     </div>
                   </div>
-
                   <div className="flex items-start gap-3">
                     <Mail className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
                     <div>
@@ -802,7 +621,6 @@ function ProponentModal({ proponent, isOpen, onClose }) {
                       <p className="text-xs md:text-sm text-gray-900">{proponent.sex || 'N/A'}</p>
                     </div>
                   </div>
-
                   <div className="flex items-start gap-3">
                     <MapPin className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
                     <div>
@@ -816,29 +634,21 @@ function ProponentModal({ proponent, isOpen, onClose }) {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="bg-gray-50 px-4 md:px-6 py-3 md:py-4 rounded-b-lg md:rounded-b-2xl border-t border-gray-200 sticky bottom-0">
           <div className="flex flex-col md:flex-row justify-end gap-2 md:gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200 text-sm font-medium order-2 md:order-1"
-            >
+            <button onClick={onClose} className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200 text-sm font-medium order-2 md:order-1">
               Close
             </button>
-            <Link
-              href={`/proponents/${proponent.proponent_id}/edit`}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium text-sm order-1 md:order-2"
-            >
+            <Link href={`/proponents/${proponent.proponent_id}/edit`} className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium text-sm order-1 md:order-2">
               <Edit3 className="w-4 h-4" />
               Edit
             </Link>
-          </div>  
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
 
 function ExportModal({ isOpen, onClose, allOffices = [], userRole, availableYears = [] }) {
   const [exportYears, setExportYears] = useState([]);
@@ -864,13 +674,9 @@ function ExportModal({ isOpen, onClose, allOffices = [], userRole, availableYear
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
-
-        {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Package className="w-5 h-5 text-green-600" />
-            </div>
+            <div className="p-2 bg-green-100 rounded-lg"><Package className="w-5 h-5 text-green-600" /></div>
             <h3 className="text-lg font-semibold text-gray-900">Export Proponents</h3>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
@@ -878,89 +684,50 @@ function ExportModal({ isOpen, onClose, allOffices = [], userRole, availableYear
           </button>
         </div>
 
-        <p className="text-sm text-gray-500 mb-5">
-          Select one or more filters. Leave blank to export all records.
-        </p>
+        <p className="text-sm text-gray-500 mb-5">Select one or more filters. Leave blank to export all records.</p>
 
         <div className="space-y-5">
-          {/* Year */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Project Year
-              <span className="ml-1.5 text-xs text-gray-400 font-normal">(years the proponent has projects)</span>
+              Project Year <span className="ml-1.5 text-xs text-gray-400 font-normal">(years the proponent has projects)</span>
             </label>
-            <MultiSelect
-              options={yearOptions}
-              value={exportYears}
-              onChange={setExportYears}
-              placeholder="All Years"
-            />
+            <MultiSelect options={yearOptions} value={exportYears} onChange={setExportYears} placeholder="All Years" />
           </div>
 
-          {/* Office - rpmo only */}
           {userRole === 'rpmo' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Office</label>
-              <MultiSelect
-                options={officeOptions}
-                value={exportOffices}
-                onChange={setExportOffices}
-                placeholder="All Offices"
-              />
+              <MultiSelect options={officeOptions} value={exportOffices} onChange={setExportOffices} placeholder="All Offices" />
             </div>
           )}
 
-          {/* Divider */}
           <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
-            </div>
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-white px-2 text-gray-400 font-medium tracking-wider">Industry Filters</span>
             </div>
           </div>
 
-          {/* Industry Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Industry Type</label>
-            <MultiSelect
-              options={INDUSTRY_TYPE_OPTIONS}
-              value={exportIndustryTypes}
-              onChange={setExportIndustryTypes}
-              placeholder="All Types"
-            />
+            <MultiSelect options={INDUSTRY_TYPE_OPTIONS} value={exportIndustryTypes} onChange={setExportIndustryTypes} placeholder="All Types" />
           </div>
 
-          {/* Setup Industry */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Setup Industry</label>
-            <MultiSelect
-              options={INDUSTRY_OPTIONS_GROUPED}
-              value={exportSetupIndustries}
-              onChange={setExportSetupIndustries}
-              placeholder="All Industries"
-              grouped
-            />
+            <MultiSelect options={INDUSTRY_OPTIONS_GROUPED} value={exportSetupIndustries} onChange={setExportSetupIndustries} placeholder="All Industries" grouped />
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex gap-3 mt-6 pt-5 border-t border-gray-100">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm"
-          >
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm">
             Cancel
           </button>
-          <button
-            onClick={handleExport}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors text-sm"
-          >
+          <button onClick={handleExport} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors text-sm">
             <Package className="w-4 h-4" />
             Export CSV
           </button>
         </div>
-
       </div>
     </div>
   );
