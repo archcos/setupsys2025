@@ -17,7 +17,7 @@ export default function FinancialSection({ data, setData, errors }) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
         {financialFields.map((field) => (
           <div key={field.key}>
-            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">{field.label}</label>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">{field.label} <span className="text-red-500 ml-1">*</span></label>
             {field.isCurrency ? (
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -30,6 +30,7 @@ export default function FinancialSection({ data, setData, errors }) {
                   placeholder="0.00"
                   value={data[field.key]}
                   onChange={(e) => setData(field.key, e.target.value)}
+                  required
                 />
               </div>
             ) : (
@@ -39,6 +40,7 @@ export default function FinancialSection({ data, setData, errors }) {
                 placeholder="YYYY"
                 value={data[field.key]}
                 onChange={(e) => setData(field.key, e.target.value)}
+                required
               />
             )}
             {errors[field.key] && (

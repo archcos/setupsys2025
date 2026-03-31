@@ -14,7 +14,7 @@ export default function WorkforceSection({ data, setData, errors }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
         {WORKFORCE_FIELDS.map((field) => (
           <div key={field.key}>
-            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">{field.label}</label>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">{field.label}<span className="text-red-500 ml-1">*</span></label>
             <input
               type="number"
               className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
@@ -22,6 +22,7 @@ export default function WorkforceSection({ data, setData, errors }) {
               value={data[field.key]}
               onChange={(e) => setData(field.key, e.target.value)}
               min="0"
+              required
             />
             {errors[field.key] && (
               <div className="text-red-500 text-xs mt-1 flex items-center gap-1">

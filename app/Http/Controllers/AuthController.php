@@ -39,17 +39,19 @@ class AuthController extends Controller
 
     public function signin(Request $request)
     {
-        $ip = $request->ip();
+        $ip  = $request->ip();
         $key = 'signin:' . $ip;
 
-        // 1. Check if IP is currently blocked (cached to avoid DB hit on every request)
-        $blocked = Cache::remember('blocked_ip:' . $ip, 60, function () use ($ip) {
+        // 1. Check if IP is currently blocked.
+        //    TTL is kept short (15s) so a naturally-expired block is picked up quickly
+        //    without hammering the DB on every request.
+        $blockedUntil = Cache::remember('blocked_ip:' . $ip, 15, function () use ($ip) {
             return BlockedIp::where('ip', $ip)
                 ->where('blocked_until', '>', Carbon::now())
                 ->value('blocked_until');
         });
 
-        if ($blocked) {
+        if ($blockedUntil) {
             return back()->withErrors([
                 'message' => 'Your IP is temporarily blocked due to suspicious activity.',
             ]);
@@ -60,22 +62,20 @@ class AuthController extends Controller
             BlockedIp::updateOrCreate(
                 ['ip' => $ip],
                 [
-                    'reason' => 'Rate limit exceeded in sign-in',
+                    'reason'        => 'Rate limit exceeded in sign-in',
                     'blocked_until' => Carbon::now()->addHours(1),
                 ]
             );
-
-            // Bust the blocked IP cache so the new block is picked up immediately
             Cache::forget('blocked_ip:' . $ip);
 
             return back()->withErrors([
-                'message' => "Too many sign-in attempts. You are temporarily blocked for 1 hour.",
+                'message' => 'Too many sign-in attempts. You are temporarily blocked for 1 hour.',
             ]);
         }
 
         RateLimiter::hit($key, 30);
 
-        // 3. Validate login credentials
+        // 3. Validate credentials
         $credentials = $request->validate([
             'login'    => 'required|string|max:255',
             'password' => 'required|string|min:8|max:255',
@@ -89,30 +89,51 @@ class AuthController extends Controller
             ->orWhere('email', $credentials['login'])
             ->first();
 
-        // 5. Block attempts to sign in as "iamsuperadmin"
+        // 5. Block attempts to sign in as "iamsuperadmin" — use a generic error
+        //    so we don't reveal the username exists
         if ($user && strtolower($user->username) === 'iamsuperadmin') {
             BlockedIp::updateOrCreate(
                 ['ip' => $ip],
                 [
-                    'reason'         => 'Attempted login as iamsuperadmin',
-                    'blocked_until'  => Carbon::now()->addHours(1),
+                    'reason'        => 'Attempted login as iamsuperadmin',
+                    'blocked_until' => Carbon::now()->addHours(1),
                 ]
             );
-
             Cache::forget('blocked_ip:' . $ip);
 
-            Log::warning('Attempted iamsuperadmin login', [
-                'ip'        => $ip,
-                'timestamp' => now(),
-            ]);
+            Log::warning('Attempted iamsuperadmin login', ['ip' => $ip, 'timestamp' => now()]);
+
+            return back()->withErrors(['message' => 'Invalid username/email or password.']);
+        }
+
+        // 6. Per-account brute-force protection.
+        //    Track failed attempts independently of IP so distributed attacks
+        //    (many IPs, one target account) are also caught.
+        $loginIdentifier  = strtolower($credentials['login']);
+        $userAttemptKey   = 'signin:user:' . hash('sha256', $loginIdentifier);
+
+        if (RateLimiter::tooManyAttempts($userAttemptKey, 5)) {
+            // Lock the actual account if the user was found
+            if ($user && $user->status !== 'inactive') {
+                $user->update(['status' => 'inactive']);
+
+                Log::warning('Account locked due to too many failed login attempts', [
+                    'user_id'  => $user->user_id,
+                    'username' => $user->username,
+                    'ip'       => $ip,
+                ]);
+            }
 
             return back()->withErrors([
-                'message' => 'Access denied. Suspicious activity detected.',
+                'message' => 'Too many failed attempts. Your account has been locked. Please contact your administrator.',
             ]);
         }
 
-        // 6. Check if user exists and credentials match
+        // 7. Check password
         if (!$user || !Hash::check($credentials['password'], $user->password)) {
+            // Increment per-account attempt counter (15-minute window)
+            RateLimiter::hit($userAttemptKey, 60 * 15);
+
             Log::warning('Failed login attempt', [
                 'ip'            => $ip,
                 'login_attempt' => $credentials['login'],
@@ -122,26 +143,38 @@ class AuthController extends Controller
             return back()->withErrors(['message' => 'Invalid username/email or password.']);
         }
 
-        // 7. Check account status before doing any further work
+        // 8. Account status check
         if ($user->status === 'inactive') {
-            return back()->withErrors(['message' => 'Your account is disabled.']);
+            return back()->withErrors(['message' => 'Your account is locked. Please contact your administrator.']);
         }
 
-        // 8. Check that the user has a role before proceeding
+        // 9. Role check before doing any further work
         if (empty($user->role)) {
             Log::error('User without role attempted login', ['user_id' => $user->user_id]);
             return back()->withErrors(['message' => 'Your account does not have a valid role assigned.']);
         }
 
-        // 9. Generate device fingerprint
+        // 10. Enforce single active session per account
+        $hasActiveSession = DB::table('sessions')
+            ->where('user_id', $user->user_id)
+            ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->timestamp)
+            ->exists();
+
+        if ($hasActiveSession) {
+            return back()->withErrors([
+                'message' => 'This account is already logged in on another device. Please sign out there first.',
+            ]);
+        }
+
+        // 11. Generate device fingerprint
         $deviceFingerprint = DeviceFingerprintService::generateFingerprint($request);
-        $deviceName = substr(
+        $deviceName        = substr(
             htmlspecialchars($request->header('User-Agent') ?? 'Unknown', ENT_QUOTES, 'UTF-8'),
             0,
             255
         );
 
-        // 10. Check if device is recognized and trusted
+        // 12. Check if device is recognized and trusted
         $verification = DeviceFingerprintService::verifyDevice(
             $user->user_id,
             $deviceFingerprint,
@@ -149,7 +182,6 @@ class AuthController extends Controller
         );
 
         if (!$verification['require_mfa']) {
-            // Device recognized and trusted — complete login immediately
             Log::info('Login via recognized device - skipping MFA', [
                 'user_id' => $user->user_id,
                 'ip'      => $ip,
@@ -158,13 +190,14 @@ class AuthController extends Controller
 
             $this->completeLogin($user, $request);
             RateLimiter::clear($key);
+            RateLimiter::clear($userAttemptKey);
 
             return $user->role === 'user'
                 ? redirect()->route('user.dashboard')
                 : redirect()->route('home');
         }
 
-        // 11. New/unrecognized device — require OTP verification
+        // 13. New/unrecognized device — require OTP
         Log::warning('MFA required - device not recognized', [
             'user_id'      => $user->user_id,
             'ip'           => $ip,
@@ -172,14 +205,13 @@ class AuthController extends Controller
             'threat_level' => $verification['threat_level'],
         ]);
 
-        // Pass the user name so sendOtp() doesn't need to re-query the DB
         if (!$this->sendOtp($user->email, $user->name)) {
-            return back()->withErrors(['message' => 'Failed to send OTP. Please try again in a few minutes.']);
+            return back()->withErrors(['message' => 'Failed to send OTP. Please try again.']);
         }
 
-        Session::put('pending_user_id',  $user->user_id);
-        Session::put('otp_email',        $user->email);
-        Session::put('device_name',      $deviceName);
+        Session::put('pending_user_id',    $user->user_id);
+        Session::put('otp_email',          $user->email);
+        Session::put('device_name',        $deviceName);
         Session::put('device_fingerprint', json_encode($deviceFingerprint));
 
         return redirect()->route('otp.verify.form');
@@ -187,7 +219,6 @@ class AuthController extends Controller
 
     protected function completeLogin($user, Request $request): void
     {
-        // Role guard — must be checked before Auth::login()
         if (empty($user->role)) {
             Log::error('User without role attempted login', ['user_id' => $user->user_id]);
             Session::flash('error', 'Your account does not have a valid role assigned.');
@@ -204,7 +235,6 @@ class AuthController extends Controller
         if ($user->role === 'user') {
             $today = now()->format('Y-m-d');
 
-            // Single upsert query instead of a select + conditional insert/update
             FrequencyModel::updateOrCreate(
                 ['user_id' => $user->user_id, 'login_date' => $today],
                 ['office_id' => $user->office_id, 'login_count' => DB::raw('COALESCE(login_count, 0) + 1')]
@@ -220,31 +250,25 @@ class AuthController extends Controller
 
     /**
      * @param string $email
-     * @param string $userName  Pass the name directly to avoid an extra DB query.
+     * @param string $userName  Passed directly to avoid an extra DB query.
      */
     protected function sendOtp(string $email, string $userName = 'User'): bool
     {
         $resendKey = 'otp_resend_' . hash('sha256', $email);
 
         if (Cache::has($resendKey)) {
-            Log::warning('OTP resend rate limited', [
-                'email' => $email,
-                'ip'    => request()->ip(),
-            ]);
+            Log::warning('OTP resend rate limited', ['email' => $email, 'ip' => request()->ip()]);
             return false;
         }
 
-        // Check if an active OTP already exists for this email
-        $existingOtp = OtpModel::where('email', $email)
-            ->active()
-            ->first();
+        $existingOtp = OtpModel::where('email', $email)->active()->first();
 
         if ($existingOtp) {
             $secondsSinceCreation = $existingOtp->created_at->diffInSeconds(now());
 
             if ($secondsSinceCreation < 30) {
                 Log::warning('OTP resend too soon', [
-                    'email'                => $email,
+                    'email'                  => $email,
                     'seconds_since_creation' => $secondsSinceCreation,
                 ]);
                 return false;
@@ -262,8 +286,8 @@ class AuthController extends Controller
             $existingOtp->increment('resend_count');
         }
 
-        // Generate new OTP
-        $otp    = sprintf('%08d', random_int(0, 99999999));
+        // 6-digit OTP (industry standard, easier to type, still safe with attempt limits)
+        $otp    = sprintf('%06d', random_int(0, 999999));
         $secret = config('security.otp_secret');
 
         if (empty($secret)) {
@@ -272,11 +296,10 @@ class AuthController extends Controller
         }
 
         $otpHash     = hash_hmac('sha256', $otp, $secret);
-        $otpLifetime = min((int) config('security.otp_lifetime'), 5); // cap at 5 minutes
+        $otpLifetime = min((int) config('security.otp_lifetime'), 5);
         $expiresAt   = now()->addMinutes($otpLifetime);
 
         try {
-            // Delete any previous unused OTP for this email
             OtpModel::where('email', $email)->whereNull('used_at')->delete();
 
             $otpRecord = OtpModel::create([
@@ -304,18 +327,12 @@ class AuthController extends Controller
 
                 return true;
             } catch (Exception $e) {
-                Log::error('Failed to send OTP email', [
-                    'email' => $email,
-                    'error' => $e->getMessage(),
-                ]);
+                Log::error('Failed to send OTP email', ['email' => $email, 'error' => $e->getMessage()]);
                 $otpRecord->delete();
                 return false;
             }
         } catch (Exception $e) {
-            Log::error('Failed to create OTP record', [
-                'email' => $email,
-                'error' => $e->getMessage(),
-            ]);
+            Log::error('Failed to create OTP record', ['email' => $email, 'error' => $e->getMessage()]);
             return false;
         }
     }
@@ -326,7 +343,7 @@ class AuthController extends Controller
 
         $validated = $request->validate([
             'email' => 'required|email',
-            'otp'   => 'required|numeric|digits:8',
+            'otp'   => 'required|numeric|digits:6',
         ]);
 
         $email                 = $validated['email'];
@@ -351,9 +368,9 @@ class AuthController extends Controller
 
         if (!$deviceFingerprint || !is_array($deviceFingerprint)) {
             Log::error('Device fingerprint missing or invalid from session', [
-                'email'          => $email,
+                'email'           => $email,
                 'pending_user_id' => $pendingUserId,
-                'ip'             => $ip,
+                'ip'              => $ip,
             ]);
             Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
             return back()->withErrors(['message' => 'Device verification failed. Please try again.']);
@@ -371,13 +388,11 @@ class AuthController extends Controller
 
         if (RateLimiter::tooManyAttempts($ipKey, 15)) {
             $seconds = RateLimiter::availableIn($ipKey);
-            Log::warning('OTP verification rate limited by IP', ['ip' => $ip, 'retry_after' => $seconds]);
             return back()->withErrors(['message' => "Too many verification attempts. Try again in {$seconds} seconds."]);
         }
 
         if (RateLimiter::tooManyAttempts($userKey, 5)) {
             $seconds = RateLimiter::availableIn($userKey);
-            Log::warning('OTP verification rate limited by user', ['user_id' => $pendingUserId, 'retry_after' => $seconds]);
             return back()->withErrors(['message' => "Too many verification attempts. Try again in {$seconds} seconds."]);
         }
 
@@ -386,9 +401,7 @@ class AuthController extends Controller
 
         try {
             $otpVerified = DB::transaction(function () use ($email, $otp, $ip) {
-                $otpRecord = OtpModel::where('email', $email)
-                    ->lockForUpdate()
-                    ->first();
+                $otpRecord = OtpModel::where('email', $email)->lockForUpdate()->first();
 
                 if (!$otpRecord) {
                     Log::warning('OTP record not found', ['email' => $email, 'ip' => $ip]);
@@ -445,11 +458,7 @@ class AuthController extends Controller
                     return false;
                 }
 
-                // OTP is correct — mark as used
-                $otpRecord->update([
-                    'used_at' => now(),
-                    'used_ip' => $ip,
-                ]);
+                $otpRecord->update(['used_at' => now(), 'used_ip' => $ip]);
 
                 Log::info('OTP verified successfully', [
                     'email'  => $email,
@@ -465,7 +474,6 @@ class AuthController extends Controller
                 'error' => $e->getMessage(),
                 'ip'    => $ip,
             ]);
-
             Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
             return back()->withErrors(['message' => 'Verification failed. Please try again.']);
         }
@@ -474,7 +482,9 @@ class AuthController extends Controller
             $otpExists = OtpModel::where('email', $email)->whereNull('used_at')->exists();
 
             if (!$otpExists) {
-                return back()->withErrors(['message' => 'Too many failed attempts. OTP has been invalidated. Please request a new OTP.']);
+                return back()->withErrors([
+                    'message' => 'Too many failed attempts. OTP has been invalidated. Please request a new OTP.',
+                ]);
             }
 
             return back()->withErrors(['message' => 'Invalid OTP.']);
@@ -483,10 +493,7 @@ class AuthController extends Controller
         $user = UserModel::find($pendingUserId);
 
         if (!$user) {
-            Log::error('User not found during OTP verification', [
-                'user_id' => $pendingUserId,
-                'email'   => $email,
-            ]);
+            Log::error('User not found during OTP verification', ['user_id' => $pendingUserId, 'email' => $email]);
             Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
             return back()->withErrors(['message' => 'User not found.']);
         }
@@ -503,13 +510,8 @@ class AuthController extends Controller
         }
 
         if ($user->status === 'inactive') {
-            Log::warning('Inactive user OTP verification attempt', [
-                'user_id' => $user->user_id,
-                'email'   => $email,
-                'ip'      => $ip,
-            ]);
             Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
-            return back()->withErrors(['message' => 'Your account is disabled.']);
+            return back()->withErrors(['message' => 'Your account is locked. Please contact your administrator.']);
         }
 
         $this->completeLogin($user, $request);
@@ -538,13 +540,7 @@ class AuthController extends Controller
             ]);
         }
 
-        Session::forget([
-            'pending_user_id',
-            'otp_email',
-            'device_fingerprint',
-            'device_name',
-        ]);
-
+        Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint', 'device_name']);
         RateLimiter::clear($ipKey);
         RateLimiter::clear($userKey);
 
@@ -562,12 +558,11 @@ class AuthController extends Controller
 
     public function resendOtp(Request $request)
     {
-        $ip             = $request->ip();
-        $rateLimitKey   = 'resend_otp_ip:' . $ip;
+        $ip           = $request->ip();
+        $rateLimitKey = 'resend_otp_ip:' . $ip;
 
         if (RateLimiter::tooManyAttempts($rateLimitKey, 5)) {
             $seconds = RateLimiter::availableIn($rateLimitKey);
-            Log::warning('Resend OTP rate limited by IP', ['ip' => $ip, 'retry_after' => $seconds]);
             return back()->withErrors([
                 'message' => "Too many resend requests. Try again in {$seconds} seconds."
             ]);
@@ -579,17 +574,11 @@ class AuthController extends Controller
         $email     = $validated['email'];
 
         if (!Session::has('pending_user_id')) {
-            Log::warning('Resend OTP without valid session', ['email' => $email, 'ip' => $ip]);
             return back()->withErrors(['message' => 'Invalid session. Please log in again.']);
         }
 
         $sessionEmail = Session::get('otp_email');
         if ($sessionEmail !== $email) {
-            Log::warning('Resend OTP email mismatch', [
-                'session_email'   => $sessionEmail,
-                'submitted_email' => $email,
-                'ip'              => $ip,
-            ]);
             return back()->withErrors(['message' => 'Email does not match session.']);
         }
 
@@ -597,20 +586,16 @@ class AuthController extends Controller
 
         if (Cache::has($cooldownKey)) {
             $secondsLeft = Cache::getSeconds($cooldownKey) ?? 30;
-            Log::warning('Resend OTP on cooldown', ['email' => $email, 'seconds_remaining' => $secondsLeft, 'ip' => $ip]);
             return back()->withErrors([
                 'message' => "Please wait {$secondsLeft} seconds before requesting another OTP."
             ]);
         }
 
-        // Delete old unused OTP before creating a new one
         OtpModel::where('email', $email)->whereNull('used_at')->delete();
 
-        // Fetch user name to avoid an extra query inside sendOtp()
         $userName = UserModel::where('email', $email)->value('name') ?? 'User';
 
         if (!$this->sendOtp($email, $userName)) {
-            Log::error('sendOtp returned false on resend', ['email' => $email, 'ip' => $ip]);
             return back()->withErrors(['message' => 'Failed to send OTP. Please try again.']);
         }
 
@@ -622,7 +607,6 @@ class AuthController extends Controller
             ->first();
 
         if (!$otpRecord) {
-            Log::error('OTP record not found after resend', ['email' => $email, 'ip' => $ip]);
             return back()->withErrors(['message' => 'OTP was sent but could not retrieve expiration time.']);
         }
 
@@ -745,10 +729,7 @@ class AuthController extends Controller
         }
 
         if (!empty($validated['website'])) {
-            Log::warning('HP triggered in user update', [
-                'ip'      => $request->ip(),
-                'user_id' => Auth::id(),
-            ]);
+            Log::warning('HP triggered in user update', ['ip' => $request->ip(), 'user_id' => Auth::id()]);
             return back()->with('success', 'Settings updated successfully!');
         }
 
@@ -767,10 +748,7 @@ class AuthController extends Controller
 
         $user->save();
 
-        Log::info('User settings updated', [
-            'user_id'    => $user->user_id,
-            'updated_by' => Auth::id(),
-        ]);
+        Log::info('User settings updated', ['user_id' => $user->user_id, 'updated_by' => Auth::id()]);
 
         return back()->with('success', 'Settings updated successfully!');
     }

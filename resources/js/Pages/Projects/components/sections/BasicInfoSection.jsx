@@ -10,9 +10,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
         <div className="md:col-span-2">
           <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">
             Project Title
-            <span className="text-xs text-gray-500 font-normal ml-2">
-              ({data.project_title.length}/255)
-            </span>
+            <span className="text-red-500 ml-1">*</span>
           </label>
           <input
             type="text"
@@ -61,7 +59,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
 
         {/* Select proponent */}
         <div>
-          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Select proponent</label>
+          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Select proponent <span className="text-red-500 ml-1">*</span></label>
           <select
             className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
             value={data.proponent_id}
@@ -87,9 +85,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
         <div className="md:col-span-2">
           <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">
             Current Business Location
-            <span className="text-xs text-gray-500 font-normal ml-2">
-              ({data.place_name.length}/100)
-            </span>
+            <span className="text-red-500 ml-1">*</span>
           </label>
           <input
             type="text"
@@ -113,6 +109,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
           <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">
             Latitude
             <span className="text-xs text-gray-500 font-normal ml-2">(e.g., 8.4542)</span>
+            <span className="text-red-500 ml-1">*</span>
           </label>
           <input
             type="number"
@@ -123,6 +120,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
             placeholder="e.g., 8.4542480"
             value={data.latitude}
             onChange={(e) => setData('latitude', e.target.value)}
+            required
           />
           {errors.latitude && (
             <div className="text-red-500 text-xs md:text-sm mt-1 flex items-center gap-1">
@@ -136,6 +134,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
           <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">
             Longitude
             <span className="text-xs text-gray-500 font-normal ml-2">(e.g., 124.6319)</span>
+            <span className="text-red-500 ml-1">*</span>
           </label>
           <input
             type="number"
@@ -146,6 +145,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
             placeholder="e.g., 124.6319420"
             value={data.longitude}
             onChange={(e) => setData('longitude', e.target.value)}
+            required
           />
           {errors.longitude && (
             <div className="text-red-500 text-xs md:text-sm mt-1 flex items-center gap-1">
@@ -157,7 +157,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
 
         {/* Project Cost + Counterpart */}
         <div>
-          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Project Cost</label>
+          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Project Cost<span className="text-red-500 ml-1">*</span></label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <span className="text-gray-500 text-sm">₱</span>
@@ -180,7 +180,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
         </div>
 
         <div>
-          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Counterpart</label>
+          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Counterpart<span className="text-red-500 ml-1">*</span></label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <span className="text-gray-500 text-sm">₱</span>
@@ -191,6 +191,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
               placeholder="0.00"
               value={data.counterpart}
               onChange={(e) => setData('counterpart', e.target.value)}
+              required
             />
           </div>
           {errors.counterpart && (
@@ -242,7 +243,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
 
         {/* Monthly Refund + Last Refund */}
         <div>
-          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Monthly Refund Amount</label>
+          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Monthly Refund Amount <span className="text-red-500 ml-1">*</span></label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <span className="text-gray-500 text-sm">₱</span>
@@ -253,6 +254,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
               placeholder="0.00"
               value={data.refund_amount}
               onChange={(e) => setData('refund_amount', e.target.value)}
+              required
             />
           </div>
           {errors.refund_amount && (
@@ -264,7 +266,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
         </div>
 
         <div>
-          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Last Refund Amount</label>
+          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">Last Refund Amount<span className="text-red-500 ml-1">*</span></label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <span className="text-gray-500 text-sm">₱</span>
@@ -275,6 +277,7 @@ export default function BasicInfoSection({ data, setData, errors, proponents, is
               placeholder="0.00"
               value={data.last_refund}
               onChange={(e) => setData('last_refund', e.target.value)}
+              required
             />
           </div>
           {errors.last_refund && (

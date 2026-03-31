@@ -13,20 +13,20 @@ class OtpVerificationMail extends Mailable
 
     public $otp;
     public $userName;
-    public $expiresAt;  // NEW: Accept expiration time
+    public $expiresAt;
 
     /**
      * Create a new message instance.
      *
      * @param string $otp
      * @param string|null $userName
-     * @param Carbon|null $expiresAt  // NEW: Expiration timestamp
+     * @param Carbon|null $expiresAt
      */
     public function __construct($otp, $userName = null, $expiresAt = null)
     {
         $this->otp = $otp;
         $this->userName = $userName ?? 'User';
-        $this->expiresAt = $expiresAt ?? now()->addMinutes(5);  // Default to 5 minutes
+        $this->expiresAt = $expiresAt ?? now()->addMinutes(5);
     }
 
     public function build()
@@ -45,9 +45,6 @@ class OtpVerificationMail extends Mailable
         $otp = htmlspecialchars($this->otp);
         $userName = htmlspecialchars($this->userName);
         
-        // NEW: Calculate minutes from expiration time
-        $now = now();
-        // NEW: Format expiration time
         $expiryDateTime = $this->expiresAt->format('F d, Y \a\t h:i A T');
         
         $currentDate = Carbon::now()->format('F d, Y \a\t h:i A');
@@ -78,12 +75,12 @@ class OtpVerificationMail extends Mailable
 
                         <!-- OTP Code Card -->
                         <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 30px; margin: 30px 0; text-align: center;'>
-                            <p style='margin: 0 0 10px 0; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;'>Your Verification Code</p>
+                            <p style='margin: 0 0 10px 0; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;'>Your 6-Digit Verification Code</p>
                             <div style='background-color: #ffffff; border-radius: 6px; padding: 20px; margin: 15px 0;'>
                                 <p style='margin: 0; color: #667eea; font-size: 25px; font-weight: 700; letter-spacing: 2px; font-family: \"Courier New\", monospace;'>{$otp}</p>
                             </div>
                             <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.85); font-size: 13px;'>
-                                ⏱️ This code will expire in <strong> 5 minutes </strong>
+                                ⏱️ This code will expire in <strong>5 minutes</strong>
                             </p>
                             <p style='margin: 5px 0 0 0; color: rgba(255,255,255,0.75); font-size: 12px;'>
                                 Expires at: <strong>{$expiryDateTime}</strong>
@@ -119,7 +116,7 @@ class OtpVerificationMail extends Mailable
 
                             <div>
                                 <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500;'>Action Required</p>
-                                <p style='margin: 0; color: #333; font-size: 14px;'>Enter the code in your login window to continue</p>
+                                <p style='margin: 0; color: #333; font-size: 14px;'>Enter the 6-digit code in your login window to continue</p>
                             </div>
                         </div>
 

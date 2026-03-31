@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
 export default function VerifyResetOtp({ email, maskedEmail, expiresAt, attemptsLeft, maxAttempts }) {
@@ -168,6 +168,7 @@ export default function VerifyResetOtp({ email, maskedEmail, expiresAt, attempts
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4">
+            <Head title="Verify Reset OTP" />
             <div className="w-full max-w-md">
                 <div className="bg-white rounded-lg shadow-lg p-8">
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">

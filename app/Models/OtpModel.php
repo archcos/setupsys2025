@@ -20,7 +20,7 @@ class OtpModel extends Model
 
     protected $casts = [
         'expires_at' => 'datetime',
-        'used_at' => 'datetime',
+        'used_at'    => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -69,5 +69,25 @@ class OtpModel extends Model
     public function incrementAttempts(): void
     {
         $this->increment('attempts');
+    }
+
+    /**
+     * Refresh the OTP code and expiry in place.
+     * Resets attempts to 0, increments resend_count, preserves everything else.
+     * Returns the plain-text OTP so the caller can email it.
+     */
+    public function refreshCode(string $secret, int $expiryMinutes = 5): string
+    {
+        $otp            = sprintf('%08d', random_int(0, 99999999));
+        $hash           = hash_hmac('sha256', $otp, $secret);
+        $this->code       = $hash;
+        $this->expires_at = now()->addMinutes($expiryMinutes);
+        $this->attempts   = 0;
+        $this->used_at    = null;
+        $this->used_ip    = null;
+        $this->resend_count = $this->resend_count + 1;
+        $this->save();
+
+        return $otp;
     }
 }

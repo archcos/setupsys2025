@@ -1,25 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { AlertCircle, CheckCircle, Mail } from 'lucide-react';
 
 export default function VerifyOtp() {
   const { props } = usePage();
-  const email = props.email || '';
-  const maskedEmail = props.maskedEmail || email;
-  const initialExpiresAt = props.expiresAt || null;
-  const initialAttemptsLeft = props.attemptsLeft || 3;
-  
-  const [otp, setOtp] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  const [timeLeft, setTimeLeft] = useState(300);
-  const [resending, setResending] = useState(false);
-  const [verifying, setVerifying] = useState(false);
+  const email               = props.email || '';
+  const maskedEmail         = props.maskedEmail || email;
+  const initialExpiresAt    = props.expiresAt || null;
+  const initialAttemptsLeft = props.attemptsLeft ?? 3;
+
+  const [otp, setOtp]                   = useState('');
+  const [message, setMessage]           = useState('');
+  const [error, setError]               = useState('');
+  const [timeLeft, setTimeLeft]         = useState(300);
+  const [resending, setResending]       = useState(false);
+  const [verifying, setVerifying]       = useState(false);
   const [attemptsLeft, setAttemptsLeft] = useState(initialAttemptsLeft);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [initialWait, setInitialWait] = useState(30);
-  const [isExpired, setIsExpired] = useState(false);
-  const [expiresAt, setExpiresAt] = useState(initialExpiresAt);
+  const [initialWait, setInitialWait]   = useState(30);
+  const [isExpired, setIsExpired]       = useState(false);
+  const [expiresAt, setExpiresAt]       = useState(initialExpiresAt);
 
   // Calculate time left from backend expiration time
   useEffect(() => {
@@ -29,9 +29,9 @@ export default function VerifyOtp() {
     }
 
     const calculateTimeLeft = () => {
-      const now = new Date().getTime();
+      const now        = new Date().getTime();
       const expireTime = new Date(expiresAt).getTime();
-      const remaining = Math.max(0, Math.floor((expireTime - now) / 1000));
+      const remaining  = Math.max(0, Math.floor((expireTime - now) / 1000));
 
       if (remaining <= 0) {
         setIsExpired(true);
@@ -43,62 +43,48 @@ export default function VerifyOtp() {
 
     calculateTimeLeft();
     const timer = setInterval(calculateTimeLeft, 1000);
-
     return () => clearInterval(timer);
   }, [expiresAt]);
 
-  // Initial wait timer (30 seconds before can resend)
+  // Initial 30-second wait before resend is allowed
   useEffect(() => {
     if (initialWait <= 0) return;
-    
     const timer = setInterval(() => {
       setInitialWait((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
-    
     return () => clearInterval(timer);
   }, [initialWait]);
 
-  // Resend cooldown timer
+  // Cooldown after each resend
   useEffect(() => {
     if (resendCooldown <= 0) return;
-    
     const timer = setInterval(() => {
       setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
-    
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  // Validate OTP input - only digits, max 8
+  // Only allow digits, max 6
   const handleOtpChange = (e) => {
     const value = e.target.value;
-    
-    if (!/^\d*$/.test(value)) {
-      return;
-    }
-    
-    const sanitized = value.slice(0, 8);
+    if (!/^\d*$/.test(value)) return;
+    const sanitized = value.slice(0, 6);
     setOtp(sanitized);
-    
-    if (error && sanitized.length > 0) {
-      setError('');
-    }
+    if (error && sanitized.length > 0) setError('');
   };
 
-  // Prevent multiple submissions
   const handleVerify = (e) => {
-    if (verifying) {
-      e?.preventDefault();
-      return;
-    }
+    e?.preventDefault();
+
+    if (verifying) return;
 
     if (isExpired) {
       setError('OTP has expired. Please request a new one.');
       return;
     }
 
-    if (!otp || otp.length !== 8) {
-      setError('Please enter a valid 8-digit OTP');
+    if (!otp || otp.length !== 6) {
+      setError('Please enter a valid 6-digit OTP.');
       return;
     }
 
@@ -113,52 +99,32 @@ export default function VerifyOtp() {
 
     router.post(
       '/verify-otp',
-      { 
-        email, 
-        otp 
-      },
+      { email, otp },
       {
         onError: (errors) => {
-          if (process.env.NODE_ENV === 'development') {
-            console.error('OTP verification error:', errors);
-          }
-          
           setError(errors.message || 'Invalid OTP. Please try again.');
-          
-          // Decrement attempts on error
+
           if (attemptsLeft > 0 && !errors.message?.includes('Too many')) {
             setAttemptsLeft((prev) => Math.max(0, prev - 1));
           } else if (errors.message?.includes('Too many')) {
             setAttemptsLeft(0);
           }
-          
+
           setVerifying(false);
-        },
-        onFinish: () => {
-          // Don't reset here - redirect will happen on success
         },
       }
     );
   };
 
-  // Handle Enter key
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && otp.length === 8 && !verifying && !isExpired) {
+    if (e.key === 'Enter' && otp.length === 6 && !verifying && !isExpired) {
       e.preventDefault();
       handleVerify();
     }
   };
 
-  // Resend OTP using Inertia
   const resendOtp = () => {
-    if (!email) {
-      setError('Email not found. Please log in again.');
-      return;
-    }
-
-    if (resending) {
-      return;
-    }
+    if (!email || resending) return;
 
     setResending(true);
     setError('');
@@ -169,12 +135,12 @@ export default function VerifyOtp() {
       { email },
       {
         onSuccess: (page) => {
-          const expiresAt = page.props.expiresAt;
-          const message = page.props.message;
-          
-          if (expiresAt) {
-            setMessage(message || 'OTP resent successfully! Check your email.');
-            setExpiresAt(expiresAt);
+          const newExpiresAt = page.props.expiresAt;
+          const newMessage   = page.props.message;
+
+          if (newExpiresAt) {
+            setMessage(newMessage || 'OTP resent successfully! Check your email.');
+            setExpiresAt(newExpiresAt);
             setIsExpired(false);
             setAttemptsLeft(3);
             setOtp('');
@@ -186,7 +152,6 @@ export default function VerifyOtp() {
           setResending(false);
         },
         onError: (errors) => {
-          console.error('Resend OTP error:', errors);
           setError(errors.message || 'Failed to resend OTP. Please try again.');
           setResending(false);
         },
@@ -200,6 +165,7 @@ export default function VerifyOtp() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-200 via-white to-indigo-300 flex items-center justify-center px-4 py-8">
       <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+        <Head title="Verify OTP" />
         {/* Header */}
         <div className="flex justify-center mb-6">
           <div className="bg-blue-100 p-3 rounded-full">
@@ -211,39 +177,33 @@ export default function VerifyOtp() {
           Verify Your Email
         </h2>
         <p className="text-gray-600 mb-6 text-center">
-          We've sent an <strong>8-digit code</strong> to <br />
-          <strong className="text-gray-800">
-            {maskedEmail}
-          </strong>
+          We've sent a <strong>6-digit code</strong> to <br />
+          <strong className="text-gray-800">{maskedEmail}</strong>
         </p>
 
         {/* OTP Input */}
         <div className="mb-4">
-          <label htmlFor="otp-input" className="sr-only">
-            OTP Code
-          </label>
+          <label htmlFor="otp-input" className="sr-only">OTP Code</label>
           <input
             id="otp-input"
             type="text"
             inputMode="numeric"
-            maxLength="8"
+            maxLength="6"
             className={`border-2 rounded-lg p-4 w-full text-center text-4xl tracking-widest font-bold transition-colors ${
-              otp.length === 8
+              otp.length === 6
                 ? 'border-green-500 focus:ring-2 focus:ring-green-200'
                 : 'border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
             } ${verifying || isExpired ? 'opacity-50 cursor-not-allowed' : ''}`}
-            placeholder="00000000"
+            placeholder="000000"
             value={otp}
             onChange={handleOtpChange}
             onKeyDown={handleKeyDown}
             disabled={verifying || isExpired}
             aria-label="OTP Code"
-            autoComplete="off"
+            autoComplete="one-time-code"
             spellCheck="false"
           />
-          <p className="text-xs text-gray-500 mt-2 text-center">
-            {otp.length}/8 digits
-          </p>
+          <p className="text-xs text-gray-500 mt-2 text-center">{otp.length}/6 digits</p>
         </div>
 
         {/* Attempts Left Indicator */}
@@ -254,19 +214,17 @@ export default function VerifyOtp() {
               <div
                 key={i}
                 className={`w-3 h-3 rounded-full transition-all ${
-                  i < attemptsLeft 
-                    ? 'bg-green-500 scale-100' 
-                    : 'bg-gray-300 scale-75'
+                  i < attemptsLeft ? 'bg-green-500 scale-100' : 'bg-gray-300 scale-75'
                 }`}
                 aria-hidden="true"
               />
             ))}
           </div>
           <span className={`text-sm font-bold ${
-            attemptsLeft === 0 
-              ? 'text-red-600' 
-              : attemptsLeft === 1 
-              ? 'text-orange-600' 
+            attemptsLeft === 0
+              ? 'text-red-600'
+              : attemptsLeft === 1
+              ? 'text-orange-600'
               : 'text-gray-700'
           }`}>
             {attemptsLeft}/3
@@ -276,10 +234,10 @@ export default function VerifyOtp() {
         {/* Verify Button */}
         <button
           onClick={handleVerify}
-          disabled={verifying || otp.length !== 8 || attemptsLeft === 0 || isExpired}
+          disabled={verifying || otp.length !== 6 || attemptsLeft === 0 || isExpired}
           type="button"
           className={`w-full py-3 rounded-lg text-white font-semibold transition-all ${
-            verifying || otp.length !== 8 || attemptsLeft === 0 || isExpired
+            verifying || otp.length !== 6 || attemptsLeft === 0 || isExpired
               ? 'bg-blue-300 cursor-not-allowed'
               : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
           }`}
@@ -287,25 +245,9 @@ export default function VerifyOtp() {
         >
           {verifying ? (
             <span className="flex items-center justify-center gap-2">
-              <svg 
-                className="animate-spin h-5 w-5" 
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <circle 
-                  className="opacity-25" 
-                  cx="12" 
-                  cy="12" 
-                  r="10" 
-                  stroke="currentColor" 
-                  strokeWidth="4" 
-                  fill="none"
-                />
-                <path 
-                  className="opacity-75" 
-                  fill="currentColor" 
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
+              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
               Verifying...
             </span>
@@ -317,7 +259,10 @@ export default function VerifyOtp() {
         {/* Timer */}
         {!isExpired && timeLeft > 0 ? (
           <p className="text-sm text-gray-500 mt-4 text-center">
-            Code expires in <strong>{minutes}:{seconds.toString().padStart(2, '0')}</strong>
+            Code expires in{' '}
+            <strong className={timeLeft <= 60 ? 'text-orange-500' : ''}>
+              {minutes}:{seconds.toString().padStart(2, '0')}
+            </strong>
           </p>
         ) : (
           <p className="text-red-600 mt-4 text-center font-semibold">
@@ -344,11 +289,7 @@ export default function VerifyOtp() {
         {/* Success Message */}
         {message && (
           <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">
-            <CheckCircle 
-              size={20} 
-              className="text-green-600 flex-shrink-0 mt-0.5"
-              aria-hidden="true"
-            />
+            <CheckCircle size={20} className="text-green-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
             <p className="text-green-800 text-sm">{message}</p>
           </div>
         )}
@@ -356,16 +297,12 @@ export default function VerifyOtp() {
         {/* Error Message */}
         {error && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-            <AlertCircle 
-              size={20} 
-              className="text-red-600 flex-shrink-0 mt-0.5"
-              aria-hidden="true"
-            />
+            <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
             <p className="text-red-800 text-sm">{error}</p>
           </div>
         )}
 
-        {/* Back to Login Link */}
+        {/* Back to Login */}
         <div className="text-center mt-6 pt-6 border-t border-gray-200">
           <p className="text-sm text-gray-600">
             Didn't receive the code?{' '}

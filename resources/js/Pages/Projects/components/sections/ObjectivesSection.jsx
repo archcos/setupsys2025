@@ -33,21 +33,19 @@ export default function ObjectivesSection({ data, setData, errors }) {
         {data.objectives.map((objective, index) => (
           <div key={index} className="flex gap-3 md:gap-4 p-3 md:p-4 bg-gradient-to-r from-gray-50 to-indigo-50/30 rounded-lg md:rounded-xl border border-gray-200">
             <div className="flex-shrink-0 mt-1">
-              <div className="w-5 h-5 md:w-6 md:h-6 bg-indigo-100 rounded-full flex items-center justify-center">
-                <span className="text-xs font-medium text-indigo-600">{index + 1}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-indigo-600 whitespace-nowrap">
+                  Objective {index + 1}<span className="text-red-500 ml-1">*</span>
+                </span>
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <label className="block text-xs text-gray-500 mb-1">
-                ({objective.details.length}/255)
-              </label>
               <textarea
                 rows="2"
                 placeholder="Describe the project objective..."
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 resize-none text-sm"
                 value={objective.details}
                 onChange={(e) => handleObjectiveChange(index, e.target.value)}
-                maxLength={255}
                 required
               />
               {errors[`objectives.${index}.details`] && (

@@ -9,7 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
-
+use Illuminate\Support\Facades\RateLimiter;
+    
 class UserManagementController extends Controller
 {
 
@@ -137,6 +138,14 @@ class UserManagementController extends Controller
         }
 
         $user->save();
+
+        if ($request->status === 'active') {
+            $usernameKey = 'signin:user:' . hash('sha256', strtolower($user->username));
+            $emailKey    = 'signin:user:' . hash('sha256', strtolower($user->email));
+
+            RateLimiter::clear($usernameKey);
+            RateLimiter::clear($emailKey);
+        }
 
         return back()->with('success', 'User updated successfully.');
     }

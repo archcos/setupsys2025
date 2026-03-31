@@ -50,9 +50,7 @@ export default function ItemsSection({ data, setData, errors }) {
                 <div className="col-span-12 md:col-span-6">
                   <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                     Item Name
-                    <span className="text-xs text-gray-500 font-normal ml-2">
-                      ({item.item_name.length}/100)
-                    </span>
+                    <span className="text-red-500 ml-1">*</span>
                   </label>
                   <input
                     type="text"
@@ -72,7 +70,7 @@ export default function ItemsSection({ data, setData, errors }) {
                 </div>
 
                 <div className="col-span-6 md:col-span-3">
-                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Cost</label>
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Cost<span className="text-red-500 ml-1">*</span></label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <span className="text-gray-500 text-sm">₱</span>
@@ -97,7 +95,7 @@ export default function ItemsSection({ data, setData, errors }) {
                 </div>
 
                 <div className="col-span-3 md:col-span-1">
-                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Qty</label>
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Quantity<span className="text-red-500 ml-1">*</span></label>
                   <input
                     type="number"
                     className="w-full px-2 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-center text-sm"
@@ -116,7 +114,7 @@ export default function ItemsSection({ data, setData, errors }) {
                 </div>
 
                 <div className="col-span-3 md:col-span-2">
-                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Type</label>
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Type<span className="text-red-500 ml-1">*</span></label>
                   <select
                     className="w-full px-2 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
                     value={item.type}
@@ -138,9 +136,7 @@ export default function ItemsSection({ data, setData, errors }) {
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                   Specifications
-                  <span className="text-xs text-gray-500 font-normal ml-2">
-                    ({item.specifications.length}/255)
-                  </span>
+                  <span className="text-red-500 ml-1">*</span>
                 </label>
                 <textarea
                   rows="3"
@@ -148,7 +144,6 @@ export default function ItemsSection({ data, setData, errors }) {
                   placeholder="Enter detailed specifications..."
                   value={item.specifications}
                   onChange={(e) => handleItemChange(index, 'specifications', e.target.value)}
-                  maxLength={255}
                   required
                 />
                 {errors[`items.${index}.specifications`] && (
