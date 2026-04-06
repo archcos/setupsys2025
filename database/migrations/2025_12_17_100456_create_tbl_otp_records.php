@@ -10,6 +10,7 @@ return new class extends Migration {
         Schema::create('tbl_otp_records', function (Blueprint $table) {
             $table->id();
             $table->string('email')->index();
+            $table->enum('otp_type', ['login', 'reset'])->default('login');
             $table->string('code'); // HMAC-SHA256 hash
             $table->timestamp('expires_at')->nullable()->index();
             $table->unsignedTinyInteger('attempts')->default(0);
@@ -17,7 +18,7 @@ return new class extends Migration {
             $table->ipAddress('used_ip')->nullable();
             $table->unsignedTinyInteger('resend_count')->default(1);
             $table->timestamps();
-            $table->unique(['email', 'used_at']);
+            $table->unique(['email', 'otp_type', 'used_at']);
         });
     }
 

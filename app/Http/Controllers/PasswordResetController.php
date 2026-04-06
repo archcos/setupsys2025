@@ -4,650 +4,424 @@ namespace App\Http\Controllers;
 
 use App\Models\OtpModel;
 use App\Models\UserModel;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use Exception;
 use Inertia\Inertia;
 
 class PasswordResetController extends Controller
 {
-    /**
-     * Show the request password reset form
-     */
+    // =========================================================================
+    // STEP 1 — Show request form
+    // =========================================================================
+
     public function showRequestForm()
     {
         return Inertia::render('RequestPasswordReset');
     }
 
-    /**
-     * Handle password reset request
-     * User enters their email or username to request a reset
-     */
+    // =========================================================================
+    // STEP 2 — Handle initial reset request
+    // =========================================================================
+
     public function requestReset(Request $request)
     {
         $ip = $request->ip();
-        $rateLimitKey = 'password_reset_request:' . $ip;
 
-        // Rate limit: max 3 reset requests per IP per minute
-        if (RateLimiter::tooManyAttempts($rateLimitKey, 3)) {
-            $seconds = RateLimiter::availableIn($rateLimitKey);
-            
-            Log::warning('Password reset request rate limited', [
-                'ip' => $ip,
-                'retry_after' => $seconds,
-            ]);
-
+        // Per-IP cap: 3 initial requests per minute
+        $ipKey = 'password_reset_request:ip:' . $ip;
+        if (RateLimiter::tooManyAttempts($ipKey, 3)) {
+            $seconds = RateLimiter::availableIn($ipKey);
             return back()->withErrors([
-                'message' => "Too many reset requests. Try again in {$seconds} seconds."
+                'login' => "Too many reset requests. Try again in {$seconds} seconds.",
             ]);
         }
-
-        RateLimiter::hit($rateLimitKey, 60);
+        RateLimiter::hit($ipKey, 60);
 
         $validated = $request->validate([
-            'login' => 'required|string|max:255', // email or username
+            'login' => 'required|string|max:255',
         ], [
             'login.required' => 'Please enter your email or username.',
         ]);
 
-        $login = $validated['login'];
-
-        // Find user by email or username
-        $user = UserModel::where('email', $login)
-            ->orWhere('username', $login)
+        $user = UserModel::where('email', $validated['login'])
+            ->orWhere('username', $validated['login'])
             ->first();
 
-        // Security: Always return success message even if user doesn't exist
-        // This prevents username enumeration
         Log::info('Password reset requested', [
-            'login_attempt' => $login,
-            'user_found' => $user ? true : false,
-            'ip' => $ip,
+            'login'      => $validated['login'],
+            'user_found' => (bool) $user,
+            'ip'         => $ip,
         ]);
 
-        // If user doesn't exist, just pretend we sent an email
+        // Always return the same response — prevents user enumeration
         if (!$user) {
-            return back()->with('message', 
-                'If an account exists with that email or username, you will receive a password reset OTP shortly.'
-            );
+            return back()->with('message', 'If an account exists with that email or username, you will receive a password reset OTP shortly.');
         }
 
-        // User exists - send OTP
-        if (!$this->sendPasswordResetOtp($user->email)) {
-            Log::error('Failed to send password reset OTP', [
-                'user_id' => $user->user_id,
-                'email' => $user->email,
-            ]);
+        // ------------------------------------------------------------------
+        // Load the latest OTP row for this email regardless of state.
+        // resend_count on this row is the authoritative abuse counter and
+        // survives expiry, failed attempts, and refreshes.
+        // ------------------------------------------------------------------
+        $existing = OtpModel::getLatest($user->email, OtpModel::TYPE_RESET);
 
+        if ($existing && $existing->isResendLocked()) {
+            $seconds = $existing->resendLockedForSeconds();
+            Log::warning('Initial reset request blocked by resend lock', [
+                'email'        => $user->email,
+                'otp_type'     => OtpModel::TYPE_RESET,
+                'resend_count' => $existing->resend_count,
+                'locked_for'   => $seconds,
+                'ip'           => $ip,
+            ]);
             return back()->withErrors([
-                'message' => 'Failed to send reset code. Please try again.'
+                'login' => "Too many reset requests. Try again in {$seconds} seconds.",
             ]);
         }
 
-        // Store in session for verification step
+        // Check cooldown (time since last OTP was sent/refreshed)
+        if ($existing && $existing->isWithinCooldown()) {
+            $seconds = $existing->cooldownRemainingSeconds();
+            return back()->withErrors([
+                'login' => "Please wait {$seconds} seconds before requesting another OTP.",
+            ]);
+        }
+
+        if (!$this->issueOtp($user->email, $existing, $ip)) {
+            return back()->withErrors(['login' => 'Failed to send reset code. Please try again.']);
+        }
+
         Session::put('reset_pending_user_id', $user->user_id);
         Session::put('reset_email', $user->email);
-
-        Log::info('Password reset OTP sent', [
-            'user_id' => $user->user_id,
-            'email' => $user->email,
-            'ip' => $ip,
-        ]);
+        Session::put('reset_otp_type', OtpModel::TYPE_RESET);
 
         return redirect()->route('password.reset.verify-form');
     }
 
-/**
-     * Show OTP verification form for password reset
-     */
+    // =========================================================================
+    // STEP 3 — Show OTP verification form
+    // =========================================================================
+
     public function showVerifyForm()
     {
-        $email = Session::get('reset_email');
-        
+        $email   = Session::get('reset_email');
+        $otpType = Session::get('reset_otp_type', OtpModel::TYPE_RESET);
+
         if (!$email) {
             return redirect()->route('password.request');
         }
 
-        // Get the LATEST OTP record (not used, not expired)
-        $otpRecord = OtpModel::where('email', $email)
-            ->where('used_at', null)
-            ->where('expires_at', '>', now())
-            ->orderBy('created_at', 'desc')
-            ->first();
+        $otpRecord = OtpModel::getActive($email, $otpType);
 
-        // If no valid OTP exists, tell user to request again
         if (!$otpRecord) {
-            Log::warning('No valid OTP found when showing verify form', [
-                'email' => $email,
-            ]);
-            
-            Session::forget(['reset_pending_user_id', 'reset_email']);
-            
+            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_type']);
             return redirect()->route('password.request')
                 ->withErrors(['message' => 'Password reset code expired. Please request a new one.']);
         }
 
-        // HARDCODE max attempts to 3 - DO NOT USE CONFIG
-        $maxAttempts = (int)config('security.otp_attempts');
-        $attemptsUsed = $otpRecord->attempts;
-        $attemptsLeft = max(0, $maxAttempts - $attemptsUsed);
+        $maxAttempts  = (int) config('security.otp_attempts');
+        $attemptsLeft = max(0, $maxAttempts - $otpRecord->attempts);
 
-        // If OTP has already exhausted all attempts, redirect back
         if ($attemptsLeft <= 0) {
-            Log::warning('OTP already exhausted attempts - redirecting to request form', [
-                'email' => $email,
-                'attempts_used' => $attemptsUsed,
-                'max_attempts' => $maxAttempts,
-            ]);
-            
-            Session::forget(['reset_pending_user_id', 'reset_email']);
-            
+            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_type']);
             return redirect()->route('password.request')
                 ->withErrors(['message' => 'Too many failed attempts. Please request a new reset code.']);
         }
 
-        $expiresAt = $otpRecord->expires_at->toIso8601String();
-
-        Log::info('Password reset OTP verification form displayed', [
-            'email' => $email,
-            'attempts_used' => $attemptsUsed,
-            'attempts_left' => $attemptsLeft,
-            'max_attempts' => $maxAttempts,
-        ]);
-
         return Inertia::render('Auth/VerifyResetOtp', [
-            'email' => $email,
-            'maskedEmail' => $this->maskEmail($email),
-            'expiresAt' => $expiresAt,
+            'email'        => $email,
+            'maskedEmail'  => $this->maskEmail($email),
+            'expiresAt'    => $otpRecord->expires_at->toIso8601String(),
             'attemptsLeft' => $attemptsLeft,
-            'maxAttempts' => $maxAttempts,
+            'maxAttempts'  => $maxAttempts,
         ]);
     }
 
-    
+    // =========================================================================
+    // STEP 4 — Real-time OTP status (AJAX polling)
+    // =========================================================================
 
-
-    /**
-     * Get current OTP status (for real-time updates)
-     */
-  public function getOtpStatus(Request $request)
+    public function getOtpStatus(Request $request)
     {
-        $email = Session::get('reset_email');
-        
+        $email   = Session::get('reset_email');
+        $otpType = Session::get('reset_otp_type', OtpModel::TYPE_RESET);
+
         if (!$email) {
             return response()->json(['error' => 'Invalid session'], 401);
         }
 
-        // Get LATEST OTP record
-        $otpRecord = OtpModel::where('email', $email)
-            ->where('used_at', null)
-            ->where('expires_at', '>', now())
-            ->orderBy('created_at', 'desc')
-            ->first();
-
+        $otpRecord = OtpModel::getActive($email, $otpType);
         if (!$otpRecord) {
-            return response()->json([
-                'valid' => false,
-                'message' => 'OTP expired or invalidated',
-            ]);
+            return response()->json(['valid' => false, 'message' => 'OTP expired or invalidated']);
         }
 
-        $maxAttempts = (int)config('security.otp_attempts');
+        $maxAttempts  = (int) config('security.otp_attempts');
         $attemptsLeft = max(0, $maxAttempts - $otpRecord->attempts);
 
         return response()->json([
-            'valid' => true,
-            'expiresAt' => $otpRecord->expires_at->toIso8601String(),
+            'valid'        => true,
+            'expiresAt'    => $otpRecord->expires_at->toIso8601String(),
             'attemptsUsed' => $otpRecord->attempts,
             'attemptsLeft' => $attemptsLeft,
-            'maxAttempts' => $maxAttempts,
+            'maxAttempts'  => $maxAttempts,
         ]);
     }
 
+    // =========================================================================
+    // STEP 5 — Verify OTP
+    // =========================================================================
 
-/**
-     * Verify the OTP for password reset
-     */
     public function verifyOtp(Request $request)
     {
         $ip = $request->ip();
 
         $validated = $request->validate([
             'email' => 'required|email',
-            'otp' => 'required|string|digits:8',
+            'otp'   => 'required|string|digits:8',
         ]);
 
-        $email = $validated['email'];
-        $otp = $validated['otp'];
+        $email         = $validated['email'];
+        $otp           = $validated['otp'];
         $pendingUserId = Session::get('reset_pending_user_id');
-        $resetEmail = Session::get('reset_email');
+        $resetEmail    = Session::get('reset_email');
+        $otpType       = Session::get('reset_otp_type', OtpModel::TYPE_RESET);
 
-        $ipKey = 'password_reset_verify:ip:' . $ip;
-        $userKey = 'password_reset_verify:user:' . $pendingUserId;
-
-        // Validate session data
+        // Session guards
         if (!$pendingUserId || !$resetEmail) {
-            Log::warning('Missing session data during password reset OTP verification', [
-                'ip' => $ip,
-            ]);
-            
-            Session::forget(['reset_pending_user_id', 'reset_email']);
-            
-            return response()->json([
-                'message' => 'Session expired. Please request a new reset.',
-            ], 422);
+            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_type']);
+            return response()->json(['message' => 'Session expired. Please request a new reset.'], 422);
         }
 
         if ($resetEmail !== $email) {
-            Log::warning('Email mismatch in password reset OTP verification', [
-                'expected' => $resetEmail,
-                'submitted' => $email,
-                'ip' => $ip,
-            ]);
-            
-            Session::forget(['reset_pending_user_id', 'reset_email']);
-            
-            return response()->json([
-                'message' => 'Invalid email for this reset request.',
-            ], 422);
+            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_type']);
+            return response()->json(['message' => 'Invalid email for this reset request.'], 422);
         }
 
-        // Get LATEST OTP record first
-        $otpRecord = OtpModel::where('email', $email)
-            ->where('used_at', null)
-            ->where('expires_at', '>', now())
-            ->orderBy('created_at', 'desc')
-            ->first();
+        // Per-IP and per-user rate limits
+        $ipKey   = 'password_reset_verify:ip:'   . $ip;
+        $userKey = 'password_reset_verify:user:' . $pendingUserId;
 
-        // HARDCODE max attempts to 3 - DO NOT USE CONFIG
-        $maxAttempts = (int)config('security.otp_attempts');
-
-        // If no valid OTP exists, reject
-        if (!$otpRecord) {
-            Log::warning('No valid OTP found for verification', [
-                'email' => $email,
-                'ip' => $ip,
-            ]);
-            
-            Session::forget(['reset_pending_user_id', 'reset_email']);
-            
-            return response()->json([
-                'message' => 'Password reset code expired. Please request a new one.'
-            ], 422);
-        }
-
-        // If max attempts already reached, reject immediately
-        if ($otpRecord->attempts >= $maxAttempts) {
-            Log::warning('Password reset OTP submission after max attempts reached', [
-                'email' => $email,
-                'attempts' => $otpRecord->attempts,
-                'max_attempts' => $maxAttempts,
-                'ip' => $ip,
-            ]);
-
-            Session::forget(['reset_pending_user_id', 'reset_email']);
-            
-            return response()->json([
-                'message' => 'Too many failed attempts. Please request a new reset code.',
-                'attemptsLeft' => 0,
-            ], 422);
-        }
-
-        // Rate limiting
         if (RateLimiter::tooManyAttempts($ipKey, 15)) {
             $seconds = RateLimiter::availableIn($ipKey);
-            
-            Log::warning('Password reset OTP verification rate limited by IP', [
-                'ip' => $ip,
-                'retry_after' => $seconds,
-            ]);
-
-            return response()->json([
-                'message' => "Too many verification attempts. Try again in {$seconds} seconds."
-            ], 429);
+            return response()->json(['message' => "Too many verification attempts. Try again in {$seconds} seconds."], 429);
         }
-
         if (RateLimiter::tooManyAttempts($userKey, 5)) {
             $seconds = RateLimiter::availableIn($userKey);
-            
-            Log::warning('Password reset OTP verification rate limited by user', [
-                'user_id' => $pendingUserId,
-                'retry_after' => $seconds,
-            ]);
-
-            return response()->json([
-                'message' => "Too many verification attempts. Try again in {$seconds} seconds."
-            ], 429);
+            return response()->json(['message' => "Too many verification attempts. Try again in {$seconds} seconds."], 429);
         }
 
-        RateLimiter::hit($ipKey, 30);
+        $maxAttempts = (int) config('security.otp_attempts');
+        $otpRecord   = OtpModel::getActive($email, $otpType);
+
+        if (!$otpRecord) {
+            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_type']);
+            return response()->json(['message' => 'Password reset code expired. Please request a new one.'], 422);
+        }
+
+        if ($otpRecord->attempts >= $maxAttempts) {
+            return response()->json(['message' => 'Too many failed attempts. Please request a new reset code.', 'attemptsLeft' => 0], 422);
+        }
+
+        RateLimiter::hit($ipKey,   30);
         RateLimiter::hit($userKey, 30);
 
-        // Verify OTP in database transaction
+        // Verify inside a transaction with a row lock
         try {
-            $otpVerified = DB::transaction(function () use ($email, $otp, $ip) {
-                // Get LATEST OTP again with lock
-                $otpRecord = OtpModel::where('email', $email)
-                    ->where('used_at', null)
+            $otpVerified = DB::transaction(function () use ($email, $otp, $otpType, $ip, $maxAttempts) {
+                $record = OtpModel::where('email', $email)
+                    ->where('otp_type', $otpType)
+                    ->whereNull('used_at')
                     ->where('expires_at', '>', now())
                     ->orderBy('created_at', 'desc')
                     ->lockForUpdate()
                     ->first();
 
-                if (!$otpRecord) {
-                    Log::warning('OTP record not found in transaction', [
-                        'email' => $email,
-                        'ip' => $ip,
-                    ]);
+                if (!$record) {
                     return false;
                 }
 
-                // Check if already used
-                if ($otpRecord->used_at !== null) {
-                    Log::warning('Password reset OTP reuse attempt detected', [
-                        'email' => $email,
-                        'used_at' => $otpRecord->used_at,
-                        'ip' => $ip,
-                    ]);
+                if ($record->attempts >= $maxAttempts) {
                     return false;
                 }
 
-                // Check expiration
-                if (now()->isAfter($otpRecord->expires_at)) {
-                    Log::warning('Expired password reset OTP submission', [
-                        'email' => $email,
-                        'ip' => $ip,
-                    ]);
-                    return false;
-                }
-
-                // Verify OTP hash
                 $secret = config('security.otp_secret');
                 if (empty($secret)) {
-                    Log::error('OTP_SECRET not configured', ['email' => $email]);
+                    Log::error('OTP_SECRET not configured');
                     return false;
                 }
 
-                $formattedOtp = sprintf('%08d', (int)$otp);
-                $submittedHash = hash_hmac('sha256', $formattedOtp, $secret);
+                $submittedHash = hash_hmac('sha256', sprintf('%08d', (int) $otp), $secret);
 
-                Log::info('OTP verification attempt', [
-                    'email' => $email,
-                    'otp_length' => strlen($otp),
-                    'current_attempts' => $otpRecord->attempts,
-                ]);
-
-                if (!hash_equals($submittedHash, $otpRecord->code)) {
-                    // Invalid OTP - increment attempts
-                    $otpRecord->increment('attempts');
-                    $otpRecord->refresh();
-
-                    Log::warning('Invalid password reset OTP submitted', [
-                        'email' => $email,
-                        'attempts_used' => $otpRecord->attempts,
-                        'ip' => $ip,
+                if (!hash_equals($submittedHash, $record->code)) {
+                    // Wrong code — only increment attempts, keep the row alive
+                    $record->incrementAttempts();
+                    Log::warning('Invalid OTP submitted', [
+                        'email'    => $email,
+                        'otp_type' => $otpType,
+                        'attempts' => $record->fresh()->attempts,
+                        'ip'       => $ip,
                     ]);
-
                     return false;
                 }
 
-                // OTP is correct - mark as used
-                $otpRecord->update([
-                    'used_at' => now(),
-                    'used_ip' => $ip,
+                // Correct code — mark as used, leave the row (deleted on reset)
+                $record->markAsUsed($ip);
+                Log::info('OTP verified successfully', [
+                    'email'    => $email,
+                    'otp_type' => $otpType,
+                    'ip'       => $ip,
                 ]);
-
-                Log::info('Password reset OTP verified successfully', [
-                    'email' => $email,
-                    'ip' => $ip,
-                ]);
-
                 return true;
             });
         } catch (\Throwable $e) {
-            Log::error('Database transaction error during password reset OTP verification', [
-                'email' => $email,
-                'error' => $e->getMessage(),
-                'ip' => $ip,
+            Log::error('DB error during OTP verification', [
+                'email'    => $email,
+                'otp_type' => $otpType,
+                'error'    => $e->getMessage(),
             ]);
-
-            return response()->json([
-                'message' => 'Verification failed. Please try again.'
-            ], 500);
+            return response()->json(['message' => 'Verification failed. Please try again.'], 500);
         }
 
-        // If OTP was successfully verified, redirect to reset form
         if ($otpVerified) {
             $verificationToken = hash_hmac('sha256', $email . $pendingUserId, config('app.key'));
             Session::put('reset_otp_verified', $verificationToken);
 
-            Log::info('Password reset OTP verified, ready for new password', [
-                'user_id' => $pendingUserId,
-                'email' => $email,
-                'ip' => $ip,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'redirect' => route('password.reset.form'),
-            ]);
+            return response()->json(['success' => true, 'redirect' => route('password.reset.form')]);
         }
 
-        // OTP verification failed - check latest OTP record and return appropriate error
-        $otpRecord = OtpModel::where('email', $email)
-            ->where('used_at', null)
-            ->where('expires_at', '>', now())
-            ->orderBy('created_at', 'desc')
-            ->first();
+        // Failed — return fresh attempt count
+        $fresh        = OtpModel::getActive($email, $otpType);
+        $attemptsLeft = $fresh ? max(0, $maxAttempts - $fresh->attempts) : 0;
 
-        if (!$otpRecord) {
-            Log::info('No valid OTP record found after failed verification', [
-                'email' => $email,
-                'ip' => $ip,
-            ]);
-            
-            Session::forget(['reset_pending_user_id', 'reset_email']);
-            
-            return response()->json([
-                'message' => 'Password reset code expired. Please request a new one.'
-            ], 422);
-        }
-
-        $attemptsLeft = max(0, $maxAttempts - $otpRecord->attempts);
-
-        // Check if attempts are NOW exhausted (after just incrementing)
         if ($attemptsLeft <= 0) {
-            Log::info('Max OTP attempts reached after this submission', [
-                'email' => $email,
-                'attempts' => $otpRecord->attempts,
-                'max_attempts' => $maxAttempts,
-                'ip' => $ip,
-            ]);
-
-            Session::forget(['reset_pending_user_id', 'reset_email']);
-            
-            return response()->json([
-                'message' => 'Too many failed attempts. Please request a new reset code.',
-                'attemptsLeft' => 0,
-            ], 422);
+            return response()->json(['message' => 'Too many failed attempts. Please request a new reset code.', 'attemptsLeft' => 0], 422);
         }
 
-        // Still have attempts remaining
-        Log::info('Invalid OTP submitted, attempts remaining', [
-            'email' => $email,
-            'attempts_left' => $attemptsLeft,
-            'ip' => $ip,
-        ]);
-
-        return response()->json([
-            'message' => 'Invalid OTP. Please try again.',
-            'attemptsLeft' => $attemptsLeft,
-        ], 422);
+        return response()->json(['message' => 'Invalid OTP. Please try again.', 'attemptsLeft' => $attemptsLeft], 422);
     }
 
+    // =========================================================================
+    // STEP 6 — Show new-password form (after OTP verified)
+    // =========================================================================
 
-    /**
-     * Show the password reset form (after OTP verification)
-     */
     public function showResetForm()
     {
-        $email = Session::get('reset_email');
-        $storedToken = Session::get('reset_otp_verified');
-        $expectedToken = hash_hmac('sha256', $email . Session::get('reset_pending_user_id'), config('app.key'));
+        $email         = Session::get('reset_email');
+        $pendingUserId = Session::get('reset_pending_user_id');
+        $storedToken   = Session::get('reset_otp_verified');
 
-        if (!$email || !$storedToken || !hash_equals($expectedToken, $storedToken)) {
-            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_verified']);
+        if (!$email || !$pendingUserId || !$storedToken) {
+            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_type', 'reset_otp_verified']);
+            return redirect()->route('password.request');
+        }
+
+        $expectedToken = hash_hmac('sha256', $email . $pendingUserId, config('app.key'));
+        if (!hash_equals($expectedToken, $storedToken)) {
+            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_type', 'reset_otp_verified']);
             return redirect()->route('password.request');
         }
 
         return Inertia::render('Auth/ResetPassword', [
-            'email' => $email,
+            'email'       => $email,
             'maskedEmail' => $this->maskEmail($email),
         ]);
     }
 
-    /**
-     * Handle the actual password reset
-     */
-    public function resetPassword(Request $request){
-        $ip = $request->ip();
-        $email = Session::get('reset_email');
+    // =========================================================================
+    // STEP 7 — Perform the actual password reset
+    // =========================================================================
+
+    public function resetPassword(Request $request)
+    {
+        $ip            = $request->ip();
+        $email         = Session::get('reset_email');
         $pendingUserId = Session::get('reset_pending_user_id');
-        $storedToken = Session::get('reset_otp_verified');
+        $otpType       = Session::get('reset_otp_type', OtpModel::TYPE_RESET);
+        $storedToken   = Session::get('reset_otp_verified');
 
-        // Validate session - check all values exist first
         if (!$email || !$pendingUserId || !$storedToken) {
-            Log::warning('Unauthorized password reset attempt - missing session data', [
-                'ip' => $ip,
-                'has_email' => (bool)$email,
-                'has_pending_user' => (bool)$pendingUserId,
-                'has_token' => (bool)$storedToken,
-            ]);
-
-            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_verified']);
+            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_type', 'reset_otp_verified']);
             return back()->withErrors(['message' => 'Invalid reset session. Please try again.']);
         }
 
-        // Verify HMAC token — same logic as showResetForm()
         $expectedToken = hash_hmac('sha256', $email . $pendingUserId, config('app.key'));
-
         if (!hash_equals($expectedToken, $storedToken)) {
-            Log::warning('Unauthorized password reset attempt - token mismatch', [
-                'ip' => $ip,
-                'user_id' => $pendingUserId,
-            ]);
-
-            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_verified']);
+            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_type', 'reset_otp_verified']);
             return back()->withErrors(['message' => 'Invalid reset session. Please try again.']);
         }
 
-
-        // Validate new password
         $validated = $request->validate([
             'password' => [
-                'required',
-                'string',
-                'min:12',
-                'max:72',
+                'required', 'string', 'min:12', 'max:72',
                 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,72}$/',
                 'confirmed',
             ],
         ], [
-            'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
+            'password.regex'     => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
             'password.confirmed' => 'Password confirmation does not match.',
-            'password.min' => 'Password must be at least 12 characters.',
+            'password.min'       => 'Password must be at least 12 characters.',
         ]);
 
         try {
             $user = UserModel::find($pendingUserId);
 
-            if (!$user) {
-                Log::error('User not found during password reset', [
-                    'user_id' => $pendingUserId,
-                    'email' => $email,
-                    'ip' => $ip,
-                ]);
-
-                Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_verified']);
-                return back()->withErrors(['message' => 'User not found.']);
-            }
-
-            if ($user->email !== $email) {
-                Log::error('Email mismatch during password reset', [
-                    'user_id' => $user->user_id,
-                    'expected_email' => $email,
-                    'actual_email' => $user->email,
-                    'ip' => $ip,
-                ]);
-
-                Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_verified']);
+            if (!$user || $user->email !== $email) {
+                Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_type', 'reset_otp_verified']);
                 return back()->withErrors(['message' => 'Invalid user for this reset request.']);
             }
 
-            // Check if new password is same as old password
             if (Hash::check($validated['password'], $user->password)) {
-                Log::warning('Password reset attempted with same password', [
-                    'user_id' => $user->user_id,
-                    'email' => $email,
-                    'ip' => $ip,
-                ]);
-
-                return back()->withErrors([
-                    'message' => 'New password must be different from your current password.'
-                ]);
+                return back()->withErrors(['message' => 'New password must be different from your current password.']);
             }
 
-            // Update password
-            $user->update([
-                'password' => Hash::make($validated['password']),
-            ]);
+            $user->update(['password' => Hash::make($validated['password'])]);
 
-            // Send password changed notification email
+            // Get location from IP (cached)
+            $locationData = $this->getLocationFromIp($ip);
+
+            // Notification email (non-fatal)
             try {
-                Mail::to($user->email)->send(new \App\Mail\PasswordChangedMail(
-                    $user->name,
-                    $user->email,
-                    $ip,
-                ));
+                Mail::to($user->email)->send(
+                    new \App\Mail\PasswordChangedMail(
+                        $user->name,
+                        $user->email,
+                        $ip,
+                        $locationData
+                    )
+                );
             } catch (Exception $e) {
-                // Don't fail the reset if email fails — just log it
-                Log::warning('Failed to send password changed notification email', [
+                Log::warning('Failed to send password-changed notification', [
                     'user_id' => $user->user_id,
-                    'email' => $user->email,
-                    'error' => $e->getMessage(),
+                    'error'   => $e->getMessage(),
                 ]);
             }
 
-            // Invalidate all sessions for this user
-            DB::table('sessions')
-                ->where('user_id', $user->user_id)
-                ->delete();
+            // Invalidate all active sessions for this user
+            DB::table('sessions')->where('user_id', $user->user_id)->delete();
 
-            // Mark the reset OTP as used (it should already be, but just to be safe)
-            OtpModel::where('email', $email)
-                ->where('used_at', null)
-                ->update(['used_at' => now(), 'used_ip' => $ip]);
+            // ------------------------------------------------------------------
+            // DELETE ALL OTP rows for this email on successful reset.
+            // Wipes resend_count too — clean slate for any future reset.
+            // Nothing from this session can be replayed.
+            // ------------------------------------------------------------------
+            OtpModel::deleteAllForEmail($email);
 
-            // Clear all reset session data
-            Session::forget([
-                'reset_pending_user_id',
-                'reset_email',
-                'reset_otp_verified',
-            ]);
+            Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_type', 'reset_otp_verified']);
+            RateLimiter::clear('password_reset_request:ip:' . $ip);
 
-            RateLimiter::clear('password_reset_request:' . $ip);
-
-            Log::info('Password reset completed successfully', [
+            Log::info('Password reset completed — all OTP rows deleted', [
                 'user_id' => $user->user_id,
-                'email' => $email,
-                'ip' => $ip,
+                'email'   => $email,
+                'otp_type' => $otpType,
+                'ip'      => $ip,
             ]);
 
             return redirect()->route('login')
@@ -656,170 +430,271 @@ class PasswordResetController extends Controller
         } catch (Exception $e) {
             Log::error('Error during password reset', [
                 'user_id' => $pendingUserId,
-                'email' => $email,
-                'error' => $e->getMessage(),
-                'ip' => $ip,
+                'error'   => $e->getMessage(),
             ]);
-
-            return back()->withErrors([
-                'message' => 'An error occurred during password reset. Please try again.'
-            ]);
+            return back()->withErrors(['message' => 'An error occurred during password reset. Please try again.']);
         }
     }
 
-    /**
-     * Resend OTP for password reset
-     */
-    public function resendOtp(Request $request){
-        $ip = $request->ip();
-        $rateLimitKey = 'resend_password_reset_otp:' . $ip;
+    // =========================================================================
+    // RESEND OTP
+    // =========================================================================
 
-        // ✅ Check rate limits FIRST before touching any records
-        if (RateLimiter::tooManyAttempts($rateLimitKey, 5)) {
-            $seconds = RateLimiter::availableIn($rateLimitKey);
-            return response()->json([
-                'message' => "Too many resend requests. Try again in {$seconds} seconds."
-            ], 429);
-        }
+    public function resendOtp(Request $request)
+    {
+        $ip = $request->ip();
 
         $validated = $request->validate(['email' => 'required|email']);
-        $email = $validated['email'];
+        $email     = $validated['email'];
+        $otpType   = Session::get('reset_otp_type', OtpModel::TYPE_RESET);
 
-        if (!Session::has('reset_pending_user_id')) {
+        // Session guards
+        if (!Session::has('reset_pending_user_id') || Session::get('reset_email') !== $email) {
             return response()->json(['message' => 'Invalid session. Please request a new reset.'], 422);
         }
 
-        $sessionEmail = Session::get('reset_email');
-        if ($sessionEmail !== $email) {
-            return response()->json(['message' => 'Email does not match reset request.'], 422);
+        // ------------------------------------------------------------------
+        // Always load via getLatest() — we need resend_count even if the
+        // current OTP is expired or already used.
+        // ------------------------------------------------------------------
+        $otpRecord = OtpModel::getLatest($email, $otpType);
+
+        if (!$otpRecord) {
+            return response()->json(['message' => 'Invalid session. Please request a new reset.'], 422);
         }
 
-        $cooldownKey = 'resend_password_reset_cooldown:' . hash('sha256', $email . $ip);
-
-        // ✅ Check cooldown BEFORE deleting
-        if (Cache::has($cooldownKey)) {
-            $secondsLeft = Cache::getSeconds($cooldownKey) ?? 30;
+        // 1. Hard lock: resend_count >= MAX_RESENDS within the last hour
+        if ($otpRecord->isResendLocked()) {
+            $seconds = $otpRecord->resendLockedForSeconds();
+            Log::warning('Resend blocked by resend lock', [
+                'email'        => $email,
+                'otp_type'     => $otpType,
+                'resend_count' => $otpRecord->resend_count,
+                'locked_for'   => $seconds,
+                'ip'           => $ip,
+            ]);
             return response()->json([
-                'message' => "Please wait {$secondsLeft} seconds before requesting another OTP."
+                'message' => "Too many resend requests. Please wait {$seconds} seconds before trying again.",
             ], 429);
         }
 
-        // ✅ Only NOW delete old OTP and send new one
-        OtpModel::where('email', $email)->where('used_at', null)->delete();
-
-        if (!$this->sendPasswordResetOtp($email)) {
-            return response()->json(['message' => 'Failed to send OTP. Please try again.'], 500);
+        // 2. Per-resend cooldown (based on updated_at)
+        if ($otpRecord->isWithinCooldown()) {
+            $seconds = $otpRecord->cooldownRemainingSeconds();
+            return response()->json([
+                'message' => "Please wait {$seconds} seconds before requesting another OTP.",
+            ], 429);
         }
 
-        RateLimiter::hit($rateLimitKey, 30);
-        Cache::put($cooldownKey, true, now()->addSeconds(30));
-
-        $otpRecord = OtpModel::where('email', $email)
-            ->where('used_at', null)
-            ->orderBy('created_at', 'desc')
-            ->first();
-
-        Log::info('Password reset OTP resent successfully', ['email' => $email, 'ip' => $ip]);
-
-        return response()->json([
-            'message' => 'OTP resent successfully! Check your email.',
-            'expiresAt' => $otpRecord?->expires_at?->toIso8601String(),
-        ]);
-    }
-
-    /**
-     * Send password reset OTP via email
-     */
-    protected function sendPasswordResetOtp($email){
-        // ✅ Single delete at the top — remove the one inside the try block
-        OtpModel::where('email', $email)->delete();
-
-        $resendKey = 'password_reset_otp_resend:' . hash('sha256', $email);
-
-        if (Cache::has($resendKey)) {
-            Log::warning('Password reset OTP resend rate limited', ['email' => $email]);
-            return false;
+        // 3. Per-IP rate limit (secondary defence against distributed abuse)
+        $ipKey = 'resend_password_reset_otp:ip:' . $ip;
+        if (RateLimiter::tooManyAttempts($ipKey, 10)) {
+            $seconds = RateLimiter::availableIn($ipKey);
+            return response()->json([
+                'message' => "Too many resend requests. Try again in {$seconds} seconds.",
+            ], 429);
         }
-
-        $otp = sprintf('%08d', random_int(0, 99999999));
 
         $secret = config('security.otp_secret');
         if (empty($secret)) {
-            Log::error('OTP_SECRET not configured in .env file');
+            Log::error('OTP_SECRET not configured');
+            return response()->json(['message' => 'Failed to send OTP. Please try again.'], 500);
+        }
+
+        // ------------------------------------------------------------------
+        // Refresh the SAME row in-place:
+        //   - New code + hash
+        //   - attempts reset to 0
+        //   - resend_count incremented (never reset until successful reset)
+        //   - updated_at touched (controls cooldown and lock window)
+        // ------------------------------------------------------------------
+        $otp = $otpRecord->refreshCode($secret);
+
+        try {
+            $user     = UserModel::where('email', $email)->first();
+            $userName = $user ? $user->name : 'User';
+            Mail::to($email)->send(
+                new \App\Mail\PasswordResetOtpMail($otp, $userName, $otpRecord->expires_at)
+            );
+        } catch (Exception $e) {
+            Log::error('Failed to send resend OTP email', [
+                'email'    => $email,
+                'otp_type' => $otpType,
+                'error'    => $e->getMessage(),
+            ]);
+            // Roll back the resend_count bump — email never went out
+            $otpRecord->decrement('resend_count');
+            return response()->json(['message' => 'Failed to send OTP. Please try again.'], 500);
+        }
+
+        // Hit IP limiter only after confirmed successful send
+        RateLimiter::hit($ipKey, 60);
+
+        Log::info('OTP resent successfully', [
+            'email'        => $email,
+            'otp_type'     => $otpType,
+            'resend_count' => $otpRecord->resend_count,
+            'ip'           => $ip,
+        ]);
+
+        return response()->json([
+            'message'   => 'OTP resent successfully! Check your email.',
+            'expiresAt' => $otpRecord->expires_at->toIso8601String(),
+        ]);
+    }
+
+    // =========================================================================
+    // PRIVATE HELPERS
+    // =========================================================================
+
+    /**
+     * Issue an OTP for the given email.
+     *
+     * If a row already exists (any state — expired, used, active): refresh
+     * it in-place so resend_count keeps accumulating across the entire session.
+     *
+     * If no row exists (first-ever request or cleaned up after a successful
+     * reset): create a fresh row with resend_count = 1.
+     */
+    private function issueOtp(string $email, ?OtpModel $existing, string $ip): bool
+    {
+        $secret = config('security.otp_secret');
+        if (empty($secret)) {
+            Log::error('OTP_SECRET not configured');
             return false;
         }
 
-        $otpHash = hash_hmac('sha256', $otp, $secret);
-        $expiresAt = now()->addMinutes(5);
-
-        try {
-            // ✅ No second delete here anymore
-            $otpRecord = OtpModel::create([
-                'email' => $email,
-                'code' => $otpHash,
-                'expires_at' => $expiresAt,
-                'attempts' => 0,
-                'used_at' => null,
-                'used_ip' => null,
-                'resend_count' => 1,
-            ]);
-
-            Cache::put($resendKey, true, now()->addSeconds(30));
-
-            $user = UserModel::where('email', $email)->first();
-            $userName = $user ? $user->name : 'User';
+        if ($existing) {
+            $otp       = $existing->refreshCode($secret);
+            $otpRecord = $existing;
+        } else {
+            $otp = sprintf('%08d', random_int(0, 99999999));
 
             try {
-                Mail::to($email)->send(new \App\Mail\PasswordResetOtpMail($otp, $userName, $expiresAt));
-
-                Log::info('Password reset OTP sent successfully', [
-                    'email' => $email,
-                    'otp_id' => $otpRecord->id,
-                    'expires_at' => $expiresAt,
+                $otpRecord = OtpModel::create([
+                    'email'        => $email,
+                    'otp_type'     => OtpModel::TYPE_RESET,
+                    'code'         => hash_hmac('sha256', $otp, $secret),
+                    'expires_at'   => now()->addMinutes(5),
+                    'attempts'     => 0,
+                    'used_at'      => null,
+                    'used_ip'      => null,
+                    'resend_count' => 1,
                 ]);
-
-                return true;
             } catch (Exception $e) {
-                Log::error('Failed to send password reset OTP email', [
-                    'email' => $email,
-                    'error' => $e->getMessage(),
+                Log::error('Failed to create OTP record', [
+                    'email'    => $email,
+                    'otp_type' => OtpModel::TYPE_RESET,
+                    'error'    => $e->getMessage(),
                 ]);
-                $otpRecord->delete();
                 return false;
             }
-        } catch (Exception $e) {
-            Log::error('Failed to create password reset OTP record', [
-                'email' => $email,
-                'error' => $e->getMessage(),
+        }
+
+        try {
+            $user     = UserModel::where('email', $email)->first();
+            $userName = $user ? $user->name : 'User';
+            Mail::to($email)->send(
+                new \App\Mail\PasswordResetOtpMail($otp, $userName, $otpRecord->expires_at)
+            );
+            Log::info('OTP issued', [
+                'email'        => $email,
+                'otp_type'     => OtpModel::TYPE_RESET,
+                'resend_count' => $otpRecord->resend_count,
+                'ip'           => $ip,
             ]);
+            return true;
+        } catch (Exception $e) {
+            Log::error('Failed to send OTP email', [
+                'email'    => $email,
+                'otp_type' => OtpModel::TYPE_RESET,
+                'error'    => $e->getMessage(),
+            ]);
+            // Roll back so a retry starts clean
+            if (!$existing) {
+                $otpRecord->delete();
+            } else {
+                $otpRecord->decrement('resend_count');
+            }
             return false;
         }
     }
 
     /**
-     * Mask email for display (e.g., u***r@g***l.com)
+     * Get location data from IP address using ip-api.com
+     * Results are cached for 24 hours
      */
-    protected function maskEmail($email): string
+    private function getLocationFromIp(string $ip): array
+    {
+        // Check cache first
+        $cacheKey = "ip_location:{$ip}";
+        $cached = Cache::get($cacheKey);
+        if ($cached) {
+            return $cached;
+        }
+
+        try {
+            $response = Http::timeout(5)->get("https://ip-api.com/json/{$ip}?fields=status,country,city,regionName,isp");
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                if ($data['status'] === 'success') {
+                    $locationData = [
+                        'country'   => $data['country'] ?? 'Unknown',
+                        'city'      => $data['city'] ?? 'Unknown',
+                        'region'    => $data['regionName'] ?? '',
+                        'isp'       => $data['isp'] ?? 'Unknown',
+                        'ip'        => $ip,
+                        'detected'  => true,
+                    ];
+
+                    // Cache for 24 hours
+                    Cache::put($cacheKey, $locationData, 86400);
+                    return $locationData;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to get location from IP', [
+                'ip'    => $ip,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Fallback if service unavailable
+        return [
+            'country'  => 'Unknown',
+            'city'     => 'Unknown',
+            'region'   => '',
+            'isp'      => 'Unknown',
+            'ip'       => $ip,
+            'detected' => false,
+        ];
+    }
+
+    /**
+     * Mask email for display — e.g. u***r@g***l.com
+     */
+    protected function maskEmail(string $email): string
     {
         if (empty($email)) return '';
 
         $parts = explode('@', $email);
         if (count($parts) !== 2) return $email;
 
-        [$localPart, $domain] = $parts;
+        [$local, $domain] = $parts;
 
-        $localLength = strlen($localPart);
-        $maskedLocal = $localLength > 2
-            ? $localPart[0] . str_repeat('*', $localLength - 2) . $localPart[$localLength - 1]
-            : $localPart[0] . '*';
+        $localLen    = strlen($local);
+        $maskedLocal = $localLen > 2
+            ? $local[0] . str_repeat('*', $localLen - 2) . $local[$localLen - 1]
+            : $local[0] . '*';
 
-        $domainParts = explode('.', $domain);
-        $domainName = $domainParts[0];
-        $extension = isset($domainParts[1]) ? $domainParts[1] : '';
-
-        $domainLength = strlen($domainName);
-        $maskedDomain = $domainLength > 2
-            ? $domainName[0] . str_repeat('*', $domainLength - 2) . $domainName[$domainLength - 1]
+        $domainParts  = explode('.', $domain);
+        $domainName   = $domainParts[0];
+        $extension    = $domainParts[1] ?? '';
+        $domainLen    = strlen($domainName);
+        $maskedDomain = $domainLen > 2
+            ? $domainName[0] . str_repeat('*', $domainLen - 2) . $domainName[$domainLen - 1]
             : $domainName[0] . '*';
 
         return $maskedLocal . '@' . $maskedDomain . ($extension ? '.' . $extension : '');

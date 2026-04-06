@@ -1,21 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Head, useForm } from '@inertiajs/react';
-import { Mail, AlertCircle, CheckCircle, Shield } from 'lucide-react';
+import { Mail, AlertCircle, CheckCircle, Shield, Clock } from 'lucide-react';
 
 export default function RequestPasswordReset() {
     const { data, setData, post, processing, errors, reset } = useForm({
         login: '',
     });
 
-    const [submitted, setSubmitted] = useState(false);
+    const [submitted, setSubmitted]       = useState(false);
+    const [cooldownTimer, setCooldownTimer] = useState(0);
+
+    // Countdown ticker for cooldown
+    useEffect(() => {
+        if (cooldownTimer <= 0) return;
+        const id = setInterval(() => setCooldownTimer((p) => Math.max(0, p - 1)), 1000);
+        return () => clearInterval(id);
+    }, [cooldownTimer]);
+
+    // Parse seconds from backend error message (cooldown or resend lock)
+    useEffect(() => {
+        if (errors.login) {
+            // errors.login could be a string or array from Inertia
+            const errorText = typeof errors.login === 'string' ? errors.login : Array.isArray(errors.login) ? errors.login[0] : '';
+            const match = errorText.match(/(\d+)\s+seconds/);
+            if (match) {
+                setCooldownTimer(parseInt(match[1], 10));
+            }
+        }
+    }, [errors.login]);
+
+    const isLocked  = cooldownTimer > 0;
+    const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
     const handleSubmit = (e) => {
         e.preventDefault();
         post(route('password.reset.request'), {
             onSuccess: () => {
                 setSubmitted(true);
+                setCooldownTimer(0);
                 reset();
-                // Redirect to verify form after showing success message briefly
                 setTimeout(() => {
                     window.location.href = route('password.reset.verify-form');
                 }, 2000);
@@ -90,14 +113,8 @@ export default function RequestPasswordReset() {
                                 {/* Center Icons with Animation */}
                                 <div className="absolute inset-0 flex items-center justify-center">
                                     <div className="relative">
-                                        <Shield
-                                            size={32}
-                                            className="text-slate-300 animate-pulse"
-                                        />
-                                        <Mail
-                                            size={16}
-                                            className="absolute -bottom-1 -right-1 text-slate-400 animate-bounce"
-                                        />
+                                        <Shield size={32} className="text-slate-300 animate-pulse" />
+                                        <Mail size={16} className="absolute -bottom-1 -right-1 text-slate-400 animate-bounce" />
                                     </div>
                                 </div>
                             </div>
@@ -155,24 +172,40 @@ export default function RequestPasswordReset() {
                                         placeholder="Enter your email or username"
                                         value={data.login}
                                         onChange={(e) => setData('login', e.target.value)}
-                                        disabled={processing}
+                                        disabled={processing || isLocked}
                                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all disabled:bg-gray-50 disabled:cursor-not-allowed"
                                     />
                                 </div>
-                                {errors.login && (
+
+                                {/* Regular error — only show when not locked */}
+                                {errors.login && !isLocked && (
                                     <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                                        <AlertCircle className="w-4 h-4" />
+                                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
                                         {errors.login}
                                     </p>
+                                )}
+
+                                {/* Lockout banner with live countdown */}
+                                {isLocked && (
+                                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                        <p className="text-sm text-red-800 font-semibold flex items-center gap-2 mb-1">
+                                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                            Please wait before requesting again.
+                                        </p>
+                                        <p className="text-sm text-red-700 flex items-center gap-2">
+                                            <Clock className="w-4 h-4 flex-shrink-0" />
+                                            Try again in <span className="font-mono font-bold ml-1">{formatTime(cooldownTimer)}</span>
+                                        </p>
+                                    </div>
                                 )}
                             </div>
 
                             <button
                                 type="submit"
-                                disabled={processing}
+                                disabled={processing || isLocked}
                                 className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:cursor-not-allowed"
                             >
-                                Send Reset Code
+                                {isLocked ? `Try again in ${formatTime(cooldownTimer)}` : 'Send Reset Code'}
                             </button>
                         </form>
 

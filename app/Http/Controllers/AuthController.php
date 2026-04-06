@@ -197,7 +197,7 @@ class AuthController extends Controller
                 : redirect()->route('home');
         }
 
-        // 13. New/unrecognized device — require OTP
+        // 13. New/unrecognized device — require OTP (login type)
         Log::warning('MFA required - device not recognized', [
             'user_id'      => $user->user_id,
             'ip'           => $ip,
@@ -205,12 +205,13 @@ class AuthController extends Controller
             'threat_level' => $verification['threat_level'],
         ]);
 
-        if (!$this->sendOtp($user->email, $user->name)) {
+        if (!$this->sendOtp($user->email, $user->name, OtpModel::TYPE_LOGIN)) {
             return back()->withErrors(['message' => 'Failed to send OTP. Please try again.']);
         }
 
         Session::put('pending_user_id',    $user->user_id);
         Session::put('otp_email',          $user->email);
+        Session::put('otp_type',           OtpModel::TYPE_LOGIN);
         Session::put('device_name',        $deviceName);
         Session::put('device_fingerprint', json_encode($deviceFingerprint));
 
@@ -251,17 +252,21 @@ class AuthController extends Controller
     /**
      * @param string $email
      * @param string $userName  Passed directly to avoid an extra DB query.
+     * @param string $otpType   Type of OTP: 'login' or 'reset'
      */
-    protected function sendOtp(string $email, string $userName = 'User'): bool
+    protected function sendOtp(string $email, string $userName = 'User', string $otpType = 'login'): bool
     {
-        $resendKey = 'otp_resend_' . hash('sha256', $email);
+        $resendKey = 'otp_resend_' . hash('sha256', $email . $otpType);
 
         if (Cache::has($resendKey)) {
-            Log::warning('OTP resend rate limited', ['email' => $email, 'ip' => request()->ip()]);
+            Log::warning('OTP resend rate limited', ['email' => $email, 'otp_type' => $otpType, 'ip' => request()->ip()]);
             return false;
         }
 
-        $existingOtp = OtpModel::where('email', $email)->active()->first();
+        $existingOtp = OtpModel::where('email', $email)
+            ->where('otp_type', $otpType)
+            ->active()
+            ->first();
 
         if ($existingOtp) {
             $secondsSinceCreation = $existingOtp->created_at->diffInSeconds(now());
@@ -269,6 +274,7 @@ class AuthController extends Controller
             if ($secondsSinceCreation < 30) {
                 Log::warning('OTP resend too soon', [
                     'email'                  => $email,
+                    'otp_type'               => $otpType,
                     'seconds_since_creation' => $secondsSinceCreation,
                 ]);
                 return false;
@@ -277,6 +283,7 @@ class AuthController extends Controller
             if ($existingOtp->resend_count >= 5) {
                 Log::warning('OTP resend limit exceeded', [
                     'email'        => $email,
+                    'otp_type'     => $otpType,
                     'resend_count' => $existingOtp->resend_count,
                 ]);
                 $existingOtp->delete();
@@ -300,10 +307,14 @@ class AuthController extends Controller
         $expiresAt   = now()->addMinutes($otpLifetime);
 
         try {
-            OtpModel::where('email', $email)->whereNull('used_at')->delete();
+            OtpModel::where('email', $email)
+                ->where('otp_type', $otpType)
+                ->whereNull('used_at')
+                ->delete();
 
             $otpRecord = OtpModel::create([
                 'email'        => $email,
+                'otp_type'     => $otpType,
                 'code'         => $otpHash,
                 'expires_at'   => $expiresAt,
                 'attempts'     => 0,
@@ -319,6 +330,7 @@ class AuthController extends Controller
 
                 Log::info('OTP sent successfully', [
                     'email'        => $email,
+                    'otp_type'     => $otpType,
                     'otp_id'       => $otpRecord->id,
                     'otp_lifetime' => $otpLifetime,
                     'expires_at'   => $expiresAt,
@@ -327,12 +339,12 @@ class AuthController extends Controller
 
                 return true;
             } catch (Exception $e) {
-                Log::error('Failed to send OTP email', ['email' => $email, 'error' => $e->getMessage()]);
+                Log::error('Failed to send OTP email', ['email' => $email, 'otp_type' => $otpType, 'error' => $e->getMessage()]);
                 $otpRecord->delete();
                 return false;
             }
         } catch (Exception $e) {
-            Log::error('Failed to create OTP record', ['email' => $email, 'error' => $e->getMessage()]);
+            Log::error('Failed to create OTP record', ['email' => $email, 'otp_type' => $otpType, 'error' => $e->getMessage()]);
             return false;
         }
     }
@@ -350,6 +362,7 @@ class AuthController extends Controller
         $otp                   = $validated['otp'];
         $pendingUserId         = Session::get('pending_user_id');
         $otpEmail              = Session::get('otp_email');
+        $otpType               = Session::get('otp_type', OtpModel::TYPE_LOGIN);
         $deviceFingerprintJson = Session::get('device_fingerprint');
 
         $ipKey   = 'otp_verify:ip:' . $ip;
@@ -359,6 +372,7 @@ class AuthController extends Controller
             Log::warning('Missing session data during OTP verification', [
                 'has_pending_user' => (bool) $pendingUserId,
                 'has_otp_email'    => (bool) $otpEmail,
+                'otp_type'         => $otpType,
                 'ip'               => $ip,
             ]);
             return back()->withErrors(['message' => 'OTP expired or invalid.']);
@@ -370,9 +384,10 @@ class AuthController extends Controller
             Log::error('Device fingerprint missing or invalid from session', [
                 'email'           => $email,
                 'pending_user_id' => $pendingUserId,
+                'otp_type'        => $otpType,
                 'ip'              => $ip,
             ]);
-            Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
+            Session::forget(['pending_user_id', 'otp_email', 'otp_type', 'device_fingerprint']);
             return back()->withErrors(['message' => 'Device verification failed. Please try again.']);
         }
 
@@ -380,9 +395,10 @@ class AuthController extends Controller
             Log::warning('Email mismatch in OTP verification', [
                 'expected'  => $otpEmail,
                 'submitted' => $email,
+                'otp_type'  => $otpType,
                 'ip'        => $ip,
             ]);
-            Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
+            Session::forget(['pending_user_id', 'otp_email', 'otp_type', 'device_fingerprint']);
             return back()->withErrors(['message' => 'Invalid email for OTP.']);
         }
 
@@ -400,17 +416,21 @@ class AuthController extends Controller
         RateLimiter::hit($userKey, 30);
 
         try {
-            $otpVerified = DB::transaction(function () use ($email, $otp, $ip) {
-                $otpRecord = OtpModel::where('email', $email)->lockForUpdate()->first();
+            $otpVerified = DB::transaction(function () use ($email, $otp, $otpType, $ip) {
+                $otpRecord = OtpModel::where('email', $email)
+                    ->where('otp_type', $otpType)
+                    ->lockForUpdate()
+                    ->first();
 
                 if (!$otpRecord) {
-                    Log::warning('OTP record not found', ['email' => $email, 'ip' => $ip]);
+                    Log::warning('OTP record not found', ['email' => $email, 'otp_type' => $otpType, 'ip' => $ip]);
                     return false;
                 }
 
                 if ($otpRecord->used_at !== null) {
                     Log::warning('OTP reuse attempt detected', [
                         'email'      => $email,
+                        'otp_type'   => $otpType,
                         'used_at'    => $otpRecord->used_at,
                         'used_ip'    => $otpRecord->used_ip,
                         'current_ip' => $ip,
@@ -423,6 +443,7 @@ class AuthController extends Controller
                 if (now()->isAfter($otpRecord->expires_at)) {
                     Log::warning('Expired OTP submission', [
                         'email'      => $email,
+                        'otp_type'   => $otpType,
                         'expired_at' => $otpRecord->expires_at,
                         'ip'         => $ip,
                     ]);
@@ -440,6 +461,7 @@ class AuthController extends Controller
 
                     Log::warning('Invalid OTP submitted', [
                         'email'            => $email,
+                        'otp_type'         => $otpType,
                         'current_attempts' => $otpRecord->attempts,
                         'max_attempts'     => $maxAttempts,
                         'attempts_left'    => $attemptsLeft,
@@ -450,6 +472,7 @@ class AuthController extends Controller
                         $otpRecord->delete();
                         Log::warning('OTP invalidated after max attempts', [
                             'email'        => $email,
+                            'otp_type'     => $otpType,
                             'max_attempts' => $maxAttempts,
                             'ip'           => $ip,
                         ]);
@@ -461,25 +484,30 @@ class AuthController extends Controller
                 $otpRecord->update(['used_at' => now(), 'used_ip' => $ip]);
 
                 Log::info('OTP verified successfully', [
-                    'email'  => $email,
-                    'ip'     => $ip,
-                    'otp_id' => $otpRecord->id,
+                    'email'    => $email,
+                    'otp_type' => $otpType,
+                    'ip'       => $ip,
+                    'otp_id'   => $otpRecord->id,
                 ]);
 
                 return true;
             });
         } catch (\Throwable $e) {
             Log::error('Database transaction error during OTP verification', [
-                'email' => $email,
-                'error' => $e->getMessage(),
-                'ip'    => $ip,
+                'email'    => $email,
+                'otp_type' => $otpType,
+                'error'    => $e->getMessage(),
+                'ip'       => $ip,
             ]);
-            Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
+            Session::forget(['pending_user_id', 'otp_email', 'otp_type', 'device_fingerprint']);
             return back()->withErrors(['message' => 'Verification failed. Please try again.']);
         }
 
         if (!$otpVerified) {
-            $otpExists = OtpModel::where('email', $email)->whereNull('used_at')->exists();
+            $otpExists = OtpModel::where('email', $email)
+                ->where('otp_type', $otpType)
+                ->whereNull('used_at')
+                ->exists();
 
             if (!$otpExists) {
                 return back()->withErrors([
@@ -493,8 +521,8 @@ class AuthController extends Controller
         $user = UserModel::find($pendingUserId);
 
         if (!$user) {
-            Log::error('User not found during OTP verification', ['user_id' => $pendingUserId, 'email' => $email]);
-            Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
+            Log::error('User not found during OTP verification', ['user_id' => $pendingUserId, 'email' => $email, 'otp_type' => $otpType]);
+            Session::forget(['pending_user_id', 'otp_email', 'otp_type', 'device_fingerprint']);
             return back()->withErrors(['message' => 'User not found.']);
         }
 
@@ -503,14 +531,15 @@ class AuthController extends Controller
                 'user_id'        => $user->user_id,
                 'expected_email' => $email,
                 'actual_email'   => $user->email,
+                'otp_type'       => $otpType,
                 'ip'             => $ip,
             ]);
-            Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
+            Session::forget(['pending_user_id', 'otp_email', 'otp_type', 'device_fingerprint']);
             return back()->withErrors(['message' => 'Invalid user for OTP.']);
         }
 
         if ($user->status === 'inactive') {
-            Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint']);
+            Session::forget(['pending_user_id', 'otp_email', 'otp_type', 'device_fingerprint']);
             return back()->withErrors(['message' => 'Your account is locked. Please contact your administrator.']);
         }
 
@@ -529,24 +558,27 @@ class AuthController extends Controller
 
             Log::info('Device registered successfully after OTP', [
                 'user_id' => $user->user_id,
+                'otp_type' => $otpType,
                 'ip'      => $ip,
             ]);
         } catch (Exception $e) {
             Log::error('Failed to save device after OTP', [
                 'user_id' => $user->user_id,
                 'email'   => $email,
+                'otp_type' => $otpType,
                 'ip'      => $ip,
                 'error'   => $e->getMessage(),
             ]);
         }
 
-        Session::forget(['pending_user_id', 'otp_email', 'device_fingerprint', 'device_name']);
+        Session::forget(['pending_user_id', 'otp_email', 'otp_type', 'device_fingerprint', 'device_name']);
         RateLimiter::clear($ipKey);
         RateLimiter::clear($userKey);
 
         Log::info('OTP verified and login completed', [
             'user_id' => $user->user_id,
             'email'   => $email,
+            'otp_type' => $otpType,
             'ip'      => $ip,
             'role'    => $user->role,
         ]);
@@ -578,11 +610,13 @@ class AuthController extends Controller
         }
 
         $sessionEmail = Session::get('otp_email');
+        $otpType      = Session::get('otp_type', OtpModel::TYPE_LOGIN);
+
         if ($sessionEmail !== $email) {
             return back()->withErrors(['message' => 'Email does not match session.']);
         }
 
-        $cooldownKey = 'resend_otp_cooldown:' . hash('sha256', $email . $ip);
+        $cooldownKey = 'resend_otp_cooldown:' . hash('sha256', $email . $otpType . $ip);
 
         if (Cache::has($cooldownKey)) {
             $secondsLeft = Cache::getSeconds($cooldownKey) ?? 30;
@@ -591,17 +625,22 @@ class AuthController extends Controller
             ]);
         }
 
-        OtpModel::where('email', $email)->whereNull('used_at')->delete();
+        OtpModel::where('email', $email)
+            ->where('otp_type', $otpType)
+            ->whereNull('used_at')
+            ->delete();
 
-        $userName = UserModel::where('email', $email)->value('name') ?? 'User';
-
-        if (!$this->sendOtp($email, $userName)) {
+        $user = UserModel::where('email', $email)->first();
+        $userName = $user?->name ?? 'User';
+        
+        if (!$this->sendOtp($email, $userName, $otpType)) {
             return back()->withErrors(['message' => 'Failed to send OTP. Please try again.']);
         }
 
         Cache::put($cooldownKey, true, now()->addSeconds(30));
 
         $otpRecord = OtpModel::where('email', $email)
+            ->where('otp_type', $otpType)
             ->whereNull('used_at')
             ->orderBy('created_at', 'desc')
             ->first();
@@ -612,6 +651,7 @@ class AuthController extends Controller
 
         Log::info('OTP resent successfully', [
             'email'      => $email,
+            'otp_type'   => $otpType,
             'otp_id'     => $otpRecord->id,
             'expires_at' => $otpRecord->expires_at,
             'ip'         => $ip,
@@ -625,12 +665,15 @@ class AuthController extends Controller
 
     public function showOtpForm()
     {
-        $email = Session::get('otp_email');
+        $email   = Session::get('otp_email');
+        $otpType = Session::get('otp_type', OtpModel::TYPE_LOGIN);
+
         if (!$email) {
             return redirect()->route('login');
         }
 
         $otpRecord = OtpModel::where('email', $email)
+            ->where('otp_type', $otpType)
             ->whereNull('used_at')
             ->where('expires_at', '>', now())
             ->first();

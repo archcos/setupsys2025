@@ -14,12 +14,14 @@ class PasswordChangedMail extends Mailable
     public $userName;
     public $email;
     public $ip;
+    public $location;
 
-    public function __construct($userName, $email, $ip)
+    public function __construct($userName, $email, $ip, $location = [])
     {
         $this->userName = $userName;
         $this->email = $email;
         $this->ip = $ip;
+        $this->location = $location;
     }
 
     public function build()
@@ -39,6 +41,35 @@ class PasswordChangedMail extends Mailable
         $ip = htmlspecialchars($this->ip);
         $changedAt = Carbon::now()->format('F d, Y \a\t h:i A');
         $currentYear = Carbon::now()->year;
+
+        // Extract location data
+        $country = htmlspecialchars($this->location['country'] ?? 'Unknown');
+        $city = htmlspecialchars($this->location['city'] ?? 'Unknown');
+        $region = htmlspecialchars($this->location['region'] ?? '');
+        $isp = htmlspecialchars($this->location['isp'] ?? 'Unknown');
+        $detected = $this->location['detected'] ?? false;
+
+        $locationDisplay = $city . ($region ? ', ' . $region : '') . ', ' . $country;
+
+        // Build location row HTML
+        $locationHtml = $detected
+            ? "
+                <div style='margin-bottom: 15px;'>
+                    <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500;'>📍 Location</p>
+                    <p style='margin: 0; color: #333; font-size: 14px;'>{$locationDisplay}</p>
+                </div>
+
+                <div style='margin-bottom: 15px;'>
+                    <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500;'>🏢 Internet Service Provider</p>
+                    <p style='margin: 0; color: #333; font-size: 14px;'>{$isp}</p>
+                </div>
+            "
+            : "
+                <div style='margin-bottom: 15px;'>
+                    <p style='margin: 0 0 5px 0; color: #999; font-size: 13px; font-weight: 500;'>📍 Location</p>
+                    <p style='margin: 0; color: #999; font-size: 14px;'>Location information unavailable</p>
+                </div>
+            ";
 
         $htmlContent = "
             <!DOCTYPE html>
@@ -75,16 +106,6 @@ class PasswordChangedMail extends Mailable
                             </p>
                         </div>
 
-                        <!-- Security Warning -->
-                        <div style='background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px 20px; margin: 30px 0; border-radius: 4px;'>
-                            <p style='margin: 0 0 10px 0; color: #856404; font-size: 14px; font-weight: 600;'>
-                                🔒 Wasn't you?
-                            </p>
-                            <p style='margin: 0; color: #856404; font-size: 13px; line-height: 1.6;'>
-                                If you did not make this change, your account may be compromised. Please contact your system administrator immediately and secure your account.
-                            </p>
-                        </div>
-
                         <!-- Change Details -->
                         <div style='background-color: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 4px; padding: 20px; margin: 30px 0;'>
                             <h3 style='margin: 0 0 15px 0; color: #667eea; font-size: 16px; font-weight: 600;'>Change Details</h3>
@@ -98,6 +119,33 @@ class PasswordChangedMail extends Mailable
                                 <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500;'>Date & Time</p>
                                 <p style='margin: 0; color: #333; font-size: 14px;'>{$changedAt}</p>
                             </div>
+
+                            <div style='margin-bottom: 15px;'>
+                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500;'>IP Address</p>
+                                <p style='margin: 0; color: #333; font-size: 14px; word-break: break-all;'>{$ip}</p>
+                            </div>
+
+                            {$locationHtml}
+                        </div>
+
+                        <!-- Security Warning -->
+                        <div style='background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px 20px; margin: 30px 0; border-radius: 4px;'>
+                            <p style='margin: 0 0 10px 0; color: #856404; font-size: 14px; font-weight: 600;'>
+                                🔒 Wasn't you?
+                            </p>
+                            <p style='margin: 0; color: #856404; font-size: 13px; line-height: 1.6;'>
+                                If you did not make this change or the location/IP address is unfamiliar, your account may be compromised. Please contact your system administrator immediately and secure your account.
+                            </p>
+                        </div>
+
+                        <!-- VPN Notice -->
+                        <div style='background-color: #e3f2fd; border-left: 4px solid #1976d2; padding: 15px 20px; margin: 30px 0; border-radius: 4px;'>
+                            <p style='margin: 0 0 8px 0; color: #0d47a1; font-size: 14px; font-weight: 600;'>
+                                ℹ️ Using a VPN or Proxy?
+                            </p>
+                            <p style='margin: 0; color: #1565c0; font-size: 13px; line-height: 1.6;'>
+                                If you're using a VPN, proxy, or privacy tool, the location shown above may not reflect your actual location. This is normal.
+                            </p>
                         </div>
 
                         <p style='margin: 30px 0 0 0; color: #999; font-size: 13px; line-height: 1.6;'>
