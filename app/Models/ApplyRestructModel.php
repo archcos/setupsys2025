@@ -21,8 +21,8 @@ class ApplyRestructModel extends Model
         'annexd',
     ];
 
-    // Add this to append status to JSON
-    protected $appends = ['status'];
+    // // Add this to append status to JSON
+    // protected $appends = ['status'];
 
     /**
      * Relationship: Each apply restructure belongs to one project.

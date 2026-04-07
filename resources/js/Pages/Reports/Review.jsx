@@ -1,6 +1,7 @@
 import { Link, router, usePage, Head } from "@inertiajs/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, CheckCircle, XCircle, Eye, AlertTriangle, ChevronDown, ChevronUp, Building2, X, ThumbsUp, FileCheck2, ArrowUpDown } from 'lucide-react';
+import { cleanParams } from "@/utils/cleanParams";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -122,6 +123,8 @@ export default function Review({ reports, filters, statusCounts }) {
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [warningAction, setWarningAction]  = useState(null);
   const [warningReportId, setWarningReportId] = useState(null);
+  const isMountedRef = useRef(false);
+  // Also add useRef to your imports at the top
 
   const { auth } = usePage().props;
   const role = auth?.user?.role;
@@ -132,16 +135,25 @@ export default function Review({ reports, filters, statusCounts }) {
   const pushRouter = (overrides = {}) =>
     router.get(
       route("review-reports.index"),
-      { search, sortBy, sortOrder, statusFilter, perPage, ...overrides },
+      cleanParams(
+        { search, sortBy, sortOrder, statusFilter, perPage, ...overrides },
+        { sortBy: 'created_at', sortOrder: 'desc', perPage: 10, statusFilter: 'all' }
+      ),
       { preserveState: true, preserveScroll: false }
     );
-
-  // Debounce search
   useEffect(() => {
-    const timer = setTimeout(() => pushRouter(), 400);
+    const timer = setTimeout(() => { isMountedRef.current = true; }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    const timer = setTimeout(() => pushRouter({ page: 1 }), 400);
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Escape key
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === "Escape") {

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import {
   CheckCircle, Eye, FileText, Calendar, User, Search, X,
   Building2, Clock, ArrowUp, ArrowDown, Stamp, Download,
 } from 'lucide-react';
 import PaginationLinks from '@/components/PaginationLinks';
+import { cleanParams } from '@/utils/cleanParams';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -182,7 +183,7 @@ function FilePreviewModal({ preview, onClose }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function VerifyRestructureList({ applyRestructs, auth, offices, filters: initialFilters, statusCounts }) {
+export default function Index({ applyRestructs, auth, offices, filters: initialFilters, statusCounts }) {
   const userRole = auth?.user?.role;
 
   const [search,       setSearch]       = useState(initialFilters?.search       || '');
@@ -203,48 +204,63 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
   const closePreview = () => setPreview({ show: false, url: null, type: null, label: null, raw: null });
 
   // ── Router helpers ──
+  const isMountedRef = useRef(false);
+
   const pushRouter = (overrides = {}) =>
     router.get(
       '/verify-restructure',
-      { search, perPage, officeFilter, statusFilter, sortBy, ...overrides },
+      cleanParams(
+        { search, perPage, officeFilter, statusFilter, sortBy, ...overrides },
+        { sortBy: 'desc', perPage: 10, statusFilter: 'pending' }
+      ),
       { preserveState: true, replace: true }
     );
 
-  React.useEffect(() => {
-    const timer = setTimeout(() => pushRouter(), 500);
+  // Prevents effects from firing on initial mount / back-navigation
+  useEffect(() => {
+    const timer = setTimeout(() => { isMountedRef.current = true; }, 0);
     return () => clearTimeout(timer);
-  }, [search, officeFilter]);
+  }, []);
 
-  const handleStatusFilter = (val) => {
-    setStatusFilter(val);
-    pushRouter({ statusFilter: val, page: 1 });
-  };
+  // Debounced search
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    const timer = setTimeout(() => pushRouter({ page: 1 }), 500);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const handlePerPage = (e) => {
-    const val = e.target.value;
-    setPerPage(val);
-    pushRouter({ perPage: val, page: 1 });
-  };
+  // officeFilter — immediate, resets to page 1
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    pushRouter({ page: 1 });
+  }, [officeFilter]);
 
-  const handleSortToggle = () => {
-    const val = sortBy === 'desc' ? 'asc' : 'desc';
-    setSortBy(val);
-    pushRouter({ sortBy: val });
-  };
+ const handleStatusFilter = (val) => {
+  setStatusFilter(val);
+  pushRouter({ statusFilter: val, page: 1 });
+};
 
-  const handleClearFilters = () => {
-    setSearch('');
-    setOfficeFilter('');
-    setStatusFilter('all');
-    setSortBy('desc');
-    router.get('/verify-restructure', { perPage }, { preserveState: true });
-  };
+const handlePerPage = (e) => {
+  const val = e.target.value;
+  setPerPage(val);
+  pushRouter({ perPage: val, page: 1 });
+};
 
-  const handlePageChange = (link) => {
-    if (!link.url) return;
-    const pageNum = new URL(link.url).searchParams.get('page');
-    if (pageNum) pushRouter({ page: pageNum });
-  };
+const handleSortToggle = () => {
+  const val = sortBy === 'desc' ? 'asc' : 'desc';
+  setSortBy(val);
+  pushRouter({ sortBy: val });
+};
+
+const handleClearFilters = () => {
+  setSearch('');
+  setOfficeFilter('');
+  setStatusFilter('all');
+  setSortBy('desc');
+  router.get('/verify-restructure', {}, { preserveState: true });
+};
+
+
 
   const hasActiveFilters = !!(search || officeFilter || statusFilter !== 'all');
   const data             = applyRestructs?.data || [];
@@ -380,7 +396,7 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                         {item.created_at ? new Date(item.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
                       </td>
                       <td className="px-4 md:px-6 py-3 md:py-4">
-                        <StatusPill status={item.restructure?.status || 'pending'} />
+                        <StatusPill status={item.computed_status || 'pending'} />
                       </td>
                       <td className="px-4 md:px-6 py-3 md:py-4">
                         <DocButtons item={item} onPreview={openPreview} />
@@ -415,7 +431,7 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
                       <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{item.project?.project_title || '-'}</h3>
                       <p className="text-xs text-gray-600 mt-0.5">{item.project?.proponent?.company_name || 'No proponent'}</p>
                     </div>
-                    <StatusPill status={item.restructure?.status || 'pending'} />
+                    <StatusPill status={item.computed_status || 'pending'} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs">

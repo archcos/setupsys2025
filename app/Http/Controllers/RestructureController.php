@@ -87,8 +87,12 @@ class RestructureController extends Controller
         // Sort
         $sortBy === 'asc' ? $query->oldest() : $query->latest();
 
-        $applyRestructs = $query->paginate($perPage)->withQueryString();
-
+    $applyRestructs = $query->paginate($perPage)
+        ->through(function ($item) {
+            $item->computed_status = $item->restructure?->status ?? 'pending';
+            return $item;
+        })
+    ->withQueryString();
         $offices = OfficeModel::orderBy('office_name')->get();
 
         return Inertia::render('Restructures/Index', [

@@ -18,13 +18,13 @@ const formatCurrency = (amount) => {
 };
 
 const statusLabel = (status) => {
-  if (status === 'raised')   return 'Recommended';
+  if (status === 'recommended')   return 'Recommended';
   if (status === 'approved') return 'Approved';
   return 'Pending';
 };
 
 const statusCls = (status) => {
-  if (status === 'raised')   return 'bg-blue-100 text-blue-800';
+  if (status === 'recommended')   return 'bg-blue-100 text-blue-800';
   if (status === 'approved') return 'bg-green-100 text-green-800';
   return 'bg-yellow-100 text-yellow-800';
 };
@@ -391,7 +391,7 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
     }
 
     setIsSubmitting(true);
-    setSubmitAction(status === 'raised' ? 'raise' : 'deny');
+    setSubmitAction(status === 'recommended' ? 'recommended' : 'deny');
 
     const submitData = { type: finalType, project_id: project.project_id, apply_id: applyRestruct.apply_id, restruct_start: data.restruct_start, restruct_end: data.restruct_end, status, remarks: data.remarks, new_refund_end: newRefundEnd, updates: validUpdates };
     const onDone     = () => { closeAddForm(); setIsSubmitting(false); setSubmitAction(null); };
@@ -648,7 +648,7 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
                 </button>
                 {[
                   ['pending', 'deny',  'Deny',      'Denying...',      'bg-red-600 hover:bg-red-700'],
-                  ['raised',  'raise', 'Recommend', 'Recommending...', 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'],
+                  ['recommended',  'recommended', 'Recommend', 'Recommending...', 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'],
                 ].map(([status, action, label, loadLabel, btnCls]) => (
                   <button key={action} onClick={() => handleSubmitWithStatus(status)} disabled={isLoading || !!dateRangeError}
                     className={`flex-1 inline-flex items-center justify-center gap-2 px-3 md:px-5 py-2 md:py-2.5 text-white text-xs md:text-sm font-medium rounded-lg transition-all disabled:opacity-50 ${btnCls}`}>
