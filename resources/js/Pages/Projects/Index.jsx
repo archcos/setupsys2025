@@ -2,6 +2,7 @@ import { Link, router, Head, usePage } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
 import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award, Users, TrendingUp, ChevronDown, ClipboardList, MapPin, Building, Clipboard, Hand, LucideTrendingUp } from 'lucide-react';
 import MultiSelect from '../../components/MultiSelect';
+import PaginationLinks from '../../components/PaginationLinks';
 import { cleanParams } from '@/utils/cleanParams';
 
 // Helper to format date string
@@ -93,7 +94,7 @@ export default function Index({ projects, filters, offices, allYears }) {
     router.get('/projects',
       cleanParams(
         { search, perPage, sortField, sortDirection, officeFilter, progressFilter, yearFilter, ...overrides },
-        { perPage: 10, sortField: 'project_id', sortDirection: 'desc' }  // ← match actual defaults
+        { perPage: 10, sortField: 'project_id', sortDirection: 'desc' }
       ),
       { preserveState: true, preserveScroll: true, replace: true }
     );
@@ -508,26 +509,14 @@ export default function Index({ projects, filters, offices, allYears }) {
             </div>
           )}
 
-          {/* Pagination */}
+          {/* Pagination - Using PaginationLinks component for safe HTML entity decoding */}
           {projects.links && projects.links.length > 1 && (
-            <div className="bg-gray-50/50 px-4 md:px-6 py-3 md:py-4 border-t border-gray-100">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div className="text-xs md:text-sm text-gray-600">
-                  Showing {projects.from || 1} to {projects.to || projects.data.length} of {projects.total || projects.data.length}
-                </div>
-                <div className="flex gap-1 overflow-x-auto">
-                  {projects.links.map((link, index) => (
-                    <button
-                      key={index}
-                      disabled={!link.url}
-                      onClick={() => link.url && router.visit(link.url)}
-                      className={`px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm rounded-lg border transition-all ${link.active ? 'bg-blue-500 text-white border-transparent' : link.url ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50' : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'}`}
-                      dangerouslySetInnerHTML={{ __html: link.label }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+            <PaginationLinks 
+              links={projects.links}
+              from={projects.from}
+              to={projects.to}
+              total={projects.total}
+            />
           )}
         </div>
       </div>

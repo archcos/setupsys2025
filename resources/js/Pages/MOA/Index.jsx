@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
 import { Search, FileText, Download, Building2, User, Calendar, Users, X, ArrowUpDown, Upload, FileCheck, AlertCircle, Eye } from 'lucide-react';
 import { cleanParams } from '@/utils/cleanParams';
+import PaginationLinks from '@/components/PaginationLinks';
 
 export default function Index({ moas, filters }) {
   const [search, setSearch] = useState(filters?.search || '');
@@ -344,28 +345,12 @@ export default function Index({ moas, filters }) {
 
           {/* Pagination */}
           {moas.links && moas.links.length > 1 && (
-            <div className="bg-gradient-to-r from-gray-50/50 to-white px-3 md:px-6 py-3 md:py-4 border-t border-gray-100">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
-                <div className="text-xs md:text-sm text-gray-600">
-                  Showing {moas.from || 1} to {moas.to || moas.data.length} of {moas.total || moas.data.length}
-                </div>
-                <div className="flex gap-1 overflow-x-auto">
-                  {moas.links.map((link, index) => (
-                    <button key={index} disabled={!link.url}
-                      onClick={() => link.url && router.visit(link.url, { preserveState: true, replace: true })}
-                      className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all duration-200 flex-shrink-0 ${
-                        link.active
-                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-transparent shadow-md'
-                          : link.url
-                          ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-                          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                      }`}
-                      dangerouslySetInnerHTML={{ __html: link.label }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+            <PaginationLinks
+              links={moas.links}
+              from={moas.from}
+              to={moas.to}
+              total={moas.total}
+            />
           )}
         </div>
       </div>

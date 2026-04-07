@@ -5,6 +5,7 @@ import IndustrySelect from './components/IndustrySelect';
 import MultiSelect from '../../components/MultiSelect';
 import { INDUSTRY_OPTIONS_GROUPED, INDUSTRY_TYPE_OPTIONS } from './components/IndustryOptions';
 import { cleanParams } from '@/utils/cleanParams';
+import PaginationLinks from '@/components/PaginationLinks';
 
 export default function Index({ proponents, filters, allUsers = [], allOffices = [], canEditAddedBy = false, userRole = 'user', availableYears = [] }) {
   const [search, setSearch] = useState(filters.search || '');
@@ -455,30 +456,12 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
 
           {/* Pagination */}
           {proponents.links && proponents.links.length > 1 && (
-            <div className="bg-gradient-to-r from-gray-50/50 to-white px-4 md:px-6 py-3 md:py-4 border-t border-gray-100">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
-                <div className="text-xs md:text-sm text-gray-600">
-                  Showing {proponents.from || 1} to {proponents.to || proponents.data.length} of {proponents.total || proponents.data.length} results
-                </div>
-                <div className="flex gap-1 overflow-x-auto">
-                  {proponents.links.map((link, index) => (
-                    <button
-                      key={index}
-                      disabled={!link.url}
-                      onClick={() => link.url && router.visit(link.url, { preserveState: true, replace: true })}
-                      className={`px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm rounded-lg border transition-all duration-200 flex-shrink-0 ${
-                        link.active
-                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-transparent shadow-md'
-                          : link.url
-                          ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-                          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                      }`}
-                      dangerouslySetInnerHTML={{ __html: link.label }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+            <PaginationLinks
+              links={proponents.links}
+              from={proponents.from}
+              to={proponents.to}
+              total={proponents.total}
+            />
           )}
 
         </div>

@@ -1,11 +1,12 @@
 import { Link, router, Head, usePage } from "@inertiajs/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Search, PlusCircle, X, ChevronDown, ChevronUp,
   AlertTriangle, FileClock, ArrowUpDown, Calendar,
   Building2, Eye, Download, Trash2, List, Clock,
   CheckCircle, ThumbsUp, XCircle,
 } from 'lucide-react';
+import { cleanParams } from '@/utils/cleanParams';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -45,8 +46,6 @@ function getStatusIcon(status) {
 function canDeleteReport(status) {
   return !['reviewed', 'recommended'].includes(status?.toLowerCase());
 }
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function StatusBadge({ status }) {
   return (
@@ -106,37 +105,60 @@ export default function Index({ projects, filters, offices, years }) {
   const [year,       setYear]       = useState(filters?.year       || "");
   const [sortBy,     setSortBy]     = useState(filters?.sortBy     || "project_id");
   const [sortOrder,  setSortOrder]  = useState(filters?.sortOrder  || "desc");
+  const [page,       setPage]       = useState(parseInt(filters?.page || 1)); // CRITICAL: Add page state
   const [openDropdown, setOpenDropdown] = useState(null);
   const [showModal,    setShowModal]    = useState(false);
   const [modalUrl,     setModalUrl]     = useState(null);
   const [loading,      setLoading]      = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [reportToDelete,  setReportToDelete]  = useState(null);
+  
+  const filterTimeoutRef = useRef(null);
+  const isMountedRef = useRef(false);
 
   const { auth } = usePage().props;
 
-  const pushRouter = (overrides = {}) =>
+  const pushRouter = (overrides = {}) => {
     router.get(
       route("reports.index"),
-      { search, perPage, office, year, sortBy, sortOrder, ...overrides },
-      { preserveState: true, preserveScroll: false, replace: true }
+      cleanParams(
+        { search, perPage, office, year, sortBy, sortOrder, page, ...overrides },
+        { sortBy: 'project_id', sortOrder: 'desc', perPage: 10 }
+      ),
+      { preserveState: true, preserveScroll: true, replace: true }
     );
+  };
 
-  // Debounced search
-  useEffect(() => {
-    const delay = setTimeout(() => pushRouter(), 400);
-    return () => clearTimeout(delay);
-  }, [search]);
 
-  // Immediate filters
-  useEffect(() => {
-    pushRouter();
-  }, [perPage, office, year]);
+useEffect(() => {
+  const timer = setTimeout(() => { isMountedRef.current = true; }, 0);
+  return () => clearTimeout(timer);
+}, []);
 
+// Debounced search
+useEffect(() => {
+  if (!isMountedRef.current) return;
+  if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
+  filterTimeoutRef.current = setTimeout(() => {
+    setPage(1);
+    pushRouter({ page: 1 });
+  }, 400);
+  return () => { if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current); };
+}, [search]);
+
+// Immediate filters (office, year, perPage) - resets to page 1
+useEffect(() => {
+  if (!isMountedRef.current) return;
+  setPage(1);
+  pushRouter({ page: 1 });
+}, [perPage, office, year]);
   // Escape key
   useEffect(() => {
     const handleEsc = (e) => {
-      if (e.key === "Escape") { setShowModal(false); setShowDeleteModal(false); }
+      if (e.key === "Escape") { 
+        setShowModal(false); 
+        setShowDeleteModal(false); 
+      }
     };
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
@@ -146,7 +168,8 @@ export default function Index({ projects, filters, offices, years }) {
     const newOrder = sortBy === column && sortOrder === 'asc' ? 'desc' : 'asc';
     setSortBy(column);
     setSortOrder(newOrder);
-    pushRouter({ sortBy: column, sortOrder: newOrder });
+    setPage(1); // Reset to page 1 on sort
+    pushRouter({ sortBy: column, sortOrder: newOrder, page: 1 });
   };
 
   const handleClear = () => {
@@ -156,10 +179,15 @@ export default function Index({ projects, filters, offices, years }) {
     setPerPage(10);
     setSortBy('project_id');
     setSortOrder('desc');
+    setPage(1);
     router.get(route("reports.index"), {}, { preserveState: true });
   };
 
-  const handleDeleteClick = (reportId) => { setReportToDelete(reportId); setShowDeleteModal(true); };
+  const handleDeleteClick = (reportId) => { 
+    setReportToDelete(reportId); 
+    setShowDeleteModal(true); 
+  };
+  
   const confirmDelete = () => {
     if (reportToDelete) {
       router.delete(route("reports.destroy", reportToDelete));
@@ -167,7 +195,11 @@ export default function Index({ projects, filters, offices, years }) {
       setReportToDelete(null);
     }
   };
-  const cancelDelete = () => { setShowDeleteModal(false); setReportToDelete(null); };
+  
+  const cancelDelete = () => { 
+    setShowDeleteModal(false); 
+    setReportToDelete(null); 
+  };
 
   const hasFilters = !!(search || office || year || perPage !== 10);
   const data       = projects?.data || [];
@@ -196,12 +228,12 @@ export default function Index({ projects, filters, offices, years }) {
           <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100 space-y-3">
 
             {/* Row 1: Search + Per Page */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-col md:flex-row">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Search proponent or project..."
+                  placeholder="Search project or proponent..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-9 md:pl-10 pr-8 py-2 md:py-2.5 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white shadow-sm"
@@ -288,7 +320,9 @@ export default function Index({ projects, filters, offices, years }) {
                     </th>
                     <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Office</th>
                     <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Reports</th>
-                    <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                    <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">Actions</div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
@@ -504,7 +538,7 @@ export default function Index({ projects, filters, offices, years }) {
           </div>
 
           {/* ── Pagination ── */}
-          {pagination && pagination.links && pagination.links.length > 3 && (
+          {pagination && pagination.links && pagination.links.length > 1 && (
             <div className="bg-gray-50/50 px-3 md:px-6 py-3 md:py-4 border-t border-gray-100">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <p className="text-xs md:text-sm text-gray-600">
@@ -513,25 +547,37 @@ export default function Index({ projects, filters, offices, years }) {
                   <span className="font-medium">{pagination.total || 0}</span> projects
                 </p>
                 <div className="flex gap-1 overflow-x-auto">
-                  {pagination.links.map((link, i) => (
-                    <button
-                      key={i}
-                      disabled={!link.url}
-                      onClick={() => {
-                        if (!link.url) return;
-                        const pageNum = new URL(link.url).searchParams.get('page');
-                        if (pageNum) pushRouter({ page: pageNum });
-                      }}
-                      className={`px-2.5 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all flex-shrink-0 ${
-                        link.active
-                          ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
-                          : link.url
-                          ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                      }`}
-                      dangerouslySetInnerHTML={{ __html: link.label }}
-                    />
-                  ))}
+                  {pagination.links.map((link, i) => {
+                    const handlePageClick = (e) => {
+                      e.preventDefault();
+                      if (!link.url) return;
+                      
+                      // Extract page number from the link URL
+                      const linkUrl = new URL(link.url);
+                      const pageNum = linkUrl.searchParams.get('page');
+                      
+                      if (pageNum) {
+                        setPage(parseInt(pageNum)); // CRITICAL: Update page state
+                        pushRouter({ page: pageNum });
+                      }
+                    };
+
+                    return (
+                      <button
+                        key={i}
+                        disabled={!link.url}
+                        onClick={handlePageClick}
+                        className={`px-2.5 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all flex-shrink-0 ${
+                          link.active
+                            ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
+                            : link.url
+                            ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                            : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                        }`}
+                        dangerouslySetInnerHTML={{ __html: link.label }}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             </div>

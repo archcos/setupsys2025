@@ -1,6 +1,7 @@
 import { Link, router, Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import { Plus, Search, Calendar, Eye, Edit3, Trash2, Activity, Building2, X, AlertCircle, SquareKanban } from 'lucide-react';
+import PaginationLinks from '@/components/PaginationLinks';
 
 
 export default function Index({ activities, filters }) {
@@ -278,30 +279,12 @@ export default function Index({ activities, filters }) {
 
           {/* Pagination */}
           {activities.links && activities.links.length > 1 && (
-            <div className="bg-gradient-to-r from-gray-50/50 to-white px-3 md:px-6 py-3 md:py-4 border-t border-gray-100">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0">
-                <div className="text-xs md:text-sm text-gray-600">
-                  Showing {activities.from || 1} to {activities.to || activities.data.length} of {activities.total || activities.data.length}
-                </div>
-                <div className="flex gap-1 overflow-x-auto">
-                  {activities.links.map((link, index) => (
-                    <button
-                      key={index}
-                      disabled={!link.url}
-                      onClick={() => link.url && router.visit(link.url)}
-                      className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all duration-200 flex-shrink-0 ${
-                        link.active
-                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-transparent shadow-md'
-                          : link.url
-                          ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-                          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                      }`}
-                      dangerouslySetInnerHTML={{ __html: link.label }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+            <PaginationLinks
+              links={activities.links}
+              from={activities.from}
+              to={activities.to}
+              total={activities.total}
+            />
           )}
         </div>
       </div>

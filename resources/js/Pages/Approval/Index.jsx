@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
 import { Search, X, Building2, ArrowUpDown, Award, Calendar } from 'lucide-react';
 import { cleanParams } from '@/utils/cleanParams';
+import PaginationLinks from '@/components/PaginationLinks';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -501,41 +502,13 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
           </div>
 
           {/* Pagination */}
-          {paginationData && paginationData.links && paginationData.links.length > 3 && (
-            <div className="bg-gray-50/50 px-3 md:px-6 py-3 md:py-4 border-t border-gray-100">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <p className="text-xs md:text-sm text-gray-600">
-                  Showing <span className="font-medium">{paginationData.from || 0}</span>–
-                  <span className="font-medium">{paginationData.to || 0}</span> of{' '}
-                  <span className="font-medium">{paginationData.total || 0}</span> projects
-                </p>
-                <div className="flex gap-1 overflow-x-auto">
-                  {paginationData.links.map((link, index) => {
-                    const pageNum = link.url
-                      ? new URL(link.url).searchParams.get('page')
-                      : null;
-
-                    return (
-                      <button
-                        key={index}
-                        disabled={!link.url}
-                        onClick={() => {
-                          if (link.url) router.visit(link.url, { preserveState: true, replace: true });
-                        }}
-                        className={`px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm rounded-lg border transition-all flex-shrink-0 ${
-                          link.active
-                            ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
-                            : link.url
-                            ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                            : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                        }`}
-                        dangerouslySetInnerHTML={{ __html: link.label }}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+          {projects.links && projects.links.length > 1 && (
+            <PaginationLinks
+              links={projects.links}
+              from={projects.from}
+              to={projects.to}
+              total={projects.total}
+            />
           )}
         </div>
       </div>

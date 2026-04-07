@@ -4,6 +4,7 @@ import {
   CheckCircle, Eye, FileText, Calendar, User, Search, X,
   Building2, Clock, ArrowUp, ArrowDown, Stamp, Download,
 } from 'lucide-react';
+import PaginationLinks from '@/components/PaginationLinks';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -450,33 +451,13 @@ export default function VerifyRestructureList({ applyRestructs, auth, offices, f
           </div>
 
           {/* Pagination */}
-          {paginationData && paginationData.links && paginationData.links.length > 3 && (
-            <div className="bg-gray-50/50 px-3 md:px-6 py-3 md:py-4 border-t border-gray-100">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <p className="text-xs md:text-sm text-gray-600">
-                  Showing <span className="font-medium">{paginationData.from || 0}</span>–
-                  <span className="font-medium">{paginationData.to || 0}</span> of{' '}
-                  <span className="font-medium">{paginationData.total || 0}</span> results
-                </p>
-                <div className="flex gap-1 overflow-x-auto">
-                  {paginationData.links.map((link, index) => (
-                    <button
-                      key={index}
-                      disabled={!link.url}
-                      onClick={() => handlePageChange(link)}
-                      className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-all flex-shrink-0 ${
-                        link.active
-                          ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
-                          : link.url
-                          ? 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                      }`}
-                      dangerouslySetInnerHTML={{ __html: link.label }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+            {paginationData.links && paginationData.links.length > 1 && (
+            <PaginationLinks
+              links={paginationData.links}
+              from={paginationData.from}
+              to={paginationData.to}
+              total={paginationData.total}
+            />
           )}
         </div>
       </div>
