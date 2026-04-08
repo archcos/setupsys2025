@@ -23,6 +23,7 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
   const isInitialRenderRef = useRef(true);
   const dropdownRef = useRef(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
 
   const showFilters = userRole !== 'user';
   const showOfficeFilter = userRole === 'rpmo';
@@ -147,14 +148,17 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
               </div>
 
               <div className="flex items-center gap-2 md:gap-3 md:ml-auto flex-wrap">
-                <button
-                  onClick={() => router.post('/proponents/sync')}
-                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
-                >
-                  <Package className="w-4 h-4" />
-                  <span className="hidden sm:inline">Sync CSV</span>
-                  <span className="sm:hidden">Sync</span>
-                </button>
+                {userRole === 'rpmo' && (
+                  <button
+                    onClick={() => setShowSyncModal(true)}
+                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
+                    title="Sync from CSV"
+                  >
+                    <Package className="w-4 h-4" />
+                    <span className="hidden sm:inline">Sync CSV</span>
+                    <span className="sm:hidden">Sync</span>
+                  </button>
+                )}
 
                 <button
                   onClick={() => setShowExportModal(true)}
@@ -497,6 +501,48 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
               </button>
               <button onClick={confirmDelete} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors text-sm">
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showSyncModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg md:rounded-2xl shadow-2xl max-w-md w-full p-4 md:p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-6 h-6 text-yellow-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Sync from Google Sheets?
+                </h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  This will <span className="font-semibold text-yellow-700">add new records</span> to
+                  the database by pulling from the DOST main Google Sheets database. Existing records
+                  will not be overwritten, but new entries will be inserted.
+                </p>
+                <p className="text-sm text-yellow-700 font-medium bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                  This action cannot be undone. Only proceed if you intend to import new data from
+                  the master spreadsheet.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowSyncModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowSyncModal(false);
+                  router.post('/proponent/sync');
+                }}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors text-sm"
+              >
+                Yes, Sync Now
               </button>
             </div>
           </div>

@@ -236,10 +236,13 @@ class AuthController extends Controller
         if ($user->role === 'user') {
             $today = now()->format('Y-m-d');
 
-            FrequencyModel::updateOrCreate(
-                ['user_id' => $user->user_id, 'login_date' => $today],
-                ['office_id' => $user->office_id, 'login_count' => DB::raw('COALESCE(login_count, 0) + 1')]
+           $frequency = FrequencyModel::firstOrNew(
+                ['user_id' => $user->user_id, 'login_date' => $today]
             );
+
+            $frequency->office_id    = $user->office_id;
+            $frequency->login_count  = ($frequency->login_count ?? 0) + 1;
+            $frequency->save();
         }
 
         Log::info('User logged in successfully', [

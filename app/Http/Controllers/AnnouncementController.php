@@ -10,6 +10,22 @@ use App\Models\OfficeModel;
 
 class AnnouncementController extends Controller
 {
+    private function applySearchFilter($query, string $search)
+    {
+        return $query->where(function ($q) use ($search) {
+            $q->where('title', 'like', "%{$search}%")
+            ->orWhere('details', 'like', "%{$search}%")
+            ->orWhereHas('addedBy', function ($q) use ($search) {
+                $q->where(function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('middle_name', 'like', "%{$search}%")
+                        ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"])
+                        ->orWhereRaw("CONCAT(first_name, ' ', IFNULL(CONCAT(UPPER(LEFT(middle_name,1)),'. '),''), last_name) like ?", ["%{$search}%"]);
+                });
+            });
+        });
+    }
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -23,14 +39,7 @@ class AnnouncementController extends Controller
 
         // Search filter
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('details', 'like', "%{$search}%")
-                  ->orWhereHas('addedBy', function ($q) use ($search) {
-                      $q->where('name', 'like', "%{$search}%");
-                  });
-            });
+            $this->applySearchFilter($query, $request->search);
         }
 
         // Office filter
@@ -77,14 +86,7 @@ class AnnouncementController extends Controller
             $baseQuery->where('office_id', $user->office_id);
         }
         if ($request->filled('search')) {
-            $search = $request->search;
-            $baseQuery->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('details', 'like', "%{$search}%")
-                  ->orWhereHas('addedBy', function ($q) use ($search) {
-                      $q->where('name', 'like', "%{$search}%");
-                  });
-            });
+            $this->applySearchFilter($query, $request->search);
         }
         if ($request->filled('officeFilter')) {
             $baseQuery->where('office_id', $request->officeFilter);

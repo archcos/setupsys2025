@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, router, usePage, Head } from '@inertiajs/react';
 import { Search, Megaphone, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, Edit, Trash2, Building2 } from 'lucide-react';
 import PaginationLinks from '@/components/PaginationLinks';
+import { cleanParams } from '@/utils/cleanParams';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -29,7 +30,12 @@ const STATUS_CONFIG = {
 };
 
 const STATUS_KEYS = ['all', 'active', 'expired', 'upcoming'];
-
+const FILTER_DEFAULTS = {
+  sortBy:       'created_at',
+  sortOrder:    'desc',
+  statusFilter: 'all',
+  perPage:      10,
+};
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function StatusTabs({ statusFilter, statusCounts, onChange }) {
@@ -143,16 +149,22 @@ export default function Index({ announcements, filters, statusCounts, offices, u
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const { flash } = usePage().props;
+  const isFirstRender = useRef(true);
 
-  const pushRouter = (overrides = {}) =>
+  const pushRouter = (overrides = {}) => {
+    const raw = { search, officeFilter, sortBy, sortOrder, statusFilter, perPage, ...overrides };
     router.get(
       route('announcements.index'),
-      { search, officeFilter, sortBy, sortOrder, statusFilter, perPage, ...overrides },
+      cleanParams(raw, FILTER_DEFAULTS),
       { preserveState: true, preserveScroll: false }
     );
-
+  };
   // Debounce search
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     const timer = setTimeout(() => pushRouter(), 400);
     return () => clearTimeout(timer);
   }, [search]);
