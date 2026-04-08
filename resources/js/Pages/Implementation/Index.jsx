@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, router, Head } from '@inertiajs/react';
-import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, ArrowUpDown, Hammer, List } from 'lucide-react';
+import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, ArrowUpDown, Hammer, List, FileText, Zap, TrendingUp } from 'lucide-react';
 import { cleanParams } from '@/utils/cleanParams';
 import PaginationLinks from '@/components/PaginationLinks';
 
@@ -311,17 +311,55 @@ export default function ImplementationIndex({ implementations, filters, offices,
                     <tr className="bg-gray-50 border-b border-gray-200">
                       <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         <button onClick={handleSortToggle} className="flex items-center gap-1">
-                          <span className={isSorted ? 'text-blue-600' : ''}>PROJECT CODE</span>
+                          <span className="flex items-center gap-2">
+                            <FileText className="w-4 h-4" />
+                            <span className={isSorted ? 'text-blue-600' : ''}>PROJECT CODE</span>
+                          </span>
                           <ArrowUpDown className={`w-3 h-3 ${isSorted ? 'text-blue-600' : 'text-gray-400'}`} />
                         </button>
                       </th>
-                      <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Project & Proponent</th>
-                      <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Signboard</th>
-                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">PDC</th>
-                      <th className="px-3 py-3 md:py-4 text-left   text-xs font-semibold text-gray-600 uppercase tracking-wider">Untagging Progress</th>
-                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Liquidation</th>
-                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                      <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Project & Proponent
+                        </div>
+                      </th>
+                      <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4" />
+                          Status
+                        </div>
+                      </th>
+                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-2">
+                          <CheckCircle className="w-4 h-4" />
+                          Signboard
+                        </div>
+                      </th>
+                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-2">
+                          <Zap className="w-4 h-4" />
+                          PDC
+                        </div>
+                      </th>
+                      <th className="px-3 py-3 md:py-4 text-left   text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4" />
+                          Untagging Progress
+                        </div>
+                      </th>
+                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-2">
+                          <CheckCircle className="w-4 h-4" />
+                          Liquidation
+                        </div>
+                      </th>
+                      <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-2">
+                          <Eye className="w-4 h-4" />
+                          Action
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">

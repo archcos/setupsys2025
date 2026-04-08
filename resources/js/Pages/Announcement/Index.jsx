@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, router, usePage, Head } from '@inertiajs/react';
-import { Search, Megaphone, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, Edit, Trash2, Building2 } from 'lucide-react';
+import { Search, Megaphone, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, Edit, Trash2, Building2, FileText, Hand, Users } from 'lucide-react';
 import PaginationLinks from '@/components/PaginationLinks';
 import { cleanParams } from '@/utils/cleanParams';
 
@@ -78,13 +78,14 @@ function StatusBadge({ status }) {
   );
 }
 
-function SortButton({ field, label, sortBy, onSort }) {
+function SortButton({ field, label, icon: Icon, sortBy, onSort }) {
   const isActive = sortBy === field;
   return (
     <button
       onClick={() => onSort(field)}
       className="flex items-center gap-1 hover:text-blue-600 transition-colors group"
     >
+      {Icon && <Icon className="w-3.5 h-3.5" />}
       {label}
       <ArrowUpDown className={`w-3 h-3 transition-colors ${
         isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-400'
@@ -367,17 +368,53 @@ export default function Index({ announcements, filters, statusCounts, offices, u
                       <SortButton
                         field="title"
                         label="TITLE"
+                        icon={FileText}
                         sortBy={sortBy}
                         onSort={handleSort}
                       />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Details</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Office</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Added By</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Start Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">End Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-3.5 h-3.5" />
+                        Details
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-3.5 h-3.5" />
+                        Office
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-3.5 h-3.5" />
+                        Added By
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5" />
+                        Start Date
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5" />
+                        End Date
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-3.5 h-3.5" />
+                        Status
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center justify-center gap-2">
+                        <Hand className="w-3.5 h-3.5" />
+                        Action
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">

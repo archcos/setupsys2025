@@ -4,7 +4,7 @@ import {
   Search, PlusCircle, X, ChevronDown, ChevronUp,
   AlertTriangle, FileClock, ArrowUpDown, Calendar,
   Building2, Eye, Download, Trash2, List, Clock,
-  CheckCircle, ThumbsUp, XCircle,
+  CheckCircle, ThumbsUp, XCircle, FileText, Hand,
 } from 'lucide-react';
 import { cleanParams } from '@/utils/cleanParams';
 
@@ -308,20 +308,54 @@ useEffect(() => {
             ) : (
               <table className="w-full">
                 <thead>
-                  <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                  <tr className="bg-gray-50 border-b border-gray-200">
                     <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      <SortButton column="project_id" label="PROJECT CODE" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                      <SortButton 
+                        column="project_id" 
+                        label="PROJECT CODE" 
+                        icon={FileText}
+                        sortBy={sortBy} 
+                        sortOrder={sortOrder} 
+                        onSort={handleSort} 
+                      />
                     </th>
                     <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      <SortButton column="project_title" label="PROJECT TITLE" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                      <SortButton 
+                        column="project_title" 
+                        label="PROJECT TITLE" 
+                        icon={List}
+                        sortBy={sortBy} 
+                        sortOrder={sortOrder} 
+                        onSort={handleSort} 
+                      />
                     </th>
                     <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      <SortButton column="company_name" label="PROPONENT" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                      <SortButton 
+                        column="company_name" 
+                        label="PROPONENT" 
+                        icon={Building2}
+                        sortBy={sortBy} 
+                        sortOrder={sortOrder} 
+                        onSort={handleSort} 
+                      />
                     </th>
-                    <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Office</th>
-                    <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Reports</th>
+                    <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-3.5 h-3.5" />
+                        Office
+                      </div>
+                    </th>
                     <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      <div className="flex items-center gap-2">Actions</div>
+                      <div className="flex items-center justify-center gap-2">
+                        <FileText className="w-3.5 h-3.5" />
+                        Reports
+                      </div>
+                    </th>
+                    <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center justify-center gap-2">
+                        <Hand className="w-3.5 h-3.5" />
+                        Action
+                      </div>
                     </th>
                   </tr>
                 </thead>

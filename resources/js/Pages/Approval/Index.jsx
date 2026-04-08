@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
-import { Search, X, Building2, ArrowUpDown, Award, Calendar } from 'lucide-react';
+import { Search, X, Building2, ArrowUpDown, Award, Calendar, FileText, User, DollarSign, TrendingUp, PhilippinePeso } from 'lucide-react';
 import { cleanParams } from '@/utils/cleanParams';
 import PaginationLinks from '@/components/PaginationLinks';
 
@@ -61,7 +61,7 @@ function StatusTabs({ statusTab, statusCounts, onChange }) {
   );
 }
 
-function SortButton({ field, label, sortField, sortDirection, onSort }) {
+function SortButton({ field, label, icon: Icon, sortField, sortDirection, onSort }) {
   const isActive = sortField === field;
 
   return (
@@ -69,7 +69,10 @@ function SortButton({ field, label, sortField, sortDirection, onSort }) {
       onClick={() => onSort(field)}
       className="flex items-center gap-1 hover:text-blue-600 transition-colors group"
     >
-      {label}
+      <span className="flex items-center gap-2">
+        {Icon && <Icon className="w-4 h-4" />}
+        {label}
+      </span>
       <ArrowUpDown className={`w-3 h-3 transition-colors ${
         isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-400'
       }`} />
@@ -397,6 +400,7 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
                       <SortButton
                         field="project_id"
                         label="PROJECT CODE"
+                        icon={FileText}
                         sortField={sortField}
                         sortDirection={sortDirection}
                         onSort={handleSort}
@@ -406,24 +410,34 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
                       <SortButton
                         field="project_title"
                         label="PROJECT"
+                        icon={FileText}
                         sortField={sortField}
                         sortDirection={sortDirection}
                         onSort={handleSort}
                       />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Proponent</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Owner</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2"><Building2 className="w-4 h-4" />Proponent</div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2"><User className="w-4 h-4" />Owner</div>
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       <SortButton
                         field="project_cost"
                         label="COST"
+                        icon={PhilippinePeso}
                         sortField={sortField}
                         sortDirection={sortDirection}
                         onSort={handleSort}
                       />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4" />Status</div>
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center justify-center gap-2"><FileText className="w-4 h-4" />Action</div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">

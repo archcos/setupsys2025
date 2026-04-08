@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useForm, Head, router, usePage, Link } from '@inertiajs/react';
-import { Save, Search, Filter, Calendar, Building2, CheckCircle, AlertCircle, X, Check, Eye, HandCoins } from 'lucide-react';
+import { Save, Search, Filter, Calendar, Building2, CheckCircle, AlertCircle, X, Check, Eye, HandCoins, FileText, TrendingUp, Hand } from 'lucide-react';
 import { MONTHS, REFUND_STATUS } from './constants/refundConstants';
 import FilterSection from './components/FilterSection';
 import RefundTableRow from './components/RefundTableRow';
@@ -232,7 +232,7 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
           
           {/* Header */}
-          <div className="bg-gradient-to-r from-gray-50 to-white p-3 md:p-6 border-b border-gray-100">
+          <div className="bg-gray-50 p-4 md:p-6 border-b border-gray-100">
             <div className="flex items-center gap-2 md:gap-3">
               <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
                 <HandCoins className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
@@ -293,19 +293,49 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4" />
                       Project & Company
                     </div>
                   </th>
-                  <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount Due</th>
-                  <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Refund Amount</th>
-                  <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Check No.</th>
-                  <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Receipt No.</th>
-                  <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                  <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                  <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Amount Due
+                    </div>
+                  </th>
+                  <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4" />
+                      Refund Amount
+                    </div>
+                  </th>
+                  <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Check No.
+                    </div>
+                  </th>
+                  <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Receipt No.
+                    </div>
+                  </th>
+                  <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center justify-center gap-2">
+                      <TrendingUp className="w-4 h-4" />
+                      Status
+                    </div>
+                  </th>
+                  <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center justify-center gap-2">
+                      <Hand className="w-4 h-4" />
+                      Action
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
