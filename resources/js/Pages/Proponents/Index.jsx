@@ -159,16 +159,16 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                     <span className="sm:hidden">Sync</span>
                   </button>
                 )}
-
-                <button
-                  onClick={() => setShowExportModal(true)}
-                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
-                >
-                  <Package className="w-4 h-4" />
-                  <span className="hidden sm:inline">Export CSV</span>
-                  <span className="sm:hidden">Export</span>
-                </button>
-
+                {(userRole === 'rpmo' || userRole === 'staff') && (
+                  <button
+                    onClick={() => setShowExportModal(true)}
+                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
+                  >
+                    <Package className="w-4 h-4" />
+                    <span className="hidden sm:inline">Export CSV</span>
+                    <span className="sm:hidden">Export</span>
+                  </button>
+                )}
                 <Link
                   href="/proponents/create"
                   className="flex items-center justify-center gap-2 bg-blue-500 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:bg-blue-600 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"

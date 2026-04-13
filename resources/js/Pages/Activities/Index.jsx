@@ -1,6 +1,6 @@
 import { Link, router, Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import { Plus, Search, Calendar, Eye, Edit3, Trash2, Activity, Building2, X, AlertCircle, SquareKanban } from 'lucide-react';
+import { Plus, Search, Calendar, Eye, Edit3, Trash2, Activity, Building2, X, AlertCircle, SquareKanban, Hand } from 'lucide-react';
 import PaginationLinks from '@/components/PaginationLinks';
 
 
@@ -21,13 +21,13 @@ export default function Index({ activities, filters }) {
 
   useEffect(() => {
     const handleEsc = (e) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         setShowDeleteModal(false);
         setShowActivitiesModal(false);
       }
     };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
   }, []);
 
   const handleDeleteClick = (activity) => {
@@ -43,18 +43,10 @@ export default function Index({ activities, filters }) {
     }
   };
 
-  const cancelDelete = () => {
-    setShowDeleteModal(false);
-    setActivityToDelete(null);
-  };
-
   const handlePerPageChange = (e) => {
     const newPerPage = e.target.value;
     setPerPage(newPerPage);
-    router.get('/activities', { search, perPage: newPerPage }, {
-      preserveScroll: true,
-      preserveState: true,
-    });
+    router.get('/activities', { search, perPage: newPerPage }, { preserveScroll: true, preserveState: true });
   };
 
   const openActivitiesModal = (projectId, group) => {
@@ -78,6 +70,10 @@ export default function Index({ activities, filters }) {
     if (!acc[projectId]) {
       acc[projectId] = {
         projectTitle: activity.project?.project_title || 'Unassigned Project',
+        companyName: activity.project?.proponent?.company_name
+          || activity.project?.proponent?.office?.office_name
+          || activity.project?.proponent?.name
+          || null,
         activities: [],
       };
     }
@@ -87,9 +83,9 @@ export default function Index({ activities, filters }) {
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
-        <Head title="Activities" />
-  
-        <div className="max-w-8xl mx-auto">
+      <Head title="Activities" />
+
+      <div className="max-w-8xl mx-auto">
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
 
           {/* Card Header */}
@@ -112,10 +108,9 @@ export default function Index({ activities, filters }) {
             </div>
           </div>
 
-          {/* Filters — search + per-page on same row */}
+          {/* Filters */}
           <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
             <div className="flex gap-2 md:gap-3">
-              {/* Search */}
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-3 h-3 md:w-4 md:h-4" />
                 <input
@@ -134,8 +129,6 @@ export default function Index({ activities, filters }) {
                   </button>
                 )}
               </div>
-
-              {/* Per page — right side */}
               <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm flex-shrink-0">
                 <select
                   value={perPage}
@@ -159,7 +152,7 @@ export default function Index({ activities, filters }) {
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4" />
-                      Project
+                      Project / Company
                     </div>
                   </th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -169,7 +162,10 @@ export default function Index({ activities, filters }) {
                     </div>
                   </th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Actions
+                    <div className="flex items-center gap-2">
+                      <Hand className="w-4 h-4" />
+                      Actions
+                    </div>
                   </th>
                 </tr>
               </thead>
@@ -184,7 +180,10 @@ export default function Index({ activities, filters }) {
                         </div>
                         <div className="min-w-0 flex-1">
                           <h3 className="text-base font-semibold text-gray-900">{group.projectTitle}</h3>
-                          <p className="text-sm text-gray-600 mt-1">{group.activities.length} activities</p>
+                          {group.companyName && (
+                            <p className="text-xs text-blue-600 font-medium mt-0.5">{group.companyName}</p>
+                          )}
+                          <p className="text-sm text-gray-500 mt-1">{group.activities.length} activities</p>
                         </div>
                       </div>
                     </td>
@@ -207,12 +206,16 @@ export default function Index({ activities, filters }) {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => openActivitiesModal(projectId, group)}
-                          className="inline-flex items-center gap-2 px-3 py-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200 font-medium text-sm"
-                          title="View All Activities"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200 font-medium text-sm"
                         >
                           <Eye className="w-4 h-4" />
-                          View
                         </button>
+                        <Link
+                          href={`/activities/${group.activities[0].activity_id}/edit`}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200 font-medium text-sm"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </Link>
                       </div>
                     </td>
                   </tr>
@@ -231,7 +234,10 @@ export default function Index({ activities, filters }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="text-base font-semibold text-gray-900">{group.projectTitle}</h3>
-                    <p className="text-sm text-gray-600 mt-1">{group.activities.length} activities</p>
+                    {group.companyName && (
+                      <p className="text-xs text-blue-600 font-medium mt-0.5">{group.companyName}</p>
+                    )}
+                    <p className="text-sm text-gray-500 mt-1">{group.activities.length} activities</p>
                   </div>
                 </div>
                 <div className="space-y-2 mb-4">
@@ -247,13 +253,22 @@ export default function Index({ activities, filters }) {
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={() => openActivitiesModal(projectId, group)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200 font-medium text-sm border border-green-200"
-                >
-                  <Eye className="w-4 h-4" />
-                  View All Activities
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => openActivitiesModal(projectId, group)}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200 font-medium text-sm border border-green-200"
+                  >
+                    <Eye className="w-4 h-4" />
+                    View
+                  </button>
+                  <Link
+                    href={`/activities/${group.activities[0].activity_id}/edit`}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200 font-medium text-sm border border-blue-200"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Edit
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
@@ -277,7 +292,6 @@ export default function Index({ activities, filters }) {
             </div>
           )}
 
-          {/* Pagination */}
           {activities.links && activities.links.length > 1 && (
             <PaginationLinks
               links={activities.links}
@@ -289,7 +303,7 @@ export default function Index({ activities, filters }) {
         </div>
       </div>
 
-      {/* Activities Modal */}
+      {/* View Modal */}
       {showActivitiesModal && selectedProjectActivities && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg md:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
@@ -302,6 +316,9 @@ export default function Index({ activities, filters }) {
                   <h3 className="text-lg md:text-xl font-semibold text-gray-900 truncate">
                     {selectedProjectActivities.projectTitle}
                   </h3>
+                  {selectedProjectActivities.companyName && (
+                    <p className="text-xs text-blue-600 font-medium mt-0.5">{selectedProjectActivities.companyName}</p>
+                  )}
                   <p className="text-sm text-gray-600 mt-1">{selectedProjectActivities.activities.length} activities</p>
                 </div>
               </div>
@@ -321,7 +338,6 @@ export default function Index({ activities, filters }) {
                         </div>
                         <div className="min-w-0 flex-1">
                           <h4 className="text-base font-semibold text-gray-900 truncate">{activity.activity_name}</h4>
-                          <p className="text-sm text-gray-500 mt-1">#{activity.activity_id}</p>
                           <div className="flex items-center gap-2 text-sm text-gray-600 mt-2">
                             <Calendar className="w-4 h-4" />
                             <span>{formatMonthYear(activity.start_date)}</span>
@@ -331,15 +347,18 @@ export default function Index({ activities, filters }) {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <Link href={`/activities/${activity.activity_id}/edit`}
+                        <Link
+                          href={`/activities/${activity.activity_id}/edit`}
                           className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                          title="Edit Activity">
+                          title="Edit Activity"
+                        >
                           <Edit3 className="w-4 h-4" />
                         </Link>
                         <button
                           onClick={() => { handleDeleteClick(activity); closeActivitiesModal(); }}
                           className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
-                          title="Delete Activity">
+                          title="Delete Activity"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -372,7 +391,7 @@ export default function Index({ activities, filters }) {
               </div>
             </div>
             <div className="flex gap-2 md:gap-3 mt-4 md:mt-6">
-              <button onClick={cancelDelete}
+              <button onClick={() => { setShowDeleteModal(false); setActivityToDelete(null); }}
                 className="flex-1 px-3 md:px-4 py-2 md:py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm md:text-base transition-colors">
                 Cancel
               </button>

@@ -48,8 +48,10 @@ export default function Sidebar({ isOpen, onClose }) {
 
       <aside className={`
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
-        fixed lg:sticky lg:translate-x-0 left-0 top-0 z-50 w-64 p-6 shadow-md
-        h-screen lg:max-h-screen overflow-y-auto transition-all duration-300 lg:duration-0
+        fixed lg:sticky lg:translate-x-0 left-0 top-0 z-50
+        w-64 shrink-0 p-6 shadow-md
+        h-screen lg:h-screen lg:max-h-screen overflow-y-auto
+        transition-transform duration-300 lg:duration-0
         ${darkMode
           ? 'bg-slate-900 text-slate-100 border-r border-slate-700'
           : 'bg-white text-gray-800'
@@ -68,14 +70,24 @@ export default function Sidebar({ isOpen, onClose }) {
 
         <div className="mt-10 lg:mt-0">
           {/* Logo */}
-          <Link
-            href={getHomePage()}
-            className="flex items-center justify-center gap-3 mb-8 hover:opacity-90"
-            onClick={onClose}
-          >
-            <img src={logo} alt="Logo" className="w-10 h-10" />
-            <img src={setupLogo} alt="SETUP Logo" className="h-10 object-contain" />
-          </Link>
+        <Link
+          href={getHomePage()}
+          className="flex items-center justify-center gap-3 mb-8 hover:opacity-90"
+          onClick={onClose}
+        >
+          <img
+            src={logo}
+            alt="Logo"
+            className="w-10 h-10"
+            style={darkMode ? { filter: 'drop-shadow(0 0 2px rgb(211, 211, 211))' } : {}}
+          />
+          <img
+            src={setupLogo}
+            alt="SETUP Logo"
+            className="h-10 object-contain"
+            style={darkMode ? { filter: 'drop-shadow(0 0 3px rgb(0, 0, 0))' } : {}}
+          />
+        </Link>
 
           {/* Navigation Menu */}
           <nav className="space-y-4">

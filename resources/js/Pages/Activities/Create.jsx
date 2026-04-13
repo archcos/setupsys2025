@@ -11,11 +11,15 @@ import {
   AlertCircle,
   FolderOpen,
   Activity,
-  Sparkles
+  Sparkles,
+  Search,
+  X as CloseIcon
 } from 'lucide-react';
 
 export default function Create({ projects }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   
   const { data, setData, post, processing, errors } = useForm({
     project_id: '',
@@ -23,6 +27,31 @@ export default function Create({ projects }) {
       { activity_name: '', start_date: '', end_date: '' }
     ],
   });
+
+  // Filter projects based on search query
+  const filteredProjects = projects.filter(p =>
+    p.project_title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Get selected project title
+  const selectedProject = projects.find(p => p.project_id === data.project_id);
+
+  const handleProjectSelect = (projectId) => {
+    setData('project_id', projectId);
+    setSearchQuery('');
+    setShowDropdown(false);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+    setShowDropdown(true);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setData('project_id', '');
+    setShowDropdown(false);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -51,6 +80,25 @@ export default function Create({ projects }) {
     setData('activities', updatedActivities);
   };
 
+  // Check if end date is before start date
+  const isEndDateInvalid = (activity) => {
+    if (activity.start_date && activity.end_date) {
+      return new Date(activity.end_date) < new Date(activity.start_date);
+    }
+    return false;
+  };
+
+  // Check if all activities are valid
+  const areAllActivitiesValid = () => {
+    if (!data.project_id) return false;
+    
+    return data.activities.every(activity => {
+      const hasAllFields = activity.activity_name && activity.start_date && activity.end_date;
+      const hasValidDates = !isEndDateInvalid(activity);
+      return hasAllFields && hasValidDates;
+    });
+  };
+
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen">
       <div className="max-w-5xl mx-auto">
@@ -69,8 +117,8 @@ export default function Create({ projects }) {
               <Activity className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Create New Activities</h1>
-              <p className="text-xs md:text-base text-gray-600 mt-1">Define project milestones and timeline activities</p>
+              <h1 className="text-2xl md:text-3xl font-bold">Create New Activities</h1>
+              <p className="text-xs md:text-base mt-1">Define project milestones and timeline activities</p>
             </div>
           </div>
         </div>
@@ -89,19 +137,57 @@ export default function Create({ projects }) {
               <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">
                 Select Project <span className="text-red-500">*</span>
               </label>
-              <select
-                value={data.project_id}
-                onChange={(e) => setData('project_id', e.target.value)}
-                className="w-full px-3 md:px-4 py-2 md:py-3 text-sm md:text-base border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
-                required
-              >
-                <option value="">Choose a project...</option>
-                {projects.map((p) => (
-                  <option key={p.project_id} value={p.project_id}>
-                    {p.project_title}
-                  </option>
-                ))}
-              </select>
+              
+              {/* Search Input */}
+              <div className="relative">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery || (selectedProject?.project_title || '')}
+                    onChange={handleSearchChange}
+                    onFocus={() => setShowDropdown(true)}
+                    placeholder="Search or select a project..."
+                    className="w-full pl-9 pr-9 py-2 md:py-3 text-sm md:text-base border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                  />
+                  {selectedProject && (
+                    <button
+                      type="button"
+                      onClick={clearSearch}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <CloseIcon className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Dropdown */}
+                {showDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg md:rounded-xl shadow-lg z-10 max-h-64 overflow-y-auto">
+                    {filteredProjects.length > 0 ? (
+                      filteredProjects.map((p) => (
+                        <button
+                          key={p.project_id}
+                          type="button"
+                          onClick={() => handleProjectSelect(p.project_id)}
+                          className={`w-full text-left px-3 md:px-4 py-2 md:py-3 text-sm md:text-base transition-colors duration-150 ${
+                            data.project_id === p.project_id
+                              ? 'bg-blue-50 text-blue-700 font-medium'
+                              : 'hover:bg-gray-50 text-gray-900'
+                          }`}
+                        >
+                          {p.project_title}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 md:px-4 py-3 md:py-4 text-sm text-gray-500 text-center">
+                        No projects found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {errors.project_id && (
                 <div className="text-red-500 text-xs md:text-sm mt-2 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
@@ -190,7 +276,7 @@ export default function Create({ projects }) {
                         type="month"
                         value={activity.start_date.slice(0, 7)}
                         onChange={(e) => handleActivityChange(index, 'start_date', e.target.value + '-01')}
-                        className="w-full px-3 md:px-4 py-2 md:py-3 text-sm md:text-base border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white"
+                        className="w-full px-3 md:px-4 py-2 md:py-3 text-sm md:text-base border text-black border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white"
                         required
                       />
                     </div>
@@ -205,9 +291,19 @@ export default function Create({ projects }) {
                         type="month"
                         value={activity.end_date.slice(0, 7)}
                         onChange={(e) => handleActivityChange(index, 'end_date', e.target.value + '-01')}
-                        className="w-full px-3 md:px-4 py-2 md:py-3 text-sm md:text-base border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white"
+                        className={`w-full px-3 md:px-4 py-2 md:py-3 text-sm md:text-base border text-black rounded-lg md:rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200 bg-white ${
+                          isEndDateInvalid(activity)
+                            ? 'border-red-500 focus:ring-red-500'
+                            : 'border-gray-200 focus:ring-green-500'
+                        }`}
                         required
                       />
+                      {isEndDateInvalid(activity) && (
+                        <div className="text-red-600 text-xs md:text-sm mt-2 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                          End month cannot be before start month
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -215,14 +311,16 @@ export default function Create({ projects }) {
                   <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-200">
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                        activity.activity_name && activity.start_date && activity.end_date 
+                        activity.activity_name && activity.start_date && activity.end_date && !isEndDateInvalid(activity)
                           ? 'bg-green-500' 
                           : 'bg-gray-300'
                       }`}></div>
                       <span className="truncate">
-                        {activity.activity_name && activity.start_date && activity.end_date 
-                          ? 'Complete' 
-                          : 'Incomplete - fill all fields'
+                        {isEndDateInvalid(activity) 
+                          ? 'Invalid dates - end before start' 
+                          : activity.activity_name && activity.start_date && activity.end_date 
+                            ? 'Complete' 
+                            : 'Incomplete - fill all fields'
                         }
                       </span>
                     </div>
@@ -258,12 +356,13 @@ export default function Create({ projects }) {
                 </Link>
                 <button
                   onClick={handleSubmit}
-                  disabled={processing || isSubmitting}
+                  disabled={processing || isSubmitting || !areAllActivitiesValid()}
                   className={`flex-1 md:flex-none px-4 md:px-8 py-2 md:py-3 rounded-lg md:rounded-xl font-medium text-sm md:text-base transition-all duration-200 ${
-                    processing || isSubmitting
-                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                    processing || isSubmitting || !areAllActivitiesValid()
+                      ? 'bg-gray-400 text-white cursor-not-allowed opacity-60'
                       : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-xl'
                   }`}
+                  title={!areAllActivitiesValid() ? 'Please complete all required fields and fix any validation errors' : ''}
                 >
                   {processing || isSubmitting ? (
                     <div className="flex items-center justify-center gap-2">

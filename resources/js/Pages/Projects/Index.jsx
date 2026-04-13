@@ -278,22 +278,25 @@ export default function Index({ projects, filters, offices, allYears }) {
                 </div>
               </div>
 
+              
               <div className="flex flex-col gap-2 md:gap-4 md:flex-row md:items-center flex-wrap">
-                <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
-                  <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <select
-                    value={officeFilter}
-                    onChange={(e) => setOfficeFilter(e.target.value)}
-                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
-                  >
-                    <option value="">All Offices</option>
-                    {offices && offices.map((office) => (
-                      <option key={office.office_id} value={office.office_id}>
-                        {office.office_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {role === 'rpmo' && (
+                  <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
+                    <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <select
+                      value={officeFilter}
+                      onChange={(e) => setOfficeFilter(e.target.value)}
+                      className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
+                    >
+                      <option value="">All Offices</option>
+                      {offices && offices.map((office) => (
+                        <option key={office.office_id} value={office.office_id}>
+                          {office.office_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
                   <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -971,7 +974,7 @@ function ProjectExportModal({ isOpen, onClose, offices = [], availableYears = []
             <MultiSelect options={yearOptions} value={exportYears} onChange={setExportYears} placeholder="All Years" />
           </div>
 
-          {(userRole === 'rpmo' || userRole === 'staff') && (
+          {userRole === 'rpmo' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Office</label>
               <MultiSelect options={officeOptions} value={exportOffices} onChange={setExportOffices} placeholder="All Offices" />

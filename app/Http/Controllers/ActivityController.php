@@ -94,7 +94,7 @@ class ActivityController extends Controller
 
         $activities = $query->get();
 
-        return Inertia::render('Activities/ActivityList', [
+        return Inertia::render('Activities/UserIndex', [
             'activities' => $activities,
         ]);
     }
@@ -152,6 +152,9 @@ class ActivityController extends Controller
     {
         $activity = ActivityModel::with('project.proponent')->findOrFail($id);
 
+        $projectActivities = ActivityModel::where('project_id', $activity->project_id)
+        ->orderBy('start_date', 'asc')
+        ->get();
         // Authorization check for staff users
         if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $activity->project->proponent->office_id) {
             abort(403, 'Unauthorized to edit this activity.');
@@ -169,6 +172,7 @@ class ActivityController extends Controller
         return Inertia::render('Activities/Edit', [
             'activity' => $activity,
             'projects' => $query->orderBy('project_title', 'asc')->get(),
+            'projectActivities' => $projectActivities,
         ]);
     }
 

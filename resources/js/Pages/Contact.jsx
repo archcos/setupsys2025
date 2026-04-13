@@ -190,12 +190,13 @@ export default function ContactUs() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8 px-4">
       <Head title="Contact Us - DOST SETUP" />
 
-              <Link
-          href="/"
+     <button
+            onClick={() => window.history.back()}
           className="absolute top-4 left-4 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
-        >
+          >
           <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </Link>
+      
+      </button>
 
       {/* Full Screen Sending Animation */}
       {showProcessing && (

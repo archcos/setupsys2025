@@ -29,7 +29,7 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
       const width = window.innerWidth;
       if (width < 640) {
         setScreenSize('mobile');
-      } else if (width < 1024) {
+      } else if (width < 1500) {
         setScreenSize('tablet');
       } else {
         setScreenSize('desktop');
