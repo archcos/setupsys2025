@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, router, Head } from '@inertiajs/react';
-import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, ArrowUpDown, Hammer, List, FileText, Zap, TrendingUp } from 'lucide-react';
+import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, ArrowUpDown, Hammer, List, FileText, Zap, TrendingUp, Calendar } from 'lucide-react';
 import { cleanParams } from '@/utils/cleanParams';
 import PaginationLinks from '@/components/PaginationLinks';
 
@@ -126,6 +126,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
   const [perPage,       setPerPage]       = useState(filters?.perPage       || 10);
   const [statusFilter,  setStatusFilter]  = useState(filters?.statusFilter  ?? null);
   const [officeFilter,  setOfficeFilter]  = useState(filters?.officeFilter  || '');
+  const [yearFilter,    setYearFilter]    = useState(filters?.yearFilter    || '');
   const [sortDirection, setSortDirection] = useState(filters?.direction     || 'desc');
   const [isSorted,      setIsSorted]      = useState(!!filters?.direction);
   const debounceTimer = useRef(null);
@@ -143,7 +144,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
       router.get(
         '/implementation',
         cleanParams(
-          { search, perPage, statusFilter, officeFilter, page: 1, sort: 'project_id', direction: sortDirection },
+          { search, perPage, statusFilter, officeFilter, yearFilter, page: 1, sort: 'project_id', direction: sortDirection },
           { perPage: 10, sort: 'project_id', direction: 'desc' }
         ),
         { preserveState: true, preserveScroll: true, replace: true }
@@ -151,7 +152,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
     }, 400);
 
     return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
-  }, [search, statusFilter, officeFilter, perPage, sortDirection]);
+  }, [search, statusFilter, officeFilter, yearFilter, perPage, sortDirection]);
 
   const handlePageChange = useCallback((url) => {
     if (url) router.visit(url, { preserveState: true, preserveScroll: true, replace: true });
@@ -159,6 +160,14 @@ export default function ImplementationIndex({ implementations, filters, offices,
 
   const handleStatusFilter = useCallback((val) => {
     setStatusFilter(val);
+  }, []);
+
+  const handleOfficeChange = useCallback((e) => {
+    setOfficeFilter(e.target.value);
+  }, []);
+
+  const handleYearChange = useCallback((e) => {
+    setYearFilter(e.target.value);
   }, []);
 
   const handleSortToggle = useCallback(() => {
@@ -175,10 +184,11 @@ export default function ImplementationIndex({ implementations, filters, offices,
   const total    = implementations.total          || 0;
   const complete = implementations.complete_count || 0;
   const pending  = implementations.pending_count  || 0;
+  const years    = implementations.year_obligated_options || [];
 
   const statusCounts = { all: total, pending, complete };
 
-  const hasActiveFilters = !!(search || officeFilter || (statusFilter && statusFilter !== 'all'));
+  const hasActiveFilters = !!(search || officeFilter || yearFilter || (statusFilter && statusFilter !== 'all'));
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto w-full">
@@ -239,7 +249,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
                   <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <select
                     value={officeFilter}
-                    onChange={(e) => setOfficeFilter(e.target.value)}
+                    onChange={handleOfficeChange}
                     className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
                   >
                     <option value="">All Offices</option>
@@ -250,20 +260,25 @@ export default function ImplementationIndex({ implementations, filters, offices,
                 </div>
               )}
 
-              <button
-                onClick={handleSortToggle}
-                className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-white border border-gray-300 rounded-lg md:rounded-xl hover:bg-gray-50 transition-colors shadow-sm text-xs md:text-sm"
-                title={sortDirection === 'desc' ? 'Newest first' : 'Oldest first'}
-              >
-                <ArrowUpDown className={`w-4 h-4 ${isSorted ? 'text-blue-600' : 'text-gray-600'}`} />
-                <span className={`hidden md:inline font-medium ${isSorted ? 'text-blue-700' : 'text-gray-700'}`}>
-                  {sortDirection === 'desc' ? 'Newest' : 'Oldest'}
-                </span>
-              </button>
+              {years && years.length > 0 && (
+                <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm flex-1 md:flex-initial md:min-w-[160px]">
+                  <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <select
+                    value={yearFilter}
+                    onChange={handleYearChange}
+                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5"
+                  >
+                    <option value="">All Years</option>
+                    {years.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {hasActiveFilters && (
                 <button
-                  onClick={() => { setSearch(''); setOfficeFilter(''); setStatusFilter(null); setSortDirection('desc'); setIsSorted(false); }}
+                  onClick={() => { setSearch(''); setOfficeFilter(''); setYearFilter(''); setStatusFilter(null); setSortDirection('desc'); setIsSorted(false); }}
                   className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors text-xs md:text-sm font-medium"
                 >
                   <X className="w-4 h-4" />
@@ -294,7 +309,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
                 </div>
                 {hasActiveFilters && (
                   <button
-                    onClick={() => { setSearch(''); setOfficeFilter(''); setStatusFilter('all'); }}
+                    onClick={() => { setSearch(''); setOfficeFilter(''); setYearFilter(''); setStatusFilter('all'); }}
                     className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     Clear Filters

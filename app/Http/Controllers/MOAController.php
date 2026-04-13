@@ -9,6 +9,7 @@ use App\Models\ProjectModel;
 use App\Models\ProponentModel;
 use App\Models\DirectorModel;
 use App\Models\UserModel;
+use App\Models\OfficeModel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -26,22 +27,40 @@ class MOAController extends Controller
 {
 
     use AuthorizesRequests;
-public function index(Request $request)
-{
+public function index(Request $request){
     $this->authorize('viewAny', MoaModel::class);
-
-    $search = $request->input('search');
-    $perPage = $request->input('perPage', 10);
-    $sortBy = $request->input('sortBy', 'created_at');
-    $sortOrder = $request->input('sortOrder', 'desc');
-    $user = Auth::user();
-
-
-    // Eager load approved_by_user relationship
-    $query = MoaModel::with(['project.proponent.office', 'approvedByUser']);
-
-    if ($search) {
-        $query->where(function ($q) use ($search) {
+ 
+    $search        = $request->input('search', '');
+    $perPage       = $request->input('perPage', 10);
+    $sortBy        = $request->input('sortBy', 'created_at');
+    $sortOrder     = $request->input('sortOrder', 'desc');
+    $officeFilter  = $request->input('officeFilter', '');
+    $yearFilter    = $request->input('yearFilter', '');
+    $user          = Auth::user();
+ 
+    // Valid sort columns
+    $validSortColumns = ['created_at', 'project_cost', 'owner_name', 'pd_name'];
+    if (!in_array($sortBy, $validSortColumns)) {
+        $sortBy = 'created_at';
+    }
+ 
+    $sortOrder = strtoupper($sortOrder) === 'ASC' ? 'asc' : 'desc';
+ 
+    // ── Base query ────────────────────────────────────────────────────────
+    $baseQuery = MoaModel::with(['project.proponent.office', 'approvedByUser']);
+ 
+    // Role-based scope
+    if ($user && $user->role === 'staff' && $user->office_id) {
+        $baseQuery->whereHas('project.proponent', function ($q) use ($user) {
+            $q->where('office_id', $user->office_id);
+        });
+    } elseif ($user && $user->role !== 'rpmo') {
+        $baseQuery->whereRaw('1 = 0');
+    }
+ 
+    // Search
+    if (!empty($search)) {
+        $baseQuery->where(function ($q) use ($search) {
             $q->where('owner_name', 'like', "%{$search}%")
               ->orWhere('pd_name', 'like', "%{$search}%")
               ->orWhereHas('project', function ($q2) use ($search) {
@@ -49,28 +68,74 @@ public function index(Request $request)
               });
         });
     }
+ 
+    // Office filter (rpmo only)
+    if (!empty($officeFilter) && $user && $user->role === 'rpmo') {
+        $baseQuery->whereHas('project.proponent', function ($q) use ($officeFilter) {
+            $q->where('office_id', $officeFilter);
+        });
+    }
+ 
+    // Year filter
+    if (!empty($yearFilter)) {
+        $baseQuery->whereHas('project', function ($q) use ($yearFilter) {
+            $q->where('year_obligated', $yearFilter);
+        });
+    }
+ 
+    // ── Sorting ───────────────────────────────────────────────────────────
+    if ($sortBy === 'project_cost') {
+        $baseQuery->join('tbl_projects', 'tbl_moa.project_id', '=', 'tbl_projects.project_id')
+                  ->orderBy('tbl_projects.project_cost', $sortOrder)
+                  ->select('tbl_moa.*');
+    } else {
+        $baseQuery->orderBy('tbl_moa.' . $sortBy, $sortOrder);
+    }
+ 
+    // ── Paginate ──────────────────────────────────────────────────────────
+    $moas = $baseQuery->paginate($perPage)->appends($request->only('search', 'perPage', 'sortBy', 'sortOrder', 'officeFilter', 'yearFilter'));
+ 
+    // ── Years dropdown ────────────────────────────────────────────────────
+    $yearsQuery = ProjectModel::query()
+        ->distinct()
+        ->whereNotNull('year_obligated')
+        ->whereHas('moa') // Only get projects that have MOAs
+        ->select('year_obligated');
 
-    if ($user && $user->role === 'staff') {
-        $query->whereHas('project.proponent', function ($q) use ($user) {
+    if ($user && $user->role === 'staff' && $user->office_id) {
+        $yearsQuery->whereHas('proponent', function ($q) use ($user) {
             $q->where('office_id', $user->office_id);
         });
     } elseif ($user && $user->role !== 'rpmo') {
-        $query->whereRaw('0 = 1');
+        $yearsQuery->whereRaw('1 = 0');
     }
 
-    if ($sortBy === 'project_cost') {
-        $query->join('tbl_projects', 'tbl_moa.project_id', '=', 'tbl_projects.project_id')
-              ->orderBy('tbl_projects.project_cost', $sortOrder)
-              ->select('tbl_moa.*');
-    } else {
-        $query->orderBy('tbl_moa.' . $sortBy, $sortOrder);
+    $years = $yearsQuery
+        ->orderBy('year_obligated', 'desc')
+        ->pluck('year_obligated')
+        ->filter() // Remove nulls
+        ->unique()
+        ->values()
+        ->toArray();
+ 
+    // ── Offices dropdown (rpmo only) ──────────────────────────────────────
+    $offices = [];
+    if ($user && $user->role === 'rpmo') {
+        $offices = OfficeModel::orderBy('office_name')->get();
     }
-
-    $moas = $query->paginate($perPage)->appends($request->only('search', 'perPage', 'sortBy', 'sortOrder'));
-
+ 
     return inertia('MOA/Index', [
-        'moas' => $moas,
-        'filters' => $request->only('search', 'perPage', 'sortBy', 'sortOrder'),
+        'moas'    => $moas,
+        'years'   => $years,
+        'offices' => $offices,
+        'filters' => [
+            'search'       => $search,
+            'perPage'      => $perPage,
+            'sortBy'       => $sortBy,
+            'sortOrder'    => $sortOrder,
+            'officeFilter' => $officeFilter,
+            'yearFilter'   => $yearFilter,
+        ],
     ]);
 }
 

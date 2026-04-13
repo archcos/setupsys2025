@@ -183,12 +183,13 @@ function FilePreviewModal({ preview, onClose }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function Index({ applyRestructs, auth, offices, filters: initialFilters, statusCounts }) {
+export default function Index({ applyRestructs, auth, offices, years, filters: initialFilters, statusCounts }) {
   const userRole = auth?.user?.role;
 
   const [search,       setSearch]       = useState(initialFilters?.search       || '');
   const [perPage,      setPerPage]      = useState(initialFilters?.perPage      || 10);
   const [officeFilter, setOfficeFilter] = useState(initialFilters?.officeFilter || '');
+  const [yearFilter,   setYearFilter]   = useState(initialFilters?.yearFilter   || '');
   const [statusFilter, setStatusFilter] = useState(initialFilters?.statusFilter || 'pending');
   const [sortBy,       setSortBy]       = useState(initialFilters?.sortBy       || 'desc');
 
@@ -210,7 +211,7 @@ export default function Index({ applyRestructs, auth, offices, filters: initialF
     router.get(
       '/verify-restructure',
       cleanParams(
-        { search, perPage, officeFilter, statusFilter, sortBy, ...overrides },
+        { search, perPage, officeFilter, yearFilter, statusFilter, sortBy, ...overrides },
         { sortBy: 'desc', perPage: 10, statusFilter: 'pending' }
       ),
       { preserveState: true, replace: true }
@@ -235,34 +236,39 @@ export default function Index({ applyRestructs, auth, offices, filters: initialF
     pushRouter({ page: 1 });
   }, [officeFilter]);
 
- const handleStatusFilter = (val) => {
-  setStatusFilter(val);
-  pushRouter({ statusFilter: val, page: 1 });
-};
+  // yearFilter — immediate, resets to page 1
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    pushRouter({ page: 1 });
+  }, [yearFilter]);
 
-const handlePerPage = (e) => {
-  const val = e.target.value;
-  setPerPage(val);
-  pushRouter({ perPage: val, page: 1 });
-};
+  const handleStatusFilter = (val) => {
+    setStatusFilter(val);
+    pushRouter({ statusFilter: val, page: 1 });
+  };
 
-const handleSortToggle = () => {
-  const val = sortBy === 'desc' ? 'asc' : 'desc';
-  setSortBy(val);
-  pushRouter({ sortBy: val });
-};
+  const handlePerPage = (e) => {
+    const val = e.target.value;
+    setPerPage(val);
+    pushRouter({ perPage: val, page: 1 });
+  };
 
-const handleClearFilters = () => {
-  setSearch('');
-  setOfficeFilter('');
-  setStatusFilter('all');
-  setSortBy('desc');
-  router.get('/verify-restructure', {}, { preserveState: true });
-};
+  const handleSortToggle = () => {
+    const val = sortBy === 'desc' ? 'asc' : 'desc';
+    setSortBy(val);
+    pushRouter({ sortBy: val });
+  };
 
+  const handleClearFilters = () => {
+    setSearch('');
+    setOfficeFilter('');
+    setYearFilter('');
+    setStatusFilter('all');
+    setSortBy('desc');
+    router.get('/verify-restructure', {}, { preserveState: true });
+  };
 
-
-  const hasActiveFilters = !!(search || officeFilter || statusFilter !== 'all');
+  const hasActiveFilters = !!(search || officeFilter || yearFilter || statusFilter !== 'all');
   const data             = applyRestructs?.data || [];
   const paginationData   = applyRestructs?.data ? applyRestructs : null;
 
@@ -331,12 +337,18 @@ const handleClearFilters = () => {
                 </div>
               )}
 
-              <button onClick={handleSortToggle}
-                className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-white border border-gray-300 rounded-lg md:rounded-xl hover:bg-gray-50 transition-colors shadow-sm text-xs md:text-sm"
-                title={sortBy === 'desc' ? 'Newest first' : 'Oldest first'}>
-                {sortBy === 'desc' ? <ArrowDown className="w-4 h-4 text-gray-600" /> : <ArrowUp className="w-4 h-4 text-gray-600" />}
-                <span className="hidden md:inline font-medium text-gray-700">{sortBy === 'desc' ? 'Newest' : 'Oldest'}</span>
-              </button>
+              {years && years.length > 0 && (
+                <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm flex-1 md:flex-initial md:min-w-[160px]">
+                  <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <select value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}
+                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2 md:py-2.5">
+                    <option value="">All Years</option>
+                    {years.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {hasActiveFilters && (
                 <button onClick={handleClearFilters}
@@ -467,7 +479,7 @@ const handleClearFilters = () => {
           </div>
 
           {/* Pagination */}
-            {paginationData.links && paginationData.links.length > 1 && (
+          {paginationData.links && paginationData.links.length > 1 && (
             <PaginationLinks
               links={paginationData.links}
               from={paginationData.from}

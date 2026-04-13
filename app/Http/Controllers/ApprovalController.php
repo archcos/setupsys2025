@@ -134,8 +134,6 @@ class ApprovalController extends Controller
             $offices = [];
             if ($user->role === 'rpmo') {
                 $offices = OfficeModel::orderBy('office_name')->get();
-            } elseif ($user->role === 'staff' && $user->office_id) {
-                $offices = OfficeModel::where('office_id', $user->office_id)->get();
             }
 
             return Inertia::render('Approval/Index', [

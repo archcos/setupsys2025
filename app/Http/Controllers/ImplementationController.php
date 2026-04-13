@@ -25,6 +25,7 @@ class ImplementationController extends Controller
         $perPage = $request->input('perPage', 10);
         $statusFilter = $request->input('statusFilter');
         $officeFilter = $request->input('officeFilter');
+        $yearFilter = $request->input('yearFilter');
         $user = Auth::user();
 
         $userRole = $user->role;
@@ -34,7 +35,7 @@ class ImplementationController extends Controller
         if (!$canViewAll && !$isStaff) {
             return Inertia::render('Implementation/Index', [
                 'implementations' => new \Illuminate\Pagination\Paginator([], $perPage, 1),
-                'filters'         => $request->only('search', 'perPage', 'statusFilter', 'officeFilter'),
+                'filters'         => $request->only('search', 'perPage', 'statusFilter', 'officeFilter', 'yearFilter'),
                 'offices'         => [],
                 'userRole'        => $userRole,
             ]);
@@ -67,6 +68,13 @@ class ImplementationController extends Controller
             });
         }
 
+        // Year filter
+        if (!empty($yearFilter)) {
+            $baseQuery->whereHas('project', function ($q) use ($yearFilter) {
+                $q->where('year_obligated', $yearFilter);
+            });
+        }
+
         if ($search) {
             $baseQuery->whereHas('project', function ($q) use ($search) {
                 $q->where('project_title', 'like', "%{$search}%")
@@ -81,6 +89,7 @@ class ImplementationController extends Controller
         $totalCount    = (clone $baseQuery)->count();
 
         $implementations = $baseQuery->paginate($perPage);
+        
         if ($statusFilter === 'complete') {
             $baseQuery->whereNotNull('liquidation');
         } elseif ($statusFilter === 'pending') {
@@ -88,7 +97,6 @@ class ImplementationController extends Controller
         }
 
         $implementations = $baseQuery->paginate($perPage);
-
 
         $implementations->getCollection()->transform(function ($implementation) {
             $projectCost = floatval($implementation->project->project_cost ?? 0);
@@ -108,18 +116,27 @@ class ImplementationController extends Controller
             return $implementation;
         });
 
-        // if ($statusFilter) {
-        //     $filtered = $implementations->getCollection()->filter(function ($implementation) use ($statusFilter) {
-        //         if ($statusFilter === 'complete') {
-        //             return !!$implementation->liquidation;
-        //         } elseif ($statusFilter === 'pending') {
-        //             return !$implementation->liquidation;
-        //         }
-        //         return true;
-        //     });
+        // ── Get available years ──────────────────────────────────────────
+        $yearsQuery = ProjectModel::query()
+            ->distinct()
+            ->whereNotNull('year_obligated')
+            ->whereHas('implementation');
 
-        //     $implementations->setCollection($filtered);
-        // }
+        if (!$canViewAll && $isStaff) {
+            $yearsQuery->whereHas('proponent', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
+            });
+        } elseif (!$canViewAll && !$isStaff) {
+            $yearsQuery->whereRaw('1 = 0');
+        }
+
+        $years = $yearsQuery
+            ->orderBy('year_obligated', 'desc')
+            ->pluck('year_obligated')
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
 
         $offices = [];
         if ($canViewAll) {
@@ -129,13 +146,14 @@ class ImplementationController extends Controller
         }
 
         $implementations->appends(request()->query());
-        $implementationsArray                    = $implementations->toArray();
-        $implementationsArray['complete_count']  = $completeCount;
-        $implementationsArray['pending_count']   = $pendingCount;
+        $implementationsArray                      = $implementations->toArray();
+        $implementationsArray['complete_count']    = $completeCount;
+        $implementationsArray['pending_count']     = $pendingCount;
+        $implementationsArray['year_obligated_options'] = $years;
 
         return Inertia::render('Implementation/Index', [
             'implementations' => $implementationsArray,
-            'filters'         => $request->only('search', 'perPage', 'statusFilter', 'officeFilter'),
+            'filters'         => $request->only('search', 'perPage', 'statusFilter', 'officeFilter', 'yearFilter'),
             'offices'         => $offices,
             'userRole'        => $userRole,
         ]);
@@ -337,76 +355,60 @@ class ImplementationController extends Controller
         }
     }
 
-private function sendLiquidationNotification(
-    ImplementationModel $implementation,
-    string $storedPath,
-    string $fileName
-): void {
-    try {
-        $implementation->load('project.proponent.office.director', 'liquidationUploadedBy');
+    private function sendLiquidationNotification(
+        ImplementationModel $implementation,
+        string $storedPath,
+        string $fileName
+    ): void {
+        try {
+            $implementation->load('project.proponent.office.director', 'liquidationUploadedBy');
 
-        $project      = $implementation->project;
-        $proponent    = $project->proponent;
-        $office       = $proponent->office;
-        $officeId     = $proponent->office_id;
-        $officeName   = $office->office_name ?? 'Office';
-        $projectTitle = $project->project_title;
-        $companyName  = $proponent->company_name;
-        $absolutePath = storage_path("app/private/{$storedPath}");
+            $project      = $implementation->project;
+            $proponent    = $project->proponent;
+            $office       = $proponent->office;
+            $officeId     = $proponent->office_id;
+            $officeName   = $office->office_name ?? 'Office';
+            $projectTitle = $project->project_title;
+            $companyName  = $proponent->company_name;
+            $absolutePath = storage_path("app/private/{$storedPath}");
 
-        // Uploader name
-        $uploader     = $implementation->liquidationUploadedBy;
-        $uploaderName = $uploader ? $uploader->name : 'Unknown User';
+            // Uploader name
+            $uploader     = $implementation->liquidationUploadedBy;
+            $uploaderName = $uploader ? $uploader->name : 'Unknown User';
 
-        // Hardcoded CC emails
-        $hardcodedCc = [
-            // 'example1@dost.gov.ph',
-            // 'example2@dost.gov.ph',
-        ];
+            // Hardcoded CC emails
+            $hardcodedCc = [
+                // 'example1@dost.gov.ph',
+                // 'example2@dost.gov.ph',
+            ];
 
-        $director             = $office->director ?? null;
-        $directorGreetingName = 'Provincial Director and Team';
-        $directorEmail        = null;
+            $director             = $office->director ?? null;
+            $directorGreetingName = 'Provincial Director and Team';
+            $directorEmail        = null;
 
-        if ($director) {
-            $directorFullName = trim(
-                ($director->honorific ? $director->honorific . ' ' : '') .
-                ($director->first_name ?? '') . ' ' .
-                ($director->middle_name ? $director->middle_name . ' ' : '') .
-                ($director->last_name ?? '')
-            );
-            $directorGreetingName = $directorFullName . ' and Team';
-            $directorEmail        = $director->email;
-        }
+            if ($director) {
+                $directorFullName = trim(
+                    ($director->honorific ? $director->honorific . ' ' : '') .
+                    ($director->first_name ?? '') . ' ' .
+                    ($director->middle_name ? $director->middle_name . ' ' : '') .
+                    ($director->last_name ?? '')
+                );
+                $directorGreetingName = $directorFullName . ' and Team';
+                $directorEmail        = $director->email;
+            }
 
-        $officeStaffUsers = UserModel::whereRaw('LOWER(role) = ?', ['staff'])
-            ->where('office_id', $officeId)
-            ->whereNotNull('email')
-            ->get();
+            $officeStaffUsers = UserModel::whereRaw('LOWER(role) = ?', ['staff'])
+                ->where('office_id', $officeId)
+                ->whereNotNull('email')
+                ->get();
 
-        $subject = "{$officeName} SETUP Accepted Liquidation Report";
+            $subject = "{$officeName} SETUP Accepted Liquidation Report";
 
-        if ($directorEmail) {
-            $staffEmails = $officeStaffUsers->pluck('email')->filter()->toArray();
-            $allRecipients = array_merge([$directorEmail], $staffEmails);
+            if ($directorEmail) {
+                $staffEmails = $officeStaffUsers->pluck('email')->filter()->toArray();
+                $allRecipients = array_merge([$directorEmail], $staffEmails);
 
-            Mail::to($allRecipients)
-                ->cc(array_filter($hardcodedCc))
-                ->send(new LiquidationNotificationMail(
-                    $projectTitle,
-                    $companyName,
-                    $directorGreetingName,
-                    $absolutePath,
-                    $fileName,
-                    $subject,
-                    $officeName,
-                    $uploaderName
-                ));
-        } else {
-            $staffEmails = $officeStaffUsers->pluck('email')->filter()->toArray();
-
-            if (!empty($staffEmails)) {
-                Mail::to($staffEmails)
+                Mail::to($allRecipients)
                     ->cc(array_filter($hardcodedCc))
                     ->send(new LiquidationNotificationMail(
                         $projectTitle,
@@ -419,28 +421,44 @@ private function sendLiquidationNotification(
                         $uploaderName
                     ));
             } else {
-                Log::warning('No recipients found for liquidation notification', [
-                    'implement_id' => $implementation->implement_id,
-                ]);
+                $staffEmails = $officeStaffUsers->pluck('email')->filter()->toArray();
+
+                if (!empty($staffEmails)) {
+                    Mail::to($staffEmails)
+                        ->cc(array_filter($hardcodedCc))
+                        ->send(new LiquidationNotificationMail(
+                            $projectTitle,
+                            $companyName,
+                            $directorGreetingName,
+                            $absolutePath,
+                            $fileName,
+                            $subject,
+                            $officeName,
+                            $uploaderName
+                        ));
+                } else {
+                    Log::warning('No recipients found for liquidation notification', [
+                        'implement_id' => $implementation->implement_id,
+                    ]);
+                }
             }
+
+            Log::info('Liquidation notification emails sent', [
+                'implement_id'   => $implementation->implement_id,
+                'director_email' => $directorEmail,
+                'staff_count'    => $officeStaffUsers->count(),
+                'cc_emails'      => $hardcodedCc,
+                'office'         => $officeName,
+                'uploaded_by'    => $uploaderName,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send liquidation notification emails', [
+                'implement_id' => $implementation->implement_id,
+                'error'        => $e->getMessage(),
+            ]);
         }
-
-        Log::info('Liquidation notification emails sent', [
-            'implement_id'   => $implementation->implement_id,
-            'director_email' => $directorEmail,
-            'staff_count'    => $officeStaffUsers->count(),
-            'cc_emails'      => $hardcodedCc,
-            'office'         => $officeName,
-            'uploaded_by'    => $uploaderName,
-        ]);
-
-    } catch (\Exception $e) {
-        Log::error('Failed to send liquidation notification emails', [
-            'implement_id' => $implementation->implement_id,
-            'error'        => $e->getMessage(),
-        ]);
     }
-}
 
     public function deleteFromLocal(Request $request, $field)
     {

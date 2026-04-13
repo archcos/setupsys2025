@@ -125,9 +125,24 @@ class ProjectModel extends Model
         return $this->hasOne(ComplianceModel::class, 'project_id');
     }
 
-        public function applyRestructs()
+    public function applyRestructs()
     {
         return $this->hasMany(ApplyRestructModel::class, 'project_id', 'project_id');
+    }
+
+    public function applyRestruct()
+    {
+        return $this->hasOne(ApplyRestructModel::class, 'project_id', 'project_id')->latest();
+    }
+
+    public function restruct()
+    {
+        return $this->hasMany(RestructureModel::class, 'project_id', 'project_id');
+    }
+
+    public function moa()
+    {
+        return $this->hasOne(MoaModel::class, 'project_id', 'project_id');
     }
 
     public function checkRefundCompletion(){

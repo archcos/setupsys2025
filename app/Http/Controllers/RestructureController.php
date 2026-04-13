@@ -29,6 +29,7 @@ class RestructureController extends Controller
         $search       = $request->input('search', '');
         $perPage      = $request->input('perPage', 10);
         $officeFilter = $request->input('officeFilter', '');
+        $yearFilter   = $request->input('yearFilter', '');
         $statusFilter = $request->input('statusFilter', 'pending');
         $sortBy       = $request->input('sortBy', 'desc');
 
@@ -72,6 +73,11 @@ class RestructureController extends Controller
             $query->whereHas('project.proponent', fn($q) => $q->where('office_id', $officeFilter));
         }
 
+        // Year
+        if (!empty($yearFilter)) {
+            $query->whereHas('project', fn($q) => $q->where('year_obligated', $yearFilter));
+        }
+
         // Status
         if (!empty($statusFilter) && $statusFilter !== 'all') {
             if ($statusFilter === 'pending') {
@@ -87,22 +93,39 @@ class RestructureController extends Controller
         // Sort
         $sortBy === 'asc' ? $query->oldest() : $query->latest();
 
-    $applyRestructs = $query->paginate($perPage)
-        ->through(function ($item) {
-            $item->computed_status = $item->restructure?->status ?? 'pending';
-            return $item;
-        })
-    ->withQueryString();
+        $applyRestructs = $query->paginate($perPage)
+            ->through(function ($item) {
+                $item->computed_status = $item->restructure?->status ?? 'pending';
+                return $item;
+            })
+            ->withQueryString();
+
+        // ── Get available years ──────────────────────────────────────────
+        $yearsQuery = ProjectModel::query()
+            ->distinct()
+            ->whereNotNull('year_obligated')
+            ->whereHas('applyRestruct');
+
+        $years = $yearsQuery
+            ->orderBy('year_obligated', 'desc')
+            ->pluck('year_obligated')
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
         $offices = OfficeModel::orderBy('office_name')->get();
 
         return Inertia::render('Restructures/Index', [
             'applyRestructs' => $applyRestructs,
             'offices'        => $offices,
+            'years'          => $years,
             'statusCounts'   => $statusCounts,
             'filters'        => [
                 'search'       => $search,
                 'perPage'      => $perPage,
                 'officeFilter' => $officeFilter,
+                'yearFilter'   => $yearFilter,
                 'statusFilter' => $statusFilter,
                 'sortBy'       => $sortBy,
             ],

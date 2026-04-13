@@ -4,11 +4,13 @@ import { Search, FileText, Download, Building2, User, Calendar, Users, X, ArrowU
 import { cleanParams } from '@/utils/cleanParams';
 import PaginationLinks from '@/components/PaginationLinks';
 
-export default function Index({ moas, filters }) {
+export default function Index({ moas, filters, years, offices }) {
   const [search, setSearch] = useState(filters?.search || '');
   const [perPage, setPerPage] = useState(filters?.perPage || 10);
   const [sortBy, setSortBy] = useState(filters?.sortBy || 'created_at');
   const [sortOrder, setSortOrder] = useState(filters?.sortOrder || 'desc');
+  const [officeFilter, setOfficeFilter] = useState(filters?.officeFilter || '');
+  const [yearFilter, setYearFilter] = useState(filters?.yearFilter || '');
   const [uploadingMoaId, setUploadingMoaId] = useState(null);
   const isFirstRender = useRef(true);
   const debounceTimer = useRef(null);
@@ -19,7 +21,7 @@ export default function Index({ moas, filters }) {
   const pushRouter = (overrides = {}) =>
     router.get('/moa',
       cleanParams(
-        { search, perPage, sortBy, sortOrder, ...overrides },
+        { search, perPage, sortBy, sortOrder, officeFilter, yearFilter, ...overrides },
         { perPage: 10, sortBy: 'created_at', sortOrder: 'desc' }
       ),
       { preserveState: true, preserveScroll: true, replace: true }
@@ -46,6 +48,26 @@ export default function Index({ moas, filters }) {
     setSortBy(column);
     setSortOrder(newSortOrder);
     pushRouter({ sortBy: column, sortOrder: newSortOrder });
+  };
+
+  const handleOfficeChange = (e) => {
+    const val = e.target.value;
+    setOfficeFilter(val);
+    pushRouter({ officeFilter: val, page: 1 });
+  };
+
+  const handleYearChange = (e) => {
+    const val = e.target.value;
+    setYearFilter(val);
+    pushRouter({ yearFilter: val, page: 1 });
+  };
+
+  const handleClear = () => {
+    setSearch('');
+    setOfficeFilter('');
+    setYearFilter('');
+    setPerPage(10);
+    router.get('/moa', {}, { preserveState: true, replace: true });
   };
 
   const handleFileUpload = (moaId, e) => {
@@ -77,6 +99,8 @@ export default function Index({ moas, filters }) {
   const getSortIcon = (column) => (
     <ArrowUpDown className={`w-3 h-3 ${sortBy === column ? 'text-blue-600' : 'text-gray-400'}`} />
   );
+
+  const hasFilters = !!(search || officeFilter || yearFilter);
 
   return (
     <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen">
@@ -110,38 +134,82 @@ export default function Index({ moas, filters }) {
             </div>
           </div>
 
-          {/* Filters — search + per-page on same row */}
-          <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
-            <div className="flex gap-2 md:gap-3">
-              {/* Search */}
+          {/* Filters */}
+          <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100 space-y-3">
+
+            {/* Search + Per Page */}
+            <div className="flex flex-col md:flex-row gap-2 md:gap-4">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-3 h-3 md:w-4 md:h-4" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
                   placeholder="Search by proponent or project..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-9 md:pl-10 pr-8 py-2 md:py-3 text-sm md:text-base border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                  className="w-full pl-9 md:pl-10 pr-8 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white shadow-sm"
                 />
                 {search && (
-                  <button onClick={() => setSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    <X className="w-3 h-3 md:w-4 md:h-4" />
+                  <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
 
-              {/* Per page — right side */}
-              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm flex-shrink-0">
+              <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm w-fit">
                 <select
                   value={perPage}
                   onChange={handlePerPageChange}
-                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer py-2 md:py-3"
+                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer py-2"
                 >
                   {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
-                <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap hidden md:inline">entries</span>
+                <span className="text-xs text-gray-500 hidden md:inline">entries</span>
               </div>
+            </div>
+
+            {/* Office + Year + Clear */}
+            <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-wrap">
+              {offices && offices.length > 1 && (
+                <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm flex-1 md:flex-initial md:min-w-[200px]">
+                  <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <select
+                    value={officeFilter}
+                    onChange={handleOfficeChange}
+                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2"
+                  >
+                    <option value="">All Offices</option>
+                    {offices.map((office) => (
+                      <option key={office.office_id} value={office.office_id}>{office.office_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {years && years.length > 0 && (
+                <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm flex-1 md:flex-initial md:min-w-[160px]">
+                  <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <select
+                    value={yearFilter}
+                    onChange={handleYearChange}
+                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2"
+                  >
+                    <option value="">All Years</option>
+                    {years.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {hasFilters && (
+                <button
+                  onClick={handleClear}
+                  className="flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors text-xs md:text-sm font-medium"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Clear filters</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -333,10 +401,10 @@ export default function Index({ moas, filters }) {
                     {search ? `No MOAs match your search "${search}"` : 'No MOAs have been generated yet'}
                   </p>
                 </div>
-                {search && (
-                  <button onClick={() => setSearch('')}
+                {hasFilters && (
+                  <button onClick={handleClear}
                     className="px-3 md:px-4 py-2 bg-blue-500 text-white text-xs md:text-sm rounded-lg hover:bg-blue-600 transition-colors">
-                    Clear Search
+                    Clear Filters
                   </button>
                 )}
               </div>
