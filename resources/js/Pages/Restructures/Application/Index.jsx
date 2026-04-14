@@ -4,7 +4,11 @@ import {
   Plus, Edit3, Trash2, AlertCircle, CheckCircle,
   Eye, FileText, X, Download, Search, ArrowUpDown,
   Clock, List, ClipboardList,
+  User,
+  Hand,
+  Calendar,
 } from 'lucide-react';
+import PaginationLinks from '@/components/PaginationLinks';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -221,15 +225,15 @@ export default function ApplyRestructIndex({ applyRestructs, filters }) {
                 <ClipboardList className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Apply Restructuring</h2>
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Restructuring Application</h2>
                 <p className="text-xs md:text-sm text-gray-500 mt-0.5">Manage project restructuring applications</p>
               </div>
             </div>
             <Link
               href={route('apply_restruct.create')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium text-sm rounded-lg hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30 flex-shrink-0 transition-all"
+                  className="flex items-center justify-center gap-2 bg-blue-500 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:bg-blue-600 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
             >
-              <Plus className="w-4 h-4" /> Add New
+              <Plus className="w-4 h-4" /> Create a New Application
             </Link>
           </div>
 
@@ -336,9 +340,27 @@ export default function ApplyRestructIndex({ applyRestructs, filters }) {
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
-                      {['Project Code','Project','Status','Documents','Added By','Date Added','Actions'].map(h => (
-                        <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{h}</th>
-                      ))}
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2"><FileText className="w-4 h-4" />Project Code</div>
+                      </th>
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2"><FileText className="w-4 h-4" />Project</div>
+                      </th>
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2"><ClipboardList className="w-4 h-4" />Status</div>
+                      </th>
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2"><FileText className="w-4 h-4" />Documents</div>
+                      </th>
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2"><User className="w-4 h-4" />Added By</div>
+                      </th>
+                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center gap-2"><Calendar className="w-4 h-4" />Date Added</div>
+                      </th>
+                      <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-2"><Hand className="w-4 h-4" />Actions</div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
@@ -426,12 +448,12 @@ export default function ApplyRestructIndex({ applyRestructs, filters }) {
           )}
 
           {/* ── Pagination ── */}
-         {projects.links && projects.links.length > 1 && (
+          {applyRestructs?.links && applyRestructs.links.length > 1 && (
             <PaginationLinks
-              links={projects.links}
-              from={projects.from}
-              to={projects.to}
-              total={projects.total}
+              links={applyRestructs.links}
+              from={applyRestructs.from}
+              to={applyRestructs.to}
+              total={applyRestructs.total}
             />
           )}
 

@@ -32,8 +32,6 @@ use App\Http\Controllers\PasswordResetController;
 Route::middleware(['log-suspicious'])->group(function () {
 
     Route::middleware(['redirectIfAuthenticated'])->group(function () {
-        // Register
-
         // Login
         Route::get('/', [AuthController::class, 'index'])->name('login');
         Route::post('/signin', [AuthController::class, 'signin'])->name('signin');
@@ -50,6 +48,40 @@ Route::middleware(['log-suspicious'])->group(function () {
     });
 
 
+       // Request password reset form
+    Route::get('/password/reset/request', [PasswordResetController::class, 'showRequestForm'])
+        ->name('password.request');
+    
+    // Handle password reset request
+    Route::post('/password/reset/request', [PasswordResetController::class, 'requestReset'])
+        ->name('password.reset.request');
+    
+    // Show OTP verification form
+    Route::get('/password/reset/verify', [PasswordResetController::class, 'showVerifyForm'])
+        ->name('password.reset.verify-form');
+    
+    // Verify OTP
+    Route::post('/password/reset/verify', [PasswordResetController::class, 'verifyOtp'])
+        ->name('password.reset.verify');
+    
+    // Resend OTP during password reset
+    Route::post('/password/reset/resend-otp', [PasswordResetController::class, 'resendOtp'])
+        ->name('password.reset.resend-otp');
+    
+    // Show password reset form (after OTP verification)
+    Route::get('/password/reset', [PasswordResetController::class, 'showResetForm'])
+        ->name('password.reset.form');
+    
+    // Handle password reset
+    Route::post('/password/reset', [PasswordResetController::class, 'resetPassword'])
+        ->name('password.reset');
+
+
+    Route::get('/contact', [PageController::class, 'contact'])->name('contact');
+    Route::post('/contact', [PageController::class, 'sendContact'])->name('contact.send');
+    Route::get('/about-us', [PageController::class, 'about'])->name('about');
+    Route::get('/help', [PageController::class, 'help'])->name('help');
+    Route::get('/announcements/view', [PageController::class, 'announcements'])->name('announcements.public');
 
     Route::middleware(['auth'])->group(function () {
     // Protected Home Page
@@ -59,16 +91,9 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::put('/users/{id}', [AuthController::class, 'update'])->name('users.update');
         // Logout
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-
     });
 
 
-    Route::get('/contact', [PageController::class, 'contact'])->name('contact');
-    Route::post('/contact', [PageController::class, 'sendContact'])
-        ->name('contact.send');
-    Route::get('/about-us', [PageController::class, 'about'])->name('about');
-    Route::get('/help', [PageController::class, 'help'])->name('help');
-    Route::get('/announcements/view', [PageController::class, 'announcements'])->name('announcements.public');
 
 
     // DEVELOPMENT
@@ -211,7 +236,7 @@ Route::middleware(['log-suspicious'])->group(function () {
 
 
     //APPLY-RESTRUCT
-    Route::prefix('apply-restruct')->name('apply_restruct.')->group(function () {
+    Route::middleware(['auth',  'role:rpmo,staff,rd'])->prefix('apply-restruct')->name('apply_restruct.')->group(function () {
     
         Route::get('/',                [ApplyRestructController::class, 'index'])       ->name('index');
         Route::get('/create',          [ApplyRestructController::class, 'create'])      ->name('create');
@@ -260,9 +285,6 @@ Route::middleware(['log-suspicious'])->group(function () {
     });
 
 
-    // Route::get('/review-approval', [ReviewController::class, 'reviewApproval'])->name('review.approval');
-    // Route::post('/projects/{id}/update-progress', [ReviewController::class, 'updateProgressReview'])->name('projects.updateProgress');
-    // Route::post('/messages/{id}/toggle-status', [ReviewController::class, 'toggleMessageStatus'])->name('messages.toggleStatus');
     //REPORTS
 
     Route::middleware(['auth', 'role:user,staff,rpmo'])->group(function () {
@@ -302,52 +324,18 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::delete('/announcements/{id}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
     });
 
-    Route::middleware(['auth'])->group(function () {
-    
-    Route::get('/settings/devices', [DeviceController::class, 'list'])
-        ->name('devices.list');
-    
-    Route::delete('/settings/devices/{id}', [DeviceController::class, 'revoke'])
-        ->name('devices.revoke');
-    
-    Route::get('/api/devices/stats', [DeviceController::class, 'getDeviceStats'])
-        ->name('devices.stats');
-    
-    // Admin-only: Cleanup expired devices (can be run manually or via scheduler)
-    Route::post('/admin/devices/cleanup', [DeviceController::class, 'cleanupExpiredDevices'])
-        ->middleware('role:head')
-        ->name('devices.cleanup');
-});
+    Route::middleware(['auth'])->group(function () {       
+        Route::get('/settings/devices', [DeviceController::class, 'list'])->name('devices.list');
+        Route::delete('/settings/devices/{id}', [DeviceController::class, 'revoke'])->name('devices.revoke');
+        Route::get('/api/devices/stats', [DeviceController::class, 'getDeviceStats'])->name('devices.stats');
+        
+        // Admin-only: Cleanup expired devices (can be run manually or via scheduler)
+        Route::post('/admin/devices/cleanup', [DeviceController::class, 'cleanupExpiredDevices'])
+            ->middleware('role:head')
+            ->name('devices.cleanup');
+    });
 
 
-    // Request password reset form
-    Route::get('/password/reset/request', [PasswordResetController::class, 'showRequestForm'])
-        ->name('password.request');
-    
-    // Handle password reset request
-    Route::post('/password/reset/request', [PasswordResetController::class, 'requestReset'])
-        ->name('password.reset.request');
-    
-    // Show OTP verification form
-    Route::get('/password/reset/verify', [PasswordResetController::class, 'showVerifyForm'])
-        ->name('password.reset.verify-form');
-    
-    // Verify OTP
-    Route::post('/password/reset/verify', [PasswordResetController::class, 'verifyOtp'])
-        ->name('password.reset.verify');
-    
-    // Resend OTP during password reset
-    Route::post('/password/reset/resend-otp', [PasswordResetController::class, 'resendOtp'])
-        ->name('password.reset.resend-otp');
-    
-    // Show password reset form (after OTP verification)
-    Route::get('/password/reset', [PasswordResetController::class, 'showResetForm'])
-        ->name('password.reset.form');
-    
-    // Handle password reset
-    Route::post('/password/reset', [PasswordResetController::class, 'resetPassword'])
-        ->name('password.reset');
-
-
+ 
 });
 

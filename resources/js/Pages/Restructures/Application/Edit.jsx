@@ -31,7 +31,7 @@ function ProjectSelect({ projects, value, onChange }) {
   }, [projects, query]);
 
   return (
-    <div ref={ref} className="relative flex-1">
+<div ref={ref} className="relative flex-1 min-w-0">
       {/* Trigger */}
       <button
         type="button"
@@ -46,7 +46,7 @@ function ProjectSelect({ projects, value, onChange }) {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
+        <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden min-w-0">
           {/* Search */}
           <div className="p-2 border-b border-slate-100">
             <div className="relative">
@@ -249,9 +249,9 @@ export default function ApplyRestructEdit({ applyRestruct, projects }) {
             <div className="p-2 md:p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl shadow-lg flex-shrink-0">
               <ClipboardList className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold">
-                Application #{record.apply_id}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl md:text-2xl font-bold break-words">
+                Edit Application
               </h1>
               <p className="text-xs md:text-sm mt-1">Upload or replace documents below</p>
             </div>
@@ -266,7 +266,7 @@ export default function ApplyRestructEdit({ applyRestruct, projects }) {
             </div>
             <h2 className="text-base font-semibold text-slate-900">Project</h2>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3">
+<div className="flex items-center gap-3">
             <ProjectSelect
               projects={projects}
               value={projectId}
