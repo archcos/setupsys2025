@@ -1,6 +1,6 @@
 import { Link, router, Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import { Plus, Search, Calendar, Eye, Edit3, Trash2, Activity, Building2, X, AlertCircle, SquareKanban, Hand } from 'lucide-react';
+import { Plus, Search, Calendar, Eye, Edit3, Trash2, Activity, Building2, X, AlertCircle, SquareKanban, Hand, Building } from 'lucide-react';
 import PaginationLinks from '@/components/PaginationLinks';
 
 
@@ -151,8 +151,8 @@ export default function Index({ activities, filters }) {
                 <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4" />
-                      Project / Company
+                      <Building className="w-4 h-4" />
+                      Project & Proponent
                     </div>
                   </th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">

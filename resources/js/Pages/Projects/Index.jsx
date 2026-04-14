@@ -1,6 +1,6 @@
 import { Link, router, Head, usePage } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award, Users, TrendingUp, ChevronDown, ClipboardList, MapPin, Building, Clipboard, Hand, LucideTrendingUp } from 'lucide-react';
+import { Search, Plus, Eye, Edit3, Trash2, Building2, Calendar, Package, X, AlertCircle, PhilippinePeso, CheckCircle, Clock, XCircle, FileText, Play, ArrowUpDown, HandCoins, Filter, Award, Users, TrendingUp, ChevronDown, ClipboardList, MapPin, Building, Clipboard, Hand, LucideTrendingUp, Hash } from 'lucide-react';
 import MultiSelect from '../../components/MultiSelect';
 import PaginationLinks from '../../components/PaginationLinks';
 import { cleanParams } from '@/utils/cleanParams';
@@ -349,10 +349,10 @@ export default function Index({ projects, filters, offices, allYears }) {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <SortButton field="year_obligated" label="YEAR OBLIGATED" icon={Calendar} />
+                    <SortButton field="project_id" label="PROJECT CODE" icon={Hash} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <SortButton field="project_id" label="PROJECT CODE" icon={FileText} />
+                    <SortButton field="year_obligated" label="YEAR OBLIGATED" icon={Calendar} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <SortButton field="project_title" label="PROJECT & PROPONENT" icon={ClipboardList} />
@@ -378,8 +378,8 @@ export default function Index({ projects, filters, offices, allYears }) {
               <tbody className="bg-white divide-y divide-gray-100">
                 {projects.data.map((project) => (
                   <tr key={project.project_id} className="hover:bg-blue-50/30 transition-all duration-200">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{project.year_obligated || '-'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{project.project_id}</td>
+                    <td className="px-6 py-4 text-sm justify-center text-gray-900 text-center">{project.project_id}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900 text-center">{project.year_obligated || '-'}</td>
                     <td className="px-6 py-4">
                       <div>
                         <div className="text-sm font-semibold text-gray-900">{project.project_title}</div>

@@ -49,6 +49,7 @@ class ApplyRestructController extends Controller
             if ($search) {
                 $base->whereHas('project', fn($q) =>
                     $q->where('project_title', 'like', "%{$search}%")
+                    ->orWhere('project_id', 'like', "%{$search}%")
                 );
             }
 

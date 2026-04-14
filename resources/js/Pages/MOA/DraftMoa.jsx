@@ -1,5 +1,5 @@
 import { useForm, router, Head } from '@inertiajs/react';
-import { FileText, Building2, FolderOpen, Users, Download, Loader2, AlertCircle, CheckCircle, FileSignature } from 'lucide-react';
+import { FileText, Building2, FolderOpen, Users, Download, Loader2, AlertCircle, CheckCircle, FileSignature, Building } from 'lucide-react';
 
 
 export default function DraftMoa({ proponents, selectedProponent, projects, filters }) {
@@ -54,7 +54,7 @@ export default function DraftMoa({ proponents, selectedProponent, projects, filt
               {/* Proponent Selection */}
               <div className="space-y-3 md:space-y-4">
                 <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-gray-700">
-                  <Building2 className="w-3 h-3 md:w-4 md:h-4 text-blue-600 flex-shrink-0" />
+                  <Building className="w-3 h-3 md:w-4 md:h-4 text-blue-600 flex-shrink-0" />
                   Proponent Selection
                 </div>
                 

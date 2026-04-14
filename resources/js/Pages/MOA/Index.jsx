@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
-import { Search, FileText, Download, Building2, User, Calendar, Users, X, ArrowUpDown, Upload, FileCheck, AlertCircle, Eye } from 'lucide-react';
+import { Search, FileText, Download, Building2, User, Calendar, Users, X, ArrowUpDown, Upload, FileCheck, AlertCircle, Eye, Hash, ClipboardList, Building, Files } from 'lucide-react';
 import { cleanParams } from '@/utils/cleanParams';
 import PaginationLinks from '@/components/PaginationLinks';
 
@@ -143,7 +143,7 @@ export default function Index({ moas, filters, years, offices }) {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Search by proponent or project..."
+                  placeholder="Search by project id, proponent name, project title or ..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-9 md:pl-10 pr-8 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white shadow-sm"
@@ -219,12 +219,15 @@ export default function Index({ moas, filters, years, offices }) {
               <thead>
                 <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center gap-2"><Hash className="w-4 h-4" /> PROJECT CODE</div>
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <button onClick={() => handleSort('project_cost')} className="flex items-center gap-2 hover:text-blue-600 transition-colors">
-                      <FileText className="w-4 h-4" /> PROJECT {getSortIcon('project_cost')}
+                      <ClipboardList className="w-4 h-4" /> PROJECT {getSortIcon('project_cost')}
                     </button>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <div className="flex items-center gap-2"><Building2 className="w-4 h-4" /> Proponent Representative</div>
+                    <div className="flex items-center gap-2"><Building className="w-4 h-4" /> Proponent Representative</div>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2"><Users className="w-4 h-4" /> Witness</div>
@@ -237,12 +240,15 @@ export default function Index({ moas, filters, years, offices }) {
                       <Calendar className="w-4 h-4" /> DATE CREATED {getSortIcon('created_at')}
                     </button>
                   </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Files</th>
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center justify-center gap-2"><FileText className="w-4 h-4" />Files</div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {moas.data.map((moa) => (
                   <tr key={moa.moa_id} className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200">
+                    <td className="px-6 py-4 text-sm justify-center text-gray-900 text-center">{moa.project?.project_id}</td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-semibold text-gray-900 mb-1">{moa.project?.project_title}</div>
                       <div className="text-xs text-gray-500">Cost: {formatCurrency(moa.project_cost)}</div>
@@ -329,6 +335,11 @@ export default function Index({ moas, filters, years, offices }) {
           <div className="md:hidden divide-y divide-gray-200">
             {moas.data.map((moa) => (
               <div key={moa.moa_id} className="p-3 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-mono font-semibold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+                    {moa.project?.project_id}
+                  </span>
+                </div>
                 <div className="mb-3 pb-3 border-b border-gray-200">
                   <h3 className="text-sm font-semibold text-gray-900 mb-1 truncate">{moa.project?.project_title}</h3>
                   <p className="text-xs text-gray-500">Cost: {formatCurrency(moa.project_cost)}</p>

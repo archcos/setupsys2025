@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useForm, Head, router, usePage, Link } from '@inertiajs/react';
-import { Save, Search, Filter, Calendar, Building2, CheckCircle, AlertCircle, X, Check, Eye, HandCoins, FileText, TrendingUp, Hand } from 'lucide-react';
+import { Save, Search, Filter, Calendar, Building2, CheckCircle, AlertCircle, X, Check, Eye, HandCoins, FileText, TrendingUp, Hand, Building, Banknote, BanknoteArrowUp, Receipt, ReceiptText, TicketSlash } from 'lucide-react';
 import { MONTHS, REFUND_STATUS } from './constants/refundConstants';
 import FilterSection from './components/FilterSection';
 import RefundTableRow from './components/RefundTableRow';
@@ -296,32 +296,32 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4" />
-                      Project & Company
+                      <Building className="w-4 h-4" />
+                      Project & Proponent
                     </div>
                   </th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
+                       <Banknote className="w-4 h-4" />
                       Amount Due
                     </div>
                   </th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4" />
+                      <BanknoteArrowUp className="w-4 h-4" />
                       Refund Amount
                     </div>
                   </th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Check No.
+                      <TicketSlash className="w-4 h-4" />
+                      Check Number
                     </div>
                   </th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Receipt No.
+                      <ReceiptText className="w-4 h-4" />
+                      Receipt Number
                     </div>
                   </th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">

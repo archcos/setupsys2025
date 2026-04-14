@@ -64,7 +64,8 @@ public function index(Request $request){
             $q->where('owner_name', 'like', "%{$search}%")
               ->orWhere('pd_name', 'like', "%{$search}%")
               ->orWhereHas('project', function ($q2) use ($search) {
-                  $q2->where('project_title', 'like', "%{$search}%");
+                  $q2->where('project_title', 'like', "%{$search}%")
+                  ->orWhere('project_id', 'like', "%{$search}%");
               });
         });
     }

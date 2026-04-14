@@ -383,9 +383,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
                       const isComplete = !!impl.liquidation;
                       return (
                         <tr key={impl.implement_id} className="hover:bg-blue-50/30 transition-all duration-200">
-                          <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-gray-600">
-                            {impl.project_id}
-                          </td>
+                          <td className="px-6 py-4 text-sm justify-center text-gray-900 text-center">{impl.project_id}</td>
                           <td className="px-4 md:px-6 py-3 md:py-4">
                             <div className="text-xs md:text-sm font-semibold text-gray-900 line-clamp-1">
                               {impl.project?.project_title || 'No Title'}

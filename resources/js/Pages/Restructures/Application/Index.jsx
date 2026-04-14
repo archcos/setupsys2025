@@ -7,6 +7,8 @@ import {
   User,
   Hand,
   Calendar,
+  Hash,
+  TrendingUp,
 } from 'lucide-react';
 import PaginationLinks from '@/components/PaginationLinks';
 
@@ -340,14 +342,14 @@ export default function ApplyRestructIndex({ applyRestructs, filters }) {
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        <div className="flex items-center gap-2"><FileText className="w-4 h-4" />Project Code</div>
+                      <th className="px-5 py-3.5 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-2"><Hash className="w-4 h-4" />Project Code</div>
                       </th>
                       <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        <div className="flex items-center gap-2"><FileText className="w-4 h-4" />Project</div>
+                        <div className="flex items-center gap-2"><ClipboardList className="w-4 h-4" />Project</div>
                       </th>
                       <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        <div className="flex items-center gap-2"><ClipboardList className="w-4 h-4" />Status</div>
+                        <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4" />Status</div>
                       </th>
                       <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         <div className="flex items-center gap-2"><FileText className="w-4 h-4" />Documents</div>
@@ -366,11 +368,7 @@ export default function ApplyRestructIndex({ applyRestructs, filters }) {
                   <tbody className="bg-white divide-y divide-gray-100">
                     {items.map((item) => (
                       <tr key={item.apply_id} className="hover:bg-blue-50/30 transition-all duration-150">
-                        <td className="px-5 py-4">
-                          <span className="text-xs font-mono font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                            {item.project_id}
-                          </span>
-                        </td>
+                        <td className="px-6 py-4 text-sm justify-center text-gray-900 text-center">{item.project?.project_id}</td>
                         <td className="px-5 py-4 text-sm font-medium text-gray-900 max-w-[220px]">
                           <div className="line-clamp-2">{item.project?.project_title || '-'}</div>
                         </td>

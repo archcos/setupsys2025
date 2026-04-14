@@ -54,7 +54,7 @@ const RefundTableRow = React.memo(({
             {project.proponent.company_name}
           </div>
           <div className="text-xs text-gray-500">
-            ID: {project.project_id}
+            {project.project_id}
           </div>
         </div>
       </td>

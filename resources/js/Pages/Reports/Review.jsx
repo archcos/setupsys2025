@@ -1,6 +1,6 @@
 import { Link, router, usePage, Head } from "@inertiajs/react";
 import { useState, useEffect, useRef } from "react";
-import { Search, CheckCircle, XCircle, Eye, AlertTriangle, ChevronDown, ChevronUp, Building2, X, ThumbsUp, FileCheck2, ArrowUpDown } from 'lucide-react';
+import { Search, CheckCircle, XCircle, Eye, AlertTriangle, Building2, X, ThumbsUp, FileCheck2, Hash, ClipboardList, Building, Calendar, TrendingUp, Hand } from 'lucide-react';
 import { cleanParams } from "@/utils/cleanParams";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -107,13 +107,13 @@ function EmptyState({ statusFilter, hasFilters, onClear, mobile = false }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function Review({ reports, filters, statusCounts }) {
+export default function Review({ reports, filters, statusCounts, offices = [], availableYears = [] }) {
   const [search,        setSearch]         = useState(filters.search || "");
   const [sortBy,        setSortBy]         = useState(filters.sortBy || 'created_at');
   const [sortOrder,     setSortOrder]      = useState(filters.sortOrder || 'desc');
   const [statusFilter,  setStatusFilter]   = useState(filters.statusFilter || 'all');
-  const [perPage,       setPerPage]        = useState(filters.perPage || 10);
-  const [expandedReport, setExpandedReport] = useState(null);
+  const [officeFilter,  setOfficeFilter]   = useState(filters.officeFilter || '');
+  const [yearFilter,    setYearFilter]     = useState(filters.yearFilter || '');
   const [showModal,     setShowModal]      = useState(false);
   const [modalUrl,      setModalUrl]       = useState(null);
   const [loading,       setLoading]        = useState(false);
@@ -124,7 +124,6 @@ export default function Review({ reports, filters, statusCounts }) {
   const [warningAction, setWarningAction]  = useState(null);
   const [warningReportId, setWarningReportId] = useState(null);
   const isMountedRef = useRef(false);
-  // Also add useRef to your imports at the top
 
   const { auth } = usePage().props;
   const role = auth?.user?.role;
@@ -136,11 +135,12 @@ export default function Review({ reports, filters, statusCounts }) {
     router.get(
       route("review-reports.index"),
       cleanParams(
-        { search, sortBy, sortOrder, statusFilter, perPage, ...overrides },
-        { sortBy: 'created_at', sortOrder: 'desc', perPage: 10, statusFilter: 'all' }
+        { search, sortBy, sortOrder, statusFilter, officeFilter, yearFilter, ...overrides },
+        { sortBy: 'created_at', sortOrder: 'desc', statusFilter: 'all' }
       ),
       { preserveState: true, preserveScroll: false }
     );
+  
   useEffect(() => {
     const timer = setTimeout(() => { isMountedRef.current = true; }, 0);
     return () => clearTimeout(timer);
@@ -171,16 +171,23 @@ export default function Review({ reports, filters, statusCounts }) {
     pushRouter({ statusFilter: val, page: 1 });
   };
 
-  const handlePerPage = (e) => {
+  const handleOfficeChange = (e) => {
     const val = e.target.value;
-    setPerPage(val);
-    pushRouter({ perPage: val, page: 1 });
+    setOfficeFilter(val);
+    pushRouter({ officeFilter: val, page: 1 });
+  };
+
+  const handleYearChange = (e) => {
+    const val = e.target.value;
+    setYearFilter(val);
+    pushRouter({ yearFilter: val, page: 1 });
   };
 
   const handleClear = () => {
     setSearch('');
     setStatusFilter('all');
-    setPerPage(10);
+    setOfficeFilter('');
+    setYearFilter('');
     router.get(route('review-reports.index'), {}, { preserveState: true });
   };
 
@@ -233,7 +240,7 @@ export default function Review({ reports, filters, statusCounts }) {
     return date.toLocaleDateString("en-US", options);
   };
 
-  const hasFilters = !!(search || statusFilter !== 'all');
+  const hasFilters = !!(search || statusFilter !== 'all' || officeFilter || yearFilter);
   const data = reports?.data || [];
   const pagination = reports?.data ? reports : null;
 
@@ -266,34 +273,56 @@ export default function Review({ reports, filters, statusCounts }) {
             {/* Status Tabs */}
             <StatusTabs statusFilter={statusFilter} statusCounts={statusCounts} onChange={handleStatusFilter} />
 
-            {/* Search + Per Page */}
-            <div className="flex flex-col md:flex-row gap-2 md:gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search project, proponent..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-9 md:pl-10 pr-8 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white shadow-sm"
-                />
-                {search && (
-                  <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search project, proponent, project code..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 md:pl-10 pr-8 py-2 md:py-3 text-xs md:text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white shadow-sm"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
 
-              <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm w-fit">
-                <select
-                  value={perPage}
-                  onChange={handlePerPage}
-                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer py-2"
-                >
-                  {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
-                </select>
-                <span className="text-xs text-gray-500 hidden md:inline">entries</span>
-              </div>
+            {/* Office + Year Filters */}
+            <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-wrap">
+              {offices && offices.length > 0 && (
+                <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm flex-1 md:flex-initial md:min-w-[200px]">
+                  <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <select
+                    value={officeFilter}
+                    onChange={handleOfficeChange}
+                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2"
+                  >
+                    <option value="">All Offices</option>
+                    {offices.map((office) => (
+                      <option key={office.office_id} value={office.office_id}>{office.office_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {availableYears && availableYears.length > 0 && (
+                <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm flex-1 md:flex-initial md:min-w-[160px]">
+                  <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <select
+                    value={yearFilter}
+                    onChange={handleYearChange}
+                    className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer flex-1 py-2"
+                  >
+                    <option value="">All Years</option>
+                    {availableYears.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Clear Filters */}
@@ -318,11 +347,24 @@ export default function Review({ reports, filters, statusCounts }) {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Project</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Proponent</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Submitted</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2"><Hash className="w-4 h-4" />Project Code</div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2"><ClipboardList className="w-4 h-4" />Project</div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2"><Building className="w-4 h-4" />Proponent</div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2"><Calendar className="w-4 h-4" />Submitted</div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4" />Status</div>
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <div className="flex items-center justify-center gap-2"><Hand className="w-4 h-4" />Actions</div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
@@ -331,37 +373,15 @@ export default function Review({ reports, filters, statusCounts }) {
                     
                     return (
                       <tr key={report.report_id} className="hover:bg-blue-50/30 transition-colors">
+                         <td className="px-6 py-4 text-sm justify-center text-gray-900 text-center">
+                              {report.project?.project_id}
+                          </td>
                         <td className="px-6 py-4">
-                          <button
-                            onClick={() => setExpandedReport(expandedReport === report.report_id ? null : report.report_id)}
-                            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold transition"
-                          >
-                            <span className="line-clamp-2">{report.project.project_title}</span>
-                            {expandedReport === report.report_id ? (
-                              <ChevronUp className="w-4 h-4 flex-shrink-0" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 flex-shrink-0" />
-                            )}
-                          </button>
-
-                          {expandedReport === report.report_id && (
-                            <div className="mt-4 ml-4 p-4 bg-gradient-to-r from-blue-50 to-transparent border-l-4 border-blue-400 rounded space-y-2">
-                              <div className="text-sm text-gray-700">
-                                <span className="font-semibold text-gray-900">Report ID:</span> {report.report_id}
-                              </div>
-                              {isDenied && (
-                                <div className="text-sm text-red-800 bg-red-50 p-2 rounded border border-red-200">
-                                  <span className="font-semibold">Denial Reason:</span>
-                                  <p className="mt-1">{report.status.replace('denied: ', '')}</p>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          <span className="text-gray-900 text-sm font-normal">{report.project.project_title}</span>
                         </td>
 
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-gray-700">
-                            <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <div className="flex items-center gap-2 text-sm text-gray-700">
                             <span className="truncate">{report.project.proponent?.company_name || "—"}</span>
                           </div>
                         </td>
@@ -447,75 +467,62 @@ export default function Review({ reports, filters, statusCounts }) {
 
                 return (
                   <div key={report.report_id} className="p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <button
-                          onClick={() => setExpandedReport(expandedReport === report.report_id ? null : report.report_id)}
-                          className="flex items-center gap-2 font-bold text-gray-900 hover:text-blue-600 transition"
-                        >
-                          <span className="text-sm line-clamp-2">{report.project.project_title}</span>
-                          {expandedReport === report.report_id ? (
-                            <ChevronUp className="w-5 h-5 flex-shrink-0" />
-                          ) : (
-                            <ChevronDown className="w-5 h-5 flex-shrink-0" />
-                          )}
-                        </button>
-                        <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
-                          <Building2 className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{report.project.proponent?.company_name || "Unknown"}</span>
-                        </p>
-                      </div>
+                    {/* Project Code */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                        {report.project?.project_id}
+                      </span>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-gray-600">
-                        <span className="font-semibold">Submitted:</span> {formatSubmissionDate(report.created_at)}
-                      </div>
+                    {/* Project Title */}
+                    <div>
+                      <p className="text-sm text-gray-900 font-normal">{report.project.project_title}</p>
+                    </div>
+
+                    {/* Proponent & Status Row */}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-gray-600 flex items-center gap-1 flex-1 min-w-0">
+                        <Building2 className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{report.project.proponent?.company_name || "Unknown"}</span>
+                      </p>
                       <StatusBadge status={report.status} />
                     </div>
 
-                    {expandedReport === report.report_id && (
-                      <div className="p-3 bg-blue-50 border-l-4 border-blue-400 rounded space-y-2">
-                        <div className="text-xs text-gray-700">
-                          <span className="font-semibold">Report ID:</span> {report.report_id}
-                        </div>
-                        {isDenied && (
-                          <div className="text-xs text-red-800 bg-red-50 p-2 rounded border border-red-200">
-                            <span className="font-semibold">Denial Reason:</span>
-                            <p className="mt-1">{report.status.replace('denied: ', '')}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {/* Submission Date */}
+                    <div className="text-xs text-gray-600">
+                      <span className="font-semibold">Submitted:</span> {formatSubmissionDate(report.created_at)}
+                    </div>
 
+                    {/* View Button */}
                     <button
                       onClick={() => {
                         setLoading(true);
                         setModalUrl(route("reports.view", report.report_id));
                         setShowModal(true);
                       }}
-                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium text-sm"
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium text-sm"
                     >
                       <Eye className="w-4 h-4" />
                       View Report
                     </button>
 
+                    {/* Action Buttons */}
                     {canTakeAction && report.status === 'submitted' && (
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => handleWarningClick('recommend', report.report_id)}
-                          className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition font-medium text-xs"
+                          className="inline-flex items-center justify-center gap-1 px-3 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition font-medium text-xs"
                         >
                           <ThumbsUp className="w-4 h-4" />
-                          Recommend
+                          <span>Recommend</span>
                         </button>
 
                         <button
                           onClick={() => handleDenyClick(report.report_id)}
-                          className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium text-xs"
+                          className="inline-flex items-center justify-center gap-1 px-3 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium text-xs"
                         >
                           <XCircle className="w-4 h-4" />
-                          Deny
+                          <span>Deny</span>
                         </button>
                       </div>
                     )}
@@ -524,18 +531,18 @@ export default function Review({ reports, filters, statusCounts }) {
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => handleWarningClick('reviewed', report.report_id)}
-                          className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium text-xs"
+                          className="inline-flex items-center justify-center gap-1 px-3 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium text-xs"
                         >
                           <CheckCircle className="w-4 h-4" />
-                          Reviewed
+                          <span>Reviewed</span>
                         </button>
 
                         <button
                           onClick={() => handleDenyClick(report.report_id)}
-                          className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium text-xs"
+                          className="inline-flex items-center justify-center gap-1 px-3 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium text-xs"
                         >
                           <XCircle className="w-4 h-4" />
-                          Deny
+                          <span>Deny</span>
                         </button>
                       </div>
                     )}

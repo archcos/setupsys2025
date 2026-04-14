@@ -24,7 +24,8 @@ class ActivityController extends Controller
         if ($search) {
             $query->where('activity_name', 'like', "%$search%")
                 ->orWhereHas('project', function ($q) use ($search) {
-                    $q->where('project_title', 'like', "%$search%");
+                    $q->where('project_title', 'like', "%$search%")
+                    ->orWhere('project_id', 'like', "%{$search}%");
                 });
         }
 

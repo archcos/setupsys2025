@@ -63,6 +63,7 @@ class RestructureController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->whereHas('project', function ($pq) use ($search) {
                     $pq->where('project_title', 'like', "%{$search}%")
+                       ->orWhere('project_id', 'like', "%{$search}%")
                        ->orWhereHas('proponent', fn($cq) => $cq->where('company_name', 'like', "%{$search}%"));
                 });
             });

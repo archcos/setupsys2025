@@ -5,6 +5,9 @@ import {
   AlertTriangle, FileClock, ArrowUpDown, Calendar,
   Building2, Eye, Download, Trash2, List, Clock,
   CheckCircle, ThumbsUp, XCircle, FileText, Hand,
+  Hash,
+  ClipboardList,
+  Building,
 } from 'lucide-react';
 import { cleanParams } from '@/utils/cleanParams';
 
@@ -309,21 +312,23 @@ useEffect(() => {
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center justify-center">
                       <SortButton 
                         column="project_id" 
                         label="PROJECT CODE" 
-                        icon={FileText}
+                        icon={Hash}
                         sortBy={sortBy} 
                         sortOrder={sortOrder} 
                         onSort={handleSort} 
                       />
-                    </th>
+                    </div>
+                  </th>
                     <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       <SortButton 
                         column="project_title" 
-                        label="PROJECT TITLE" 
-                        icon={List}
+                        label="PROJECT" 
+                        icon={ClipboardList}
                         sortBy={sortBy} 
                         sortOrder={sortOrder} 
                         onSort={handleSort} 
@@ -333,7 +338,7 @@ useEffect(() => {
                       <SortButton 
                         column="company_name" 
                         label="PROPONENT" 
-                        icon={Building2}
+                        icon={Building}
                         sortBy={sortBy} 
                         sortOrder={sortOrder} 
                         onSort={handleSort} 
@@ -363,11 +368,8 @@ useEffect(() => {
                   {data.map((project, index) => (
                     <tr key={project.project_id} className="hover:bg-blue-50/30 transition-all duration-200">
                       {/* Project ID */}
-                      <td className="px-4 py-3.5">
-                        <span className="text-xs font-semibold text-black px-2 py-0.5 rounded">
-                          {project.project_id}
-                        </span>
-                      </td>
+                      <td className="px-6 py-4 text-sm justify-center text-gray-900 text-center">{project.project_id}</td>
+
 
                       {/* Project Title — clickable to expand reports */}
                       <td className="px-4 py-3.5 text-sm font-semibold text-gray-900 max-w-xs">

@@ -78,6 +78,7 @@ class ImplementationController extends Controller
         if ($search) {
             $baseQuery->whereHas('project', function ($q) use ($search) {
                 $q->where('project_title', 'like', "%{$search}%")
+                   ->orWhere('project_id', 'like', "%{$search}%")
                   ->orWhereHas('proponent', function ($qc) use ($search) {
                       $qc->where('company_name', 'like', "%{$search}%");
                   });

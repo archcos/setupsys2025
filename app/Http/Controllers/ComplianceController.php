@@ -57,6 +57,7 @@ class ComplianceController extends Controller
         if ($search) {
             $baseQuery->where(function ($q) use ($search) {
                 $q->where('project_title', 'like', "%{$search}%")
+                  ->orWhere('project_id', 'like', "%{$search}%")
                   ->orWhereHas('proponent', function ($q) use ($search) {
                       $q->where('company_name', 'like', "%{$search}%");
                   });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
-import { Search, FileText, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, Eye, ClipboardCheck, Building2, Hand, TrendingUpDown, TrendingUp } from 'lucide-react';
+import { Search, FileText, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, Eye, ClipboardCheck, Building2, Hand, TrendingUpDown, TrendingUp, Hash, ClipboardList, Building } from 'lucide-react';
 import { cleanParams } from '@/utils/cleanParams';
 import PaginationLinks from '@/components/PaginationLinks';
 
@@ -323,7 +323,7 @@ export default function Index({ projects, filters, years, statusCounts, offices 
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       <SortButton
                         field="project_id"
-                        label={<span className="flex items-center gap-2"><FileText className="w-4 h-4" />PROJECT CODE</span>}
+                        label={<span className="flex items-center gap-2"><Hash className="w-4 h-4" />PROJECT CODE</span>}
                         sortBy={sortBy}
                         onSort={handleSort}
                       />
@@ -331,13 +331,13 @@ export default function Index({ projects, filters, years, statusCounts, offices 
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       <SortButton
                         field="project_title"
-                        label={<span className="flex items-center gap-2"><ClipboardCheck className="w-4 h-4" />PROJECT</span>}
+                        label={<span className="flex items-center gap-2"><ClipboardList className="w-4 h-4" />PROJECT</span>}
                         sortBy={sortBy}
                         onSort={handleSort}
                       />
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      <div className="flex items-center gap-2"><Building2 className="w-4 h-4" />Proponent</div>
+                      <div className="flex items-center gap-2"><Building className="w-4 h-4" />Proponent</div>
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       <div className="flex items-center gap-2"><Calendar className="w-4 h-4" />Year</div>
@@ -361,9 +361,8 @@ export default function Index({ projects, filters, years, statusCounts, offices 
 
                     return (
                       <tr key={project.project_id} className="hover:bg-blue-50/30 transition-colors">
-                        <td className="px-6 py-4 text-sm text-gray-500 font-mono font-medium whitespace-nowrap">
-                          {project.project_id}
-                        </td>
+                    <   td className="px-6 py-4 text-sm justify-center text-gray-900 text-center">{project.project_id}</td>
+
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">
                           <span className="whitespace-normal break-words">{project.project_title}</span>
                         </td>

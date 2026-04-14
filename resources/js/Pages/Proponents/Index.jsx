@@ -313,7 +313,6 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                         <tr key={proponent.proponent_id} className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group">
                           <td className="px-6 py-4">
                             <div className="text-sm font-semibold text-gray-900">{proponent.company_name}</div>
-                            <div className="text-xs text-gray-500">ID: {proponent.proponent_id}</div>
                           </td>
                           <td className="px-6 py-4">
                             <span className="text-sm text-gray-900 font-medium">{proponent.owner_name}</span>
