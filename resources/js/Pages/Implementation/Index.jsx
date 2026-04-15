@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, router, Head } from '@inertiajs/react';
-import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, ArrowUpDown, Hammer, List, FileText, Zap, TrendingUp, Calendar } from 'lucide-react';
+import { Search, ClipboardList, Building2, Eye, CheckCircle, Clock, AlertTriangle, X, ArrowUpDown, Hammer, List, FileText, Zap, TrendingUp, Calendar, Presentation, Layers, Stamp, Bubbles, Hash, Building, Hand } from 'lucide-react';
 import { cleanParams } from '@/utils/cleanParams';
 import PaginationLinks from '@/components/PaginationLinks';
 
@@ -219,7 +219,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Search proponent or project..."
+                  placeholder="Search by project code, proponent name, project title..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-10 pr-8 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white shadow-sm"
@@ -327,7 +327,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
                       <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         <button onClick={handleSortToggle} className="flex items-center gap-1">
                           <span className="flex items-center gap-2">
-                            <FileText className="w-4 h-4" />
+                            <Hash className="w-4 h-4" />
                             <span className={isSorted ? 'text-blue-600' : ''}>PROJECT CODE</span>
                           </span>
                           <ArrowUpDown className={`w-3 h-3 ${isSorted ? 'text-blue-600' : 'text-gray-400'}`} />
@@ -335,7 +335,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
                       </th>
                       <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
+                          <ClipboardList className="w-4 h-4" />
                           Project & Proponent
                         </div>
                       </th>
@@ -347,31 +347,31 @@ export default function ImplementationIndex({ implementations, filters, offices,
                       </th>
                       <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         <div className="flex items-center justify-center gap-2">
-                          <CheckCircle className="w-4 h-4" />
+                          <Presentation className="w-4 h-4" />
                           Signboard
                         </div>
                       </th>
                       <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         <div className="flex items-center justify-center gap-2">
-                          <Zap className="w-4 h-4" />
+                          <Layers className="w-4 h-4" />
                           PDC
                         </div>
                       </th>
                       <th className="px-3 py-3 md:py-4 text-left   text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="w-4 h-4" />
-                          Untagging Progress
+                        <div className="flex items-center justify-center  gap-2">
+                          <Stamp className="w-4 h-4" />
+                          Untagging
                         </div>
                       </th>
                       <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         <div className="flex items-center justify-center gap-2">
-                          <CheckCircle className="w-4 h-4" />
+                          <Bubbles className="w-4 h-4" />
                           Liquidation
                         </div>
                       </th>
                       <th className="px-3 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         <div className="flex items-center justify-center gap-2">
-                          <Eye className="w-4 h-4" />
+                          <Hand className="w-4 h-4" />
                           Action
                         </div>
                       </th>
@@ -389,7 +389,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
                               {impl.project?.project_title || 'No Title'}
                             </div>
                             <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                              <Building2 className="w-3 h-3 flex-shrink-0" />
+                              <Building className="w-3 h-3 flex-shrink-0" />
                               <span className="line-clamp-1">{impl.project?.proponent?.company_name || 'N/A'}</span>
                             </div>
                           </td>
@@ -415,14 +415,16 @@ export default function ImplementationIndex({ implementations, filters, offices,
                               ? <CheckCircle className="w-5 h-5 text-blue-600 mx-auto" />
                               : <Clock       className="w-5 h-5 text-gray-300 mx-auto" />}
                           </td>
-                          <td className="px-4 md:px-6 py-3 md:py-4 text-center">
+                          <td className="px-4 md:px-6 py-3 md:py-4">
+                          <div className="flex items-center justify-center">
                             <Link
                               href={`/implementation/checklist/${impl.implement_id}`}
-                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                              className="inline-flex items-center justify-center p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200"
                             >
                               <Eye className="w-5 h-5" />
                             </Link>
-                          </td>
+                          </div>
+                        </td>
                         </tr>
                       );
                     })}
@@ -468,7 +470,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
 
                         {/* Untagging progress */}
                         <div className="pt-1 border-t border-gray-200">
-                          <p className="text-xs text-gray-500 font-medium mb-1.5">Untagging Progress</p>
+                          <p className="text-xs text-gray-500 font-medium mb-1.5">Untagging</p>
                           <UntaggingProgress totalTags={totalTags} projectCost={projectCost} />
                         </div>
                       </div>

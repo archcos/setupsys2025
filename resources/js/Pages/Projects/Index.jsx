@@ -204,7 +204,10 @@ export default function Index({ projects, filters, offices, allYears }) {
                 <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
                   <ClipboardList className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                 </div>
-                <h2 className="text-base md:text-xl font-semibold text-gray-900">Projects</h2>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base md:text-xl font-semibold text-gray-900">Projects</h2>
+                  <p className="text-xs md:text-sm text-gray-600 mt-0.5 md:mt-1">Manage and track project information</p>
+                </div>
               </div>
               <div className="flex items-center gap-2 md:gap-3 md:ml-auto flex-wrap">
                 {role === 'rpmo' && (
@@ -249,7 +252,7 @@ export default function Index({ projects, filters, offices, allYears }) {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <input
                     type="text"
-                    placeholder="Search projects..."
+                    placeholder="Search by project code, project name, cost..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"

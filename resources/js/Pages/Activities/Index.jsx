@@ -1,6 +1,6 @@
 import { Link, router, Head } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import { Plus, Search, Calendar, Eye, Edit3, Trash2, Activity, Building2, X, AlertCircle, SquareKanban, Hand, Building } from 'lucide-react';
+import { Plus, Search, Calendar, Eye, Edit3, Trash2, Activity, Building2, X, AlertCircle, SquareKanban, Hand, Building, Hash, ClipboardList } from 'lucide-react';
 import PaginationLinks from '@/components/PaginationLinks';
 
 
@@ -69,6 +69,7 @@ export default function Index({ activities, filters }) {
     const projectId = activity.project?.project_id || 'unassigned';
     if (!acc[projectId]) {
       acc[projectId] = {
+        projectCode: activity.project?.project_id || 'N/A',
         projectTitle: activity.project?.project_title || 'Unassigned Project',
         companyName: activity.project?.proponent?.company_name
           || activity.project?.proponent?.office?.office_name
@@ -95,8 +96,11 @@ export default function Index({ activities, filters }) {
                 <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
                   <SquareKanban className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                 </div>
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Activity Management</h2>
-              </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-base md:text-xl font-semibold text-gray-900">Activities</h2>
+                    <p className="text-xs md:text-sm text-gray-600 mt-0.5 md:mt-1">Manage and track activity information</p>
+                  </div>              
+                </div>
               <Link
                 href="/activities/create"
                 className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl font-medium text-sm flex-shrink-0"
@@ -110,36 +114,34 @@ export default function Index({ activities, filters }) {
 
           {/* Filters */}
           <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100">
-            <div className="flex gap-2 md:gap-3">
+            <div className="flex flex-col gap-2 md:gap-4 md:flex-row">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-3 h-3 md:w-4 md:h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Search activities..."
+                  placeholder="Search by activity name, project, proponent..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-9 md:pl-10 pr-8 py-2 md:py-3 text-sm md:text-base border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                  className="w-full pl-10 pr-3 md:pr-4 py-2 md:py-3 text-sm border border-gray-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                 />
                 {search && (
-                  <button
-                    onClick={() => setSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-3 h-3 md:w-4 md:h-4" />
+                  <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
-              <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm flex-shrink-0">
+
+              <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
                 <select
                   value={perPage}
                   onChange={handlePerPageChange}
-                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer py-2 md:py-3"
+                  className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer"
                 >
                   {[10, 20, 50, 100].map((n) => (
                     <option key={n} value={n}>{n}</option>
                   ))}
                 </select>
-                <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap hidden md:inline">entries</span>
+                <span className="text-xs md:text-sm text-gray-700 whitespace-nowrap">entries</span>
               </div>
             </div>
           </div>
@@ -149,9 +151,15 @@ export default function Index({ activities, filters }) {
             <table className="w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                  <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center justify-center gap-2">
+                      <Hash className="w-4 h-4" />
+                      Project Code
+                    </div>
+                  </th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
-                      <Building className="w-4 h-4" />
+                      <ClipboardList className="w-4 h-4" />
                       Project & Proponent
                     </div>
                   </th>
@@ -162,7 +170,7 @@ export default function Index({ activities, filters }) {
                     </div>
                   </th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center gap-2">
                       <Hand className="w-4 h-4" />
                       Actions
                     </div>
@@ -174,16 +182,18 @@ export default function Index({ activities, filters }) {
                   <tr key={`project-${projectId}`}
                     className="hover:bg-gradient-to-r hover:from-gray-50/30 hover:to-transparent transition-all duration-200 border-b border-gray-100">
                     <td className="px-4 md:px-6 py-4 md:py-5">
+                      <div className="px-6 py-4 text-sm justify-center text-gray-900 text-center">
+                          {group.projectCode}
+                      </div>
+                    </td>
+                    <td className="px-4 md:px-6 py-4 md:py-5">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                          <Building2 className="w-4 h-4 text-blue-600" />
-                        </div>
                         <div className="min-w-0 flex-1">
                           <h3 className="text-base font-semibold text-gray-900">{group.projectTitle}</h3>
                           {group.companyName && (
-                            <p className="text-xs text-blue-600 font-medium mt-0.5">{group.companyName}</p>
+                            <p className="text-xs text-gray-600 font-medium mt-0.5">{group.companyName}</p>
                           )}
-                          <p className="text-sm text-gray-500 mt-1">{group.activities.length} activities</p>
+                          <p className="text-sm text-gray-500 mt-1">{group.activities.length} activity(ies)</p>
                         </div>
                       </div>
                     </td>
