@@ -3,13 +3,13 @@
 namespace App\Http\Middleware;
 
 use App\Mail\SecurityAlertMail;
-use App\Models\LogModel;
 use App\Models\BlockedIp;
+use App\Models\LogModel;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Symfony\Component\HttpFoundation\Response;
 
 class LogSuspiciousRequests
@@ -34,49 +34,61 @@ class LogSuspiciousRequests
     {
         $ip = $request->ip();
 
-        // Check if IP is already blocked
+        // Reject already-blocked IPs
         $blocked = BlockedIp::where('ip', $ip)->first();
         if ($blocked && $blocked->blocked_until && now()->lessThan($blocked->blocked_until)) {
-            exit(); // Silently exit without returning anything
+            return response()->json([
+                'message' => 'Forbidden',
+            ], 403);
         }
+
+        $allInput = $request->all();
+        $queryString = $request->getQueryString() ?? '';
+        $inputValues = $this->flattenArray($allInput);
+        $allContent = trim(implode(' ', $inputValues) . ' ' . $queryString);
 
         $suspiciousContent = null;
         $alertType = null;
+        $matchedPattern = null;
 
-        // Get all input data (query string + POST data)
-        $allInput = $request->all();
-        $queryString = $request->getQueryString() ?? '';
-
-        // Check input values directly instead of JSON-encoded string
-        $inputValues = $this->flattenArray($allInput);
-        $allContent = implode(' ', $inputValues) . ' ' . $queryString;
-
-        // Check for SQL Injection patterns
         foreach ($this->sqlInjectionPatterns as $pattern) {
-            if (preg_match($pattern, $allContent)) {
+            if (preg_match($pattern, $allContent, $matches)) {
                 $suspiciousContent = $allContent;
                 $alertType = 'SQL Injection Attempt';
+                $matchedPattern = $matches[0] ?? $pattern;
                 break;
             }
         }
 
-        // Check for XSS patterns if not already flagged
         if (!$suspiciousContent) {
             foreach ($this->xssPatterns as $pattern) {
-                if (preg_match($pattern, $allContent)) {
+                if (preg_match($pattern, $allContent, $matches)) {
                     $suspiciousContent = $allContent;
                     $alertType = 'XSS Attack Attempt';
+                    $matchedPattern = $matches[0] ?? $pattern;
                     break;
                 }
             }
         }
 
-        // Log and block if suspicious content detected
         if ($suspiciousContent) {
-            $blockDuration = 24; // hours
+            $blockDuration = 24;
+
+            $securityData = [
+                'ip_address' => $ip,
+                'user_id' => Auth::id() ?? 'Guest',
+                'before' => [
+                    'method' => $request->method(),
+                    'path' => $request->path(),
+                    'query_string' => $queryString,
+                    'payload' => $suspiciousContent,
+                    'request_input' => $allInput,
+                    'matched_pattern' => $matchedPattern,
+                ],
+                'user_agent' => $request->userAgent(),
+            ];
 
             try {
-                // Block the IP
                 BlockedIp::updateOrCreate(
                     ['ip' => $ip],
                     [
@@ -85,58 +97,43 @@ class LogSuspiciousRequests
                     ]
                 );
 
-                // Log the suspicious activity
                 LogModel::create([
                     'user_id' => Auth::id(),
                     'action' => $alertType,
                     'description' => "Suspicious request detected: {$alertType}",
                     'model_type' => 'Security',
                     'model_id' => 0,
-                    'before' => [
-                        'method' => $request->method(),
-                        'path' => $request->path(),
-                        'query' => $queryString,
-                    ],
+                    'before' => $securityData['before'],
                     'after' => null,
                     'ip_address' => $ip,
                     'user_agent' => $request->userAgent(),
                 ]);
 
-                // Send security alert email - IP is blocked
                 Mail::to(config('security.alert_emails'))->send(
-                    new SecurityAlertMail($alertType, [
-                        'ip_address' => $ip,
-                        'user_id' => Auth::id() ?? 'Guest',
-                        'before' => [
-                            'method' => $request->method(),
-                            'path' => $request->path(),
-                            'query' => $queryString,
-                        ],
-                        'user_agent' => $request->userAgent(),
-                    ], true) // true = IP is blocked
+                    new SecurityAlertMail($alertType, $securityData, true)
                 );
 
                 Log::warning("BLOCKED - {$alertType} from IP: {$ip} - Blocked for {$blockDuration} hours");
             } catch (\Exception $e) {
-                Log::error('Failed to log suspicious request: ' . $e->getMessage());
+                Log::error('Failed to process suspicious request: ' . $e->getMessage());
             }
 
-            exit(); // Silently exit without returning anything
+             exit(); // Silently exit without returning anything
         }
 
         return $next($request);
     }
 
     /**
-     * Flatten a multidimensional array into a single array of string values
+     * Flatten a multidimensional array into a single array of string values.
      */
-    protected function flattenArray($array): array
+    protected function flattenArray(array $array): array
     {
         $result = [];
 
         array_walk_recursive($array, function ($value) use (&$result) {
-            if (is_string($value)) {
-                $result[] = $value;
+            if (is_scalar($value) || $value === null) {
+                $result[] = (string) $value;
             }
         });
 
