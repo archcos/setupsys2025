@@ -4,6 +4,60 @@ import { Search, FileText, Download, Building2, User, Calendar, Users, X, ArrowU
 import { cleanParams } from '@/utils/cleanParams';
 import PaginationLinks from '@/components/PaginationLinks';
 
+// ─── File Preview Modal ───────────────────────────────────────────────────────
+
+function FilePreviewModal({ preview, onClose }) {
+  if (!preview.show) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 md:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal header */}
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-slate-200 flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
+            <h3 className="text-sm md:text-base font-semibold text-slate-900 truncate">{preview.label}</h3>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+            {preview.downloadHref && (
+              <a
+                href={preview.downloadHref}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" /> Download
+              </a>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Modal body */}
+        <div className="flex-1 overflow-auto bg-slate-50 p-2 md:p-4">
+          <iframe
+            src={preview.url}
+            className="w-full h-[72vh] rounded-lg border border-slate-200 bg-white"
+            title={preview.label}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export default function Index({ moas, filters, years, offices }) {
   const [search, setSearch] = useState(filters?.search || '');
   const [perPage, setPerPage] = useState(filters?.perPage || 10);
@@ -14,6 +68,15 @@ export default function Index({ moas, filters, years, offices }) {
   const [uploadingMoaId, setUploadingMoaId] = useState(null);
   const isFirstRender = useRef(true);
   const debounceTimer = useRef(null);
+
+  // ── Preview modal state ──
+  const [preview, setPreview] = useState({ show: false, url: null, label: null, downloadHref: null });
+
+  const openPreview = (moaId, label, downloadHref) => {
+    const url = `/moa/${moaId}/view-approved`;
+    setPreview({ show: true, url, label, downloadHref });
+  };
+  const closePreview = () => setPreview({ show: false, url: null, label: null, downloadHref: null });
 
   const { auth, flash } = usePage().props;
   const canUpload = auth?.user?.role === 'staff' || auth?.user?.role === 'rpmo';
@@ -85,8 +148,6 @@ export default function Index({ moas, filters, years, offices }) {
     });
   };
 
-  const handleViewPDF = (moaId) => window.open(`/moa/${moaId}/view-approved`, '_blank');
-
   const formatDate = (dateString) => {
     if (!dateString) return '—';
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -97,9 +158,10 @@ export default function Index({ moas, filters, years, offices }) {
   const formatCurrency = (amount) => `₱${parseFloat(amount).toLocaleString()}`;
 
   const getSortIcon = (column) => (
-    <ArrowUpDown className={`w-3 h-3 ${sortBy === column ? 'text-blue-600' : 'text-gray-400'}`} />
+    <ArrowUpDown className={`w-3 h-3 ${sortBy === column ? '' : 'text-gray-400'}`} />
   );
 
+  
   const hasFilters = !!(search || officeFilter || yearFilter);
 
   return (
@@ -280,9 +342,15 @@ export default function Index({ moas, filters, years, offices }) {
                           </div>
                           <div className="flex items-center gap-1">
                             {moa.approved_file_path && (
-                              <button onClick={() => handleViewPDF(moa.moa_id)}
+                              <button
+                                onClick={() => openPreview(
+                                  moa.moa_id,
+                                  `Signed PDF — ${moa.project?.project_title || moa.project?.project_id}`,
+                                  `/moa/${moa.moa_id}/download-approved`
+                                )}
                                 className="p-1.5 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded transition-all"
-                                title="View Approved PDF">
+                                title="View Approved PDF"
+                              >
                                 <Eye className="w-4 h-4" />
                               </button>
                             )}
@@ -359,8 +427,15 @@ export default function Index({ moas, filters, years, offices }) {
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {moa.approved_file_path && (
-                        <button onClick={() => handleViewPDF(moa.moa_id)}
-                          className="p-1 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-all">
+                        <button
+                          onClick={() => openPreview(
+                            moa.moa_id,
+                            `Signed PDF — ${moa.project?.project_title || moa.project?.project_id}`,
+                            `/moa/${moa.moa_id}/download-approved`
+                          )}
+                          className="p-1 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-all"
+                          title="View Approved PDF"
+                        >
                           <Eye className="w-3 h-3" />
                         </button>
                       )}
@@ -433,6 +508,9 @@ export default function Index({ moas, filters, years, offices }) {
           )}
         </div>
       </div>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal preview={preview} onClose={closePreview} />
     </main>
   );
 }

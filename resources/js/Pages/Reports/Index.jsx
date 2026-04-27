@@ -60,15 +60,16 @@ function StatusBadge({ status }) {
 }
 
 function SortButton({ column, label, icon: Icon, sortBy, sortOrder, onSort }) {
-  const active = sortBy === column;
   return (
     <button
       onClick={() => onSort(column)}
-      className="flex items-center gap-1.5 hover:text-blue-600 transition-colors group"
+      className="flex items-center gap-1.5 text-gray-600 hover:text-blue-600 active:text-blue-600 transition-colors group"
     >
       {Icon && <Icon className="w-3.5 h-3.5" />}
       {label}
-      <ArrowUpDown className={`w-3 h-3 ${active ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-400'}`} />
+      <ArrowUpDown className={`w-3 h-3 text-gray-400 group-hover:text-blue-400 transition-transform ${
+        sortBy === column && sortOrder === 'asc' ? '' : ''
+      }`} />
     </button>
   );
 }

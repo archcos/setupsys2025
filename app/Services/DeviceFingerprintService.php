@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 class DeviceFingerprintService
 {
-    private const FINGERPRINT_VERSION = 2; // Bumped version due to removing IP
+    private const FINGERPRINT_VERSION = 3; // Bumped version due to removing IP
     private const TRUST_DURATION_DAYS = 90;
     private const MAX_FINGERPRINT_AGE_DAYS = 365;
     private const ENTROPY_THRESHOLD = 0.01; // HTTP headers are naturally low-entropy text
@@ -55,65 +55,115 @@ class DeviceFingerprintService
         ];
     }
 
-    private static function extractComponents(Request $request): array
-    {
-        return [
-            'user_agent' => self::sanitizeUserAgent($request->header('User-Agent', '')),
-            'accept_language' => $request->header('Accept-Language', 'unknown'),
-            'accept_encoding' => $request->header('Accept-Encoding', 'unknown'),
-            'tls_cipher' => $_SERVER['SSL_CIPHER'] ?? 'unknown',
-            'tls_version' => $_SERVER['SSL_PROTOCOL'] ?? 'unknown',
-            'http_version' => $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1',
-            'platform_info' => self::extractPlatformHints($request->header('User-Agent', '')),
-            // IP addresses excluded - they change on computer restart / network switch
-        ];
-    }
+  
 
-    private static function normalizeComponents(array $components): array
-    {
-        return [
-            'user_agent' => strtolower(trim($components['user_agent'])),
-            'accept_language' => strtolower(trim($components['accept_language'])),
-            'accept_encoding' => strtolower(trim($components['accept_encoding'])),
-            'tls_cipher' => $components['tls_cipher'],
-            'tls_version' => $components['tls_version'],
-            'http_version' => $components['http_version'],
-            'platform_info' => $components['platform_info'],
-        ];
-    }
+private static function normalizeComponents(array $components): array
+{
+    return [
+        'user_agent'      => strtolower(trim($components['user_agent'])),
+        'accept'          => strtolower(trim($components['accept'])),
+        'accept_language' => strtolower(trim($components['accept_language'])),
+        'accept_encoding' => strtolower(trim($components['accept_encoding'])),
+        'http_version'    => $components['http_version'],
+        'platform_info'   => $components['platform_info'],
+        'ch_platform'     => $components['ch_platform'],
+        'ch_mobile'       => $components['ch_mobile'],
+        'ch_ua'           => $components['ch_ua'],
+        'sec_fetch_site'  => $components['sec_fetch_site'],
+        'sec_fetch_mode'  => $components['sec_fetch_mode'],
+        'sec_fetch_dest'  => $components['sec_fetch_dest'],
+        'header_order'    => $components['header_order'],
+    ];
+}
 
-    private static function relaxComponents(array $components): array
-    {
-        $relaxed = $components;
-        
-        if (preg_match('/Chrome\/(\d+)/', $components['user_agent'], $m)) {
-            $relaxed['user_agent'] = preg_replace('/Chrome\/\d+\.\d+\.\d+/', 'Chrome/' . $m[1], $components['user_agent']);
-        }
-        if (preg_match('/Firefox\/(\d+)/', $components['user_agent'], $m)) {
-            $relaxed['user_agent'] = preg_replace('/Firefox\/\d+\.\d+/', 'Firefox/' . $m[1], $components['user_agent']);
-        }
-        if (preg_match('/Version\/(\d+)/', $components['user_agent'], $m)) {
-            $relaxed['user_agent'] = preg_replace('/Version\/\d+\.\d+/', 'Version/' . $m[1], $components['user_agent']);
-        }
-        
-        $langs = explode(',', $components['accept_language']);
-        $relaxed['accept_language'] = trim($langs[0]);
-        
-        return $relaxed;
-    }
+private static function relaxComponents(array $components): array
+{
+    $relaxed = $components;
 
+    // UA → stable platform_info only (no version numbers)
+    $relaxed['user_agent'] = $components['platform_info'];
+
+    // Language → strip region ("en-US" → "en")
+    $langs = explode(',', $components['accept_language']);
+    $relaxed['accept_language'] = trim(explode('-', trim($langs[0]))[0]);
+
+    // These vary by entry point / VPN routing
+    $relaxed['sec_fetch_site'] = 'any';
+    $relaxed['sec_fetch_dest'] = 'any';
+    $relaxed['sec_fetch_mode'] = 'any';
+
+    // Accept header has minor variation between versions
+    $relaxed['accept'] = 'any';
+
+    // ch_platform, ch_mobile, ch_ua — already stable, keep as-is
+    // header_order — engine-level, keep as-is
+
+    return $relaxed;
+}
+
+private static function sanitizeUserAgent(string $ua): string
+{
+    $ua = preg_replace('/WebKit\/[\d.]+/', 'WebKit/X', $ua);
+    $ua = preg_replace('/Safari\/[\d.]+/', 'Safari/X', $ua);
+    $ua = preg_replace('/Chrome\/[\d.]+/', 'Chrome/X', $ua);
+    $ua = preg_replace('/Firefox\/[\d.]+/', 'Firefox/X', $ua);
+    $ua = preg_replace('/\s+/', ' ', trim($ua));
+    return $ua;
+}
+
+private static function normalizeClientHint(string $ch): string
+{
+    preg_match_all('/"([^"]+)";v="\d+"/', $ch, $matches);
+    $brands = array_map('strtolower', $matches[1] ?? []);
+    $brands = array_filter($brands, fn($b) => !str_contains($b, 'not'));
+    sort($brands);
+    return implode(',', $brands) ?: 'unknown';
+}
+
+private static function extractHeaderOrder(Request $request): string
+{
+    $tracked = [
+        'host', 'user-agent', 'accept', 'accept-language',
+        'accept-encoding', 'sec-fetch-site', 'sec-fetch-mode',
+        'sec-ch-ua', 'sec-ch-ua-platform', 'sec-ch-ua-mobile',
+    ];
+    $present = array_filter(
+        $tracked,
+        fn($h) => $request->headers->has($h)
+    );
+    return implode(',', array_values($present));
+}
+
+private static function extractPlatformHints(string $ua): string
+{
+    $hints = [];
+    if (str_contains($ua, 'Windows')) $hints[] = 'windows';
+    if (str_contains($ua, 'Mac'))     $hints[] = 'macos';
+    if (str_contains($ua, 'Linux'))   $hints[] = 'linux';
+    if (str_contains($ua, 'iPhone'))  $hints[] = 'ios';
+    if (str_contains($ua, 'Android')) $hints[] = 'android';
+    if (str_contains($ua, 'Chrome'))  $hints[] = 'chrome';
+    if (str_contains($ua, 'Firefox')) $hints[] = 'firefox';
+    if (str_contains($ua, 'Safari'))  $hints[] = 'safari';
+    if (str_contains($ua, 'Edg'))     $hints[] = 'edge';
+
+    return implode('|', $hints) ?: 'unknown';
+}
     private static function calculateEntropy(array $components): float
     {
         $entropy = 0;
         $totalWeight = 0;
         
-        $weights = [
-            'user_agent' => 0.35,
-            'accept_language' => 0.15,
-            'accept_encoding' => 0.1,
-            'tls_cipher' => 0.2,
-            'http_version' => 0.1,
-            'platform_info' => 0.1,
+       $weights = [
+            'user_agent'      => 0.20, // sanitized, less unique now
+            'accept_language' => 0.10,
+            'accept_encoding' => 0.05,
+            'http_version'    => 0.05,
+            'platform_info'   => 0.15, // stable and meaningful
+            'ch_platform'     => 0.15, // very stable OS signal
+            'ch_ua'           => 0.10, // browser family
+            'header_order'    => 0.15, // engine-level, hard to spoof
+            'sec_fetch_mode'  => 0.05,
         ];
         
         foreach ($weights as $key => $weight) {
@@ -131,27 +181,6 @@ class DeviceFingerprintService
         return $totalWeight > 0 ? $entropy / $totalWeight : 0;
     }
 
-    private static function sanitizeUserAgent(string $ua): string
-    {
-        $ua = preg_replace('/WebKit\/[\d.]+/', 'WebKit/X', $ua);
-        $ua = preg_replace('/\s+/', ' ', trim($ua));
-        return $ua;
-    }
-
-    private static function extractPlatformHints(string $ua): string
-    {
-        $hints = [];
-        if (strpos($ua, 'Windows') !== false) $hints[] = 'windows';
-        if (strpos($ua, 'Mac') !== false) $hints[] = 'macos';
-        if (strpos($ua, 'Linux') !== false) $hints[] = 'linux';
-        if (strpos($ua, 'iPhone') !== false) $hints[] = 'ios';
-        if (strpos($ua, 'Android') !== false) $hints[] = 'android';
-        if (strpos($ua, 'Chrome') !== false) $hints[] = 'chrome';
-        if (strpos($ua, 'Firefox') !== false) $hints[] = 'firefox';
-        if (strpos($ua, 'Safari') !== false) $hints[] = 'safari';
-        
-        return implode('|', $hints) ?: 'unknown';
-    }
 
     public static function verifyDevice(
         string $userId,

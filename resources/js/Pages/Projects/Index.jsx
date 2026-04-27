@@ -351,10 +351,10 @@ export default function Index({ projects, filters, offices, allYears }) {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                     <SortButton field="project_id" label="PROJECT CODE" icon={Hash} />
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                     <SortButton field="year_obligated" label="YEAR OBLIGATED" icon={Calendar} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -363,7 +363,7 @@ export default function Index({ projects, filters, offices, allYears }) {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <SortButton field="project_cost" label="COST" icon={PhilippinePeso} />
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                     <SortButton field="fund_release" label="FUND RELEASE" icon={Calendar} />
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">  

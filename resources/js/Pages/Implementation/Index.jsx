@@ -128,7 +128,6 @@ export default function ImplementationIndex({ implementations, filters, offices,
   const [officeFilter,  setOfficeFilter]  = useState(filters?.officeFilter  || '');
   const [yearFilter,    setYearFilter]    = useState(filters?.yearFilter    || '');
   const [sortDirection, setSortDirection] = useState(filters?.direction     || 'desc');
-  const [isSorted,      setIsSorted]      = useState(!!filters?.direction);
   const debounceTimer = useRef(null);
   const isFirstRender = useRef(true);
 
@@ -172,7 +171,6 @@ export default function ImplementationIndex({ implementations, filters, offices,
 
   const handleSortToggle = useCallback(() => {
     setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc');
-    setIsSorted(true);
   }, []);
 
   const getUntaggingStatus = useCallback((impl) => {
@@ -180,6 +178,25 @@ export default function ImplementationIndex({ implementations, filters, offices,
     const projectCost = parseFloat(impl.project?.project_cost || 0);
     return { totalTags, projectCost };
   }, []);
+
+  const SortButton = ({ label, icon: Icon }) => {
+    return (
+      <button
+        onClick={handleSortToggle}
+        className="flex items-center gap-1 text-gray-600 hover:text-blue-600 active:text-blue-600 group"
+      >
+        <span className="flex items-center gap-2 whitespace-nowrap">
+          {Icon && <Icon className="w-4 h-4" />}
+          <span>{label}</span>
+        </span>
+        <ArrowUpDown
+          className={`w-3 h-3 text-gray-400 group-hover:text-blue-600 transition-transform ${
+            sortDirection === 'asc' ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+    );
+  };
 
   const total    = implementations.total          || 0;
   const complete = implementations.complete_count || 0;
@@ -278,7 +295,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
 
               {hasActiveFilters && (
                 <button
-                  onClick={() => { setSearch(''); setOfficeFilter(''); setYearFilter(''); setStatusFilter(null); setSortDirection('desc'); setIsSorted(false); }}
+                  onClick={() => { setSearch(''); setOfficeFilter(''); setYearFilter(''); setStatusFilter(null); setSortDirection('desc'); }}
                   className="flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors text-xs md:text-sm font-medium"
                 >
                   <X className="w-4 h-4" />
@@ -325,13 +342,7 @@ export default function ImplementationIndex({ implementations, filters, offices,
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
                       <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        <button onClick={handleSortToggle} className="flex items-center gap-1">
-                          <span className="flex items-center gap-2">
-                            <Hash className="w-4 h-4" />
-                            <span className={isSorted ? 'text-blue-600' : ''}>PROJECT CODE</span>
-                          </span>
-                          <ArrowUpDown className={`w-3 h-3 ${isSorted ? 'text-blue-600' : 'text-gray-400'}`} />
-                        </button>
+                        <SortButton label="PROJECT CODE" icon={Hash} />
                       </th>
                       <th className="px-3 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         <div className="flex items-center gap-2">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
-import { Search, X, Building2, ArrowUpDown, Award, Calendar, FileText, User, DollarSign, TrendingUp, PhilippinePeso, Hash, ClipboardList, Building, Hand } from 'lucide-react';
+import { Search, X, Building2, ArrowUpDown, Award, Calendar, User, TrendingUp, PhilippinePeso, Hash, ClipboardList, Building, Hand } from 'lucide-react';
 import { cleanParams } from '@/utils/cleanParams';
 import PaginationLinks from '@/components/PaginationLinks';
 
@@ -74,7 +74,7 @@ function SortButton({ field, label, icon: Icon, sortField, sortDirection, onSort
         {label}
       </span>
       <ArrowUpDown className={`w-3 h-3 transition-colors ${
-        isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-400'
+        isActive ? '' : 'text-gray-400 group-hover:text-blue-400'
       }`} />
     </button>
   );
@@ -396,7 +396,7 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                       <SortButton
                         field="project_id"
                         label="PROJECT CODE"

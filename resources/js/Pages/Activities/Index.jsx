@@ -152,7 +152,7 @@ export default function Index({ activities, filters }) {
               <thead>
                 <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                   <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex items-center justify-center gap-2 whitespace-nowrap">
                       <Hash className="w-4 h-4" />
                       Project Code
                     </div>

@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import {
   CheckCircle, Eye, FileText, Calendar, User, Search, X,
   Building2, Clock, ArrowUp, ArrowDown, Stamp, Download,
+  Hash,
 } from 'lucide-react';
 import PaginationLinks from '@/components/PaginationLinks';
 import { cleanParams } from '@/utils/cleanParams';
@@ -368,7 +369,12 @@ export default function Index({ applyRestructs, auth, offices, years, filters: i
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Project Code</th>
+                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-center">
+                      <span className="flex items-center gap-1 whitespace-nowrap">
+                        <Hash className="w-4 h-4" />
+                        Project Code
+                      </span>
+                    </th>
                     <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       <div className="flex items-center gap-2"><FileText className="w-4 h-4" />Project</div>
                     </th>
@@ -376,10 +382,10 @@ export default function Index({ applyRestructs, auth, offices, years, filters: i
                       <div className="flex items-center gap-2"><Building2 className="w-4 h-4" />Office</div>
                     </th>
                     <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      <div className="flex items-center gap-2"><User className="w-4 h-4" />Added By</div>
+                      <div className="flex items-center gap-2 whitespace-nowrap"><User className="w-4 h-4" />Added By</div>
                     </th>
                     <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      <div className="flex items-center gap-2"><Calendar className="w-4 h-4" />Date Submitted</div>
+                      <div className="flex items-center gap-2 whitespace-nowrap"><Calendar className="w-4 h-4" />Date Submitted</div>
                     </th>
                     <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                     <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Documents</th>
@@ -390,7 +396,7 @@ export default function Index({ applyRestructs, auth, offices, years, filters: i
                   {data.map((item, index) => (
                     <tr key={item.apply_id} className="hover:bg-blue-50/30 transition-all duration-200">
                       <td className="px-4 md:px-6 py-3 md:py-4">
-                        <span className="text-xs font-semibold text-black px-2 py-1 rounded">
+                        <span className="px-6 py-4 text-sm justify-center text-gray-900 text-center">
                           {item.project_id}
                         </span>
                       </td>
