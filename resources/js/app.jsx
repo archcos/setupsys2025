@@ -5,6 +5,9 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import AppLayout from './Layouts/AppLayout'; // <-- import your layout
+import L from 'leaflet';
+import iconUrl from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
 createInertiaApp({
     title: (title) => `${title}`,
@@ -28,4 +31,11 @@ createInertiaApp({
     progress: {
         color: '#4B5563',
     },
+});
+
+L.Marker.prototype.options.icon = L.icon({
+    iconUrl,
+    shadowUrl: iconShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
 });

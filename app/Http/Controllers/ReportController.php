@@ -777,12 +777,7 @@ private function cleanupTempDirectory($dir)
         ]);
     }
 }
-    public function create(ProjectModel $project)
-    {
-        Log::info('Opening report creation page', [
-            'project_id' => $project->project_id,
-        ]);
-
+    public function create(ProjectModel $project){
         $project->load([
             'proponent',
             'objectives' => function ($q) {

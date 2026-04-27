@@ -137,12 +137,12 @@ export default function Edit({ proponent }) {
                 <p className="text-xs md:text-sm text-gray-600 mt-1">Review all changes before saving</p>
               </div>
               <div className="flex flex-col-reverse md:flex-row gap-2 md:gap-4">
-                <Link
-                  href="/proponents"
+                <button
+                  onClick={() => window.history.back()}
                   className="px-4 md:px-6 py-2 md:py-3 border border-gray-300 text-gray-700 font-medium rounded-lg md:rounded-xl hover:bg-gray-50 transition-colors duration-200 text-sm text-center"
                 >
                   Cancel
-                </Link>
+                </button>
                 <button
                   type="submit"
                   disabled={processing || isSubmitting}

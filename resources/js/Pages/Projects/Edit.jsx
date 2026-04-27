@@ -94,12 +94,12 @@ export default function Edit({ project, proponents }) {
                 <p className="text-xs md:text-sm text-gray-600 mt-1">Review all changes before saving</p>
               </div>
               <div className="flex gap-2 md:gap-4">
-                <Link
-                  href="/projects"
+                <button
+                  onClick={() => window.history.back()}
                   className="flex-1 md:flex-none px-4 md:px-6 py-2 md:py-3 border border-gray-300 text-gray-700 font-medium text-sm md:text-base rounded-lg md:rounded-xl hover:bg-gray-50 transition-colors duration-200 text-center"
                 >
                   Cancel
-                </Link>
+                </button>
                 <button
                   type="submit"
                   disabled={processing}

@@ -137,6 +137,11 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
             href: '/announcements/view',
             icon: <Eye size={16} />,
           },
+          {
+            label: 'Map Announcements',
+            href: '/projects/map',
+            icon: <Eye size={16} />,
+          },
         ]}
         onClose={onClose}
       />

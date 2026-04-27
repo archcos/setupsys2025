@@ -28,6 +28,7 @@ use App\Http\Controllers\TagController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\ReportReviewController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\ProjectMapController;
 
 Route::middleware(['log-suspicious'])->group(function () {
 
@@ -110,6 +111,11 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/proponents/sync', [ProponentController::class, 'syncFromCSV'])->name('proponents.sync')->middleware('role:rpmo');
         Route::post('/proponents/{id}/update-added-by', [ProponentController::class, 'updateAddedBy'])->middleware('role:rpmo')->name('proponents.update-added-by');
         Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])->middleware('role:rpmo')->name('projects.sync');
+    });
+
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/projects/map', [ProjectMapController::class, 'index'])->name('projects.map');
+        Route::get('/projects/map/data', [ProjectMapController::class, 'mapData'])->name('projects.map.data');
     });
 
 

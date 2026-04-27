@@ -910,12 +910,12 @@ export default function Create({ project, objects, equipments, nonequipments, re
 
           {/* Submit Buttons */}
           <div className="flex flex-col md:flex-row justify-end gap-2 md:gap-4 pb-4 md:pb-8">
-            <Link
-              href={route("reports.index")}
+            <button
+              onClick={() => window.history.back()}
               className="order-2 md:order-1 px-4 md:px-6 py-2 md:py-3 bg-gray-500 text-white rounded-lg md:rounded-xl shadow hover:bg-gray-600 transition-colors duration-200 text-sm md:text-base text-center"
             >
               Cancel
-            </Link>
+            </button>
             <button
               type="submit"
               disabled={processing}

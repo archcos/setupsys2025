@@ -55,7 +55,30 @@ class DeviceFingerprintService
         ];
     }
 
-  
+private static function extractComponents(Request $request): array
+{
+    return [
+        'user_agent'      => self::sanitizeUserAgent($request->header('User-Agent', '')),
+        'accept'          => $request->header('Accept', 'unknown'),
+        'accept_language' => $request->header('Accept-Language', 'unknown'),
+        'accept_encoding' => $request->header('Accept-Encoding', 'unknown'),
+        'http_version'    => $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1',
+        'platform_info'   => self::extractPlatformHints($request->header('User-Agent', '')),
+
+        // Client Hints — Chrome/Edge sends these over HTTP too
+        'ch_platform'     => strtolower($request->header('Sec-CH-UA-Platform', 'unknown')),
+        'ch_mobile'       => $request->header('Sec-CH-UA-Mobile', 'unknown'),
+        'ch_ua'           => self::normalizeClientHint($request->header('Sec-CH-UA', 'unknown')),
+
+        // Sec-Fetch signals
+        'sec_fetch_site'  => $request->header('Sec-Fetch-Site', 'unknown'),
+        'sec_fetch_mode'  => $request->header('Sec-Fetch-Mode', 'unknown'),
+        'sec_fetch_dest'  => $request->header('Sec-Fetch-Dest', 'unknown'),
+
+        // Header order — engine-level signal, works on HTTP
+        'header_order'    => self::extractHeaderOrder($request),
+    ];
+}
 
 private static function normalizeComponents(array $components): array
 {
