@@ -108,18 +108,29 @@ export default function Map({ offices, years, progressList }) {
             .then(data => setProjects(data));
     }, [filters.office_id, filters.year_obligated]);
 
-    // Init map once
-    useEffect(() => {
-        if (mapInstance.current) return;
+// Init map once
+useEffect(() => {
+    if (mapInstance.current) return;
 
-        mapInstance.current = L.map(mapRef.current).setView([8.4542, 124.6319], 9);
+    const mindanaoBounds = L.latLngBounds(
+        L.latLng(5.5, 121.8),   // southwest corner
+        L.latLng(10.5, 127.5),  // northeast corner
+    );
 
-        const tile = TILE_LAYERS.street;
-        tileLayerRef.current = L.tileLayer(tile.url, {
-            attribution: tile.attribution,
-            maxZoom: 18,
-        }).addTo(mapInstance.current);
-    }, []);
+    mapInstance.current = L.map(mapRef.current, {
+        center: [8.4542, 124.6319],  // Northern Mindanao (Cagayan de Oro)
+        zoom: 9,
+        minZoom: 7,
+        maxBounds: mindanaoBounds,
+        maxBoundsViscosity: 1.0,
+    });
+
+    const tile = TILE_LAYERS.street;
+    tileLayerRef.current = L.tileLayer(tile.url, {
+        attribution: tile.attribution,
+        maxZoom: 18,
+    }).addTo(mapInstance.current);
+}, []);
 
     // Swap tile layer when tileKey changes
     useEffect(() => {
@@ -174,7 +185,7 @@ export default function Map({ offices, years, progressList }) {
                         <tr><td style="color:#666;padding:2px 0;">Fund Release</td>
                             <td style="text-align:right;font-weight:500;">${p.fund_release ?? '—'}</td></tr>
                         <tr><td style="color:#666;padding:2px 0;">Progress</td>
-                            <td style="text-align:right;font-weight:500;">${p.progress}%</td></tr>
+                            <td style="text-align:right;font-weight:500;">${p.progress}</td></tr>
                     </table>
                     <span style="display:inline-block;margin-top:6px;font-size:11px;padding:2px 8px;
                         border-radius:10px;background:${pl.bg};color:${pl.color};">${p.progress ?? '—'}</span>

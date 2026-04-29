@@ -99,7 +99,9 @@ Route::middleware(['log-suspicious'])->group(function () {
 
     // DEVELOPMENT
     Route::middleware(['auth'])->group(function () {
-        Route::get('/proponents/export', [ProponentController::class, 'export']) ->middleware('role:rpmo,staff')->name('proponents.export');
+        Route::post('/proponents/sync', [ProponentController::class, 'syncFromCSV'])->name('proponents.sync')->middleware('role:rpmo');
+        Route::post('/proponents/{id}/update-added-by', [ProponentController::class, 'updateAddedBy'])->middleware('role:rpmo')->name('proponents.update-added-by');
+        Route::get('/proponents/export', [ProponentController::class, 'export'])->middleware('role:rpmo,staff')->name('proponents.export');
         Route::get('/projects/export', [ProjectController::class, 'export']) ->middleware('role:rpmo,staff')->name('projects.export');
         Route::resource('proponents', ProponentController::class)->except(['show']);
         Route::resource('projects', ProjectController::class)->middleware('role:head,staff,rpmo')->except(['destroy', 'show']);
@@ -108,8 +110,6 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/projects/{id}/update-status', [ProjectController::class, 'updateStatus'])->name('projects.updateStatus')->middleware('role:rpmo');
         Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly')->middleware('role:user');
         Route::get('/activity-list', [ActivityController::class, 'readonly'])->name('activities.readonly')->middleware('role:user');
-        Route::post('/proponents/sync', [ProponentController::class, 'syncFromCSV'])->name('proponents.sync')->middleware('role:rpmo');
-        Route::post('/proponents/{id}/update-added-by', [ProponentController::class, 'updateAddedBy'])->middleware('role:rpmo')->name('proponents.update-added-by');
         Route::post('/projects/sync', [ProjectController::class, 'syncProjectsFromCSV'])->middleware('role:rpmo')->name('projects.sync');
     });
 
