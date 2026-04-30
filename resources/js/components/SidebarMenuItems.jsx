@@ -5,7 +5,6 @@ import { LayoutDashboard, Building, Users, FileSignature, FileText, ClipboardLis
 import Dropdown from "./Dropdown";
 
 export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onClose, getHomePage }) {
-    console.log('Current role:', role); // Check what role is being passed
 
   return (
     

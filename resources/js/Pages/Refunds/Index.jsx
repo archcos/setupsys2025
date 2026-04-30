@@ -15,8 +15,10 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
   const [perPage, setPerPage] = useState(10);
 
   // State management
+  const saveTimeoutsRef = useRef({});
+  const savedProjectsRef = useRef({});           // source of truth (sync, no batching issues)
+  const [savedProjects, setSavedProjects] = useState({});  // only for re-render trigger
   const [savingProject, setSavingProject] = useState(null);
-  const [savedProjects, setSavedProjects] = useState(new Set());
   const [searchInput, setSearchInput] = useState(search || '');
   const [statusFilter, setStatusFilter] = useState(selectedStatus || '');
   const [showWarningModal, setShowWarningModal] = useState(false);
@@ -37,13 +39,13 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
   });
 
   // Generate years once
-  const years = useMemo(() => 
+  const years = useMemo(() =>
     Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i),
     []
   );
 
   // Create project map for O(1) lookups
-  const projectMap = useMemo(() => 
+  const projectMap = useMemo(() =>
     new Map(projects.data?.map(p => [p.project_id, p]) ?? []),
     [projects.data]
   );
@@ -65,18 +67,10 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
     return () => clearTimeout(delaySearch);
   }, [searchInput, statusFilter]);
 
-  // Handle flash messages for warnings - IMPROVED
+  // Handle flash messages for warnings
   useEffect(() => {
-    console.log('📱 DEBUG: Flash object received:', flash);
-    
     if (flash && typeof flash === 'object') {
-      console.log('✅ Flash exists, checking for warning...');
-      console.log('Flash keys:', Object.keys(flash));
-      
       if (flash.warning) {
-        console.log('⚠️ WARNING FOUND IN FLASH!');
-        console.log('Warning content:', flash.warning);
-        
         const newWarningData = {
           unpaidMonths: flash.warning.unpaid_months || [],
           projectTitle: flash.warning.project_title || '',
@@ -85,19 +79,9 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
           message: flash.warning.message || 'Cannot update project status.',
           action: flash.warning.action || '',
         };
-        
-        console.log('📋 Setting warning data with:', newWarningData);
         setWarningData(newWarningData);
-        
-        console.log('🔔 Setting showWarningModal to TRUE');
         setShowWarningModal(true);
-        
-        console.log('✅ Modal should now be visible!');
-      } else {
-        console.log('❌ No warning property in flash');
       }
-    } else {
-      console.log('❌ Flash is not an object or is falsy');
     }
   }, [flash]);
 
@@ -105,9 +89,7 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
   const handleFilterChange = useCallback((month, year, searchValue, statusValue = statusFilter, perPageValue = perPage) => {
     router.get('/refunds',
       { month, year, search: searchValue, status: statusValue, perPage: perPageValue },
-      { preserveScroll: true,
-        preserveState: true,
-       }
+      { preserveScroll: true, preserveState: true }
     );
   }, [statusFilter, perPage]);
 
@@ -115,10 +97,10 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
     setPerPage(value);
     handleFilterChange(selectedMonth, selectedYear, searchInput, statusFilter, value);
   }, [selectedMonth, selectedYear, searchInput, statusFilter, handleFilterChange]);
- 
+
   const handleStatusChange = useCallback((projectId, newStatus) => {
     setData(`status_${projectId}`, newStatus);
-    
+
     if (newStatus === REFUND_STATUS.RESTRUCTURED) {
       setData(`refund_amount_${projectId}`, 0);
       setData(`amount_due_${projectId}`, 0);
@@ -126,7 +108,7 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
       const project = projectMap.get(projectId);
       const latestRefund = project?.refunds?.[0];
       const refundAmount = latestRefund?.refund_amount ?? project?.refund_amount ?? 0;
-      
+
       if (data[`refund_amount_${projectId}`] == 0) {
         setData(`refund_amount_${projectId}`, refundAmount);
         setData(`amount_due_${projectId}`, refundAmount);
@@ -140,17 +122,15 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
     const saveDate = `${selectedYear}-${month}-01`;
     const currentStatus = data[`status_${projectId}`];
 
-    console.log('💾 Saving refund:', { projectId, saveDate, currentStatus });
-
     setSavingProject(projectId);
-    
-    const refundAmount = currentStatus === REFUND_STATUS.RESTRUCTURED 
-      ? 0 
+
+    const refundAmount = currentStatus === REFUND_STATUS.RESTRUCTURED
+      ? 0
       : (data[`refund_amount_${projectId}`] ?? project?.refund_amount ?? 0);
-    const amountDue = currentStatus === REFUND_STATUS.RESTRUCTURED 
-      ? 0 
+    const amountDue = currentStatus === REFUND_STATUS.RESTRUCTURED
+      ? 0
       : (data[`amount_due_${projectId}`] ?? project?.amount_due ?? 0);
-    
+
     router.post('/refunds/save', {
       project_id: projectId,
       refund_amount: refundAmount,
@@ -161,38 +141,52 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
       save_date: saveDate,
     }, {
       preserveScroll: true,
-      onFinish: () => {
-        console.log('🏁 Request finished');
-        setSavingProject(null);
-      },
+      preserveState: true,
       onSuccess: () => {
-        console.log('✅ Save successful');
-        setSavedProjects(prev => new Set([...prev, projectId]));
-        setTimeout(() => {
+        // Clear any existing timeout for this project
+        if (saveTimeoutsRef.current[projectId]) {
+          clearTimeout(saveTimeoutsRef.current[projectId]);
+          delete saveTimeoutsRef.current[projectId];
+        }
+
+        // Update ref first (sync, no React batching issues)
+        savedProjectsRef.current[projectId] = true;
+        // Trigger re-render with immutable update
+        setSavedProjects(prev => ({ ...prev, [projectId]: true }));
+
+        const timeoutId = setTimeout(() => {
+          delete savedProjectsRef.current[projectId];
+          delete saveTimeoutsRef.current[projectId];
+          // Trigger re-render to remove success state - create new object without the key
           setSavedProjects(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(projectId);
-            return newSet;
+            const newState = { ...prev };
+            delete newState[projectId];
+            return newState;
           });
         }, 3000);
+
+        saveTimeoutsRef.current[projectId] = timeoutId;
       },
-      onError: (errors) => {
-        console.log('❌ Request errors:', errors);
+      onFinish: () => {
+        // Safe to call here — savedProjectsRef is already committed synchronously
+        setSavingProject(null);
       },
+      onError: (errors) => {},
     });
   }, [projectMap, selectedMonth, selectedYear, data]);
 
+  // Reads from ref (always current), state (savedProjects) just triggers re-renders
   const getButtonState = useCallback((projectId) => {
     if (savingProject === projectId) return 'loading';
-    if (savedProjects.has(projectId)) return 'success';
+    if (savedProjectsRef.current[projectId]) return 'success';
     return 'default';
-  }, [savingProject, savedProjects]);
+  }, [savingProject, savedProjects]); // savedProjects in deps ensures re-render when ref changes
 
   const renderSaveButton = useCallback((projectId) => {
     if (!isRPMO) return null;
 
     const buttonState = getButtonState(projectId);
-    
+
     const buttonConfig = {
       loading: {
         className: 'bg-gray-400 text-white cursor-not-allowed',
@@ -230,7 +224,7 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
       <Head title="Refund Management" />
       <div className="max-w-8xl mx-auto">
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
-          
+
           {/* Header */}
           <div className="bg-gray-50 p-4 md:p-6 border-b border-gray-100">
             <div className="flex items-center gap-2 md:gap-3">
@@ -246,23 +240,10 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
             </div>
           </div>
 
-          {/* Debug: Show if modal should be open */}
-          {showWarningModal && (
-            <div className="bg-blue-50 border-b border-blue-200 p-4">
-              <p className="text-sm text-blue-900">
-                🔍 DEBUG: Modal is showing. showWarningModal = {String(showWarningModal)}. 
-                Unpaid months: {warningData.unpaidMonths.length}
-              </p>
-            </div>
-          )}
-
           {/* Unpaid Months Warning Modal */}
           <UnpaidMonthsWarningModal
             isOpen={showWarningModal}
-            onClose={() => {
-              console.log('🔒 Closing warning modal');
-              setShowWarningModal(false);
-            }}
+            onClose={() => setShowWarningModal(false)}
             unpaidMonths={warningData.unpaidMonths}
             message={warningData.message}
             action={warningData.action}
@@ -271,13 +252,13 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
             refundEnd={warningData.refundEnd}
           />
 
-          {/* Filters Section - Memoized */}
+          {/* Filters Section */}
           <FilterSection
             selectedMonth={selectedMonth}
             selectedYear={selectedYear}
             searchInput={searchInput}
             statusFilter={statusFilter}
-            perPage={perPage}    
+            perPage={perPage}
             months={MONTHS}
             years={years}
             projects={projects}
@@ -286,7 +267,7 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
             onYearChange={(year) => handleFilterChange(selectedMonth, year, searchInput)}
             onSearchChange={setSearchInput}
             onStatusChange={(status) => setStatusFilter(status)}
-            onPerPageChange={handlePerPageChange} 
+            onPerPageChange={handlePerPageChange}
           />
 
           {/* Desktop Table */}
@@ -302,7 +283,7 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
                   </th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
-                       <Banknote className="w-4 h-4" />
+                      <Banknote className="w-4 h-4" />
                       Amount Due
                     </div>
                   </th>

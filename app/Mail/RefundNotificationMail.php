@@ -16,18 +16,16 @@ class RefundNotificationMail extends Mailable
     public $month;
     public $status;
     public $amount;
+    public $refundAmount;              // ← NEW
+    public $amountDue;                 // ← NEW
+    public $checkNum;                  // ← NEW
+    public $receiptNum;                // ← NEW
 
     /**
-     * Create a new message instance.
-     *
-     * @param string $ownerName
-     * @param string $projectTitle
-     * @param string $companyName
-     * @param string $month (e.g., "January 2025")
-     * @param string $status ('paid', 'unpaid', 'restructured')
-     * @param float $amount
+     * Updated constructor to accept all refund details
      */
-    public function __construct($ownerName, $projectTitle, $companyName, $month, $status, $amount)
+    public function __construct($ownerName, $projectTitle, $companyName, $month, $status, $amount, 
+        $refundAmount = null, $amountDue = null, $checkNum = null, $receiptNum = null)
     {
         $this->ownerName = $ownerName;
         $this->projectTitle = $projectTitle;
@@ -35,11 +33,15 @@ class RefundNotificationMail extends Mailable
         $this->month = $month;
         $this->status = $status;
         $this->amount = $amount;
+        $this->refundAmount = $refundAmount ?? $amount;
+        $this->amountDue = $amountDue ?? $amount;
+        $this->checkNum = $checkNum;
+        $this->receiptNum = $receiptNum;
     }
 
     public function build()
     {
-        // Attach PNG images
+        // Attach logos
         $this->attach(resource_path('assets/SETUP_logo.png'), [
             'as' => 'setup_logo.png',
             'mime' => 'image/png',
@@ -50,17 +52,24 @@ class RefundNotificationMail extends Mailable
             'mime' => 'image/png',
         ]);
 
+        // Sanitize data
         $ownerName = htmlspecialchars($this->ownerName);
         $projectTitle = htmlspecialchars($this->projectTitle);
         $companyName = htmlspecialchars($this->companyName);
         $month = htmlspecialchars($this->month);
         $status = strtoupper($this->status);
-        $formattedAmount = $this->amount !== null 
-            ? '₱' . number_format($this->amount, 2) 
+        
+        // Format amounts with currency
+        $formattedRefundAmount = $this->refundAmount !== null 
+            ? '₱' . number_format($this->refundAmount, 2) 
             : 'N/A';
+        $formattedAmountDue = $this->amountDue !== null 
+            ? '₱' . number_format($this->amountDue, 2) 
+            : 'N/A';
+        
         $createdDate = \Carbon\Carbon::now()->format('F d, Y \a\t h:i A');
 
-        // Determine colors and styling based on status
+        // Colors based on status
         $statusColors = [
             'PAID' => ['gradient' => '#28a745', 'gradientEnd' => '#218838', 'accent' => '#28a745', 'bg' => '#d4edda', 'border' => '#c3e6cb'],
             'UNPAID' => ['gradient' => '#dc3545', 'gradientEnd' => '#c82333', 'accent' => '#dc3545', 'bg' => '#f8d7da', 'border' => '#f5c6cb'],
@@ -69,8 +78,30 @@ class RefundNotificationMail extends Mailable
 
         $colors = $statusColors[$status] ?? $statusColors['UNPAID'];
         $statusIcon = $status === 'PAID' ? '✅' : ($status === 'RESTRUCTURED' ? '🔄' : '⏳');
-
         $currentYear = \Carbon\Carbon::now()->year;
+
+        // Build Payment Details card (only if check or receipt number exists)
+        $additionalDetailsHtml = '';
+        
+        if ($this->checkNum || $this->receiptNum) {
+            $additionalDetailsHtml = "
+                <div style='background-color: #fafbfc; border-left: 4px solid {$colors['accent']}; padding: 20px; margin: 30px 0; border-radius: 4px;'>
+                    <h3 style='margin: 0 0 15px 0; color: {$colors['accent']}; font-size: 16px; font-weight: 600;'>Payment Details</h3>
+                    " . ($this->checkNum ? "
+                    <div style='margin-bottom: 15px;'>
+                        <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Check Number</p>
+                        <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600; font-family: monospace; background-color: #fff; padding: 8px 12px; border-radius: 3px; border: 1px solid #e0e0e0;'>{$this->checkNum}</p>
+                    </div>
+                    " : "") . "
+                    " . ($this->receiptNum ? "
+                    <div>
+                        <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Receipt Number</p>
+                        <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600; font-family: monospace; background-color: #fff; padding: 8px 12px; border-radius: 3px; border: 1px solid #e0e0e0;'>{$this->receiptNum}</p>
+                    </div>
+                    " : "") . "
+                </div>
+            ";
+        }
 
         $htmlContent = "
             <!DOCTYPE html>
@@ -95,22 +126,30 @@ class RefundNotificationMail extends Mailable
                             Your refund record has been updated for the month of <strong>{$month}</strong>.
                         </p>
 
-                        <!-- Status Card -->
+                        <!-- Status Card - NOW WITH REFUND DETAILS -->
                         <div style='background-color: {$colors['bg']}; border-left: 4px solid {$colors['accent']}; padding: 20px; margin: 30px 0; border-radius: 4px; border: 1px solid {$colors['border']};'>
                             <div style='text-align: center; margin-bottom: 20px;'>
                                 <p style='margin: 0; font-size: 48px;'>{$statusIcon}</p>
                             </div>
                             
-                            <div style='margin-bottom: 15px;'>
+                            <div style='margin-bottom: 20px;'>
                                 <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Status</p>
                                 <p style='margin: 0; color: {$colors['accent']}; font-size: 24px; font-weight: 700;'>{$status}</p>
                             </div>
 
+                            <div style='margin-bottom: 20px;'>
+                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Refund Amount</p>
+                                <p style='margin: 0; color: #333; font-size: 20px; font-weight: 600;'>{$formattedRefundAmount}</p>
+                            </div>
+
                             <div>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Amount</p>
-                                <p style='margin: 0; color: #333; font-size: 20px; font-weight: 600;'>{$formattedAmount}</p>
+                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Amount Due</p>
+                                <p style='margin: 0; color: #333; font-size: 20px; font-weight: 600;'>{$formattedAmountDue}</p>
                             </div>
                         </div>
+
+                        <!-- Payment Details Card -->
+                        {$additionalDetailsHtml}
 
                         <!-- Project Details Card -->
                         <div style='background-color: #f8f9fa; border-left: 4px solid {$colors['accent']}; padding: 20px; margin: 30px 0; border-radius: 4px;'>
@@ -142,7 +181,7 @@ class RefundNotificationMail extends Mailable
                             </p>
                         </div>
 
-                        <!-- Visit Site Button -->
+                        <!-- Button -->
                         <div style='text-align: center; margin: 30px 0;'>
                             <a href='http://192.168.0.7:8096/' style='display: inline-block; background: linear-gradient(135deg, {$colors['gradient']} 0%, {$colors['gradientEnd']} 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 4px; font-weight: 600; font-size: 15px; box-shadow: 0 2px 8px rgba(0,86,179,0.3);'>
                                 View in SIMS Portal →
