@@ -24,7 +24,7 @@ export default function IndustrySelect({ value, onChange, className = '', includ
         <option value="Fabricated metal products manufacturing">Fabricated Metal Products</option>
         <option value="Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing">Machinery & Equipment (NEC)</option>
         <option value="Other transport equipment manufacturing">Transport Equipment</option>
-        <option value="Furniture manufacturing">Furniture Manufacturing</option>
+        <option value="Furniture">Furniture</option>
         <option value="Information and Communication">Information & Communication</option>
         <option value="Other regional priority industries approved by the Regional Development Council">Regional Priority Industries</option>
       </optgroup>

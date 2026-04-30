@@ -19,7 +19,7 @@ export const INDUSTRY_OPTIONS_GROUPED = [
       { value: 'Fabricated metal products manufacturing', label: 'Fabricated Metal Products' },
       { value: 'Machinery and equipment, Not Elsewhere Classified (NEC) manufacturing', label: 'Machinery & Equipment (NEC)' },
       { value: 'Other transport equipment manufacturing', label: 'Transport Equipment' },
-      { value: 'Furniture manufacturing', label: 'Furniture Manufacturing' },
+      { value: 'Furniture', label: 'Furniture' },
       { value: 'Information and Communication', label: 'Information & Communication' },
       { value: 'Other regional priority industries approved by the Regional Development Council', label: 'Regional Priority Industries' },
     ],

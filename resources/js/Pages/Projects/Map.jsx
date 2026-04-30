@@ -212,7 +212,7 @@ useEffect(() => {
     };
 
     return (
-        <main className="flex-1 p-3 md:p-6 overflow-y-auto min-h-screen">
+<main className="flex-1 p-3 md:p-6">
             <Head title="Project Map" />
 
             <div className="py-4 px-4 max-w-full mx-auto">
@@ -301,7 +301,7 @@ useEffect(() => {
                 {/* Map — taller, full width */}
                 <div
                     className="relative rounded-xl overflow-hidden border border-gray-200 shadow-sm"
-                    style={{ height: 'calc(100vh - 180px)' }}
+                    style={{ height: 'calc(100vh - 220px)' }}
                 >
                     <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
 
