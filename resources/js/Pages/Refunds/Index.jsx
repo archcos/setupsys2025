@@ -16,8 +16,8 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
 
   // State management
   const saveTimeoutsRef = useRef({});
-  const savedProjectsRef = useRef({});           // source of truth (sync, no batching issues)
-  const [savedProjects, setSavedProjects] = useState({});  // only for re-render trigger
+  const savedProjectsRef = useRef({});
+  const [savedProjects, setSavedProjects] = useState({});
   const [savingProject, setSavingProject] = useState(null);
   const [searchInput, setSearchInput] = useState(search || '');
   const [statusFilter, setStatusFilter] = useState(selectedStatus || '');
@@ -32,28 +32,35 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
   });
   const isFirstRun = useRef(true);
 
+  // FIX: use refs to always hold latest filter values for callbacks
+  const statusFilterRef = useRef(statusFilter);
+  const perPageRef = useRef(perPage);
+  const searchInputRef = useRef(searchInput);
+
+  useEffect(() => { statusFilterRef.current = statusFilter; }, [statusFilter]);
+  useEffect(() => { perPageRef.current = perPage; }, [perPage]);
+  useEffect(() => { searchInputRef.current = searchInput; }, [searchInput]);
+
   const { data, setData } = useForm({
     project_id: '',
     refund_amount: '',
     status: 'unpaid',
   });
 
-  // Generate years once
   const years = useMemo(() =>
     Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i),
     []
   );
 
-  // Create project map for O(1) lookups
   const projectMap = useMemo(() =>
     new Map(projects.data?.map(p => [p.project_id, p]) ?? []),
     [projects.data]
   );
 
-  // Initialize/sync data efficiently
+  // FIX: pass projects.data as a dep so the hook re-runs when data changes
   useRefundData(projects, data, setData);
 
-  // Debounced filter change
+  // Debounced search/status filter
   useEffect(() => {
     if (isFirstRun.current) {
       isFirstRun.current = false;
@@ -61,7 +68,16 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
     }
 
     const delaySearch = setTimeout(() => {
-      handleFilterChange(selectedMonth, selectedYear, searchInput, statusFilter);
+      router.get('/refunds',
+        {
+          month: selectedMonth,
+          year: selectedYear,
+          search: searchInputRef.current,
+          status: statusFilterRef.current,
+          perPage: perPageRef.current,
+        },
+        { preserveScroll: true, preserveState: true }
+      );
     }, 500);
 
     return () => clearTimeout(delaySearch);
@@ -85,18 +101,31 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
     }
   }, [flash]);
 
-  // Memoized handlers
-  const handleFilterChange = useCallback((month, year, searchValue, statusValue = statusFilter, perPageValue = perPage) => {
+  // FIX: reads from refs so this callback is never stale regardless of state
+  const handleFilterChange = useCallback((month, year, searchValue, statusValue, perPageValue) => {
     router.get('/refunds',
-      { month, year, search: searchValue, status: statusValue, perPage: perPageValue },
+      {
+        month,
+        year,
+        search: searchValue ?? searchInputRef.current,
+        status: statusValue ?? statusFilterRef.current,
+        perPage: perPageValue ?? perPageRef.current,
+      },
       { preserveScroll: true, preserveState: true }
     );
-  }, [statusFilter, perPage]);
+  }, []); // no deps needed — always reads from refs
 
   const handlePerPageChange = useCallback((value) => {
     setPerPage(value);
-    handleFilterChange(selectedMonth, selectedYear, searchInput, statusFilter, value);
-  }, [selectedMonth, selectedYear, searchInput, statusFilter, handleFilterChange]);
+    perPageRef.current = value; // update ref immediately before calling filter
+    handleFilterChange(selectedMonth, selectedYear, undefined, undefined, value);
+  }, [selectedMonth, selectedYear, handleFilterChange]);
+
+  // FIX: status change now updates ref immediately too
+  const handleStatusFilterChange = useCallback((status) => {
+    setStatusFilter(status);
+    statusFilterRef.current = status;
+  }, []);
 
   const handleStatusChange = useCallback((projectId, newStatus) => {
     setData(`status_${projectId}`, newStatus);
@@ -143,21 +172,17 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
       preserveScroll: true,
       preserveState: true,
       onSuccess: () => {
-        // Clear any existing timeout for this project
         if (saveTimeoutsRef.current[projectId]) {
           clearTimeout(saveTimeoutsRef.current[projectId]);
           delete saveTimeoutsRef.current[projectId];
         }
 
-        // Update ref first (sync, no React batching issues)
         savedProjectsRef.current[projectId] = true;
-        // Trigger re-render with immutable update
         setSavedProjects(prev => ({ ...prev, [projectId]: true }));
 
         const timeoutId = setTimeout(() => {
           delete savedProjectsRef.current[projectId];
           delete saveTimeoutsRef.current[projectId];
-          // Trigger re-render to remove success state - create new object without the key
           setSavedProjects(prev => {
             const newState = { ...prev };
             delete newState[projectId];
@@ -168,19 +193,17 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
         saveTimeoutsRef.current[projectId] = timeoutId;
       },
       onFinish: () => {
-        // Safe to call here — savedProjectsRef is already committed synchronously
         setSavingProject(null);
       },
-      onError: (errors) => {},
+      onError: () => {},
     });
   }, [projectMap, selectedMonth, selectedYear, data]);
 
-  // Reads from ref (always current), state (savedProjects) just triggers re-renders
   const getButtonState = useCallback((projectId) => {
     if (savingProject === projectId) return 'loading';
     if (savedProjectsRef.current[projectId]) return 'success';
     return 'default';
-  }, [savingProject, savedProjects]); // savedProjects in deps ensures re-render when ref changes
+  }, [savingProject, savedProjects]);
 
   const renderSaveButton = useCallback((projectId) => {
     if (!isRPMO) return null;
@@ -263,10 +286,10 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
             years={years}
             projects={projects}
             flash={flash}
-            onMonthChange={(month) => handleFilterChange(month, selectedYear, searchInput)}
-            onYearChange={(year) => handleFilterChange(selectedMonth, year, searchInput)}
+            onMonthChange={(month) => handleFilterChange(month, selectedYear)}
+            onYearChange={(year) => handleFilterChange(selectedMonth, year)}
             onSearchChange={setSearchInput}
-            onStatusChange={(status) => setStatusFilter(status)}
+            onStatusChange={handleStatusFilterChange}
             onPerPageChange={handlePerPageChange}
           />
 
@@ -302,7 +325,7 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
                   <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
                       <ReceiptText className="w-4 h-4" />
-                      Receipt Number
+                      OR Number
                     </div>
                   </th>
                   <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">

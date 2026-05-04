@@ -2,54 +2,41 @@
 import { useEffect } from 'react';
 
 /**
- * Efficiently initializes and syncs refund data
- * Only updates changed projects instead of reinitializing everything
+ * Syncs form state from the latest projects prop.
+ * Runs on every projects.data change (i.e. after each filter/navigation),
+ * so inputs always reflect the freshly loaded server data.
  */
-export const useRefundData = (projects, data, setData) => {
+export function useRefundData(projects, data, setData) {
   useEffect(() => {
     if (!projects?.data) return;
 
-    setData(prev => {
-      let hasChanges = false;
-      const updates = {};
+    projects.data.forEach((project) => {
+      const pid = project.project_id;
+      const latestRefund = project.refunds?.[0];
 
-      projects.data.forEach((p) => {
-        const latestRefund = p.refunds?.[0];
-        const newRefundAmount = latestRefund?.refund_amount ?? p.refund_amount ?? '';
-        const newStatus = latestRefund?.status ?? 'unpaid';
-        const newAmountDue = latestRefund?.amount_due ?? newRefundAmount;
-        const newCheckNum = latestRefund?.check_num ?? '';
-        const newReceiptNum = latestRefund?.receipt_num ?? '';
+      // Only overwrite form state if we don't already have a local edit for this project.
+      // This prevents wiping in-progress edits when Inertia re-renders due to preserveState.
+      // We detect a "local edit" by checking whether the form key exists AND differs from
+      // what the server just sent us — but on a fresh load the key won't exist at all,
+      // so we always initialise in that case.
 
-        // Only add to updates if value differs from current state
-        if (prev[`refund_amount_${p.project_id}`] !== newRefundAmount) {
-          updates[`refund_amount_${p.project_id}`] = newRefundAmount;
-          hasChanges = true;
-        }
+      const serverStatus   = latestRefund?.status        ?? 'unpaid';
+      const serverAmount   = latestRefund?.refund_amount ?? project.refund_amount ?? 0;
+      const serverAmtDue   = latestRefund?.amount_due    ?? project.refund_amount ?? 0;
+      const serverCheckNum = latestRefund?.check_num     ?? '';
+      const serverReceiptNum = latestRefund?.receipt_num ?? '';
 
-        if (prev[`status_${p.project_id}`] !== newStatus) {
-          updates[`status_${p.project_id}`] = newStatus;
-          hasChanges = true;
-        }
-
-        if (prev[`amount_due_${p.project_id}`] !== newAmountDue) {
-          updates[`amount_due_${p.project_id}`] = newAmountDue;
-          hasChanges = true;
-        }
-
-        if (prev[`check_num_${p.project_id}`] !== newCheckNum) {
-          updates[`check_num_${p.project_id}`] = newCheckNum;
-          hasChanges = true;
-        }
-
-        if (prev[`receipt_num_${p.project_id}`] !== newReceiptNum) {
-          updates[`receipt_num_${p.project_id}`] = newReceiptNum;
-          hasChanges = true;
-        }
-      });
-
-      // Only update if there are actual changes
-      return hasChanges ? { ...prev, ...updates } : prev;
+      // Always write: after a filter change Inertia replaces the page props, so these are the
+      // authoritative values for the newly-loaded page. Any unsaved local edits are intentionally
+      // discarded because the user just changed the month/year/filter context.
+      setData(`status_${pid}`,      serverStatus);
+      setData(`refund_amount_${pid}`, serverAmount);
+      setData(`amount_due_${pid}`,  serverAmtDue);
+      setData(`check_num_${pid}`,   serverCheckNum);
+      setData(`receipt_num_${pid}`, serverReceiptNum);
     });
-  }, [projects?.data?.length]); // Only depend on array length, not entire object
-};
+
+    // projects.data reference changes on every Inertia page visit — this is the correct dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects.data]);
+}

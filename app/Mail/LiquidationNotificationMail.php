@@ -62,19 +62,16 @@ class LiquidationNotificationMail extends Mailable
         $recipientName = htmlspecialchars($this->recipientName);
         $officeName    = htmlspecialchars($this->officeName);
         $uploaderName  = htmlspecialchars($this->uploaderName);
-        $createdDate   = \Carbon\Carbon::now('Asia/Manila')->format('F d, Y \a\t h:i A');
+        $sentDate      = \Carbon\Carbon::now('Asia/Manila')->format('F d, Y \a\t h:i A');
         $currentYear   = \Carbon\Carbon::now()->year;
 
-        $gradientStart = '#28a745';
-        $gradientEnd   = '#218838';
-        $accentColor   = '#28a745';
-
-        $officeRow = $officeName ? "
-            <div style='margin-bottom:15px;'>
-                <p style='margin:0 0 5px 0;color:#666;font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;'>Office</p>
-                <p style='margin:0;color:#333;font-size:15px;font-weight:600;'>{$officeName}</p>
-            </div>
-        " : '';
+        // Build office row if present
+        $officeRowHtml = $officeName
+            ? "<tr style='border-bottom:1px solid #f9fafb;'>
+                <td style='padding:12px 18px;font-size:13px;color:#9ca3af;width:35%;'>Office</td>
+                <td style='padding:12px 18px;font-size:13px;color:#111827;text-align:right;'>{$officeName}</td>
+               </tr>"
+            : '';
 
         $htmlContent = "
         <!DOCTYPE html>
@@ -83,73 +80,92 @@ class LiquidationNotificationMail extends Mailable
             <meta charset='UTF-8'>
             <meta name='viewport' content='width=device-width, initial-scale=1.0'>
         </head>
-        <body style='margin:0;padding:0;background-color:#f5f7fa;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,\"Helvetica Neue\",Arial,sans-serif;'>
-            <div style='max-width:600px;margin:0 auto;background-color:#ffffff;'>
+        <body style='margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,\"Helvetica Neue\",Arial,sans-serif;'>
+            <div style='max-width:580px;margin:32px auto;'>
 
                 <!-- Header -->
-                <div style='background:linear-gradient(135deg,{$gradientStart} 0%,{$gradientEnd} 100%);padding:40px 20px;text-align:center;'>
-                    <img src='cid:setup_logo.png' alt='SETUP Logo' style='max-width:120px;height:auto;margin:0 auto 15px;display:block;'>
-                    <h1 style='margin:0;color:#ffffff;font-size:28px;font-weight:600;'>Approved Liquidation Report</h1>
+                <div style='padding:28px 36px 24px;'>
+                    <h1 style='margin:0 0 6px;font-size:20px;font-weight:600;color:#111827;'>Liquidation Report Approved</h1>
+                    <p style='margin:0;font-size:13px;color:#9ca3af;'>Sent {$sentDate}</p>
                 </div>
 
-                <!-- Main Content -->
-                <div style='padding:40px 30px;'>
-                    <p style='margin:0 0 30px 0;color:#555;font-size:16px;'>
-                        Dear Provincial Director {$recipientName},<br><br>
-                        A liquidation report has been approved for the project below.
-                        The file is attached to this email for your reference.
-                    </p>
+                <!-- Card -->
+                <div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin:0 0 24px;'>
 
-                    <!-- Project Details Card -->
-                    <div style='background-color:#f8f9fa;border-left:4px solid {$accentColor};padding:20px;margin:30px 0;border-radius:4px;'>
-                        <h3 style='margin:0 0 15px 0;color:{$accentColor};font-size:16px;font-weight:600;'>Project Details</h3>
-
-                        <div style='margin-bottom:15px;'>
-                            <p style='margin:0 0 5px 0;color:#666;font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;'>Project Title</p>
-                            <p style='margin:0;color:#333;font-size:15px;font-weight:600;'>{$projectTitle}</p>
-                        </div>
-
-                        <div style='margin-bottom:15px;'>
-                            <p style='margin:0 0 5px 0;color:#666;font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;'>Company / Beneficiary</p>
-                            <p style='margin:0;color:#333;font-size:15px;font-weight:600;'>{$companyName}</p>
-                        </div>
-
-                        {$officeRow}
-
-                        <div>
-                            <p style='margin:0 0 5px 0;color:#666;font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;'>Uploaded By</p>
-                            <p style='margin:0;color:#333;font-size:15px;font-weight:600;'>{$uploaderName}</p>
-                        </div>
-                    </div>
-
-                    <!-- Status Notice -->
-                    <div style='background-color:#E8F5E9;border:1px solid #C8E6C9;border-radius:4px;padding:20px;margin:30px 0;text-align:center;'>
-                        <p style='margin:0 0 10px 0;color:#2E7D32;font-size:14px;font-weight:600;'>
-                            ✅ Liquidation Report Approved
-                        </p>
-                        <p style='margin:0;color:#666;font-size:13px;'>
-                            The project progress has been updated to <strong>Refund</strong> status.
-                            Please log in to DOSTNM-SIMS to review the full details.
+                    <!-- Greeting -->
+                    <div style='padding:24px 36px;border-bottom:1px solid #f3f4f6;'>
+                        <p style='margin:0;font-size:14px;color:#6b7280;line-height:1.7;'>
+                            Hello <strong style='color:#111827;font-weight:600;'>{$recipientName}</strong>,
+                            a liquidation report has been submitted and approved for the project below.
+                            The documentation is attached for your reference.
                         </p>
                     </div>
 
-                    <!-- CTA Button -->
-                    <div style='text-align:center;margin:30px 0;'>
-                        <a href='http://192.168.0.7:8096/'
-                           style='display:inline-block;background:linear-gradient(135deg,{$gradientStart} 0%,{$gradientEnd} 100%);color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:4px;font-weight:600;font-size:15px;box-shadow:0 2px 8px rgba(40,167,69,0.3);'>
-                            View Project in DOSTNM-SIMS →
-                        </a>
+                    <!-- Status Badge -->
+                    <div style='padding:16px 36px;background:#f0fdf4;border-bottom:1px solid #f3f4f6;'>
+                        <p style='margin:0;font-size:13px;color:#16a34a;font-weight:600;'>✓ Liquidation Report Approved</p>
                     </div>
+
+                    <!-- Project Details Label -->
+                    <div style='background:#fafafa;border-bottom:1px solid #f3f4f6;padding:12px 18px;'>
+                        <p style='margin:0;font-size:12px;color:#9ca3af;font-weight:500;'>Project details</p>
+                    </div>
+
+                    <!-- Project Details Rows -->
+                    <table style='width:100%;border-collapse:collapse;'>
+                        <tr style='border-bottom:1px solid #f9fafb;'>
+                            <td style='padding:12px 18px;font-size:13px;color:#9ca3af;width:35%;'>Project</td>
+                            <td style='padding:12px 18px;font-size:13px;color:#111827;font-weight:500;text-align:right;'>{$projectTitle}</td>
+                        </tr>
+                        <tr style='border-bottom:1px solid #f9fafb;'>
+                            <td style='padding:12px 18px;font-size:13px;color:#9ca3af;'>Company</td>
+                            <td style='padding:12px 18px;font-size:13px;color:#111827;text-align:right;'>{$companyName}</td>
+                        </tr>
+                        {$officeRowHtml}
+                        <tr style='border-bottom:1px solid #f9fafb;'>
+                            <td style='padding:12px 18px;font-size:13px;color:#9ca3af;'>Uploaded by</td>
+                            <td style='padding:12px 18px;font-size:13px;color:#111827;text-align:right;'>{$uploaderName}</td>
+                        </tr>
+                    </table>
+
                 </div>
 
-                <!-- Footer -->
-                <div style='background-color:#f8f9fa;padding:30px;text-align:center;border-top:1px solid #e0e0e0;'>
-                    <img src='cid:logo.png' alt='Company Logo' style='max-width:100px;height:auto;margin:0 auto 15px;display:block;'>
-                    <p style='margin:0 0 10px 0;color:#666;font-size:13px;'>
-                        This is an automated notification from SETUP Information Management System (SIMS)
+                <!-- CTA Button -->
+                <div style='text-align:center;margin:0 0 24px;'>
+                    <a href='http://192.168.0.7:8096/'
+                       style='display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:11px 28px;border-radius:6px;font-size:13px;font-weight:500;'>
+                        View in SIMS Portal
+                    </a>
+                </div>
+
+                <!-- Closing -->
+                <div style='padding:0 36px 24px;'>
+                    <p style='margin:0;font-size:13px;color:#6b7280;line-height:1.7;'>
+                        Please review the attached liquidation report and log into DOSTNM-SIMS for complete project details.<br>
+                        <span style='color:#9ca3af;'>— SETUP-RPMU</span>
                     </p>
-                    <p style='margin:0;color:#999;font-size:12px;'>
-                        © {$currentYear} SETUP Information Management System (SIMS). All rights reserved.
+                </div>
+
+                <!-- Footer with Logos -->
+                <div style='padding:24px 36px;border-top:1px solid #e5e7eb;text-align:center;'>
+                    <table style='width:100%;border-collapse:collapse;margin:0 auto 16px;'>
+                        <tr>
+                            <td style='width:50%;text-align:center;padding:0 12px;'>
+                                <img src='cid:setup_logo.png' alt='SETUP Logo'
+                                    style='height:36px;width:auto;display:inline-block;'>
+                            </td>
+                            <td style='width:1px;padding:0;background:#e5e7eb;'>&nbsp;</td>
+                            <td style='width:50%;text-align:center;padding:0 12px;'>
+                                <img src='cid:logo.png' alt='DOST Logo'
+                                    style='height:36px;width:auto;display:inline-block;'>
+                            </td>
+                        </tr>
+                    </table>
+                    <p style='margin:0 0 4px;font-size:11px;color:#9ca3af;text-align:center;'>
+                        SETUP Information Management System (SIMS) · DOST Northern Mindanao
+                    </p>
+                    <p style='margin:0;font-size:11px;color:#9ca3af;text-align:center;'>
+                        © {$currentYear} All rights reserved · Do not reply to this email
                     </p>
                 </div>
 

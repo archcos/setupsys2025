@@ -19,152 +19,168 @@ class ApplyRestructureMail extends Mailable
 
     public function build()
     {
-        $projectTitle = $this->applyRestruct->project?->project_title ?? 'N/A';
-        $companyName = $this->applyRestruct->project?->proponent->company_name ?? 'N/A';
-        $submittedBy = $this->applyRestruct->addedBy?->name ?? 'Unknown User';
+        $projectTitle  = $this->applyRestruct->project?->project_title ?? 'N/A';
+        $companyName   = $this->applyRestruct->project?->proponent->company_name ?? 'N/A';
+        $projectId     = $this->applyRestruct->project_id;
+        $submittedBy   = $this->applyRestruct->addedBy?->name ?? 'Unknown User';
         $submittedDate = $this->applyRestruct->created_at->format('F d, Y \a\t h:i A');
-        $currentYear = \Carbon\Carbon::now()->year;
+        $currentYear   = \Carbon\Carbon::now()->year;
 
-        // Attach PNG images
+        // Attach logos
         $this->attach(resource_path('assets/SETUP_logo.png'), [
-            'as' => 'setup_logo.png',
+            'as'   => 'setup_logo.png',
             'mime' => 'image/png',
         ]);
 
         $this->attach(resource_path('assets/logo.png'), [
-            'as' => 'logo.png',
+            'as'   => 'logo.png',
             'mime' => 'image/png',
         ]);
 
+        // Build document rows
+        $documents = [
+            'Proponent Letter' => $this->applyRestruct->proponent ?? null,
+            'PSTO Letter'      => $this->applyRestruct->psto      ?? null,
+            'Annex C'          => $this->applyRestruct->annexc    ?? null,
+            'Annex D'          => $this->applyRestruct->annexd    ?? null,
+        ];
+
+        $docRowsHtml = '';
+        foreach ($documents as $label => $url) {
+            $linkHtml = $url
+                ? "<a href='{$url}' target='_blank'
+                      style='font-size:13px;color:#111827;font-weight:500;text-decoration:underline;'>
+                      View →
+                   </a>"
+                : "<span style='font-size:13px;color:#9ca3af;'>Not provided</span>";
+
+            $docRowsHtml .= "
+                <tr style='border-bottom:1px solid #f9fafb;'>
+                    <td style='padding:12px 18px;font-size:13px;color:#9ca3af;width:40%;'>{$label}</td>
+                    <td style='padding:12px 18px;text-align:right;'>{$linkHtml}</td>
+                </tr>";
+        }
+
         $htmlContent = "
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset='UTF-8'>
-                <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-            </head>
-            <body style='margin: 0; padding: 0; background-color: #f5f7fa; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;'>
-                <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff;'>
-                    <!-- Header -->
-                    <div style='background: linear-gradient(135deg, #0056b3 0%, #003d82 100%); padding: 40px 20px; text-align: center;'>
-                        <img src='cid:setup_logo.png' alt='SETUP Logo' style='max-width: 120px; height: auto; margin: 0 auto 15px; display: block;'>          
-                        <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;'>New Project Restructure Application</h1>
-                        <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;'>Submitted on {$submittedDate}</p>
-                    </div>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        </head>
+        <body style='margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,\"Helvetica Neue\",Arial,sans-serif;'>
+            <div style='max-width:580px;margin:32px auto;'>
 
-                    <!-- Main Content -->
-                    <div style='padding: 40px 30px;'>
-                        <p style='margin: 0 0 30px 0; color: #555; font-size: 16px;'>
-                            Hello,<br><br>
-                            A new project restructure application has been submitted and requires your review.
-                        </p>
-
-                        <!-- Project Information Card -->
-                        <div style='background-color: #f8f9fa; border-left: 4px solid #0056b3; padding: 20px; margin: 30px 0; border-radius: 4px;'>
-                            <h3 style='margin: 0 0 15px 0; color: #0056b3; font-size: 16px; font-weight: 600;'>Project Information</h3>
-                            
-                            <div style='margin-bottom: 15px;'>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Project Title</p>
-                                <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$projectTitle}</p>
-                            </div>
-
-                            <div style='margin-bottom: 15px;'>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>proponent Name</p>
-                                <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$companyName}</p>
-                            </div>
-
-                            <div>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Project ID</p>
-                                <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$this->applyRestruct->project_id}</p>
-                            </div>
-                        </div>
-
-                        <!-- Submitted Information -->
-                        <div style='background-color: #f8f9fa; border-left: 4px solid #0056b3; padding: 20px; margin: 30px 0; border-radius: 4px;'>
-                            <h3 style='margin: 0 0 15px 0; color: #0056b3; font-size: 16px; font-weight: 600;'>Submission Details</h3>
-                            
-                            <div style='margin-bottom: 15px;'>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Submitted By</p>
-                                <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$submittedBy}</p>
-                            </div>
-
-                            <div>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Submission Date</p>
-                                <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$submittedDate}</p>
-                            </div>
-                        </div>
-
-                        <!-- Documents Section -->
-                        <div style='background-color: #f8f9fa; border-left: 4px solid #0056b3; padding: 20px; margin: 30px 0; border-radius: 4px;'>
-                            <h3 style='margin: 0 0 15px 0; color: #0056b3; font-size: 16px; font-weight: 600;'>Attached Documents</h3>
-                            
-                            <table style='width: 100%; border-collapse: collapse;'>
-                                <tr style='border-bottom: 1px solid #e0e0e0;'>
-                                    <td style='padding: 10px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; width: 40%;'>Document</td>
-                                    <td style='padding: 10px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Link</td>
-                                </tr>
-                                <tr style='border-bottom: 1px solid #e0e0e0;'>
-                                    <td style='padding: 12px 0; color: #333; font-size: 14px;'>Proponent Letter</td>
-                                    <td style='padding: 12px 0;'>
-                                        " . ($this->applyRestruct->proponent ? "<a href='{$this->applyRestruct->proponent}' style='color: #0056b3; text-decoration: none; font-weight: 500;' target='_blank'>View Document →</a>" : "<span style='color: #999;'>Not provided</span>") . "
-                                    </td>
-                                </tr>
-                                <tr style='border-bottom: 1px solid #e0e0e0;'>
-                                    <td style='padding: 12px 0; color: #333; font-size: 14px;'>PSTO Letter</td>
-                                    <td style='padding: 12px 0;'>
-                                        " . ($this->applyRestruct->psto ? "<a href='{$this->applyRestruct->psto}' style='color: #0056b3; text-decoration: none; font-weight: 500;' target='_blank'>View Document →</a>" : "<span style='color: #999;'>Not provided</span>") . "
-                                    </td>
-                                </tr>
-                                <tr style='border-bottom: 1px solid #e0e0e0;'>
-                                    <td style='padding: 12px 0; color: #333; font-size: 14px;'>Annex C</td>
-                                    <td style='padding: 12px 0;'>
-                                        " . ($this->applyRestruct->annexc ? "<a href='{$this->applyRestruct->annexc}' style='color: #0056b3; text-decoration: none; font-weight: 500;' target='_blank'>View Document →</a>" : "<span style='color: #999;'>Not provided</span>") . "
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style='padding: 12px 0; color: #333; font-size: 14px;'>Annex D</td>
-                                    <td style='padding: 12px 0;'>
-                                        " . ($this->applyRestruct->annexd ? "<a href='{$this->applyRestruct->annexd}' style='color: #0056b3; text-decoration: none; font-weight: 500;' target='_blank'>View Document →</a>" : "<span style='color: #999;'>Not provided</span>") . "
-                                    </td>
-                                </tr>
-                                
-                            </table>
-                        </div>
-
-                            <!-- Call to Action -->
-                        <div style='background-color: #e8f4fd; border: 1px solid #bee3f8; border-radius: 4px; padding: 20px; margin: 30px 0; text-align: center;'>
-                            <p style='margin: 0 0 15px 0; color: #0056b3; font-size: 14px; font-weight: 500;'>
-                                ⏱️ Please review this application at your earliest convenience.
-                            </p>
-                            <p style='margin: 0; color: #666; font-size: 13px;'>
-                                Once you finish reviewing, please visit the system to recommend the project to regional director.
-                            </p>
-                        </div>
-
-                        <!-- Visit Site Button -->
-                        <div style='text-align: center; margin: 30px 0;'>
-                            <a href='http://192.168.0.7:8096/' style='display: inline-block; background: linear-gradient(135deg, #0056b3 0%, #003d82 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 4px; font-weight: 600; font-size: 15px; box-shadow: 0 2px 8px rgba(0,86,179,0.3);'>
-                                Visit SIMS Portal →
-                            </a>
-                        </div>
-                    </div>
-
-                    <!-- Footer -->
-                    <div style='background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;'>
-                        <img src='cid:logo.png' alt='proponent Logo' style='max-width: 100px; height: auto; margin: 0 auto 15px; display: block;'>
-                        <p style='margin: 0 0 10px 0; color: #666; font-size: 13px;'>
-                            This is an automated notification from SETUP Information Management System (SIMS)
-                        </p>
-                        <p style='margin: 0; color: #999; font-size: 12px;'>
-                            © {$currentYear} SETUP Information Management System (SIMS). All rights reserved. | Do not reply to this email
-                        </p>
-                    </div>
+                <!-- Header -->
+                <div style='padding:28px 36px 24px;'>
+                    <h1 style='margin:0 0 6px;font-size:20px;font-weight:600;color:#111827;'>New Project Restructure Application</h1>
+                    <p style='margin:0;font-size:13px;color:#9ca3af;'>Sent {$submittedDate}</p>
                 </div>
-            </body>
-            </html>
+
+                <!-- Card -->
+                <div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin:0 0 24px;'>
+
+                    <!-- Greeting -->
+                    <div style='padding:24px 36px;border-bottom:1px solid #f3f4f6;'>
+                        <p style='margin:0;font-size:14px;color:#6b7280;line-height:1.7;'>
+                            Hello, a new project restructure application has been submitted by
+                            <strong style='color:#111827;font-weight:600;'>{$submittedBy}</strong>
+                            and requires your review.
+                        </p>
+                    </div>
+
+                    <!-- Submission Details -->
+                    <table style='width:100%;border-collapse:collapse;border-bottom:1px solid #f3f4f6;'>
+                        <tr>
+                            <td style='padding:16px 18px;border-right:1px solid #f3f4f6;width:50%;'>
+                                <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Submitted by</p>
+                                <p style='margin:0;font-size:14px;font-weight:600;color:#111827;'>{$submittedBy}</p>
+                            </td>
+                            <td style='padding:16px 18px;width:50%;'>
+                                <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Submission date</p>
+                                <p style='margin:0;font-size:14px;font-weight:600;color:#111827;'>{$submittedDate}</p>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- Project Details Label -->
+                    <div style='background:#fafafa;border-bottom:1px solid #f3f4f6;padding:12px 18px;'>
+                        <p style='margin:0;font-size:12px;color:#9ca3af;font-weight:500;'>Project details</p>
+                    </div>
+
+                    <!-- Project Details Rows -->
+                    <table style='width:100%;border-collapse:collapse;border-bottom:1px solid #f3f4f6;'>
+                        <tr style='border-bottom:1px solid #f9fafb;'>
+                            <td style='padding:12px 18px;font-size:13px;color:#9ca3af;width:35%;'>Project</td>
+                            <td style='padding:12px 18px;font-size:13px;color:#111827;font-weight:500;text-align:right;'>{$projectTitle}</td>
+                        </tr>
+                        <tr style='border-bottom:1px solid #f9fafb;'>
+                            <td style='padding:12px 18px;font-size:13px;color:#9ca3af;'>Company</td>
+                            <td style='padding:12px 18px;font-size:13px;color:#111827;text-align:right;'>{$companyName}</td>
+                        </tr>
+                        <tr>
+                            <td style='padding:12px 18px;font-size:13px;color:#9ca3af;'>Project ID</td>
+                            <td style='padding:12px 18px;font-size:13px;font-family:monospace;color:#111827;text-align:right;'>{$projectId}</td>
+                        </tr>
+                    </table>
+
+                    <!-- Attached Documents Label -->
+                    <div style='background:#fafafa;border-bottom:1px solid #f3f4f6;padding:12px 18px;'>
+                        <p style='margin:0;font-size:12px;color:#9ca3af;font-weight:500;'>Attached documents</p>
+                    </div>
+
+                    <!-- Document Rows -->
+                    <table style='width:100%;border-collapse:collapse;'>
+                        {$docRowsHtml}
+                    </table>
+
+                </div>
+
+                <!-- CTA Button -->
+                <div style='text-align:center;margin:0 0 24px;'>
+                    <a href='http://192.168.0.7:8096/'
+                       style='display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:11px 28px;border-radius:6px;font-size:13px;font-weight:500;'>
+                        View in SIMS Portal
+                    </a>
+                </div>
+
+                <!-- Closing -->
+                <div style='padding:0 36px 24px;'>
+                    <p style='margin:0;font-size:13px;color:#6b7280;line-height:1.7;'>
+                        Please review this application at your earliest convenience.<br>
+                        <span style='color:#9ca3af;'>— SETUP-RPMU</span>
+                    </p>
+                </div>
+
+                <!-- Footer with Logos -->
+                <div style='padding:24px 36px;border-top:1px solid #e5e7eb;text-align:center;'>
+                    <table style='width:100%;border-collapse:collapse;margin:0 auto 16px;'>
+                        <tr>
+                            <td style='width:50%;text-align:center;padding:0 12px;'>
+                                <img src='cid:setup_logo.png' alt='SETUP Logo'
+                                    style='height:36px;width:auto;display:inline-block;'>
+                            </td>
+                            <td style='width:1px;padding:0;background:#e5e7eb;'>&nbsp;</td>
+                            <td style='width:50%;text-align:center;padding:0 12px;'>
+                                <img src='cid:logo.png' alt='DOST Logo'
+                                    style='height:36px;width:auto;display:inline-block;'>
+                            </td>
+                        </tr>
+                    </table>
+                    <p style='margin:0 0 4px;font-size:11px;color:#9ca3af;text-align:center;'>
+                        SETUP Information Management System (SIMS) · DOST Northern Mindanao
+                    </p>
+                    <p style='margin:0;font-size:11px;color:#9ca3af;text-align:center;'>
+                        © {$currentYear} All rights reserved · Do not reply to this email
+                    </p>
+                </div>
+
+            </div>
+        </body>
+        </html>
         ";
 
-        return $this->subject('[DOSTNM-SIMS] New Project Restructure Application - ' . $projectTitle)
+        return $this->subject('[DOSTNM-SIMS] New Project Restructure Application — ' . $projectTitle)
                     ->html($htmlContent);
     }
 }

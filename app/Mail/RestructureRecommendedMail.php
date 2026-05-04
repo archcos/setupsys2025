@@ -39,114 +39,154 @@ class RestructureRecommendedMail extends Mailable
         ]);
 
         $projectTitle = $this->project->project_title ?? 'N/A';
+        $projectId = $this->project->project_id ?? 'N/A';
         $proponentName = $this->proponent->company_name ?? 'N/A';
         $recommendedBy = $this->restructure->addedBy->name ?? 'Unknown User';
         $recommendedDate = $this->restructure->created_at->format('F d, Y \a\t h:i A');
         $restructureType = $this->restructure->type ?? 'N/A';
         $startDate = \Carbon\Carbon::parse($this->restructure->restruct_start)->format('F Y');
         $endDate = \Carbon\Carbon::parse($this->restructure->restruct_end)->format('F Y');
-        $remarks = nl2br(htmlspecialchars($this->remarks));
+        $remarks = htmlspecialchars($this->remarks);
         $currentYear = \Carbon\Carbon::now()->year;
 
-        $htmlContent = "
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset='UTF-8'>
-                <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-            </head>
-            <body style='margin: 0; padding: 0; background-color: #f5f7fa; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;'>
-                <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff;'>
-                    <!-- Header with Logo -->
-                    <div style='background: linear-gradient(135deg, #FF6B35 0%, #D84315 100%); padding: 20px; text-align: center;'>
-                        <img src='cid:setup_logo.png' alt='SETUP Logo' style='max-width: 120px; height: auto; margin: 0 auto 15px; display: block;'>
-                        <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;'>Restructuring Request Recommended</h1>
-                        <p style='margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;'>Submitted on {$recommendedDate}</p>
-                    </div>
+        // Build remarks row HTML if present
+        $remarksRowHtml = $remarks && $remarks !== 'No remarks provided'
+            ? "<tr>
+                <td colspan='2' style='padding:12px 18px;border-top:1px solid #f3f4f6;'>
+                    <p style='margin:0 0 6px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Remarks</p>
+                    <p style='margin:0;font-size:13px;color:#111827;line-height:1.6;'>{$remarks}</p>
+                </td>
+               </tr>"
+            : '';
 
-                    <!-- Main Content -->
-                    <div style='padding: 40px 30px;'>
-                        <p style='margin: 0 0 30px 0; color: #555; font-size: 16px;'>
-                            Dear {$this->recipientName},<br><br>
+        $htmlContent = "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        </head>
+        <body style='margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,\"Helvetica Neue\",Arial,sans-serif;'>
+            <div style='max-width:580px;margin:32px auto;'>
+
+                <!-- Header -->
+                <div style='padding:28px 36px 24px;'>
+                    <h1 style='margin:0 0 6px;font-size:20px;font-weight:600;color:#111827;'>Restructuring Request Recommended</h1>
+                    <p style='margin:0;font-size:13px;color:#9ca3af;'>Sent {$recommendedDate}</p>
+                </div>
+
+                <!-- Card -->
+                <div style='background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin:0 0 24px;'>
+
+                    <!-- Greeting -->
+                    <div style='padding:24px 36px;border-bottom:1px solid #f3f4f6;'>
+                        <p style='margin:0;font-size:14px;color:#6b7280;line-height:1.7;'>
+                            Dear <strong style='color:#111827;font-weight:600;'>{$this->recipientName}</strong>,<br><br>
                             A project restructuring request has been recommended and is awaiting your review and approval.
                         </p>
-
-                        <!-- Project Information Card -->
-                        <div style='background-color: #f8f9fa; border-left: 4px solid #FF6B35; padding: 20px; margin: 30px 0; border-radius: 4px;'>
-                            <h3 style='margin: 0 0 15px 0; color: #FF6B35; font-size: 16px; font-weight: 600;'>Project Information</h3>
-                            
-                            <div style='margin-bottom: 15px;'>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Project Title</p>
-                                <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$projectTitle}</p>
-                            </div>
-
-                            <div style='margin-bottom: 15px;'>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>proponent Name</p>
-                                <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$proponentName}</p>
-                            </div>
-
-                            <div>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Project ID</p>
-                                <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$this->project->project_id}</p>
-                            </div>
-                        </div>
-
-                        <!-- Restructuring Details -->
-                        <div style='background-color: #f8f9fa; border-left: 4px solid #FF6B35; padding: 20px; margin: 30px 0; border-radius: 4px;'>
-                            <h3 style='margin: 0 0 15px 0; color: #FF6B35; font-size: 16px; font-weight: 600;'>Restructuring Details</h3>
-                            
-                            <div style='margin-bottom: 15px;'>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Restructuring Type</p>
-                                <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$restructureType}</p>
-                            </div>
-
-                            <div style='margin-bottom: 15px;'>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Duration</p>
-                                <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$startDate} to {$endDate}</p>
-                            </div>
-
-                            <div style='margin-bottom: 15px;'>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Recommended By</p>
-                                <p style='margin: 0; color: #333; font-size: 15px; font-weight: 600;'>{$recommendedBy}</p>
-                            </div>
-
-                            <div>
-                                <p style='margin: 0 0 5px 0; color: #666; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;'>Remarks</p>
-                                <p style='margin: 0; color: #333; font-size: 14px; padding: 10px; background-color: #ffffff; border-radius: 3px; border: 1px solid #e0e0e0;'>{$remarks}</p>
-                            </div>
-                        </div>
-
-                        <!-- Call to Action -->
-                        <div style='background-color: #FFF3E0; border: 1px solid #FFE0B2; border-radius: 4px; padding: 20px; margin: 30px 0; text-align: center;'>
-                            <p style='margin: 0 0 15px 0; color: #E65100; font-size: 14px; font-weight: 600;'>
-                                ⏱️ Your review and approval are requested.
-                            </p>
-                            <p style='margin: 0; color: #666; font-size: 13px;'>
-                                Please log in to the system to review and approve this restructuring request.
-                            </p>
-                        </div>
-
-                        <!-- Visit Site Button -->
-                        <div style='text-align: center; margin: 30px 0;'>
-                            <a href='http://192.168.0.7:8096/' style='display: inline-block; background: linear-gradient(135deg, #FF6B35 0%, #D84315 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 4px; font-weight: 600; font-size: 15px; box-shadow: 0 2px 8px rgba(255,107,53,0.3);'>
-                                Review in DOSTNM-SIMS Portal →
-                            </a>
-                        </div>
                     </div>
 
-                    <!-- Footer with Logo -->
-                    <div style='background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;'>
-                        <img src='cid:logo.png' alt='proponent Logo' style='max-width: 100px; height: auto; margin: 0 auto 15px; display: block;'>
-                        <p style='margin: 0 0 10px 0; color: #666; font-size: 13px;'>
-                            This is an automated notification from SETUP Information Management System (SIMS)
-                        </p>
-                        <p style='margin: 0; color: #999; font-size: 12px;'>
-                            © {$currentYear} SETUP Information Management System (SIMS). All rights reserved.
-                        </p>
+                    <!-- Status Badge -->
+                    <div style='padding:16px 36px;background:#fef3c7;border-bottom:1px solid #f3f4f6;'>
+                        <p style='margin:0;font-size:13px;color:#92400e;font-weight:600;'>⏱️ Awaiting your review and approval</p>
                     </div>
+
+                    <!-- Recommendation Details Label -->
+                    <table style='width:100%;border-collapse:collapse;border-bottom:1px solid #f3f4f6;'>
+                        <tr>
+                            <td style='padding:16px 18px;border-right:1px solid #f3f4f6;width:50%;'>
+                                <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Recommended by</p>
+                                <p style='margin:0;font-size:14px;font-weight:600;color:#111827;'>{$recommendedBy}</p>
+                            </td>
+                            <td style='padding:16px 18px;width:50%;'>
+                                <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Status</p>
+                                <p style='margin:0;font-size:14px;font-weight:600;color:#92400e;'>Pending Review</p>
+                            </td>
+                        </tr>
+                        {$remarksRowHtml}
+                    </table>
+
+                    <!-- Project Details Label -->
+                    <div style='background:#fafafa;border-bottom:1px solid #f3f4f6;padding:12px 18px;'>
+                        <p style='margin:0;font-size:12px;color:#9ca3af;font-weight:500;'>Project details</p>
+                    </div>
+
+                    <!-- Project Details Rows -->
+                    <table style='width:100%;border-collapse:collapse;'>
+                        <tr style='border-bottom:1px solid #f9fafb;'>
+                            <td style='padding:12px 18px;font-size:13px;color:#9ca3af;width:35%;'>Project</td>
+                            <td style='padding:12px 18px;font-size:13px;color:#111827;font-weight:500;text-align:right;'>{$projectTitle}</td>
+                        </tr>
+                        <tr style='border-bottom:1px solid #f9fafb;'>
+                            <td style='padding:12px 18px;font-size:13px;color:#9ca3af;'>Project ID</td>
+                            <td style='padding:12px 18px;font-size:13px;color:#111827;text-align:right;font-family:monospace;'>{$projectId}</td>
+                        </tr>
+                        <tr style='border-bottom:1px solid #f9fafb;'>
+                            <td style='padding:12px 18px;font-size:13px;color:#9ca3af;'>Proponent</td>
+                            <td style='padding:12px 18px;font-size:13px;color:#111827;text-align:right;'>{$proponentName}</td>
+                        </tr>
+                        <tr style='border-bottom:1px solid #f9fafb;'>
+                            <td style='padding:12px 18px;font-size:13px;color:#9ca3af;'>Restructuring type</td>
+                            <td style='padding:12px 18px;font-size:13px;color:#111827;text-align:right;'>{$restructureType}</td>
+                        </tr>
+                        <tr>
+                            <td style='padding:12px 18px;font-size:13px;color:#9ca3af;'>Duration</td>
+                            <td style='padding:12px 18px;font-size:13px;color:#111827;text-align:right;'>{$startDate} to {$endDate}</td>
+                        </tr>
+                    </table>
+
                 </div>
-            </body>
-            </html>
+
+                <!-- Action Required Notice -->
+                <div style='background:#fef3c7;border-left:4px solid #f59e0b;padding:16px 20px;margin:0 0 24px;border-radius:6px;'>
+                    <p style='margin:0 0 8px;font-size:13px;color:#92400e;font-weight:600;'>📋 Action Required</p>
+                    <p style='margin:0;font-size:12px;color:#92400e;line-height:1.6;'>
+                        Please log in to the system to review and approve this restructuring request.
+                    </p>
+                </div>
+
+                <!-- CTA Button -->
+                <div style='text-align:center;margin:0 0 24px;'>
+                    <a href='http://192.168.0.7:8096/'
+                       style='display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:11px 28px;border-radius:6px;font-size:13px;font-weight:500;'>
+                        View in SIMS Portal
+                    </a>
+                </div>
+
+                <!-- Closing -->
+                <div style='padding:0 36px 24px;'>
+                    <p style='margin:0;font-size:13px;color:#6b7280;line-height:1.7;'>
+                        Please review the restructuring details and provide your approval or feedback through the DOSTNM-SIMS portal.<br>
+                        <span style='color:#9ca3af;'>— SETUP-RPMU</span>
+                    </p>
+                </div>
+
+                <!-- Footer with Logos -->
+                <div style='padding:24px 36px;border-top:1px solid #e5e7eb;text-align:center;'>
+                    <table style='width:100%;border-collapse:collapse;margin:0 auto 16px;'>
+                        <tr>
+                            <td style='width:50%;text-align:center;padding:0 12px;'>
+                                <img src='cid:setup_logo.png' alt='SETUP Logo'
+                                    style='height:36px;width:auto;display:inline-block;'>
+                            </td>
+                            <td style='width:1px;padding:0;background:#e5e7eb;'>&nbsp;</td>
+                            <td style='width:50%;text-align:center;padding:0 12px;'>
+                                <img src='cid:logo.png' alt='DOST Logo'
+                                    style='height:36px;width:auto;display:inline-block;'>
+                            </td>
+                        </tr>
+                    </table>
+                    <p style='margin:0 0 4px;font-size:11px;color:#9ca3af;text-align:center;'>
+                        SETUP Information Management System (SIMS) · DOST Northern Mindanao
+                    </p>
+                    <p style='margin:0;font-size:11px;color:#9ca3af;text-align:center;'>
+                        © {$currentYear} All rights reserved · Do not reply to this email
+                    </p>
+                </div>
+
+            </div>
+        </body>
+        </html>
         ";
 
         return $this->subject('[DOSTNM-SIMS] Restructuring Request Recommended - ' . $projectTitle)
