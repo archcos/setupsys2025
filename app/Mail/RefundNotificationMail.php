@@ -19,11 +19,14 @@ class RefundNotificationMail extends Mailable
     public $refundAmount;
     public $amountDue;
     public $checkNum;
+    public $checkDate;
     public $receiptNum;
+    public $receiptDate;
 
     public function __construct(
         $ownerName, $projectTitle, $companyName, $month, $status, $amount,
-        $refundAmount = null, $amountDue = null, $checkNum = null, $receiptNum = null
+        $refundAmount = null, $amountDue = null, $checkNum = null, $receiptNum = null,
+        $checkDate = null, $receiptDate = null
     ) {
         $this->ownerName      = $ownerName;
         $this->projectTitle   = $projectTitle;
@@ -34,7 +37,9 @@ class RefundNotificationMail extends Mailable
         $this->refundAmount   = $refundAmount ?? $amount;
         $this->amountDue      = $amountDue ?? $amount;
         $this->checkNum       = $checkNum;
+        $this->checkDate      = $checkDate;
         $this->receiptNum     = $receiptNum;
+        $this->receiptDate    = $receiptDate;
     }
 
     public function build()
@@ -70,23 +75,49 @@ class RefundNotificationMail extends Mailable
             default        => '#6b7280',
         };
 
+        // Row 1 — Status (full width)
+        $statusRowHtml = "
+            <tr>
+                <td colspan='2' style='padding:16px 18px;border-bottom:1px solid #f3f4f6;'>
+                    <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Status</p>
+                    <p style='margin:0;font-size:14px;font-weight:600;color:{$statusColor};'>{$status}</p>
+                </td>
+            </tr>";
+
+        // Row 2 — Refund amount + Amount due
+        $amountsRowHtml = "
+            <tr style='border-bottom:1px solid #f3f4f6;'>
+                <td style='padding:16px 18px;border-right:1px solid #f3f4f6;width:50%;'>
+                    <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Refund amount</p>
+                    <p style='margin:0;font-size:14px;font-weight:600;color:#111827;'>{$formattedRefundAmount}</p>
+                </td>
+                <td style='padding:16px 18px;width:50%;'>
+                    <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Amount due</p>
+                    <p style='margin:0;font-size:14px;font-weight:600;color:#111827;'>{$formattedAmountDue}</p>
+                </td>
+            </tr>";
+
+        // Row 3 — Check number + Receipt number (only if any value present)
         $paymentRowsHtml = '';
-        if ($this->checkNum || $this->receiptNum) {
-            $checkHtml = $this->checkNum
-                ? "<td style='padding:14px 18px;border-right:1px solid #f0f0f0;width:50%;'>
+        if ($this->checkNum || $this->receiptNum || $this->checkDate || $this->receiptDate) {
+            $checkNumText    = $this->checkNum    ? "<p style='margin:0;font-size:13px;font-family:monospace;color:#111827;'>{$this->checkNum}</p>"    : '';
+            $checkDateText   = $this->checkDate   ? "<p style='margin:3px 0 0;font-size:12px;color:#6b7280;'>" . \Carbon\Carbon::parse($this->checkDate)->format('M d, Y')   . "</p>" : '';
+            $receiptNumText  = $this->receiptNum  ? "<p style='margin:0;font-size:13px;font-family:monospace;color:#111827;'>{$this->receiptNum}</p>"  : '';
+            $receiptDateText = $this->receiptDate ? "<p style='margin:3px 0 0;font-size:12px;color:#6b7280;'>" . \Carbon\Carbon::parse($this->receiptDate)->format('M d, Y') . "</p>" : '';
+
+            $paymentRowsHtml = "
+            <tr>
+                <td style='padding:14px 18px;border-right:1px solid #f0f0f0;width:50%;'>
                     <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Check number</p>
-                    <p style='margin:0;font-size:13px;font-family:monospace;color:#111827;'>{$this->checkNum}</p>
-                   </td>"
-                : "<td style='padding:14px 18px;border-right:1px solid #f0f0f0;width:50%;'></td>";
-
-            $receiptHtml = $this->receiptNum
-                ? "<td style='padding:14px 18px;width:50%;'>
-                    <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Receipt number</p>
-                    <p style='margin:0;font-size:13px;font-family:monospace;color:#111827;'>{$this->receiptNum}</p>
-                   </td>"
-                : "<td style='padding:14px 18px;width:50%;'></td>";
-
-            $paymentRowsHtml = "<tr>{$checkHtml}{$receiptHtml}</tr>";
+                    {$checkNumText}
+                    {$checkDateText}
+                </td>
+                <td style='padding:14px 18px;width:50%;'>
+                    <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>OR number</p>
+                    {$receiptNumText}
+                    {$receiptDateText}
+                </td>
+            </tr>";
         }
 
         $htmlContent = "
@@ -116,22 +147,10 @@ class RefundNotificationMail extends Mailable
                         </p>
                     </div>
 
-                    <!-- Status + Amounts -->
+                    <!-- Row 1: Status | Row 2: Amounts | Row 3: Numbers -->
                     <table style='width:100%;border-collapse:collapse;border-bottom:1px solid #f3f4f6;'>
-                        <tr>
-                            <td style='padding:16px 18px;border-right:1px solid #f3f4f6;width:33%;'>
-                                <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Status</p>
-                                <p style='margin:0;font-size:14px;font-weight:600;color:{$statusColor};'>{$status}</p>
-                            </td>
-                            <td style='padding:16px 18px;border-right:1px solid #f3f4f6;width:33%;'>
-                                <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Refund amount</p>
-                                <p style='margin:0;font-size:14px;font-weight:600;color:#111827;'>{$formattedRefundAmount}</p>
-                            </td>
-                            <td style='padding:16px 18px;width:33%;'>
-                                <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Amount due</p>
-                                <p style='margin:0;font-size:14px;font-weight:600;color:#111827;'>{$formattedAmountDue}</p>
-                            </td>
-                        </tr>
+                        {$statusRowHtml}
+                        {$amountsRowHtml}
                         {$paymentRowsHtml}
                     </table>
 

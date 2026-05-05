@@ -18,7 +18,9 @@ return new class extends Migration
             $table->decimal('amount_due', 10, 2)->nullable();
             $table->decimal('refund_amount', 10, 2)->nullable();
             $table->string('check_num', 10)->nullable();
+            $table->date('check_date')->nullable();
             $table->string('receipt_num', 10)->nullable();
+            $table->date('receipt_date')->nullable();
             $table->string('status', 45)->nullable();
             $table->date('month_paid')->nullable();
             
@@ -37,6 +39,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tbl_loans');
+        Schema::dropIfExists('tbl_refunds');
     }
 };

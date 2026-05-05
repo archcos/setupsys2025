@@ -21,6 +21,8 @@ class RefundModel extends Model
         'project_id',
         'month_paid',
         'amount_due',
+        'check_date',
+        'receipt_date',
         'check_num',
         'receipt_num'
     ];

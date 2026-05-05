@@ -37,9 +37,17 @@ const RefundTableRow = React.memo(({
     setData(`check_num_${project.project_id}`, value);
   }, [project.project_id, setData]);
 
+  const handleCheckDateChange = useCallback((e) => {
+    setData(`check_date_${project.project_id}`, e.target.value);
+  }, [project.project_id, setData]);
+
   const handleReceiptNumChange = useCallback((e) => {
     const value = e.target.value.replace(/\D/g, '').slice(0, 10);
     setData(`receipt_num_${project.project_id}`, value);
+  }, [project.project_id, setData]);
+
+  const handleReceiptDateChange = useCallback((e) => {
+    setData(`receipt_date_${project.project_id}`, e.target.value);
   }, [project.project_id, setData]);
 
   return (
@@ -95,28 +103,46 @@ const RefundTableRow = React.memo(({
 
       {/* Check No. */}
       <td className="px-4 md:px-6 py-3 md:py-4">
-        <input
-          type="text"
-          value={data[`check_num_${project.project_id}`] ?? latestRefund?.check_num ?? ''}
-          onChange={handleCheckNumChange}
-          className="w-full px-2 py-2 text-xs md:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-          placeholder="Check No."
-          maxLength="10"
-          disabled={!isRPMO}
-        />
+        <div className="space-y-1.5">
+          <input
+            type="text"
+            value={data[`check_num_${project.project_id}`] ?? latestRefund?.check_num ?? ''}
+            onChange={handleCheckNumChange}
+            className="w-full px-2 py-2 text-xs md:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            placeholder="Check No."
+            maxLength="10"
+            disabled={!isRPMO}
+          />
+          <input
+            type="date"
+            value={data[`check_date_${project.project_id}`] ?? latestRefund?.check_date ?? ''}
+            onChange={handleCheckDateChange}
+            className="w-full px-2 py-2 text-xs md:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            disabled={!isRPMO}
+          />
+        </div>
       </td>
 
       {/* Receipt No. */}
       <td className="px-4 md:px-6 py-3 md:py-4">
-        <input
-          type="text"
-          value={data[`receipt_num_${project.project_id}`] ?? latestRefund?.receipt_num ?? ''}
-          onChange={handleReceiptNumChange}
-          className="w-full px-2 py-2 text-xs md:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-          placeholder="Receipt No."
-          maxLength="10"
-          disabled={!isRPMO}
-        />
+        <div className="space-y-1.5">
+          <input
+            type="text"
+            value={data[`receipt_num_${project.project_id}`] ?? latestRefund?.receipt_num ?? ''}
+            onChange={handleReceiptNumChange}
+            className="w-full px-2 py-2 text-xs md:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            placeholder="Receipt No."
+            maxLength="10"
+            disabled={!isRPMO}
+          />
+          <input
+            type="date"
+            value={data[`receipt_date_${project.project_id}`] ?? latestRefund?.receipt_date ?? ''}
+            onChange={handleReceiptDateChange}
+            className="w-full px-2 py-2 text-xs md:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            disabled={!isRPMO}
+          />
+        </div>
       </td>
 
       {/* Status */}
