@@ -13,11 +13,11 @@ const RefundTableRow = React.memo(({
   onStatusChange,
   onSaveClick,
   renderSaveButton,
+  renderUpdatedBy,
 }) => {
   const isRestructured = currentStatus === REFUND_STATUS.RESTRUCTURED;
   const latestRefund = project.refunds?.[0];
 
-  // Get formatted refund dates for display
   const refundInitialFormatted = project.refund_initial 
     ? new Date(project.refund_initial).toLocaleDateString('en-PH', { year: 'numeric', month: 'long' })
     : '';
@@ -25,7 +25,6 @@ const RefundTableRow = React.memo(({
     ? new Date(project.refund_end).toLocaleDateString('en-PH', { year: 'numeric', month: 'long' })
     : '';
 
-  // Memoized handlers for input changes
   const handleRefundAmountChange = useCallback((e) => {
     const val = e.target.value;
     if (val.length > 10) return;
@@ -49,6 +48,40 @@ const RefundTableRow = React.memo(({
   const handleReceiptDateChange = useCallback((e) => {
     setData(`receipt_date_${project.project_id}`, e.target.value);
   }, [project.project_id, setData]);
+
+  // Inline updated-by block — no icons, mm/dd/yyyy - time format
+  const updatedByBlock = (() => {
+    const refund = project?.refunds?.[0];
+    if (!refund?.updated_at) return null;
+
+    const editorName = refund?.editor?.name ?? null;
+    const updatedAt = new Date(refund.updated_at);
+
+    const date = updatedAt.toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+    });
+
+    const time = updatedAt.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    return (
+      <div className="text-center space-y-0.5 mt-1">
+        {editorName && (
+          <p className="text-xs text-gray-400 leading-tight">
+            Updated by: <br/> {editorName}
+          </p>
+        )}
+        <p className="text-xs text-gray-400 leading-tight whitespace-nowrap">
+          {date} - {time}
+        </p>
+      </div>
+    );
+  })();
 
   return (
     <tr className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group">
@@ -101,7 +134,7 @@ const RefundTableRow = React.memo(({
         </div>
       </td>
 
-      {/* Check No. */}
+      {/* Check No. & Date */}
       <td className="px-4 md:px-6 py-3 md:py-4">
         <div className="space-y-1.5">
           <input
@@ -110,7 +143,7 @@ const RefundTableRow = React.memo(({
             onChange={handleCheckNumChange}
             className="w-full px-2 py-2 text-xs md:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
             placeholder="Check No."
-            maxLength="10"
+            maxLength="20"
             disabled={!isRPMO}
           />
           <input
@@ -123,7 +156,7 @@ const RefundTableRow = React.memo(({
         </div>
       </td>
 
-      {/* Receipt No. */}
+      {/* Receipt No. & Date */}
       <td className="px-4 md:px-6 py-3 md:py-4">
         <div className="space-y-1.5">
           <input
@@ -132,7 +165,7 @@ const RefundTableRow = React.memo(({
             onChange={handleReceiptNumChange}
             className="w-full px-2 py-2 text-xs md:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
             placeholder="Receipt No."
-            maxLength="10"
+            maxLength="20"
             disabled={!isRPMO}
           />
           <input
@@ -160,6 +193,9 @@ const RefundTableRow = React.memo(({
           <option value="unpaid" className="text-red-700">Unpaid</option>
           <option value="restructured" className="text-blue-700">Restructured</option>
         </select>
+
+        {/* Updated by: name + mm/dd/yyyy - hh:mm AM/PM, below dropdown */}
+        {updatedByBlock}
       </td>
 
       {/* Actions */}

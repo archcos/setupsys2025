@@ -63,6 +63,11 @@ class UserModel extends Authenticatable
         ]);
     }
 
+    public function updatedRefunds()
+    {
+        return $this->hasMany(RefundModel::class, 'updated_by', 'user_id');
+    }
+
     /**
      * Custom display name for logs
      */

@@ -24,7 +24,8 @@ class RefundModel extends Model
         'check_date',
         'receipt_date',
         'check_num',
-        'receipt_num'
+        'receipt_num',
+        'updated_by',
     ];
 
     // Define valid status values
@@ -36,6 +37,12 @@ class RefundModel extends Model
     public function project()
     {
         return $this->belongsTo(ProjectModel::class, 'project_id', 'project_id');
+    }
+
+    public function editor()
+    {
+        return $this->belongsTo(UserModel::class, 'updated_by', 'user_id')
+                    ->select(['user_id', 'first_name', 'middle_name', 'last_name']);
     }
 
     // Optional: Add a scope to filter by status

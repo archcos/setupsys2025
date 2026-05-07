@@ -15,15 +15,25 @@ return new class extends Migration
             $table->id('refund_id');
             
             $table->unsignedBigInteger('project_id')->nullable();
+            $table->unsignedBigInteger('updated_by')->nullable();
+
             $table->decimal('amount_due', 10, 2)->nullable();
             $table->decimal('refund_amount', 10, 2)->nullable();
-            $table->string('check_num', 10)->nullable();
+
+            $table->string('check_num', 20)->nullable();
             $table->date('check_date')->nullable();
-            $table->string('receipt_num', 10)->nullable();
+
+            $table->string('receipt_num', 20)->nullable();
             $table->date('receipt_date')->nullable();
-            $table->string('status', 45)->nullable();
+
+            $table->enum('status', [
+                'paid',
+                'unpaid',
+                'restructured'
+            ])->default('unpaid');
+
             $table->date('month_paid')->nullable();
-            
+
             $table->timestamps();
 
             $table->foreign('project_id')
@@ -31,6 +41,10 @@ return new class extends Migration
                 ->on('tbl_projects')
                 ->onDelete('set null');
 
+            $table->foreign('updated_by')
+                ->references('user_id')
+                ->on('tbl_users')
+                ->onDelete('set null');
         });
     }
 

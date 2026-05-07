@@ -225,6 +225,7 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/refunds/save', [RefundController::class, 'save']);
         Route::post('/refunds/bulk-update', [RefundController::class, 'bulkUpdate'])
             ->name('refunds.bulk.update');
+        Route::post('/refunds/sync', [RefundController::class, 'syncRefundsFromCSV']);
     });
 
 
