@@ -9,11 +9,34 @@ import RefundPagination from './components/RefundPagination';
 import UnpaidMonthsWarningModal from './components/UnpaidMonthsWarningModal';
 import { useRefundData } from './hooks/useRefundData';
 
-export default function Index({ projects, selectedMonth, selectedYear, search, selectedStatus }) {
+export default function Index({
+    projects,
+    selectedMonth,
+    selectedYear,
+    search,
+    selectedStatus,
+    // ── new props ──
+    selectedOffice,
+    includeWithdrawn,
+    includeTerminated,
+    availableYears,   // from DB — replaces the hardcoded 5-year array
+    offices,          // [{office_id, office_name}, ...]
+}) {
     const { flash, userRole } = usePage().props;
     const isRPMO = ['rpmo', 'au'].includes(userRole);
     const [perPage, setPerPage] = useState(10);
+    const [officeFilter, setOfficeFilter]               = useState(selectedOffice || '');
+    const [withWithdrawn, setWithWithdrawn]             = useState(includeWithdrawn  ?? false);
+    const [withTerminated, setWithTerminated]           = useState(includeTerminated ?? false);
 
+    // refs for stale-closure safety
+    const officeFilterRef    = useRef(officeFilter);
+    const withWithdrawnRef   = useRef(withWithdrawn);
+    const withTerminatedRef  = useRef(withTerminated);
+
+    useEffect(() => { officeFilterRef.current   = officeFilter;   }, [officeFilter]);
+    useEffect(() => { withWithdrawnRef.current  = withWithdrawn;  }, [withWithdrawn]);
+    useEffect(() => { withTerminatedRef.current = withTerminated; }, [withTerminated]);
     // State management
     const saveTimeoutsRef = useRef({});
     const savedProjectsRef = useRef({});
@@ -49,10 +72,6 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
         status: 'unpaid',
     });
 
-    const years = useMemo(() =>
-        Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i),
-        []
-    );
 
     const projectMap = useMemo(() =>
         new Map(projects.data?.map(p => [p.project_id, p]) ?? []),
@@ -64,19 +83,19 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
 
     // Debounced search/status filter
     useEffect(() => {
-        if (isFirstRun.current) {
-            isFirstRun.current = false;
-            return;
-        }
+        if (isFirstRun.current) { isFirstRun.current = false; return; }
 
         const delaySearch = setTimeout(() => {
             router.get('/refunds',
                 {
-                    month: selectedMonth,
-                    year: selectedYear,
-                    search: searchInputRef.current,
-                    status: statusFilterRef.current,
-                    perPage: perPageRef.current,
+                    month:               selectedMonth,
+                    year:                selectedYear,
+                    search:              searchInputRef.current,
+                    status:              statusFilterRef.current,
+                    perPage:             perPageRef.current,
+                    office:              officeFilterRef.current,
+                    include_withdrawn:   withWithdrawnRef.current  ? 1 : 0,
+                    include_terminated:  withTerminatedRef.current ? 1 : 0,
                 },
                 { preserveScroll: true, preserveState: true }
             );
@@ -104,18 +123,40 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
     }, [flash]);
 
     // FIX: reads from refs so this callback is never stale regardless of state
-    const handleFilterChange = useCallback((month, year, searchValue, statusValue, perPageValue) => {
+    const handleFilterChange = useCallback((month, year, searchValue, statusValue, perPageValue, officeValue, withdrawn, terminated) => {
         router.get('/refunds',
             {
                 month,
                 year,
-                search: searchValue ?? searchInputRef.current,
-                status: statusValue ?? statusFilterRef.current,
-                perPage: perPageValue ?? perPageRef.current,
+                search:              searchValue  ?? searchInputRef.current,
+                status:              statusValue  ?? statusFilterRef.current,
+                perPage:             perPageValue ?? perPageRef.current,
+                office:              officeValue  ?? officeFilterRef.current,
+                include_withdrawn:   withdrawn    ?? withWithdrawnRef.current  ? 1 : 0,
+                include_terminated:  terminated   ?? withTerminatedRef.current ? 1 : 0,
             },
             { preserveScroll: true, preserveState: true }
         );
-    }, []); // no deps needed — always reads from refs
+    }, []);
+
+    // ── New handlers ───────────────────────────────────────────────────────
+    const handleOfficeChange = useCallback((office) => {
+        setOfficeFilter(office);
+        officeFilterRef.current = office;
+        handleFilterChange(selectedMonth, selectedYear, undefined, undefined, undefined, office);
+    }, [selectedMonth, selectedYear, handleFilterChange]);
+
+    const handleWithdrawnToggle = useCallback((checked) => {
+        setWithWithdrawn(checked);
+        withWithdrawnRef.current = checked;
+        handleFilterChange(selectedMonth, selectedYear, undefined, undefined, undefined, undefined, checked, withTerminatedRef.current);
+    }, [selectedMonth, selectedYear, handleFilterChange]);
+
+    const handleTerminatedToggle = useCallback((checked) => {
+        setWithTerminated(checked);
+        withTerminatedRef.current = checked;
+        handleFilterChange(selectedMonth, selectedYear, undefined, undefined, undefined, undefined, withWithdrawnRef.current, checked);
+    }, [selectedMonth, selectedYear, handleFilterChange]);
 
     const handlePerPageChange = useCallback((value) => {
         setPerPage(value);
@@ -340,7 +381,7 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
                         statusFilter={statusFilter}
                         perPage={perPage}
                         months={MONTHS}
-                        years={years}
+                        years={availableYears}  
                         projects={projects}
                         flash={flash}
                         onMonthChange={(month) => handleFilterChange(month, selectedYear)}
@@ -348,6 +389,14 @@ export default function Index({ projects, selectedMonth, selectedYear, search, s
                         onSearchChange={setSearchInput}
                         onStatusChange={handleStatusFilterChange}
                         onPerPageChange={handlePerPageChange}
+                        isRPMO={isRPMO}
+                        offices={offices}
+                        officeFilter={officeFilter}
+                        onOfficeChange={handleOfficeChange}
+                        withWithdrawn={withWithdrawn}
+                        onWithdrawnToggle={handleWithdrawnToggle}
+                        withTerminated={withTerminated}
+                        onTerminatedToggle={handleTerminatedToggle}
                     />
 
                     {/* Desktop Table */}

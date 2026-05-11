@@ -1,6 +1,6 @@
 // components/FilterSection.jsx
 import React from 'react';
-import { Search, Filter, Calendar, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Search, Filter, Calendar, CheckCircle, AlertCircle, X, Building2 } from 'lucide-react';
 import { MONTHS } from '../constants/refundConstants';
 
 const FilterSection = React.memo(({
@@ -17,7 +17,16 @@ const FilterSection = React.memo(({
   onYearChange,
   onSearchChange,
   onStatusChange,
-  onPerPageChange,   
+  onPerPageChange,
+  // new props
+  isRPMO,
+  offices,
+  officeFilter,
+  onOfficeChange,
+  withWithdrawn,
+  onWithdrawnToggle,
+  withTerminated,
+  onTerminatedToggle,
 }) => {
   return (
     <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100 space-y-3">
@@ -57,8 +66,9 @@ const FilterSection = React.memo(({
         </div>
       </div>
 
-      {/* Row 2: Month + Year + Status */}
+      {/* Row 2: Month + Year + Status + Office (RPMO/AU only) */}
       <div className="flex flex-wrap items-center gap-2">
+
         {/* Month */}
         <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm">
           <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -100,7 +110,79 @@ const FilterSection = React.memo(({
             <option value="restructured">Restructured</option>
           </select>
         </div>
+
+        {/* Office — RPMO/AU only */}
+        {isRPMO && offices?.length > 0 && (
+          <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm">
+            <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <select
+              value={officeFilter}
+              onChange={(e) => onOfficeChange(e.target.value)}
+              className="border-0 bg-transparent text-xs md:text-sm font-medium text-gray-900 focus:ring-0 cursor-pointer py-2 md:py-2.5"
+            >
+              <option value="">All Offices</option>
+              {offices.map((o) => (
+                <option key={o.office_id} value={o.office_id}>
+                  {o.office_name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
+
+      {/* Row 3: Progress checkboxes — RPMO/AU only */}
+      {isRPMO && (
+        <div className="flex flex-wrap items-center gap-3 md:gap-4">
+          <span className="text-xs text-gray-500 font-medium uppercase tracking-wide flex-shrink-0">
+            Show also:
+          </span>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none group">
+            <div className="relative flex-shrink-0">
+              <input
+                type="checkbox"
+                checked={withWithdrawn}
+                onChange={(e) => onWithdrawnToggle(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-4 h-4 rounded border border-gray-300 bg-white peer-checked:bg-orange-500 peer-checked:border-orange-500 transition-colors flex items-center justify-center">
+                {withWithdrawn && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
+                    <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </div>
+            </div>
+            <span className="text-xs md:text-sm text-gray-600 group-hover:text-gray-900 transition-colors">
+              Withdrawn
+            </span>
+            {withWithdrawn}
+          </label>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none group">
+            <div className="relative flex-shrink-0">
+              <input
+                type="checkbox"
+                checked={withTerminated}
+                onChange={(e) => onTerminatedToggle(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-4 h-4 rounded border border-gray-300 bg-white peer-checked:bg-red-500 peer-checked:border-red-500 transition-colors flex items-center justify-center">
+                {withTerminated && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
+                    <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </div>
+            </div>
+            <span className="text-xs md:text-sm text-gray-600 group-hover:text-gray-900 transition-colors">
+              Terminated
+            </span>
+            {withTerminated}
+          </label>
+        </div>
+      )}
 
       {/* Flash messages */}
       {flash?.success && (
