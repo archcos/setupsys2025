@@ -27,7 +27,7 @@ return new class extends Migration
 
         // Insert initial data
         DB::table('tbl_directors')->insert([
-            ['director_id' => 1, 'first_name' => 'Romela', 'middle_name' => 'Nisperos', 'last_name' => 'Ratilla', 'email' => 'ord@region10.dost.gov.ph', 'title' => 'Regional Director', 'honorific'=> 'Engr.', 'office_id' => 1],
+            ['director_id' => 1, 'first_name' => 'Mark Lemuel', 'middle_name' => 'L.', 'last_name' => 'Garcia', 'email' => 'ord@region10.dost.gov.ph', 'title' => 'Regional Director', 'honorific'=> 'Dr.', 'office_id' => 1],
             ['director_id' => 2, 'first_name' => 'Ritchie Mae', 'middle_name' => 'L.', 'last_name' => 'Guno', 'email' => null, 'title' => 'Provincial Director', 'honorific'=> '', 'office_id' => 2],
             ['director_id' => 3, 'first_name' => 'Joanne Katherine', 'middle_name' => 'I.', 'last_name' => 'Banaag', 'email' => null, 'title' => 'Provincial Director', 'honorific'=> '', 'office_id' => 3],
             ['director_id' => 4, 'first_name' => 'Roy', 'middle_name' => 'C.', 'last_name' => 'Sagrado', 'email' => null, 'title' => 'Provincial Director', 'honorific'=> 'Engr.', 'office_id' => 4],

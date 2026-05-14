@@ -44,11 +44,8 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
       isInitialRenderRef.current = false;
       return;
     }
-
     if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
-
     filterTimeoutRef.current = setTimeout(() => pushRouter({ page: 1 }), 400);
-
     return () => {
       if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
     };
@@ -145,11 +142,11 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                 <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg">
                   <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                 </div>
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-base md:text-xl font-semibold text-gray-900">Proponents</h2>
-                    <p className="text-xs md:text-sm text-gray-600 mt-0.5 md:mt-1">Manage and track proponent information</p>
-                  </div>              
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base md:text-xl font-semibold text-gray-900">Proponents</h2>
+                  <p className="text-xs md:text-sm text-gray-600 mt-0.5 md:mt-1">Manage and track proponent information</p>
                 </div>
+              </div>
 
               <div className="flex items-center gap-2 md:gap-3 md:ml-auto flex-wrap">
                 {userRole === 'rpmo' && (
@@ -279,71 +276,81 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
             {proponents.data.length > 0 ? (
               <>
                 {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full">
+                <div className="hidden md:block w-full overflow-x-auto">
+                  <table className="w-full table-fixed min-w-[800px]">
+                    <colgroup>
+                      {/* Proponent name — fixed min so it never collapses */}
+                      <col className="w-48" />
+                      <col className="w-36" />   {/* Owner */}
+                      <col className="w-48" />   {/* Contact */}
+                      <col className="w-48" />   {/* Location */}
+                      <col className="w-36" />   {/* Industry */}
+                      {canEditAddedBy && <col className="w-36" />}  {/* User */}
+                      <col className="w-28" />   {/* Actions */}
+                    </colgroup>
                     <thead>
                       <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <button onClick={handleSortToggle} className="flex items-center gap-2 hover:text-blue-600 transition-colors">
-                            <Building className="w-4 h-4" />
-                            PROPONENT
-                            <ArrowUpDown className="w-3 h-3" />
+                        <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          <button onClick={handleSortToggle} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
+                            <Building className="w-3.5 h-3.5 flex-shrink-0" />
+                            Proponent
+                            <ArrowUpDown className="w-3 h-3 flex-shrink-0" />
                           </button>
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <div className="flex items-center gap-2"><User className="w-4 h-4" />Owner</div>
+                        <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          <div className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 flex-shrink-0" />Owner</div>
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <div className="flex items-center gap-2"><Mail className="w-4 h-4" />Contact</div>
+                        <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          <div className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 flex-shrink-0" />Contact</div>
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <div className="flex items-center gap-2"><MapPin className="w-4 h-4" />Location</div>
+                        <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 flex-shrink-0" />Location</div>
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <div className="flex items-center gap-2"><Factory className="w-4 h-4" />Industry</div>
+                        <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          <div className="flex items-center gap-1.5"><Factory className="w-3.5 h-3.5 flex-shrink-0" />Industry</div>
                         </th>
                         {canEditAddedBy && (
-                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            <div className="flex items-center gap-2"><User2 className="w-4 h-4" />User</div>
+                          <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            <div className="flex items-center gap-1.5"><User2 className="w-3.5 h-3.5 flex-shrink-0" />User</div>
                           </th>
                         )}
-                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          <div className="flex items-center gap-2"><Hand className="w-4 h-4" />Actions</div>
+                        <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                          <div className="flex items-center gap-1.5"><Hand className="w-3.5 h-3.5 flex-shrink-0" />Actions</div>
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
                       {proponents.data.map((proponent) => (
-                        <tr key={proponent.proponent_id} className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group">
-                          <td className="px-6 py-4">
-                            <div className="text-sm font-semibold text-gray-900">{proponent.company_name}</div>
+                        <tr key={proponent.proponent_id} className="hover:bg-blue-50/30 transition-all duration-200 group">
+                          <td className="px-4 py-4">
+                            <div className="text-sm font-semibold text-gray-900 break-words">{proponent.company_name}</div>
                           </td>
-                          <td className="px-6 py-4">
-                            <span className="text-sm text-gray-900 font-medium">{proponent.owner_name}</span>
+                          <td className="px-4 py-4">
+                            <span className="text-sm text-gray-900 font-medium break-words">{proponent.owner_name}</span>
                           </td>
-                          <td className="px-6 py-4 max-w-[200px]">
+                          <td className="px-4 py-4">
                             <div className="space-y-1 text-sm">
-                              <div className="flex items-center gap-2 text-gray-900 overflow-hidden">
-                                <Mail className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                                <span className="truncate">{proponent.email}</span>
+                              <div className="flex items-start gap-1.5 text-gray-900">
+                                <Mail className="w-3 h-3 text-gray-400 flex-shrink-0 mt-0.5" />
+                                <span className="break-all">{proponent.email}</span>
                               </div>
-                              <div className="flex items-center gap-2 text-gray-600 overflow-hidden">
-                                <Phone className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                                <span className="truncate">{proponent.contact_number}</span>
+                              <div className="flex items-start gap-1.5 text-gray-600">
+                                <Phone className="w-3 h-3 text-gray-400 flex-shrink-0 mt-0.5" />
+                                <span className="break-words">{proponent.contact_number}</span>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            <div>{proponent.street}, {proponent.barangay}</div>
-                            <div className="text-gray-600">{proponent.municipality}, {proponent.province}</div>
+                          <td className="px-4 py-4">
+                            <div className="text-sm text-gray-900 break-words">{proponent.street}, {proponent.barangay}</div>
+                            <div className="text-xs text-gray-600 break-words">{proponent.municipality}, {proponent.province}</div>
                           </td>
-                          <td className="px-6 py-4">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 truncate max-w-[120px]" title={proponent.setup_industry || 'N/A'}>
+                          <td className="px-4 py-4">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 break-words">
                               {proponent.setup_industry || 'N/A'}
                             </span>
                           </td>
                           {canEditAddedBy && (
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-4">
                               {editingAddedBy === proponent.proponent_id ? (
                                 <div ref={dropdownRef} className="relative">
                                   <input
@@ -376,24 +383,26 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                               ) : (
                                 <button
                                   onClick={() => { setEditingAddedBy(proponent.proponent_id); setUserSearch(''); setShowUserDropdown(true); }}
-                                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer"
+                                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer break-words text-left"
                                 >
                                   {proponent.added_by_user?.name || 'Unassigned'}
                                 </button>
                               )}
                             </td>
                           )}
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-center gap-2">
+                          <td className="px-4 py-4">
+                            <div className="flex items-center justify-center gap-1.5">
                               <button
                                 onClick={() => setSelectedproponent(proponent)}
                                 className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200"
+                                title="View Details"
                               >
                                 <Eye className="w-4 h-4" />
                               </button>
                               <Link
                                 href={`/proponents/${proponent.proponent_id}/edit`}
                                 className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                                title="Edit Proponent"
                               >
                                 <Edit3 className="w-4 h-4" />
                               </Link>
@@ -401,6 +410,7 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                                 onClick={() => !proponent.projects_count && handleDeleteClick(proponent)}
                                 disabled={!!proponent.projects_count}
                                 className={`p-2 rounded-lg transition-all duration-200 ${proponent.projects_count ? 'text-gray-300 cursor-not-allowed' : 'text-red-600 hover:text-red-700 hover:bg-red-50'}`}
+                                title={proponent.projects_count ? 'Has linked projects' : 'Delete Proponent'}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -417,8 +427,8 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                   {proponents.data.map((proponent) => (
                     <div key={proponent.proponent_id} className="flex items-center justify-between px-4 py-4 hover:bg-gray-50 transition-colors">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 text-sm truncate">{proponent.company_name}</h3>
-                        <p className="text-xs text-gray-500 truncate mt-1">ID: {proponent.proponent_id}</p>
+                        <h3 className="font-semibold text-gray-900 text-sm break-words">{proponent.company_name}</h3>
+                        <p className="text-xs text-gray-500 break-words mt-1">ID: {proponent.proponent_id}</p>
                         {canEditAddedBy && (
                           <p className="text-xs text-amber-600 font-medium mt-1">Added by: {proponent.added_by_user?.name || 'Unassigned'}</p>
                         )}
@@ -509,14 +519,12 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
           </div>
         </div>
       )}
+
       {showSyncModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg md:rounded-2xl shadow-2xl max-w-md w-full p-4 md:p-6">
-
             {isSyncing ? (
-              /* ── Loading state ── */
               <div className="flex flex-col items-center justify-center py-6 gap-4">
-                {/* Spinning ring */}
                 <div className="relative w-16 h-16">
                   <div className="absolute inset-0 rounded-full border-4 border-purple-100" />
                   <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-purple-600 animate-spin" />
@@ -528,7 +536,6 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                   <p className="text-base font-semibold text-gray-900">Syncing from Google Sheets…</p>
                   <p className="text-sm text-gray-500 mt-1">This may take a few seconds. Please wait.</p>
                 </div>
-                {/* Animated dots */}
                 <div className="flex gap-1.5">
                   {[0, 1, 2].map((i) => (
                     <span
@@ -540,16 +547,13 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                 </div>
               </div>
             ) : (
-              /* ── Confirmation state ── */
               <>
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
                     <AlertCircle className="w-6 h-6 text-yellow-600" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Sync from Google Sheets?
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Sync from Google Sheets?</h3>
                     <p className="text-sm text-gray-600 mb-3">
                       This will <span className="font-semibold text-yellow-700">add new records</span> to
                       the database by pulling from the DOST main Google Sheets database. Existing records
@@ -572,14 +576,8 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                     onClick={() => {
                       setIsSyncing(true);
                       router.post('/proponents/sync', {}, {
-                        onFinish: () => {
-                          setIsSyncing(false);
-                          setShowSyncModal(false);
-                        },
-                        onError: () => {
-                          setIsSyncing(false);
-                          setShowSyncModal(false);
-                        },
+                        onFinish: () => { setIsSyncing(false); setShowSyncModal(false); },
+                        onError: () => { setIsSyncing(false); setShowSyncModal(false); },
                       });
                     }}
                     className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors text-sm"
@@ -589,7 +587,6 @@ export default function Index({ proponents, filters, allUsers = [], allOffices =
                 </div>
               </>
             )}
-
           </div>
         </div>
       )}
@@ -610,7 +607,7 @@ function ProponentModal({ proponent, isOpen, onClose }) {
                 <Building className="w-5 h-5 md:w-6 md:h-6 text-white" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base md:text-xl font-bold truncate">Proponent Details</h3>
+                <h3 className="text-base md:text-xl font-bold break-words">Proponent Details</h3>
                 <p className="text-xs md:text-sm text-blue-100">Information & overview</p>
               </div>
             </div>
@@ -638,7 +635,7 @@ function ProponentModal({ proponent, isOpen, onClose }) {
                       <Icon className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                       <div className="min-w-0">
                         <p className="text-xs md:text-sm font-medium text-gray-600">{label}</p>
-                        <p className={`text-xs md:text-sm text-gray-900 truncate ${bold ? 'font-semibold' : ''}`}>{value}</p>
+                        <p className={`text-xs md:text-sm text-gray-900 break-words ${bold ? 'font-semibold' : ''}`}>{value}</p>
                       </div>
                     </div>
                   ))}
@@ -646,28 +643,28 @@ function ProponentModal({ proponent, isOpen, onClose }) {
                     <MapPin className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs md:text-sm font-medium text-gray-600">Address</p>
-                      <p className="text-xs md:text-sm text-gray-900">{proponent.street}, {proponent.barangay}<br />{proponent.municipality}, {proponent.province}</p>
+                      <p className="text-xs md:text-sm text-gray-900 break-words">{proponent.street}, {proponent.barangay}<br />{proponent.municipality}, {proponent.province}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Factory className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs md:text-sm font-medium text-gray-600">Industry Type</p>
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 mt-1">{proponent.industry_type || 'N/A'}</span>
+                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 mt-1 break-words">{proponent.industry_type || 'N/A'}</span>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Factory className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs md:text-sm font-medium text-gray-600">Setup Industry</p>
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">{proponent.setup_industry || 'N/A'}</span>
+                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1 break-words">{proponent.setup_industry || 'N/A'}</span>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Package className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs md:text-sm font-medium text-gray-600">Products/Services</p>
-                      <p className="text-xs md:text-sm text-gray-900">{proponent.products || 'N/A'}</p>
+                      <p className="text-xs md:text-sm text-gray-900 break-words">{proponent.products || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -685,7 +682,7 @@ function ProponentModal({ proponent, isOpen, onClose }) {
                     <User className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
                     <div>
                       <p className="text-xs md:text-sm font-medium text-gray-600">Name</p>
-                      <p className="text-sm md:text-base text-gray-900 font-semibold">{proponent.owner_name}</p>
+                      <p className="text-sm md:text-base text-gray-900 font-semibold break-words">{proponent.owner_name}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">

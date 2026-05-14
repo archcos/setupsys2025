@@ -13,7 +13,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const { darkMode } = useTheme();
   const [dropdowns, setDropdowns] = useState({
     development: false,
-    implementation: role === 'rd' ? true : false, 
+    implementation: role === 'rd' ? true : false,
     reports: false,
     user: true,
     transaction: true,
@@ -29,7 +29,6 @@ export default function Sidebar({ isOpen, onClose }) {
     }));
   };
 
-
   const getHomePage = () => {
     if (role === 'user') return '/dashboard';
     if (['irtec', 'ertec', 'rd'].includes(role)) return '/rd/dashboard';
@@ -38,56 +37,64 @@ export default function Sidebar({ isOpen, onClose }) {
 
   return (
     <>
-      {/* Mobile overlay */}
+      {/* Overlay — shown on all viewports when sidebar is open (below xl) */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 xl:hidden"
           onClick={onClose}
         />
       )}
 
+      {/*
+        Sidebar is ALWAYS fixed-positioned so it never participates in
+        document flow and cannot stretch the page.
+
+        On xl+ it is always visible (translate-x-0).
+        Below xl it slides in/out based on `isOpen`.
+      */}
       <aside className={`
+        fixed left-0 top-0 z-50
+        w-64 p-6 shadow-md
+        h-screen overflow-y-auto
+        transition-transform duration-300
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
-        fixed lg:sticky lg:translate-x-0 left-0 top-0 z-50
-        w-64 shrink-0 p-6 shadow-md
-        h-screen lg:h-screen lg:max-h-screen overflow-y-auto
-        transition-transform duration-300 lg:duration-0
+        xl:translate-x-0
         ${darkMode
           ? 'bg-slate-900 text-slate-100 border-r border-slate-700'
           : 'bg-white text-gray-800'
         }
       `}>
 
-        {/* Close button - mobile/tablet */}
+        {/* Close button — visible below xl */}
         <button
           onClick={onClose}
-          className={`lg:hidden absolute top-4 right-4 p-2 rounded transition ${
+          className={`xl:hidden absolute top-4 right-4 p-2 rounded transition ${
             darkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-gray-100 text-gray-600'
           }`}
         >
           <X size={20} />
         </button>
 
-        <div className="mt-10 lg:mt-0">
+        <div className="mt-10 xl:mt-0">
           {/* Logo */}
-        <Link
-          href={getHomePage()}
-          className="flex items-center justify-center gap-3 mb-8 hover:opacity-90"
-          onClick={onClose}
-        >
-          <img
-            src={logo}
-            alt="Logo"
-            className="w-10 h-10"
-            style={darkMode ? { filter: 'drop-shadow(0 0 2px rgb(211, 211, 211))' } : {}}
-          />
-          <img
-            src={setupLogo}
-            alt="SETUP Logo"
-            className="h-10 object-contain"
-            style={darkMode ? { filter: 'drop-shadow(0 0 3px rgb(0, 0, 0))' } : {}}
-          />
-        </Link>
+          <Link
+            href={getHomePage()}
+            className="flex items-center justify-center gap-3 mb-8 hover:opacity-90"
+            onClick={onClose}
+          >
+            <img
+              src={logo}
+              alt="Logo"
+              className="w-10 h-10"
+              style={darkMode ? { filter: 'drop-shadow(0 0 2px rgb(211, 211, 211))' } : {}}
+            />
+            <img
+              src={setupLogo}
+              alt="SETUP Logo"
+              className="h-10 object-contain"
+              style={darkMode ? { filter: 'drop-shadow(0 0 3px rgb(0, 0, 0))' } : {}}
+            />
+          </Link>
 
           {/* Navigation Menu */}
           <nav className="space-y-4">

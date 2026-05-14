@@ -5,7 +5,6 @@ import MultiSelect from '../../components/MultiSelect';
 import PaginationLinks from '../../components/PaginationLinks';
 import { cleanParams } from '@/utils/cleanParams';
 
-// Helper to format date string
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   const d = new Date(dateStr);
@@ -13,7 +12,6 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-// Progress status options
 const progressOptions = [
   { value: 'Proponent Details', label: 'Proponent Details', icon: Clock, color: 'blue' },
   { value: 'Project Created', label: 'Project Created', icon: FileText, color: 'cyan' },
@@ -44,7 +42,7 @@ function getStatusConfig(progress) {
 function getStatusBadge(progress) {
   const config = getStatusConfig(progress);
   const Icon = config.icon;
-  
+
   const colorClasses = {
     blue: 'bg-blue-100 text-blue-800',
     yellow: 'bg-yellow-100 text-yellow-800',
@@ -92,7 +90,6 @@ export default function Index({ projects, filters, offices, allYears }) {
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-
   const pushRouter = (overrides = {}) => {
     router.get('/projects',
       cleanParams(
@@ -103,8 +100,8 @@ export default function Index({ projects, filters, offices, allYears }) {
     );
   };
 
-  const uniqueYears = allYears && allYears.length > 0 
-    ? allYears 
+  const uniqueYears = allYears && allYears.length > 0
+    ? allYears
     : Array.from(new Set(projects.data.map(p => p.year_obligated).filter(Boolean))).sort((a, b) => b - a);
 
   useEffect(() => {
@@ -136,10 +133,10 @@ export default function Index({ projects, filters, offices, allYears }) {
   };
 
   const SortButton = ({ field, label, icon: Icon }) => (
-    <button onClick={() => handleSort(field)} className="flex items-center gap-2 hover:text-blue-600">
-      {Icon && <Icon className="w-4 h-4" />}
-      {label}
-      <ArrowUpDown className={`w-3 h-3 transition-transform ${sortField === field ? (sortDirection === 'desc' ? 'rotate-180' : '') : 'opacity-50'}`} />
+    <button onClick={() => handleSort(field)} className="flex items-center gap-1.5 hover:text-blue-600">
+      {Icon && <Icon className="w-3.5 h-3.5 flex-shrink-0" />}
+      <span className="truncate">{label}</span>
+      <ArrowUpDown className={`w-3 h-3 flex-shrink-0 transition-transform ${sortField === field ? (sortDirection === 'desc' ? 'rotate-180' : '') : 'opacity-50'}`} />
     </button>
   );
 
@@ -198,6 +195,7 @@ export default function Index({ projects, filters, offices, allYears }) {
       <Head title="Projects" />
       <div className="max-w-8xl mx-auto">
         <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
+
           {/* Card Header */}
           <div className="bg-gray-50 p-3 md:p-6 border-b border-gray-100">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
@@ -222,7 +220,6 @@ export default function Index({ projects, filters, offices, allYears }) {
                     <span className="sm:hidden">Sync</span>
                   </button>
                 )}
-
                 <button
                   onClick={() => setShowExportModal(true)}
                   className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
@@ -232,7 +229,6 @@ export default function Index({ projects, filters, offices, allYears }) {
                   <span className="hidden sm:inline">Export CSV</span>
                   <span className="sm:hidden">Export</span>
                 </button>
-
                 <Link
                   href="/projects/create"
                   className="flex items-center justify-center gap-2 bg-blue-500 text-white px-3 md:px-4 py-2 rounded-lg md:rounded-xl hover:bg-blue-600 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm"
@@ -267,7 +263,6 @@ export default function Index({ projects, filters, offices, allYears }) {
                     </button>
                   )}
                 </div>
-
                 <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm w-fit">
                   <select
                     value={perPage}
@@ -282,7 +277,6 @@ export default function Index({ projects, filters, offices, allYears }) {
                 </div>
               </div>
 
-              
               <div className="flex flex-col gap-2 md:gap-4 md:flex-row md:items-center flex-wrap">
                 {role === 'rpmo' && (
                   <div className="flex items-center gap-2 md:gap-3 bg-white rounded-lg md:rounded-xl px-3 md:px-4 border border-gray-300 shadow-sm">
@@ -311,9 +305,7 @@ export default function Index({ projects, filters, offices, allYears }) {
                   >
                     <option value="">All Years</option>
                     {uniqueYears.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
+                      <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
                 </div>
@@ -348,63 +340,72 @@ export default function Index({ projects, filters, offices, allYears }) {
           </div>
 
           {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full">
+          <div className="hidden md:block w-full">
+            <table className="w-full table-fixed">
+              <colgroup>
+                <col className="w-24" />
+                <col className="w-20" />
+                <col />
+                <col className="w-36" />
+                <col className="w-32" />
+                <col className="w-44" />
+                <col className="w-28" />
+              </colgroup>
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
-                    <SortButton field="project_id" label="PROJECT CODE" icon={Hash} />
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <SortButton field="project_id" label="Code" icon={Hash} />
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
-                    <SortButton field="year_obligated" label="YEAR OBLIGATED" icon={Calendar} />
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <SortButton field="year_obligated" label="Year" icon={Calendar} />
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <SortButton field="project_title" label="PROJECT & PROPONENT" icon={ClipboardList} />
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <SortButton field="project_title" label="Project & Proponent" icon={ClipboardList} />
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <SortButton field="project_cost" label="COST" icon={PhilippinePeso} />
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <SortButton field="project_cost" label="Cost" icon={PhilippinePeso} />
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
-                    <SortButton field="fund_release" label="FUND RELEASE" icon={Calendar} />
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <SortButton field="fund_release" label="Fund Release" icon={Calendar} />
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">  
-                    <div className="flex items-center gap-2">
-                        <LucideTrendingUp className="w-4 h-4" /> Status 
-                      </div> 
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center gap-1.5">
+                      <LucideTrendingUp className="w-3.5 h-3.5" /> Status
+                    </div>
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">  
-                    <div className="flex items-center gap-2">
-                        <Hand className="w-4 h-4" /> Action 
-                      </div> 
-                  </th>                
-                  </tr>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center gap-1.5">
+                      <Hand className="w-3.5 h-3.5" /> Action
+                    </div>
+                  </th>
+                </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {projects.data.map((project) => (
                   <tr key={project.project_id} className="hover:bg-blue-50/30 transition-all duration-200">
-                    <td className="px-6 py-4 text-sm justify-center text-gray-900 text-center">{project.project_id}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 text-center">{project.year_obligated || '-'}</td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">{project.project_title}</div>
-                        <div className="text-xs text-gray-600 mt-1">{project.proponent?.company_name || 'No proponent'}</div>
+                    <td className="px-4 py-4 text-sm text-gray-900 text-center">{project.project_id}</td>
+                    <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{project.year_obligated || '-'}</td>
+                    <td className="px-4 py-4">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-gray-900 truncate">{project.project_title}</div>
+                        <div className="text-xs text-gray-600 mt-1 truncate">{project.proponent?.company_name || 'No proponent'}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                    <td className="px-4 py-4 text-sm font-medium text-gray-900 truncate">
                       {project.project_cost ? formatCurrency(project.project_cost) : '-'}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{formatDate(project.fund_release)}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 text-sm text-gray-900 truncate">{formatDate(project.fund_release)}</td>
+                    <td className="px-4 py-4">
                       <div className="relative inline-block">
                         <button
                           onClick={() => setOpenStatusDropdown(openStatusDropdown === project.project_id ? null : project.project_id)}
                           disabled={updatingStatus === project.project_id || role === 'staff'}
-                          className={`flex items-center gap-2 cursor-pointer ${role === 'staff' ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          className={`flex items-center gap-1.5 cursor-pointer ${role === 'staff' ? 'opacity-60 cursor-not-allowed' : ''}`}
                         >
                           {getStatusBadge(project.progress)}
-                          <ChevronDown className="w-3 h-3" />
+                          {role !== 'staff' && <ChevronDown className="w-3 h-3 flex-shrink-0" />}
                         </button>
-                        
+
                         {openStatusDropdown === project.project_id && role !== 'staff' && (
                           <div className="absolute top-full mt-2 left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-max max-h-96 overflow-y-auto">
                             {progressOptions.map((option) => (
@@ -423,8 +424,8 @@ export default function Index({ projects, filters, offices, allYears }) {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="px-4 py-4">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => setSelectedProject(project)}
                           className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200"
@@ -486,7 +487,7 @@ export default function Index({ projects, filters, offices, allYears }) {
                     >
                       {getStatusBadge(project.progress)}
                     </button>
-                    
+
                     {openStatusDropdown === project.project_id && role !== 'staff' && (
                       <div className="absolute top-full mt-2 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-max max-h-48 overflow-y-auto">
                         {progressOptions.map((option) => (
@@ -520,9 +521,9 @@ export default function Index({ projects, filters, offices, allYears }) {
             </div>
           )}
 
-          {/* Pagination - Using PaginationLinks component for safe HTML entity decoding */}
+          {/* Pagination */}
           {projects.links && projects.links.length > 1 && (
-            <PaginationLinks 
+            <PaginationLinks
               links={projects.links}
               from={projects.from}
               to={projects.to}
@@ -573,90 +574,76 @@ export default function Index({ projects, filters, offices, allYears }) {
         </div>
       )}
 
-    {showSyncModal && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg md:rounded-2xl shadow-2xl max-w-md w-full p-4 md:p-6">
-
-          {isSyncing ? (
-            /* ── Loading state ── */
-            <div className="flex flex-col items-center justify-center py-6 gap-4">
-              {/* Spinning ring */}
-              <div className="relative w-16 h-16">
-                <div className="absolute inset-0 rounded-full border-4 border-purple-100" />
-                <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-purple-600 animate-spin" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Package className="w-6 h-6 text-purple-500" />
+      {showSyncModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg md:rounded-2xl shadow-2xl max-w-md w-full p-4 md:p-6">
+            {isSyncing ? (
+              <div className="flex flex-col items-center justify-center py-6 gap-4">
+                <div className="relative w-16 h-16">
+                  <div className="absolute inset-0 rounded-full border-4 border-purple-100" />
+                  <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-purple-600 animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Package className="w-6 h-6 text-purple-500" />
+                  </div>
+                </div>
+                <div className="text-center">
+                  <p className="text-base font-semibold text-gray-900">Syncing from Google Sheets…</p>
+                  <p className="text-sm text-gray-500 mt-1">This may take a few seconds. Please wait.</p>
+                </div>
+                <div className="flex gap-1.5">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="w-2 h-2 rounded-full bg-purple-400 animate-bounce"
+                      style={{ animationDelay: `${i * 0.15}s` }}
+                    />
+                  ))}
                 </div>
               </div>
-              <div className="text-center">
-                <p className="text-base font-semibold text-gray-900">Syncing from Google Sheets…</p>
-                <p className="text-sm text-gray-500 mt-1">This may take a few seconds. Please wait.</p>
-              </div>
-              {/* Animated dots */}
-              <div className="flex gap-1.5">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="w-2 h-2 rounded-full bg-purple-400 animate-bounce"
-                    style={{ animationDelay: `${i * 0.15}s` }}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : (
-            /* ── Confirmation state ── */
-            <>
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <AlertCircle className="w-6 h-6 text-yellow-600" />
+            ) : (
+              <>
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <AlertCircle className="w-6 h-6 text-yellow-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Sync from Google Sheets?</h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      This will <span className="font-semibold text-yellow-700">add new records</span> to
+                      the database by pulling from the DOST main Google Sheets database. Existing records
+                      will not be overwritten, but new entries will be inserted.
+                    </p>
+                    <p className="text-sm text-yellow-700 font-medium bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                      This action cannot be undone. Only proceed if you intend to import new data from
+                      the master spreadsheet.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    Sync from Google Sheets?
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    This will <span className="font-semibold text-yellow-700">add new records</span> to
-                    the database by pulling from the DOST main Google Sheets database. Existing records
-                    will not be overwritten, but new entries will be inserted.
-                  </p>
-                  <p className="text-sm text-yellow-700 font-medium bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
-                    This action cannot be undone. Only proceed if you intend to import new data from
-                    the master spreadsheet.
-                  </p>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowSyncModal(false)}
+                    className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsSyncing(true);
+                      router.post('/projects/sync', {}, {
+                        onFinish: () => { setIsSyncing(false); setShowSyncModal(false); },
+                        onError: () => { setIsSyncing(false); setShowSyncModal(false); },
+                      });
+                    }}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors text-sm"
+                  >
+                    Yes, Sync Now
+                  </button>
                 </div>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setShowSyncModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    setIsSyncing(true);
-                    router.post('/projects/sync', {}, {
-                      onFinish: () => {
-                        setIsSyncing(false);
-                        setShowSyncModal(false);
-                      },
-                      onError: () => {
-                        setIsSyncing(false);
-                        setShowSyncModal(false);
-                      },
-                    });
-                  }}
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors text-sm"
-                >
-                  Yes, Sync Now
-                </button>
-              </div>
-            </>
-          )}
-
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    )}
+      )}
     </main>
   );
 }
@@ -699,7 +686,6 @@ function ProjectModal({ project, isOpen, onClose }) {
               </div>
               <h4 className="text-lg font-semibold text-gray-900">Project Information</h4>
             </div>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="bg-white rounded p-3 border border-blue-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Project Code</p>
@@ -732,7 +718,6 @@ function ProjectModal({ project, isOpen, onClose }) {
               </div>
               <h4 className="text-lg font-semibold text-gray-900">Location & Coordinates</h4>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="bg-white rounded p-3 border border-teal-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Latitude</p>
@@ -770,7 +755,6 @@ function ProjectModal({ project, isOpen, onClose }) {
               </div>
               <h4 className="text-lg font-semibold text-gray-900">Timeline & Dates</h4>
             </div>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="bg-white rounded p-3 border border-amber-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Initial Project Fund Release</p>
@@ -799,9 +783,7 @@ function ProjectModal({ project, isOpen, onClose }) {
               </div>
               <h4 className="text-lg font-semibold text-gray-900">Financial Data</h4>
             </div>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Row 1: Project Cost + Counterpart */}
               <div className="bg-white rounded p-3 border border-green-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Project Cost (DOST Assistance)</p>
                 <p className="text-sm font-semibold text-green-600">{formatCurrency(project.project_cost)}</p>
@@ -814,8 +796,6 @@ function ProjectModal({ project, isOpen, onClose }) {
                 <p className="text-xs font-medium text-gray-600 mb-1">Released Amount</p>
                 <p className="text-sm font-semibold text-green-600">{formatCurrency(project.released_amount)}</p>
               </div>
-
-              {/* Row 3: Monthly Refund + Last Refund */}
               <div className="bg-white rounded p-3 border border-green-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Monthly Refund Amount</p>
                 <p className="text-sm font-semibold text-gray-900">{formatCurrency(project.refund_amount)}</p>
@@ -824,8 +804,6 @@ function ProjectModal({ project, isOpen, onClose }) {
                 <p className="text-xs font-medium text-gray-600 mb-1">Last Refund</p>
                 <p className="text-sm font-semibold text-gray-900">{formatCurrency(project.last_refund)}</p>
               </div>
-
-              {/* Row 3+: Before SETUP financials */}
               <div className="bg-white rounded p-3 border border-green-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Revenue (Before SETUP)</p>
                 <p className="text-sm text-gray-900">{formatCurrency(project.revenue)}</p>
@@ -861,7 +839,6 @@ function ProjectModal({ project, isOpen, onClose }) {
               </div>
               <h4 className="text-lg font-semibold text-gray-900">Workforce Data</h4>
             </div>
-            
             <div className="space-y-4">
               <div>
                 <p className="text-sm font-semibold text-gray-900 mb-3">Indirect Employees</p>
@@ -880,7 +857,6 @@ function ProjectModal({ project, isOpen, onClose }) {
                   </div>
                 </div>
               </div>
-
               <div>
                 <p className="text-sm font-semibold text-gray-900 mb-3">Direct Employees</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -909,7 +885,6 @@ function ProjectModal({ project, isOpen, onClose }) {
               </div>
               <h4 className="text-lg font-semibold text-gray-900">Items</h4>
             </div>
-            
             {project.items && project.items.length > 0 ? (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {project.items.map((item) => (
@@ -1019,14 +994,12 @@ function ProjectExportModal({ isOpen, onClose, offices = [], availableYears = []
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Year Obligated</label>
             <MultiSelect options={yearOptions} value={exportYears} onChange={setExportYears} placeholder="All Years" />
           </div>
-
           {userRole === 'rpmo' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Office</label>
               <MultiSelect options={officeOptions} value={exportOffices} onChange={setExportOffices} placeholder="All Offices" />
             </div>
           )}
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Project Status</label>
             <MultiSelect options={statusOptions} value={exportStatuses} onChange={setExportStatuses} placeholder="All Statuses" />

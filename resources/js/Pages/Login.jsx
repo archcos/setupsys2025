@@ -20,9 +20,6 @@ export default function LoginPage() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setIsAuthenticating(true);
-
-    // Inertia handles CSRF automatically via the XSRF-TOKEN cookie —
-    // no need for a manual /sanctum/csrf-cookie fetch on every submit.
     post('/signin', {
       onError: () => {
         setIsAuthenticating(false);
@@ -49,7 +46,6 @@ export default function LoginPage() {
                   </div>
                 </div>
               </div>
-
               <div className="w-full space-y-3">
                 <div className="flex items-center gap-3 text-sm">
                   <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
@@ -64,11 +60,9 @@ export default function LoginPage() {
                   <span className="text-gray-500">Sending email...</span>
                 </div>
               </div>
-
               <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full animate-loading-bar"></div>
               </div>
-
               <p className="text-sm text-gray-500 text-center">
                 Please wait while we authenticate your account
               </p>
@@ -86,58 +80,35 @@ export default function LoginPage() {
               onClick={() => setAnnouncementsOpen(false)}
             />
           )}
-
           <div className="fixed top-0 right-0 h-full z-50 flex items-center pointer-events-none">
             <div className="flex items-center pointer-events-auto">
-
-              {/* ── Vertical Tab ── */}
               <button
                 onClick={() => setAnnouncementsOpen(!announcementsOpen)}
-                className="
-                  select-none focus:outline-none
-                  flex flex-col items-center gap-1
-                  py-5 px-2.5
-                  text-white
-                  bg-blue-700 hover:bg-blue-800 active:bg-blue-900
-                  transition-colors duration-150
-                  rounded-l-xl shadow-xl
-                "
+                className="select-none focus:outline-none flex flex-col items-center gap-1 py-5 px-2.5 text-white bg-blue-700 hover:bg-blue-800 active:bg-blue-900 transition-colors duration-150 rounded-l-xl shadow-xl"
               >
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="flex-shrink-0 mb-1">
                   <path d="M2 2h12v12l-6-3-6 3V2z" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
                 </svg>
                 {'ANNOUNCEMENTS'.split('').map((char, i) => (
-                  <span key={i} className="text-[11px] font-bold leading-none uppercase">
-                    {char}
-                  </span>
+                  <span key={i} className="text-[11px] font-bold leading-none uppercase">{char}</span>
                 ))}
                 <span className="mt-1.5 flex-shrink-0 bg-yellow-400 text-yellow-900 text-[10px] font-extrabold w-[18px] h-[18px] rounded-full flex items-center justify-center leading-none">
                   {announcements.length}
                 </span>
               </button>
 
-              {/* ── Slide-out Panel ── */}
               <div
-                className={`
-                  flex flex-col bg-white shadow-2xl
-                  border-l border-slate-200
-                  overflow-hidden
-                  transition-all duration-300 ease-in-out
-                  ${announcementsOpen
-                    ? 'w-80 opacity-100 rounded-l-2xl'
-                    : 'w-0 opacity-0 pointer-events-none'}
-                `}
+                className={`flex flex-col bg-white shadow-2xl border-l border-slate-200 overflow-hidden transition-all duration-300 ease-in-out ${
+                  announcementsOpen ? 'w-80 opacity-100 rounded-l-2xl' : 'w-0 opacity-0 pointer-events-none'
+                }`}
                 style={{ maxHeight: 'min(580px, 85vh)' }}
               >
-                {/* Panel Header */}
                 <div className="flex-shrink-0 bg-blue-700 px-5 py-4 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 min-w-0">
                     <svg width="15" height="15" viewBox="0 0 16 16" fill="none" className="flex-shrink-0">
                       <path d="M2 2h12v12l-6-3-6 3V2z" stroke="white" strokeWidth="1.6" strokeLinejoin="round" />
                     </svg>
-                    <span className="text-white text-sm font-semibold tracking-wide whitespace-nowrap">
-                      Announcements
-                    </span>
+                    <span className="text-white text-sm font-semibold tracking-wide whitespace-nowrap">Announcements</span>
                     <span className="bg-white/25 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
                       {announcements.length} new
                     </span>
@@ -151,7 +122,6 @@ export default function LoginPage() {
                   </button>
                 </div>
 
-                {/* Scrollable list */}
                 <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-2 min-w-[320px]">
                   {announcements.map((a) => (
                     <button
@@ -164,13 +134,9 @@ export default function LoginPage() {
                           {a.office.office_name}
                         </p>
                       )}
-                      <p className="text-[13px] font-semibold text-slate-800 leading-snug mb-1.5">
-                        {a.title}
-                      </p>
+                      <p className="text-[13px] font-semibold text-slate-800 leading-snug mb-1.5">{a.title}</p>
                       {a.details && (
-                        <p className="text-[12px] text-slate-500 leading-relaxed line-clamp-2 mb-2.5">
-                          {a.details}
-                        </p>
+                        <p className="text-[12px] text-slate-500 leading-relaxed line-clamp-2 mb-2.5">{a.details}</p>
                       )}
                       <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                         {a.created_at && (
@@ -180,12 +146,8 @@ export default function LoginPage() {
                               <path d="M5 2v2M11 2v2M2 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                             </svg>
                             {new Date(a.created_at).toLocaleString('en-PH', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit',
-                              hour12: true,
+                              month: 'short', day: 'numeric', year: 'numeric',
+                              hour: 'numeric', minute: '2-digit', hour12: true,
                             })}
                           </span>
                         )}
@@ -200,7 +162,6 @@ export default function LoginPage() {
                   ))}
                 </div>
 
-                {/* Footer */}
                 <div className="flex-shrink-0 border-t border-slate-200 bg-slate-50 px-5 py-3">
                   <button
                     onClick={() => router.visit('/announcements/view')}
@@ -210,7 +171,6 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-
             </div>
           </div>
         </>
@@ -218,57 +178,57 @@ export default function LoginPage() {
 
       {/* ── Main Page ── */}
       <div className="min-h-screen bg-gradient-to-br from-blue-200 via-white to-indigo-300 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-sm">
 
           {/* Login Card */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-6">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-4">
 
             {/* Header */}
-            <div className="flex flex-col items-center justify-center gap-4 mb-8">
-              <div className="flex items-center justify-center gap-4">
-                <img src={logo} alt="DOST Logo" className="w-12 h-12 object-contain" />
-                <img src={setupLogo} alt="SETUP Logo" className="h-12 object-contain" />
+            <div className="flex flex-col items-center justify-center gap-2 mb-5">
+              <div className="flex items-center justify-center gap-3">
+                <img src={logo} alt="DOST Logo" className="w-9 h-9 object-contain" />
+                <img src={setupLogo} alt="SETUP Logo" className="h-9 object-contain" />
               </div>
               <div className="flex flex-col items-center text-center">
-                <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+                <h2 className="text-base font-bold text-gray-900 tracking-tight">
                   DOST - Northern Mindanao
                 </h2>
-                <h3 className="text-sm text-gray-600 font-medium leading-relaxed">
+                <h3 className="text-xs text-gray-500 font-medium leading-relaxed">
                   Small Enterprise Technology Upgrading Program <br />
                   Information Management System
                 </h3>
               </div>
             </div>
 
-            <div className="text-center mb-2">
-              <p className="text-gray-600">Sign in to your SIMS account</p>
+            <div className="text-center mb-3">
+              <p className="text-sm text-gray-600">Sign in to your SIMS account</p>
             </div>
 
             {/* Flash messages */}
             {(flash.success || flash.message) && (
-              <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
-                <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
+              <div className="bg-green-50 border border-green-200 text-green-800 px-3 py-2.5 rounded-xl mb-4 flex items-center gap-2 text-sm">
+                <CheckCircle size={16} className="text-green-600 flex-shrink-0" />
                 <span>{flash.success || flash.message}</span>
               </div>
             )}
 
             {errors.message && (
-              <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
-                <AlertCircle size={20} className="text-red-600 flex-shrink-0" />
+              <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2.5 rounded-xl mb-4 flex items-center gap-2 text-sm">
+                <AlertCircle size={16} className="text-red-600 flex-shrink-0" />
                 <span>{errors.message}</span>
               </div>
             )}
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
 
               {/* Username / Email */}
               <div>
-                <label htmlFor="login" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="login" className="block text-xs font-medium text-gray-700 mb-1">
                   Username or Email
                 </label>
                 <div className="relative">
-                  <User size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                  <User size={15} className="absolute left-3 top-3 text-gray-400" />
                   <input
                     id="login"
                     type="text"
@@ -277,7 +237,7 @@ export default function LoginPage() {
                     placeholder="Enter your username or email"
                     disabled={processing || isAuthenticating}
                     autoComplete="username"
-                    className={`w-full border pl-10 pr-4 py-3.5 rounded-xl transition-colors ${
+                    className={`w-full border pl-9 pr-4 py-2.5 rounded-xl text-sm transition-colors ${
                       errors.login
                         ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
                         : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
@@ -286,7 +246,7 @@ export default function LoginPage() {
                   />
                 </div>
                 {errors.login && (
-                  <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+                  <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
                     <span className="w-1 h-1 bg-red-500 rounded-full"></span>
                     {errors.login}
                   </p>
@@ -295,11 +255,11 @@ export default function LoginPage() {
 
               {/* Password */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="password" className="block text-xs font-medium text-gray-700 mb-1">
                   Password
                 </label>
                 <div className="relative">
-                  <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                  <Lock size={15} className="absolute left-3 top-3 text-gray-400" />
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
@@ -308,7 +268,7 @@ export default function LoginPage() {
                     placeholder="Enter your password"
                     disabled={processing || isAuthenticating}
                     autoComplete="current-password"
-                    className={`w-full border pl-10 pr-12 py-3.5 rounded-xl transition-colors ${
+                    className={`w-full border pl-9 pr-10 py-2.5 rounded-xl text-sm transition-colors ${
                       errors.password
                         ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
                         : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
@@ -319,14 +279,14 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     disabled={processing || isAuthenticating}
-                    className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none disabled:cursor-not-allowed"
+                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none disabled:cursor-not-allowed"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+                  <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
                     <span className="w-1 h-1 bg-red-500 rounded-full"></span>
                     {errors.password}
                   </p>
@@ -337,7 +297,7 @@ export default function LoginPage() {
               <div className="flex justify-end">
                 <Link
                   href={route('password.request')}
-                  className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+                  className="text-xs text-blue-600 hover:text-blue-700 hover:underline transition-colors"
                 >
                   Forgot your password?
                 </Link>
@@ -351,11 +311,11 @@ export default function LoginPage() {
                   processing || isAuthenticating
                     ? 'bg-blue-400 cursor-not-allowed'
                     : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98]'
-                } text-white py-3.5 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl`}
+                } text-white py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 shadow-lg hover:shadow-xl`}
               >
                 {processing || isAuthenticating ? (
                   <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -367,8 +327,8 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="mt-4 text-center">
-              <p className="text-gray-600">
+            <div className="mt-3 text-center">
+              <p className="text-sm text-gray-600">
                 Don't have an account?{' '}
                 <Link
                   href="/register"
@@ -381,21 +341,15 @@ export default function LoginPage() {
           </div>
 
           {/* Footer */}
-          <div className="text-center text-sm text-gray-500">
+          <div className="text-center text-xs text-gray-500">
             <p>
               Have Inquiries?{' '}
-              <Link
-                href="/contact"
-                className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
-              >
+              <Link href="/contact" className="text-blue-600 hover:text-blue-700 hover:underline transition-colors">
                 Contact Us
               </Link>
             </p>
             <br />
-            <p>
-              <span>© {new Date().getFullYear()} </span>
-              DOST Northern Mindanao. All rights reserved.
-            </p>
+            <p>© {new Date().getFullYear()} DOST Northern Mindanao. All rights reserved.</p>
           </div>
 
         </div>

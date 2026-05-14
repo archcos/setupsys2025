@@ -83,10 +83,11 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
     }`}>
       {/* Left Section - Menu Button + Title */}
       <div className="flex items-center gap-2 sm:gap-3 md:gap-4 min-w-0 flex-1">
-        {/* Menu Button - Mobile and Tablet */}
+
+        {/* Menu Button — hidden only when sidebar is permanently visible (xl+) */}
         <button
           onClick={toggleSidebar}
-          className={`lg:hidden p-2 rounded-lg transition flex-shrink-0 ${
+          className={`xl:hidden p-2 rounded-lg transition flex-shrink-0 ${
             darkMode
               ? 'hover:bg-slate-700 text-slate-300'
               : 'hover:bg-blue-200 text-gray-700'
