@@ -15,12 +15,12 @@ export default function Index({
     selectedYear,
     search,
     selectedStatus,
-    // ── new props ──
     selectedOffice,
     includeWithdrawn,
     includeTerminated,
-    availableYears,   // from DB — replaces the hardcoded 5-year array
-    offices,          // [{office_id, office_name}, ...]
+    availableYears,
+    offices,
+    csvSheets,   // { "1": "BUK", "2": "CAM", "3": "LDN", "4": "MOC", "5": "MOR" }
 }) {
     const { flash, userRole } = usePage().props;
     const isRPMO = ['rpmo', 'au'].includes(userRole);
@@ -37,6 +37,7 @@ export default function Index({
     useEffect(() => { officeFilterRef.current   = officeFilter;   }, [officeFilter]);
     useEffect(() => { withWithdrawnRef.current  = withWithdrawn;  }, [withWithdrawn]);
     useEffect(() => { withTerminatedRef.current = withTerminated; }, [withTerminated]);
+
     // State management
     const saveTimeoutsRef = useRef({});
     const savedProjectsRef = useRef({});
@@ -57,6 +58,30 @@ export default function Index({
     const [showSyncModal, setShowSyncModal] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
 
+    // Sheet selection state
+    const [selectedSheets, setSelectedSheets] = useState([]);  // empty = all
+
+    const sheetEntries = Object.entries(csvSheets ?? {});
+    const sheetCount   = sheetEntries.length;
+    const allSelected  = selectedSheets.length === 0 || selectedSheets.length === sheetCount;
+
+    const toggleAll = () => setSelectedSheets([]);
+
+    const toggleSheet = (idx) => {
+        if (allSelected) {
+            // Deselect everything except this one (i.e. keep all others selected, uncheck this)
+            setSelectedSheets(
+                sheetEntries.map(([i]) => Number(i)).filter(i => i !== idx)
+            );
+        } else {
+            setSelectedSheets(prev =>
+                prev.includes(idx)
+                    ? prev.filter(i => i !== idx)
+                    : [...prev, idx]
+            );
+        }
+    };
+
     // FIX: use refs to always hold latest filter values for callbacks
     const statusFilterRef = useRef(statusFilter);
     const perPageRef = useRef(perPage);
@@ -72,13 +97,11 @@ export default function Index({
         status: 'unpaid',
     });
 
-
     const projectMap = useMemo(() =>
         new Map(projects.data?.map(p => [p.project_id, p]) ?? []),
         [projects.data]
     );
 
-    // FIX: pass projects.data as a dep so the hook re-runs when data changes
     useRefundData(projects, data, setData);
 
     // Debounced search/status filter
@@ -139,7 +162,6 @@ export default function Index({
         );
     }, []);
 
-    // ── New handlers ───────────────────────────────────────────────────────
     const handleOfficeChange = useCallback((office) => {
         setOfficeFilter(office);
         officeFilterRef.current = office;
@@ -160,11 +182,10 @@ export default function Index({
 
     const handlePerPageChange = useCallback((value) => {
         setPerPage(value);
-        perPageRef.current = value; // update ref immediately before calling filter
+        perPageRef.current = value;
         handleFilterChange(selectedMonth, selectedYear, undefined, undefined, value);
     }, [selectedMonth, selectedYear, handleFilterChange]);
 
-    // FIX: status change now updates ref immediately too
     const handleStatusFilterChange = useCallback((status) => {
         setStatusFilter(status);
         statusFilterRef.current = status;
@@ -287,10 +308,6 @@ export default function Index({
         );
     }, [isRPMO, getButtonState, handleSave]);
 
-    /**
-     * Renders the "last updated by" info for a project's latest refund.
-     * Shows the editor's name and the updated_at timestamp.
-     */
     const renderUpdatedBy = useCallback((project) => {
         const refund = project?.refunds?.[0];
 
@@ -381,7 +398,7 @@ export default function Index({
                         statusFilter={statusFilter}
                         perPage={perPage}
                         months={MONTHS}
-                        years={availableYears}  
+                        years={availableYears}
                         projects={projects}
                         flash={flash}
                         onMonthChange={(month) => handleFilterChange(month, selectedYear)}
@@ -546,6 +563,7 @@ export default function Index({
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg md:rounded-2xl shadow-2xl max-w-md w-full p-4 md:p-6">
                         {isSyncing ? (
+                            /* ── Syncing state ── */
                             <div className="flex flex-col items-center justify-center py-6 gap-4">
                                 <div className="relative w-16 h-16">
                                     <div className="absolute inset-0 rounded-full border-4 border-purple-100" />
@@ -560,45 +578,121 @@ export default function Index({
                                 </div>
                                 <div className="flex gap-1.5">
                                     {[0, 1, 2].map((i) => (
-                                        <span key={i} className="w-2 h-2 rounded-full bg-purple-400 animate-bounce"
-                                            style={{ animationDelay: `${i * 0.15}s` }} />
+                                        <span
+                                            key={i}
+                                            className="w-2 h-2 rounded-full bg-purple-400 animate-bounce"
+                                            style={{ animationDelay: `${i * 0.15}s` }}
+                                        />
                                     ))}
                                 </div>
                             </div>
                         ) : (
+                            /* ── Selection state ── */
                             <>
-                                <div className="flex items-start gap-4">
+                                {/* Header */}
+                                <div className="flex items-start gap-4 mb-4">
                                     <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
                                         <AlertCircle className="w-6 h-6 text-yellow-600" />
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Sync Refunds from Google Sheets?</h3>
-                                        <p className="text-sm text-gray-600 mb-3">
-                                            This will <span className="font-semibold text-yellow-700">upsert refund records</span> matched
-                                            by project title. Restructuring rows will automatically fill all months in the stated range
-                                            with <span className="font-mono text-xs bg-gray-100 px-1 rounded">restructured</span> status.
-                                        </p>
-                                        <p className="text-sm text-yellow-700 font-medium bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
-                                            Existing refund records for matching months will be overwritten. Proceed only if
-                                            the spreadsheet data is up to date.
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                                            Sync Refunds from Google Sheets
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            Select which sheets to sync. Existing records for matching months will be overwritten.
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex gap-3 mt-6">
-                                    <button onClick={() => setShowSyncModal(false)}
-                                        className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm">
+
+                                {/* Sheet selector */}
+                                <div className="mb-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                            Sheets to sync
+                                        </span>
+                                        <span className="text-xs text-gray-400">
+                                            {allSelected
+                                                ? `All ${sheetCount} sheets`
+                                                : `${selectedSheets.length} of ${sheetCount} selected`}
+                                        </span>
+                                    </div>
+
+                                    {/* All toggle */}
+                                    <label className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-50 border border-gray-200 cursor-pointer mb-2 hover:bg-gray-100 transition-colors">
+                                        <input
+                                            type="checkbox"
+                                            checked={allSelected}
+                                            onChange={toggleAll}
+                                            className="w-4 h-4 accent-purple-600"
+                                        />
+                                        <span className="text-sm font-medium text-gray-800 flex-1">All sheets</span>
+                                        <span className="text-xs text-gray-400">{sheetCount} sheets</span>
+                                    </label>
+
+                                    {/* Individual sheets */}
+                                    <div className="flex flex-col gap-1.5">
+                                        {sheetEntries.map(([index, name]) => {
+                                            const idx = Number(index);
+                                            const isChecked = allSelected || selectedSheets.includes(idx);
+                                            return (
+                                                <label
+                                                    key={idx}
+                                                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={() => toggleSheet(idx)}
+                                                        className="w-4 h-4 accent-purple-600"
+                                                    />
+                                                    <span className="text-sm text-gray-700 flex-1">
+                                                        Sheet {idx}
+                                                    </span>
+                                                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                                                        {name}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Warning */}
+                                <p className="text-xs text-yellow-700 font-medium bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 mb-5">
+                                    Only sync sheets with up-to-date data. Existing refund records for matching months will be overwritten.
+                                </p>
+
+                                {/* Actions */}
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => { setShowSyncModal(false); setSelectedSheets([]); }}
+                                        className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm"
+                                    >
                                         Cancel
                                     </button>
                                     <button
+                                        disabled={!allSelected && selectedSheets.length === 0}
                                         onClick={() => {
                                             setIsSyncing(true);
-                                            router.post('/refunds/sync', {}, {
-                                                onFinish: () => { setIsSyncing(false); setShowSyncModal(false); },
-                                                onError: () => { setIsSyncing(false); setShowSyncModal(false); },
+                                            router.post('/refunds/sync', {
+                                                selected_sheets: allSelected ? [] : selectedSheets,
+                                            }, {
+                                                onFinish: () => {
+                                                    setIsSyncing(false);
+                                                    setShowSyncModal(false);
+                                                    setSelectedSheets([]);
+                                                },
+                                                onError: () => {
+                                                    setIsSyncing(false);
+                                                    setShowSyncModal(false);
+                                                },
                                             });
                                         }}
-                                        className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm">
-                                        Yes, Sync Now
+                                        className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        {allSelected
+                                            ? 'Sync all sheets'
+                                            : `Sync ${selectedSheets.length} sheet${selectedSheets.length > 1 ? 's' : ''}`}
                                     </button>
                                 </div>
                             </>

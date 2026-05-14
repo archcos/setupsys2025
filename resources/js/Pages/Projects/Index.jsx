@@ -340,16 +340,16 @@ export default function Index({ projects, filters, offices, allYears }) {
           </div>
 
           {/* Desktop Table View */}
-          <div className="hidden md:block w-full">
-            <table className="w-full table-fixed">
+          <div className="hidden md:block w-full overflow-x-auto">
+            <table className="w-full table-auto">
               <colgroup>
-                <col className="w-24" />
                 <col className="w-20" />
-                <col />
-                <col className="w-36" />
+                <col className="w-16" />
+                <col className="min-w-[180px]" />
                 <col className="w-32" />
-                <col className="w-44" />
                 <col className="w-28" />
+                <col className="w-40" />
+                <col className="w-24" />
               </colgroup>
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
@@ -387,8 +387,8 @@ export default function Index({ projects, filters, offices, allYears }) {
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{project.year_obligated || '-'}</td>
                     <td className="px-4 py-4">
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold text-gray-900 truncate">{project.project_title}</div>
-                        <div className="text-xs text-gray-600 mt-1 truncate">{project.proponent?.company_name || 'No proponent'}</div>
+                        <div className="text-sm font-semibold text-gray-900 break-words">{project.project_title}</div>
+                        <div className="text-xs text-gray-600 mt-1 break-words">{project.proponent?.company_name || 'No proponent'}</div>
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 truncate">
@@ -462,7 +462,7 @@ export default function Index({ projects, filters, offices, allYears }) {
               <div key={project.project_id} className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 text-sm truncate">{project.project_title}</h3>
+                    <h3 className="font-semibold text-gray-900 text-sm break-words">{project.project_title}</h3>
                     <p className="text-xs text-gray-600 mt-1">{project.proponent?.company_name || 'No proponent'}</p>
                   </div>
                   <div className="flex items-center gap-1 ml-2 flex-shrink-0">
@@ -697,7 +697,7 @@ function ProjectModal({ project, isOpen, onClose }) {
               </div>
               <div className="bg-white rounded p-3 border border-blue-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Project Title</p>
-                <p className="text-sm font-semibold text-gray-900">{project.project_title}</p>
+                <p className="font-semibold text-gray-900 text-sm line-clamp-3">{project.project_title}</p>
               </div>
               <div className="bg-white rounded p-3 border border-blue-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Proponent</p>
