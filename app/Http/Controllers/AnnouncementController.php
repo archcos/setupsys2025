@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\Auth;
 use App\Models\AnnouncementModel;
 use App\Models\OfficeModel;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class AnnouncementController extends Controller
 {
@@ -26,6 +26,7 @@ class AnnouncementController extends Controller
             });
         });
     }
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -50,7 +51,7 @@ class AnnouncementController extends Controller
         // Status filter (active, expired, upcoming)
         if ($request->filled('statusFilter') && $request->statusFilter !== 'all') {
             $today = now()->startOfDay();
-            
+
             switch ($request->statusFilter) {
                 case 'active':
                     $query->where(function ($q) use ($today) {
@@ -77,7 +78,7 @@ class AnnouncementController extends Controller
         $query->orderBy($sortBy, $sortOrder);
 
         // Pagination
-        $perPage = (int)($request->perPage ?? 10);
+        $perPage = (int) ($request->perPage ?? 10);
         $announcements = $query->paginate($perPage);
 
         // Get status counts

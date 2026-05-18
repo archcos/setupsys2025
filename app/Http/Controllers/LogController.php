@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\LogModel;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
-use Carbon\Carbon;
 
 class LogController extends Controller
 {
@@ -31,15 +31,15 @@ class LogController extends Controller
 
             // Apply other filters
             if (!empty($filters['ip_address'])) {
-                $query->where('ip_address', 'like', '%' . $filters['ip_address'] . '%');
+                $query->where('ip_address', 'like', '%'.$filters['ip_address'].'%');
             }
 
             if (!empty($filters['user_id'])) {
-                $query->where('user_id', 'like', '%' . $filters['user_id'] . '%');
+                $query->where('user_id', 'like', '%'.$filters['user_id'].'%');
             }
 
             if (!empty($filters['project_id'])) {
-                $query->where('project_id', 'like', '%' . $filters['project_id'] . '%');
+                $query->where('project_id', 'like', '%'.$filters['project_id'].'%');
             }
 
             if (!empty($filters['action'])) {
@@ -56,7 +56,7 @@ class LogController extends Controller
             // Fetch logs, latest first with pagination
             $perPage = $request->get('per_page', 10);
             $page = $request->get('page', 1);
-            
+
             $logs = $query->latest('created_at')
                 ->skip(($page - 1) * $perPage)
                 ->take($perPage)
@@ -69,7 +69,7 @@ class LogController extends Controller
                 ->sort()
                 ->values()
                 ->toArray();
-            
+
             $allModelTypes = LogModel::where('created_at', '>=', $startDate)
                 ->distinct()
                 ->pluck('model_type')
@@ -82,7 +82,7 @@ class LogController extends Controller
                 'total_count' => $totalCount,
                 'actions' => count($allActions),
                 'models' => count($allModelTypes),
-                'days' => $days
+                'days' => $days,
             ]);
 
             return Inertia::render('Admin/LogManagement', [
@@ -94,24 +94,23 @@ class LogController extends Controller
                     'total' => $totalCount,
                     'per_page' => $perPage,
                     'current_page' => $page,
-                    'last_page' => ceil($totalCount / $perPage)
-                ]
+                    'last_page' => ceil($totalCount / $perPage),
+                ],
             ]);
-
         } catch (\Exception $e) {
-            Log::error('LogController.index error: ' . $e->getMessage(), [
+            Log::error('LogController.index error: '.$e->getMessage(), [
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return Inertia::render('Admin/LogManagement', [
                 'logs' => [],
                 'filters' => (object) [],
                 'actions' => [],
                 'modelTypes' => [],
                 'pagination' => [],
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -143,15 +142,15 @@ class LogController extends Controller
 
             // Apply other filters only if they are not empty
             if (!empty($ipAddress)) {
-                $query->where('ip_address', 'like', '%' . $ipAddress . '%');
+                $query->where('ip_address', 'like', '%'.$ipAddress.'%');
             }
 
             if (!empty($userId)) {
-                $query->where('user_id', 'like', '%' . $userId . '%');
+                $query->where('user_id', 'like', '%'.$userId.'%');
             }
 
             if (!empty($projectId)) {
-                $query->where('project_id', 'like', '%' . $projectId . '%');
+                $query->where('project_id', 'like', '%'.$projectId.'%');
             }
 
             if (!empty($action)) {
@@ -172,7 +171,7 @@ class LogController extends Controller
                 'project_id' => $projectId,
                 'action' => $action,
                 'model_type' => $modelType,
-                'days' => $days
+                'days' => $days,
             ]);
 
             // Prepare data for CSV
@@ -188,12 +187,12 @@ class LogController extends Controller
                     $log->action,
                     $log->model_type,
                     $log->description,
-                    $log->created_at->toDateTimeString()
+                    $log->created_at->toDateTimeString(),
                 ];
             }
 
             // Create CSV response
-            $filename = 'logs_' . now()->format('Y-m-d_H-i-s') . '.csv';
+            $filename = 'logs_'.now()->format('Y-m-d_H-i-s').'.csv';
             $handle = fopen('php://memory', 'w');
 
             foreach ($data as $row) {
@@ -209,15 +208,14 @@ class LogController extends Controller
             return response($csv, 200)
                 ->header('Content-Type', 'text/csv; charset=utf-8')
                 ->header('Content-Disposition', "attachment; filename=\"$filename\"");
-
         } catch (\Exception $e) {
-            Log::error('LogController.export error: ' . $e->getMessage(), [
+            Log::error('LogController.export error: '.$e->getMessage(), [
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            return response('Error exporting logs: ' . $e->getMessage(), 500);
+            return response('Error exporting logs: '.$e->getMessage(), 500);
         }
     }
 }

@@ -5,13 +5,12 @@ namespace App\Http\Controllers;
 use App\Mail\LiquidationNotificationMail;
 use App\Models\ImplementationModel;
 use App\Models\ItemModel;
-use App\Models\ProjectModel;
 use App\Models\OfficeModel;
+use App\Models\ProjectModel;
 use App\Models\UserModel;
 use App\Services\SupabaseUpload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -35,9 +34,9 @@ class ImplementationController extends Controller
         if (!$canViewAll && !$isStaff) {
             return Inertia::render('Implementation/Index', [
                 'implementations' => new \Illuminate\Pagination\Paginator([], $perPage, 1),
-                'filters'         => $request->only('search', 'perPage', 'statusFilter', 'officeFilter', 'yearFilter'),
-                'offices'         => [],
-                'userRole'        => $userRole,
+                'filters' => $request->only('search', 'perPage', 'statusFilter', 'officeFilter', 'yearFilter'),
+                'offices' => [],
+                'userRole' => $userRole,
             ]);
         }
 
@@ -49,7 +48,7 @@ class ImplementationController extends Controller
             'liquidationUploadedBy',
         ]);
 
-        $sort      = $request->input('sort', 'project_id');
+        $sort = $request->input('sort', 'project_id');
         $direction = $request->input('direction', 'desc');
 
         if ($sort === 'project_id') {
@@ -86,11 +85,11 @@ class ImplementationController extends Controller
         }
 
         $completeCount = (clone $baseQuery)->whereNotNull('liquidation')->count();
-        $pendingCount  = (clone $baseQuery)->whereNull('liquidation')->count();
-        $totalCount    = (clone $baseQuery)->count();
+        $pendingCount = (clone $baseQuery)->whereNull('liquidation')->count();
+        $totalCount = (clone $baseQuery)->count();
 
         $implementations = $baseQuery->paginate($perPage);
-        
+
         if ($statusFilter === 'complete') {
             $baseQuery->whereNotNull('liquidation');
         } elseif ($statusFilter === 'pending') {
@@ -109,10 +108,10 @@ class ImplementationController extends Controller
             $firstUntaggingThreshold = $projectCost * 0.5;
             $percentage = $projectCost > 0 ? ($totalTagged / $projectCost) * 100 : 0;
 
-            $implementation->first_untagged       = $totalTagged >= $firstUntaggingThreshold;
-            $implementation->final_untagged        = $totalTagged >= $projectCost;
-            $implementation->untagging_percentage  = min($percentage, 100);
-            $implementation->total_tagged          = $totalTagged;
+            $implementation->first_untagged = $totalTagged >= $firstUntaggingThreshold;
+            $implementation->final_untagged = $totalTagged >= $projectCost;
+            $implementation->untagging_percentage = min($percentage, 100);
+            $implementation->total_tagged = $totalTagged;
 
             return $implementation;
         });
@@ -147,25 +146,25 @@ class ImplementationController extends Controller
         }
 
         $implementations->appends(request()->query());
-        $implementationsArray                      = $implementations->toArray();
-        $implementationsArray['complete_count']    = $completeCount;
-        $implementationsArray['pending_count']     = $pendingCount;
+        $implementationsArray = $implementations->toArray();
+        $implementationsArray['complete_count'] = $completeCount;
+        $implementationsArray['pending_count'] = $pendingCount;
         $implementationsArray['year_obligated_options'] = $years;
 
         return Inertia::render('Implementation/Index', [
             'implementations' => $implementationsArray,
-            'filters'         => $request->only('search', 'perPage', 'statusFilter', 'officeFilter', 'yearFilter'),
-            'offices'         => $offices,
-            'userRole'        => $userRole,
+            'filters' => $request->only('search', 'perPage', 'statusFilter', 'officeFilter', 'yearFilter'),
+            'offices' => $offices,
+            'userRole' => $userRole,
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'project_id'  => 'nullable|exists:tbl_projects,project_id',
-            'tarp'        => 'nullable|string',
-            'pdc'         => 'nullable|string',
+            'project_id' => 'nullable|exists:tbl_projects,project_id',
+            'tarp' => 'nullable|string',
+            'pdc' => 'nullable|string',
             'liquidation' => 'nullable|string|max:45',
         ]);
 
@@ -176,7 +175,7 @@ class ImplementationController extends Controller
 
     public function checklist($implementId)
     {
-        $user           = Auth::user();
+        $user = Auth::user();
         $implementation = ImplementationModel::with([
             'project.proponent',
             'tags',
@@ -185,9 +184,9 @@ class ImplementationController extends Controller
             'liquidationUploadedBy',
         ])->findOrFail($implementId);
 
-        $userRole   = $user->role;
+        $userRole = $user->role;
         $canViewAll = in_array(strtolower($userRole), ['rpmo', 'au']);
-        $isStaff    = in_array(strtolower($userRole), ['staff']);
+        $isStaff = in_array(strtolower($userRole), ['staff']);
 
         if (!$canViewAll && $isStaff) {
             if ($implementation->project->proponent->office_id !== $user->office_id) {
@@ -197,7 +196,7 @@ class ImplementationController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $projectCost    = floatval($implementation->project->project_cost);
+        $projectCost = floatval($implementation->project->project_cost);
         $totalTagAmount = $implementation->tags->sum(function ($tag) {
             return floatval($tag->tag_amount ?? 0);
         });
@@ -219,12 +218,12 @@ class ImplementationController extends Controller
         return inertia('Implementation/Checklist', [
             'implementation' => [
                 ...$cleaned,
-                'project_title'         => $implementation->project->project_title,
-                'company_name'          => $implementation->project->proponent->company_name,
-                'tarpUploadedBy'        => $implementation->tarpUploadedBy
+                'project_title' => $implementation->project->project_title,
+                'company_name' => $implementation->project->proponent->company_name,
+                'tarpUploadedBy' => $implementation->tarpUploadedBy
                     ? $implementation->tarpUploadedBy->only(['user_id', 'first_name', 'middle_name', 'last_name', 'username', 'name'])
                     : null,
-                'pdcUploadedBy'         => $implementation->pdcUploadedBy
+                'pdcUploadedBy' => $implementation->pdcUploadedBy
                     ? $implementation->pdcUploadedBy->only(['user_id', 'first_name', 'middle_name', 'last_name', 'username', 'name'])
                     : null,
                 'liquidationUploadedBy' => $implementation->liquidationUploadedBy
@@ -244,38 +243,38 @@ class ImplementationController extends Controller
 
         $validated = $request->validate([
             'implement_id' => 'required|exists:tbl_implements,implement_id',
-            $field         => 'required|file|mimes:pdf,png,jpg,jpeg|max:10240',
+            $field => 'required|file|mimes:pdf,png,jpg,jpeg|max:10240',
         ]);
 
         if (!$request->hasFile($field)) {
             return redirect()->back()->withErrors(['upload' => 'No file uploaded.']);
         }
 
-        $file           = $request->file($field);
+        $file = $request->file($field);
         $implementation = ImplementationModel::findOrFail($request->implement_id);
 
         try {
-            $extension    = $file->getClientOriginalExtension();
+            $extension = $file->getClientOriginalExtension();
             $originalName = $file->getClientOriginalName();
             $nameWithoutExt = pathinfo($originalName, PATHINFO_FILENAME);
 
             $nameWithoutExt = preg_replace('/[^A-Za-z0-9\-]/', '_', $nameWithoutExt);
             $nameWithoutExt = substr($nameWithoutExt, 0, 50);
 
-            $timestamp   = now()->format('Y-m-d_His');
-            $fileName    = "{$field}_{$nameWithoutExt}_{$timestamp}.{$extension}";
+            $timestamp = now()->format('Y-m-d_His');
+            $fileName = "{$field}_{$nameWithoutExt}_{$timestamp}.{$extension}";
             $currentYear = now()->year;
-            $projectId   = $implementation->project_id;
+            $projectId = $implementation->project_id;
 
             // 1. Store locally
             Log::info("Uploading {$field} file", [
                 'implement_id' => $implementation->implement_id,
-                'file_name'    => $fileName,
-                'file_size'    => $file->getSize(),
+                'file_name' => $fileName,
+                'file_size' => $file->getSize(),
             ]);
 
             $localFolderPath = "{$currentYear}/{$projectId}/implementation";
-            $path            = $file->storeAs($localFolderPath, $fileName, 'private');
+            $path = $file->storeAs($localFolderPath, $fileName, 'private');
 
             if (!$path) {
                 throw new \Exception('Failed to store file locally');
@@ -283,7 +282,7 @@ class ImplementationController extends Controller
 
             Log::info("File stored locally for {$field}", [
                 'implement_id' => $implementation->implement_id,
-                'local_path'   => $path,
+                'local_path' => $path,
             ]);
 
             // 2. Upload to Supabase
@@ -297,23 +296,23 @@ class ImplementationController extends Controller
                 $fileContent = file_get_contents($localFilePath);
 
                 if ($fileContent === false) {
-                    throw new \Exception("Failed to read local file content");
+                    throw new \Exception('Failed to read local file content');
                 }
 
                 Log::info("Local file found, attempting Supabase upload for {$field}", [
                     'implement_id' => $implementation->implement_id,
-                    'local_path'   => $localFilePath,
-                    'file_size'    => strlen($fileContent),
+                    'local_path' => $localFilePath,
+                    'file_size' => strlen($fileContent),
                 ]);
 
-                $supabasePath   = "backup/{$currentYear}/{$projectId}/{$fileName}";
+                $supabasePath = "backup/{$currentYear}/{$projectId}/{$fileName}";
                 $supabaseUpload = new SupabaseUpload();
-                $uploaded       = $supabaseUpload->upload($supabasePath, $fileContent);
+                $uploaded = $supabaseUpload->upload($supabasePath, $fileContent);
 
                 if ($uploaded) {
                     Log::info("✓ File successfully uploaded to Supabase for {$field}", [
                         'implement_id' => $implementation->implement_id,
-                        'project_id'   => $projectId,
+                        'project_id' => $projectId,
                         'supabase_path' => $supabasePath,
                     ]);
                 } else {
@@ -321,20 +320,19 @@ class ImplementationController extends Controller
                         'implement_id' => $implementation->implement_id,
                     ]);
                 }
-
             } catch (\Exception $e) {
                 Log::error("Supabase upload error for {$field}", [
                     'implement_id' => $implementation->implement_id,
-                    'error'        => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
 
             // 3. Update database
-            $uploadByField = $field . '_by';
+            $uploadByField = $field.'_by';
             $implementation->update([
-                $field              => $path,
-                $field . '_upload'  => now('Asia/Manila'),
-                $uploadByField      => Auth::id(),
+                $field => $path,
+                $field.'_upload' => now('Asia/Manila'),
+                $uploadByField => Auth::id(),
             ]);
 
             // 4. If liquidation, update project progress and send emails
@@ -345,14 +343,14 @@ class ImplementationController extends Controller
                 $this->sendLiquidationNotification($implementation, $path, $fileName);
             }
 
-            return redirect()->back()->with('success', ucfirst($field) . ' uploaded successfully.');
-
+            return redirect()->back()->with('success', ucfirst($field).' uploaded successfully.');
         } catch (\Exception $e) {
             Log::error("Upload error for {$field}", [
                 'implement_id' => $implementation->implement_id,
-                'error'        => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
-            return redirect()->back()->withErrors(['upload' => 'Upload failed: ' . $e->getMessage()]);
+
+            return redirect()->back()->withErrors(['upload' => 'Upload failed: '.$e->getMessage()]);
         }
     }
 
@@ -364,17 +362,17 @@ class ImplementationController extends Controller
         try {
             $implementation->load('project.proponent.office.director', 'liquidationUploadedBy');
 
-            $project      = $implementation->project;
-            $proponent    = $project->proponent;
-            $office       = $proponent->office;
-            $officeId     = $proponent->office_id;
-            $officeName   = $office->office_name ?? 'Office';
+            $project = $implementation->project;
+            $proponent = $project->proponent;
+            $office = $proponent->office;
+            $officeId = $proponent->office_id;
+            $officeName = $office->office_name ?? 'Office';
             $projectTitle = $project->project_title;
-            $companyName  = $proponent->company_name;
+            $companyName = $proponent->company_name;
             $absolutePath = storage_path("app/private/{$storedPath}");
 
             // Uploader name
-            $uploader     = $implementation->liquidationUploadedBy;
+            $uploader = $implementation->liquidationUploadedBy;
             $uploaderName = $uploader ? $uploader->name : 'Unknown User';
 
             // Hardcoded CC emails
@@ -383,19 +381,19 @@ class ImplementationController extends Controller
                 // 'example2@dost.gov.ph',
             ];
 
-            $director             = $office->director ?? null;
+            $director = $office->director ?? null;
             $directorGreetingName = 'Provincial Director and Team';
-            $directorEmail        = null;
+            $directorEmail = null;
 
             if ($director) {
                 $directorFullName = trim(
-                    ($director->honorific ? $director->honorific . ' ' : '') .
-                    ($director->first_name ?? '') . ' ' .
-                    ($director->middle_name ? $director->middle_name . ' ' : '') .
+                    ($director->honorific ? $director->honorific.' ' : '').
+                    ($director->first_name ?? '').' '.
+                    ($director->middle_name ? $director->middle_name.' ' : '').
                     ($director->last_name ?? '')
                 );
-                $directorGreetingName = $directorFullName . ' and Team';
-                $directorEmail        = $director->email;
+                $directorGreetingName = $directorFullName.' and Team';
+                $directorEmail = $director->email;
             }
 
             $officeStaffUsers = UserModel::whereRaw('LOWER(role) = ?', ['staff'])
@@ -445,18 +443,17 @@ class ImplementationController extends Controller
             }
 
             Log::info('Liquidation notification emails sent', [
-                'implement_id'   => $implementation->implement_id,
+                'implement_id' => $implementation->implement_id,
                 'director_email' => $directorEmail,
-                'staff_count'    => $officeStaffUsers->count(),
-                'cc_emails'      => $hardcodedCc,
-                'office'         => $officeName,
-                'uploaded_by'    => $uploaderName,
+                'staff_count' => $officeStaffUsers->count(),
+                'cc_emails' => $hardcodedCc,
+                'office' => $officeName,
+                'uploaded_by' => $uploaderName,
             ]);
-
         } catch (\Exception $e) {
             Log::error('Failed to send liquidation notification emails', [
                 'implement_id' => $implementation->implement_id,
-                'error'        => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -473,7 +470,7 @@ class ImplementationController extends Controller
         ]);
 
         $implementation = ImplementationModel::findOrFail($request->implement_id);
-        $filePath       = $implementation->$field;
+        $filePath = $implementation->$field;
 
         if (!$filePath) {
             return back()->withErrors(['delete' => 'No file found to delete.']);
@@ -484,20 +481,20 @@ class ImplementationController extends Controller
                 Storage::disk('private')->delete($filePath);
             }
 
-            $uploadByField = $field . '_by';
+            $uploadByField = $field.'_by';
             $implementation->update([
-                $field             => null,
-                $field . '_upload' => null,
-                $uploadByField     => null,
+                $field => null,
+                $field.'_upload' => null,
+                $uploadByField => null,
             ]);
 
-            return back()->with('success', ucfirst($field) . ' file deleted successfully.');
-
+            return back()->with('success', ucfirst($field).' file deleted successfully.');
         } catch (\Exception $e) {
             Log::error("Delete error for {$field}", [
                 'implement_id' => $implementation->implement_id,
-                'error'        => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
             return back()->withErrors(['delete' => 'Failed to delete file.']);
         }
     }
@@ -515,15 +512,14 @@ class ImplementationController extends Controller
                 return abort(404, 'File not found');
             }
 
-            $filename    = basename($filePath);
+            $filename = basename($filePath);
             $fileContent = Storage::disk('private')->get($filePath);
-            $mimeType    = mime_content_type(Storage::disk('private')->path($filePath)) ?: 'application/octet-stream';
+            $mimeType = mime_content_type(Storage::disk('private')->path($filePath)) ?: 'application/octet-stream';
 
             return response($fileContent, 200, [
-                'Content-Type'        => $mimeType,
-                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'inline; filename="'.$filename.'"',
             ]);
-
         } catch (\Exception $e) {
             return abort(500, 'Error viewing file');
         }
@@ -542,15 +538,14 @@ class ImplementationController extends Controller
                 return abort(404, 'File not found');
             }
 
-            $filename    = basename($filePath);
+            $filename = basename($filePath);
             $fileContent = Storage::disk('private')->get($filePath);
-            $mimeType    = mime_content_type(Storage::disk('private')->path($filePath)) ?: 'application/octet-stream';
+            $mimeType = mime_content_type(Storage::disk('private')->path($filePath)) ?: 'application/octet-stream';
 
             return response($fileContent, 200, [
-                'Content-Type'        => $mimeType,
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             ]);
-
         } catch (\Exception $e) {
             return abort(500, 'Error downloading file');
         }
@@ -559,6 +554,7 @@ class ImplementationController extends Controller
     public function show($id)
     {
         $implement = ImplementationModel::with('project')->findOrFail($id);
+
         return response()->json($implement);
     }
 
@@ -567,9 +563,9 @@ class ImplementationController extends Controller
         $implement = ImplementationModel::findOrFail($id);
 
         $validated = $request->validate([
-            'project_id'  => 'nullable|exists:tbl_projects,project_id',
-            'tarp'        => 'nullable|string',
-            'pdc'         => 'nullable|string',
+            'project_id' => 'nullable|exists:tbl_projects,project_id',
+            'tarp' => 'nullable|string',
+            'pdc' => 'nullable|string',
             'liquidation' => 'nullable|string|max:45',
         ]);
 

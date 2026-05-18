@@ -2,146 +2,146 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Http\Request;
+use App\Models\DirectorModel;
 use App\Models\MoaModel;
+use App\Models\OfficeModel;
 use App\Models\ProjectModel;
 use App\Models\ProponentModel;
-use App\Models\DirectorModel;
 use App\Models\UserModel;
-use App\Models\OfficeModel;
+use App\Services\SupabaseUpload;
 use Carbon\Carbon;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use \NumberFormatter;
+use Inertia\Inertia;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\SimpleType\Jc;
 use PhpOffice\PhpWord\TemplateProcessor;
-use Inertia\Inertia;
-use App\Services\SupabaseUpload;
 
 class MOAController extends Controller
 {
-
     use AuthorizesRequests;
-public function index(Request $request){
-    $this->authorize('viewAny', MoaModel::class);
- 
-    $search        = $request->input('search', '');
-    $perPage       = $request->input('perPage', 10);
-    $sortBy        = $request->input('sortBy', 'created_at');
-    $sortOrder     = $request->input('sortOrder', 'desc');
-    $officeFilter  = $request->input('officeFilter', '');
-    $yearFilter    = $request->input('yearFilter', '');
-    $user          = Auth::user();
- 
-    // Valid sort columns
-    $validSortColumns = ['created_at', 'project_cost', 'owner_name', 'pd_name'];
-    if (!in_array($sortBy, $validSortColumns)) {
-        $sortBy = 'created_at';
-    }
- 
-    $sortOrder = strtoupper($sortOrder) === 'ASC' ? 'asc' : 'desc';
- 
-    // ── Base query ────────────────────────────────────────────────────────
-    $baseQuery = MoaModel::with(['project.proponent.office', 'approvedByUser']);
- 
-    // Role-based scope
-    if ($user && $user->role === 'staff' && $user->office_id) {
-        $baseQuery->whereHas('project.proponent', function ($q) use ($user) {
-            $q->where('office_id', $user->office_id);
-        });
-    } elseif ($user && $user->role !== 'rpmo') {
-        $baseQuery->whereRaw('1 = 0');
-    }
- 
-    // Search
-    if (!empty($search)) {
-        $baseQuery->where(function ($q) use ($search) {
-            $q->where('owner_name', 'like', "%{$search}%")
-              ->orWhere('pd_name', 'like', "%{$search}%")
-              ->orWhereHas('project', function ($q2) use ($search) {
-                  $q2->where('project_title', 'like', "%{$search}%")
-                  ->orWhere('project_id', 'like', "%{$search}%");
-              });
-        });
-    }
- 
-    // Office filter (rpmo only)
-    if (!empty($officeFilter) && $user && $user->role === 'rpmo') {
-        $baseQuery->whereHas('project.proponent', function ($q) use ($officeFilter) {
-            $q->where('office_id', $officeFilter);
-        });
-    }
- 
-    // Year filter
-    if (!empty($yearFilter)) {
-        $baseQuery->whereHas('project', function ($q) use ($yearFilter) {
-            $q->where('year_obligated', $yearFilter);
-        });
-    }
- 
-    // ── Sorting ───────────────────────────────────────────────────────────
-    if ($sortBy === 'project_cost') {
-        $baseQuery->join('tbl_projects', 'tbl_moa.project_id', '=', 'tbl_projects.project_id')
-                  ->orderBy('tbl_projects.project_cost', $sortOrder)
-                  ->select('tbl_moa.*');
-    } else {
-        $baseQuery->orderBy('tbl_moa.' . $sortBy, $sortOrder);
-    }
- 
-    // ── Paginate ──────────────────────────────────────────────────────────
-    $moas = $baseQuery->paginate($perPage)->appends($request->only('search', 'perPage', 'sortBy', 'sortOrder', 'officeFilter', 'yearFilter'));
- 
-    // ── Years dropdown ────────────────────────────────────────────────────
-    $yearsQuery = ProjectModel::query()
-        ->distinct()
-        ->whereNotNull('year_obligated')
-        ->whereHas('moa') // Only get projects that have MOAs
-        ->select('year_obligated');
 
-    if ($user && $user->role === 'staff' && $user->office_id) {
-        $yearsQuery->whereHas('proponent', function ($q) use ($user) {
-            $q->where('office_id', $user->office_id);
-        });
-    } elseif ($user && $user->role !== 'rpmo') {
-        $yearsQuery->whereRaw('1 = 0');
+    public function index(Request $request)
+    {
+        $this->authorize('viewAny', MoaModel::class);
+
+        $search = $request->input('search', '');
+        $perPage = $request->input('perPage', 10);
+        $sortBy = $request->input('sortBy', 'created_at');
+        $sortOrder = $request->input('sortOrder', 'desc');
+        $officeFilter = $request->input('officeFilter', '');
+        $yearFilter = $request->input('yearFilter', '');
+        $user = Auth::user();
+
+        // Valid sort columns
+        $validSortColumns = ['created_at', 'project_cost', 'owner_name', 'pd_name'];
+        if (!in_array($sortBy, $validSortColumns)) {
+            $sortBy = 'created_at';
+        }
+
+        $sortOrder = strtoupper($sortOrder) === 'ASC' ? 'asc' : 'desc';
+
+        // ── Base query ────────────────────────────────────────────────────────
+        $baseQuery = MoaModel::with(['project.proponent.office', 'approvedByUser']);
+
+        // Role-based scope
+        if ($user && $user->role === 'staff' && $user->office_id) {
+            $baseQuery->whereHas('project.proponent', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
+            });
+        } elseif ($user && $user->role !== 'rpmo') {
+            $baseQuery->whereRaw('1 = 0');
+        }
+
+        // Search
+        if (!empty($search)) {
+            $baseQuery->where(function ($q) use ($search) {
+                $q->where('owner_name', 'like', "%{$search}%")
+                  ->orWhere('pd_name', 'like', "%{$search}%")
+                  ->orWhereHas('project', function ($q2) use ($search) {
+                      $q2->where('project_title', 'like', "%{$search}%")
+                      ->orWhere('project_id', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // Office filter (rpmo only)
+        if (!empty($officeFilter) && $user && $user->role === 'rpmo') {
+            $baseQuery->whereHas('project.proponent', function ($q) use ($officeFilter) {
+                $q->where('office_id', $officeFilter);
+            });
+        }
+
+        // Year filter
+        if (!empty($yearFilter)) {
+            $baseQuery->whereHas('project', function ($q) use ($yearFilter) {
+                $q->where('year_obligated', $yearFilter);
+            });
+        }
+
+        // ── Sorting ───────────────────────────────────────────────────────────
+        if ($sortBy === 'project_cost') {
+            $baseQuery->join('tbl_projects', 'tbl_moa.project_id', '=', 'tbl_projects.project_id')
+                      ->orderBy('tbl_projects.project_cost', $sortOrder)
+                      ->select('tbl_moa.*');
+        } else {
+            $baseQuery->orderBy('tbl_moa.'.$sortBy, $sortOrder);
+        }
+
+        // ── Paginate ──────────────────────────────────────────────────────────
+        $moas = $baseQuery->paginate($perPage)->appends($request->only('search', 'perPage', 'sortBy', 'sortOrder', 'officeFilter', 'yearFilter'));
+
+        // ── Years dropdown ────────────────────────────────────────────────────
+        $yearsQuery = ProjectModel::query()
+            ->distinct()
+            ->whereNotNull('year_obligated')
+            ->whereHas('moa') // Only get projects that have MOAs
+            ->select('year_obligated');
+
+        if ($user && $user->role === 'staff' && $user->office_id) {
+            $yearsQuery->whereHas('proponent', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
+            });
+        } elseif ($user && $user->role !== 'rpmo') {
+            $yearsQuery->whereRaw('1 = 0');
+        }
+
+        $years = $yearsQuery
+            ->orderBy('year_obligated', 'desc')
+            ->pluck('year_obligated')
+            ->filter() // Remove nulls
+            ->unique()
+            ->values()
+            ->toArray();
+
+        // ── Offices dropdown (rpmo only) ──────────────────────────────────────
+        $offices = [];
+        if ($user && $user->role === 'rpmo') {
+            $offices = OfficeModel::orderBy('office_name')->get();
+        }
+
+        return inertia('MOA/Index', [
+            'moas' => $moas,
+            'years' => $years,
+            'offices' => $offices,
+            'filters' => [
+                'search' => $search,
+                'perPage' => $perPage,
+                'sortBy' => $sortBy,
+                'sortOrder' => $sortOrder,
+                'officeFilter' => $officeFilter,
+                'yearFilter' => $yearFilter,
+            ],
+        ]);
     }
 
-    $years = $yearsQuery
-        ->orderBy('year_obligated', 'desc')
-        ->pluck('year_obligated')
-        ->filter() // Remove nulls
-        ->unique()
-        ->values()
-        ->toArray();
- 
-    // ── Offices dropdown (rpmo only) ──────────────────────────────────────
-    $offices = [];
-    if ($user && $user->role === 'rpmo') {
-        $offices = OfficeModel::orderBy('office_name')->get();
-    }
- 
-    return inertia('MOA/Index', [
-        'moas'    => $moas,
-        'years'   => $years,
-        'offices' => $offices,
-        'filters' => [
-            'search'       => $search,
-            'perPage'      => $perPage,
-            'sortBy'       => $sortBy,
-            'sortOrder'    => $sortOrder,
-            'officeFilter' => $officeFilter,
-            'yearFilter'   => $yearFilter,
-        ],
-    ]);
-}
-
-
-public function uploadApprovedFile(Request $request, $moa_id){
+    public function uploadApprovedFile(Request $request, $moa_id)
+    {
         $moa = MoaModel::with('project.proponent')->findOrFail($moa_id);
         $this->authorize('uploadApprovedFile', $moa);
 
@@ -165,21 +165,21 @@ public function uploadApprovedFile(Request $request, $moa_id){
         try {
             $file = $request->file('approved_file');
             $extension = $file->getClientOriginalExtension();
-            
+
             // Sanitize names
             $projectTitle = preg_replace('/[^A-Za-z0-9\-]/', '_', $moa->project->project_title);
             $projectTitle = substr($projectTitle, 0, 50);
-            
+
             $companyName = preg_replace('/[^A-Za-z0-9\-]/', '_', $moa->project->proponent->company_name);
             $companyName = substr($companyName, 0, 50);
-            
+
             $timestamp = now()->format('Y-m-d_His');
             $fileName = "MOA_{$projectTitle}_{$companyName}_{$timestamp}.{$extension}";
-            
+
             $currentYear = now()->year;
             $projectId = $moa->project_id;
             $oldFilePath = $moa->approved_file_path;
-            
+
             // 1. Store file locally
             Log::info('Uploading MOA file', [
                 'moa_id' => $moa_id,
@@ -189,7 +189,7 @@ public function uploadApprovedFile(Request $request, $moa_id){
 
             $localFolderPath = "{$currentYear}/{$projectId}/moa";
             $path = $file->storeAs($localFolderPath, $fileName, 'private');
-            
+
             if (!$path) {
                 throw new \Exception('Failed to store file locally');
             }
@@ -202,30 +202,30 @@ public function uploadApprovedFile(Request $request, $moa_id){
             // 2. Upload to Supabase Storage
             try {
                 $localFilePath = storage_path("app/private/{$path}");
-                
+
                 if (!file_exists($localFilePath)) {
                     throw new \Exception("Local file not found at: {$localFilePath}");
                 }
-                
+
                 $fileContent = file_get_contents($localFilePath);
-                
+
                 if ($fileContent === false) {
-                    throw new \Exception("Failed to read local file content");
+                    throw new \Exception('Failed to read local file content');
                 }
-                
+
                 Log::info('Local file found, attempting Supabase upload', [
                     'moa_id' => $moa_id,
                     'local_path' => $localFilePath,
                     'file_size' => strlen($fileContent),
                 ]);
-                
+
                 $projectId = $moa->project_id;
                 $supabasePath = "backup/{$currentYear}/{$projectId}/{$fileName}";
-                
+
                 // Upload to Supabase
                 $supabaseUpload = new SupabaseUpload();
                 $uploaded = $supabaseUpload->upload($supabasePath, $fileContent);
-                
+
                 if ($uploaded) {
                     Log::info('✓ File successfully uploaded to Supabase', [
                         'moa_id' => $moa_id,
@@ -237,7 +237,6 @@ public function uploadApprovedFile(Request $request, $moa_id){
                         'moa_id' => $moa_id,
                     ]);
                 }
-                
             } catch (\Exception $e) {
                 Log::error('Supabase upload error', [
                     'moa_id' => $moa_id,
@@ -271,145 +270,143 @@ public function uploadApprovedFile(Request $request, $moa_id){
                             $user->name
                         )
                     );
-                    Log::info("MOA notification sent", ['email' => $user->email]);
+                    Log::info('MOA notification sent', ['email' => $user->email]);
                 } catch (\Exception $e) {
-                    Log::error("Failed to send email", ['email' => $user->email]);
+                    Log::error('Failed to send email', ['email' => $user->email]);
                 }
             }
 
-            $successMessage = $isReupload 
-                ? 'Approved MOA file reuploaded successfully.' 
+            $successMessage = $isReupload
+                ? 'Approved MOA file reuploaded successfully.'
                 : 'Approved MOA file uploaded successfully.';
 
             return back()->with('success', $successMessage);
-            
         } catch (\Exception $e) {
             Log::error('MOA Upload Error', [
                 'moa_id' => $moa_id,
                 'error' => $e->getMessage(),
             ]);
-            
+
             return back()->withErrors([
-                'error' => 'Failed to upload file: ' . $e->getMessage()
+                'error' => 'Failed to upload file: '.$e->getMessage(),
             ]);
         }
-}
-
-
-public function viewApprovedFile($moa_id){
-    $moa = MoaModel::findOrFail($moa_id);
-    $this->authorize('downloadApprovedFile', $moa); // Use same authorization as download
-
-    if (!$moa->hasApprovedFile()) {
-        return back()->withErrors(['error' => 'No approved file found for this MOA.']);
     }
 
-    $filePath = storage_path('app/private/' . $moa->approved_file_path);
-    
-    if (!file_exists($filePath)) {
-        return back()->withErrors(['error' => 'File not found on server.']);
+    public function viewApprovedFile($moa_id)
+    {
+        $moa = MoaModel::findOrFail($moa_id);
+        $this->authorize('downloadApprovedFile', $moa); // Use same authorization as download
+
+        if (!$moa->hasApprovedFile()) {
+            return back()->withErrors(['error' => 'No approved file found for this MOA.']);
+        }
+
+        $filePath = storage_path('app/private/'.$moa->approved_file_path);
+
+        if (!file_exists($filePath)) {
+            return back()->withErrors(['error' => 'File not found on server.']);
+        }
+
+        // Return file for inline viewing in browser
+        return response()->file($filePath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.basename($moa->approved_file_path).'"',
+        ]);
     }
 
-    // Return file for inline viewing in browser
-    return response()->file($filePath, [
-        'Content-Type' => 'application/pdf',
-        'Content-Disposition' => 'inline; filename="' . basename($moa->approved_file_path) . '"'
-    ]);
-}
+    public function downloadApprovedFile($moa_id)
+    {
+        $moa = MoaModel::findOrFail($moa_id);
+        $this->authorize('downloadApprovedFile', $moa);
 
-public function downloadApprovedFile($moa_id){
-    $moa = MoaModel::findOrFail($moa_id);
-    $this->authorize('downloadApprovedFile', $moa);
+        if (!$moa->hasApprovedFile()) {
+            return back()->withErrors(['error' => 'No approved file found for this MOA.']);
+        }
 
-    if (!$moa->hasApprovedFile()) {
-        return back()->withErrors(['error' => 'No approved file found for this MOA.']);
+        $filePath = storage_path('app/private/'.$moa->approved_file_path);
+        $fileName = basename($moa->approved_file_path);
+
+        return response()->download($filePath, $fileName);
     }
 
-    $filePath = storage_path('app/private/' . $moa->approved_file_path);
-    $fileName = basename($moa->approved_file_path);
+    // public function deleteApprovedFile($moa_id)
+    // {
+    //     $moa = MOAModel::findOrFail($moa_id);
+    //     $this->authorize('deleteApprovedFile', $moa);
 
-    return response()->download($filePath, $fileName);
-}
+    //     try {
+    //         if ($moa->approved_file_path && Storage::disk('private')->exists($moa->approved_file_path)) {
+    //             Storage::disk('private')->delete($moa->approved_file_path);
+    //         }
 
-// public function deleteApprovedFile($moa_id)
-// {
-//     $moa = MOAModel::findOrFail($moa_id);
-//     $this->authorize('deleteApprovedFile', $moa);
+    //         $moa->update([
+    //             'approved_file_path' => null,
+    //             'approved_file_uploaded_at' => null,
+    //             'approved_by' => null,
+    //         ]);
 
-//     try {
-//         if ($moa->approved_file_path && Storage::disk('private')->exists($moa->approved_file_path)) {
-//             Storage::disk('private')->delete($moa->approved_file_path);
-//         }
+    //         return back()->with('success', 'Approved file deleted successfully.');
+    //     } catch (\Exception $e) {
+    //         Log::error('MOA File Delete Error: ' . $e->getMessage());
+    //         return back()->withErrors(['error' => 'Failed to delete file: ' . $e->getMessage()]);
+    //     }
+    // }
 
-//         $moa->update([
-//             'approved_file_path' => null,
-//             'approved_file_uploaded_at' => null,
-//             'approved_by' => null,
-//         ]);
+    public function generateFromMoa($moa_id)
+    {
+        // Load MOA with all necessary relationships
+        $moa = MoaModel::with(['project.proponent.office', 'project.items', 'project.activities'])->findOrFail($moa_id);
+        $this->authorize('generate', $moa);
+        $project = $moa->project;
+        $proponent = $project->proponent;
+        $office = $proponent->office;
 
-//         return back()->with('success', 'Approved file deleted successfully.');
-//     } catch (\Exception $e) {
-//         Log::error('MOA File Delete Error: ' . $e->getMessage());
-//         return back()->withErrors(['error' => 'Failed to delete file: ' . $e->getMessage()]);
-//     }
-// }
+        // Load template
+        $templatePath = storage_path('../public/templates/template.docx');
+        $templateProcessor = new TemplateProcessor($templatePath);
 
+        // Load image
+        // $templateProcessor->setImageValue('image', [
+        //     'path' => storage_path('app/templates/signature.png'),
+        //     'width' => 130,
+        //     'height' => 80,
+        //     'ratio' => true,
+        // ]);
 
-public function generateFromMoa($moa_id)
-{
-    // Load MOA with all necessary relationships
-    $moa = MoaModel::with(['project.proponent.office', 'project.items', 'project.activities'])->findOrFail($moa_id);
-    $this->authorize('generate', $moa);
-    $project = $moa->project;
-    $proponent = $project->proponent;
-    $office = $proponent->office;
+        $companyAddress = collect([
+            $proponent->street,
+            $proponent->barangay,
+            $proponent->municipality,
+            $proponent->province,
+        ])->filter()->implode(', ');
 
-    // Load template
-    $templatePath = storage_path('../public/templates/template.docx');
-    $templateProcessor = new TemplateProcessor($templatePath);
+        $releaseInitial = $project->release_initial ? Carbon::parse($project->release_initial)->format('F Y') : 'N/A';
+        $releaseEnd = $project->release_end ? Carbon::parse($project->release_end)->format('F Y') : 'N/A';
+        $refundInitial = $project->refund_initial ? Carbon::parse($project->refund_initial)->format('F Y') : 'N/A';
+        $refundEnd = $project->refund_end ? Carbon::parse($project->refund_end)->format('F Y') : 'N/A';
 
-    // Load image
-    // $templateProcessor->setImageValue('image', [
-    //     'path' => storage_path('app/templates/signature.png'),
-    //     'width' => 130,
-    //     'height' => 80,
-    //     'ratio' => true,
-    // ]);
+        // Group into phase strings
+        $phaseOne = "$releaseInitial - $releaseEnd";
+        $phaseTwo = "$refundInitial - $refundEnd";
 
-    $companyAddress = collect([
-        $proponent->street,
-        $proponent->barangay,
-        $proponent->municipality,
-        $proponent->province,
-    ])->filter()->implode(', ');
+        // Fill in text placeholders
+        $templateProcessor->setValue('OWNER_NAME', $moa->owner_name);
+        $templateProcessor->setValue('position', $moa->owner_position);
+        $templateProcessor->setValue('witness', $moa->witness);
+        $templateProcessor->setValue('COMPANY_NAME', $proponent->company_name);
+        $templateProcessor->setValue('COMPANY_LOCATION', $companyAddress);
+        $templateProcessor->setValue('office_name', $office->office_name ?? 'N/A');
+        $templateProcessor->setValue('PROJECT_TITLE', $project->project_title);
+        $templateProcessor->setValue('phase_one', $phaseOne);
+        $templateProcessor->setValue('phase_two', $phaseTwo);
+        $templateProcessor->setValue('project_cost', number_format($project->project_cost, 2));
+        $templateProcessor->setValue('amount', $moa->amount_words);
+        $templateProcessor->setValue('pd_name', $moa->pd_name ?? 'N/A');
+        $templateProcessor->setValue('pd_title', $moa->pd_title ?? 'N/A');
 
-    $releaseInitial = $project->release_initial ? Carbon::parse($project->release_initial)->format('F Y') : 'N/A';
-    $releaseEnd     = $project->release_end ? Carbon::parse($project->release_end)->format('F Y') : 'N/A';
-    $refundInitial  = $project->refund_initial ? Carbon::parse($project->refund_initial)->format('F Y') : 'N/A';
-    $refundEnd      = $project->refund_end ? Carbon::parse($project->refund_end)->format('F Y') : 'N/A';
-
-    // Group into phase strings
-    $phaseOne = "$releaseInitial - $releaseEnd";
-    $phaseTwo = "$refundInitial - $refundEnd";
-
-    // Fill in text placeholders
-    $templateProcessor->setValue('OWNER_NAME', $moa->owner_name);
-    $templateProcessor->setValue('position', $moa->owner_position);
-    $templateProcessor->setValue('witness', $moa->witness);
-    $templateProcessor->setValue('COMPANY_NAME', $proponent->company_name);
-    $templateProcessor->setValue('COMPANY_LOCATION', $companyAddress);
-    $templateProcessor->setValue('office_name', $office->office_name ?? 'N/A');
-    $templateProcessor->setValue('PROJECT_TITLE', $project->project_title);
-    $templateProcessor->setValue('phase_one', $phaseOne);
-    $templateProcessor->setValue('phase_two', $phaseTwo);
-    $templateProcessor->setValue('project_cost', number_format($project->project_cost, 2));
-    $templateProcessor->setValue('amount', $moa->amount_words);
-    $templateProcessor->setValue('pd_name', $moa->pd_name ?? 'N/A');
-    $templateProcessor->setValue('pd_title', $moa->pd_title ?? 'N/A');
-
-    
-    // Create table block from project items
-    $phpWord = new PhpWord();
+        // Create table block from project items
+        $phpWord = new PhpWord();
         $arialFont = ['name' => 'Arial'];
         $boldArial = ['name' => 'Arial', 'bold' => true];
         $section = $phpWord->addSection();
@@ -425,7 +422,7 @@ public function generateFromMoa($moa_id)
         // Merge vertically down: vMerge = 'restart'
         $table->addCell(5500, ['vMerge' => 'restart'])->addText('Item of Expenditure', $boldArial);
         $table->addCell(1200, ['vMerge' => 'restart'])->addText('Qty.', $boldArial);
-        $table->addCell(3000, ['vMerge' => 'restart'])->addText('Unit Cost (Php)' , $boldArial);
+        $table->addCell(3000, ['vMerge' => 'restart'])->addText('Unit Cost (Php)', $boldArial);
 
         // Merge horizontally across 3 cells
         $cell = $table->addCell(7500, ['gridSpan' => 3]);
@@ -440,10 +437,9 @@ public function generateFromMoa($moa_id)
         $table->addCell(3000, ['vMerge' => 'continue']);
 
         // Subheaders
-        $table->addCell(3000)->addText('SETUP' , $boldArial);
+        $table->addCell(3000)->addText('SETUP', $boldArial);
         $table->addCell(1500)->addText('Prop.', $boldArial);
         $table->addCell(3000)->addText('Total', $boldArial);
-
 
         foreach ($project->items as $item) {
             $table->addRow();
@@ -453,9 +449,9 @@ public function generateFromMoa($moa_id)
 
             $textRun->addText($item->item_name, $boldArial); // Item name
             $textRun->addTextBreak(); // New line
-            $textRun->addText("Specifications:", ['italic' => true, $arialFont]); // Subtitle
+            $textRun->addText('Specifications:', ['italic' => true, $arialFont]); // Subtitle
             $textRun->addTextBreak(); // New line
-            $textRun->addText($item->specifications ?? 'N/A', ); // Actual specs
+            $textRun->addText($item->specifications ?? 'N/A'); // Actual specs
 
             $table->addCell(1200)->addText($item->quantity, $arialFont);
             $table->addCell(3000)->addText(number_format($item->item_cost, 2), $arialFont);
@@ -486,10 +482,8 @@ public function generateFromMoa($moa_id)
         $table->addCell(1500)->addText(''); // Prop. column left blank
         $table->addCell(3000)->addText(number_format($grandTotal, 2), $boldArial);
 
-
         // Now inject it to template
         $templateProcessor->setComplexBlock('LIB_TABLE', $table);
-
 
         $phpWord = new PhpWord();
         $arialFont = ['name' => 'Arial', 'size' => 9];
@@ -505,8 +499,8 @@ public function generateFromMoa($moa_id)
 
         // Header row
         $activitiesTable->addRow();
-        $activitiesTable->addCell(5000)->addText("Activity", $boldArial);
-        $activitiesTable->addCell(4000)->addText("Period Covered", $boldArial, ['alignment' => Jc::CENTER]);
+        $activitiesTable->addCell(5000)->addText('Activity', $boldArial);
+        $activitiesTable->addCell(4000)->addText('Period Covered', $boldArial, ['alignment' => Jc::CENTER]);
 
         // Rows for each activity
         foreach ($project->activities as $activity) {
@@ -515,7 +509,7 @@ public function generateFromMoa($moa_id)
 
             // Combine start_date and end_date
             $start = $activity->start_date ? Carbon::parse($activity->start_date)->format('F Y') : 'N/A';
-            $end   = $activity->end_date ? Carbon::parse($activity->end_date)->format('F Y') : 'N/A';
+            $end = $activity->end_date ? Carbon::parse($activity->end_date)->format('F Y') : 'N/A';
             $period = "$start - $end";
 
             $activitiesTable->addCell(4000)->addText($period, $arialFont, ['alignment' => Jc::CENTER]);
@@ -523,7 +517,7 @@ public function generateFromMoa($moa_id)
 
         // Last row = Refund Period
         $activitiesTable->addRow();
-        $activitiesTable->addCell(5000)->addText("Refund Period", $boldArial);
+        $activitiesTable->addCell(5000)->addText('Refund Period', $boldArial);
 
         // This will now correctly use your $phaseTwo string (Refund Start - Refund End)
         $activitiesTable->addCell(4000)->addText($phaseTwo, $arialFont, ['alignment' => Jc::CENTER]);
@@ -531,9 +525,8 @@ public function generateFromMoa($moa_id)
         // Insert into template
         $templateProcessor->setComplexBlock('ACTIVITY_TABLE', $activitiesTable);
 
-
         $start = Carbon::parse($project->refund_initial)->startOfYear(); // force to January of that year
-        $end   = Carbon::parse($project->refund_end);
+        $end = Carbon::parse($project->refund_end);
 
         $periodMonths = [];
         $current = $start->copy();
@@ -541,17 +534,17 @@ public function generateFromMoa($moa_id)
         while ($current->lessThanOrEqualTo($end)) {
             $periodMonths[] = [
                 'month' => $current->format('F'),
-                'year'  => $current->year,
-                'date'  => $current->copy(),
+                'year' => $current->year,
+                'date' => $current->copy(),
             ];
             $current->addMonth();
         }
 
-// Prepare refund data
+        // Prepare refund data
         $refundData = [];
         foreach ($periodMonths as $p) {
             $month = $p['month'];
-            $year  = $p['year'];
+            $year = $p['year'];
 
             if ($p['date']->lessThan(Carbon::parse($project->refund_initial))) {
                 $refundData[$year][$month] = ''; // blank before start
@@ -569,7 +562,7 @@ public function generateFromMoa($moa_id)
             'cellMargin' => 80,
         ]);
 
-// Header row
+        // Header row
         $refundTable->addRow();
         $refundTable->addCell(3000)->addText('Month', ['bold' => true, 'name' => 'Arial']);
         $years = array_unique(array_column($periodMonths, 'year'));
@@ -577,8 +570,8 @@ public function generateFromMoa($moa_id)
             $refundTable->addCell(2000)->addText($year, ['bold' => true, 'name' => 'Arial'], ['alignment' => Jc::CENTER]);
         }
 
-// Prepare monthly + yearly totals
-        $months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        // Prepare monthly + yearly totals
+        $months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         $yearTotals = array_fill_keys($years, 0);
         $overallTotal = 0;
 
@@ -591,7 +584,9 @@ public function generateFromMoa($moa_id)
                 }
             }
 
-            if (!$rowHasData) continue;
+            if (!$rowHasData) {
+                continue;
+            }
 
             $refundTable->addRow();
             $refundTable->addCell(3000)->addText($month, ['name' => 'Arial']);
@@ -643,165 +638,160 @@ public function generateFromMoa($moa_id)
         // Inject into template
         $templateProcessor->setComplexBlock('REFUND_TABLE', $refundTable);
 
-                // Ensure output folder exists
+        // Ensure output folder exists
         $outputFolder = storage_path('app/generated');
         if (!file_exists($outputFolder)) {
             mkdir($outputFolder, 0777, true);
         }
 
         // Save and return file
-        $fileName = now()->timestamp . '_MOA.docx';
+        $fileName = now()->timestamp.'_MOA.docx';
         $outputPath = "$outputFolder/$fileName";
         $templateProcessor->saveAs($outputPath);
 
         return response()->download($outputPath)->deleteFileAfterSend(true);
     }
 
-
-
-public function showForm(Request $request)
-{
-    $this->authorize('viewAny', MoaModel::class);
-
-    $user = Auth::user();
-
-
-    // Build proponent query based on user role
-    $proponentsQuery = ProponentModel::select('proponent_id', 'company_name')
-        ->whereHas('projects', function($query) {
-            $query->whereIn('progress', ['internal_rtec', 'internal_compliance', 'external_rtec', 'external_compliance', 'Awaiting Approval', 'Project Review', 'Approved']);
-        });
-    
-    if ($user->role === 'staff') {
-        $proponentsQuery->where('office_id', $user->office_id);
-    } elseif ($user->role !== 'rpmo') {
-        $proponentsQuery->whereRaw('0 = 1'); // No access
-    }
-    
-    $proponents = $proponentsQuery->get();
-    
-    $proponentId = $request->query('proponent_id');
-    $selectedproponent = null;
-    $projects = collect([]);
-
-    if ($proponentId) {
-        $selectedproponent = ProponentModel::with('office')->find($proponentId);
-        
-        if ($selectedproponent) {
-            // Verify access
-            if ($user->role === 'staff' && $selectedproponent->office_id !== $user->office_id) {
-                abort(403, 'Unauthorized access to this proponent.');
-            }
-
-            // Only show projects with Approved or Draft MOA status
-            $projects = ProjectModel::where('proponent_id', $proponentId)
-                ->whereIn('progress', ['Awaiting Approval', 'Project Review', 'internal_rtec', 'internal_compliance', 'external_rtec', 'external_compliance','Approved'])
-                ->with(['activities', 'items'])
-                ->select('project_id', 'project_title', 'proponent_id')
-                ->get();
-        }
-    }
-
-    return Inertia::render('MOA/DraftMoa', [
-        'proponents' => $proponents,
-        'selectedproponent' => $selectedproponent,
-        'projects' => $projects,
-        'filters' => [
-            'proponent_id' => $proponentId,
-        ]
-    ]);
-}
-public function getproponentDetails($id)
-{
-    try {
-        $proponent = ProponentModel::with([
-            'projects.activities', // assuming you have correct relations
-            'office'
-        ])->findOrFail($id);
-
-        return response()->json($proponent);
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => 'Server error',
-            'message' => $e->getMessage()
-        ], 500);
-    }
-}
-
-
-public function generateDocx(Request $request)
-{
-    try {
+    public function showForm(Request $request)
+    {
         $this->authorize('viewAny', MoaModel::class);
 
-        // Validate
-        $request->validate([
-            'project_id' => 'required|exists:tbl_projects,project_id',
-            'witness' => 'required|string',
-        ]);
+        $user = Auth::user();
 
-        // Load project with relationships
-        $project = ProjectModel::with(['proponent.office'])
-            ->findOrFail($request->project_id);
-        
-        $proponent = $project->proponent;
-        $officeId = $proponent->office_id;
+        // Build proponent query based on user role
+        $proponentsQuery = ProponentModel::select('proponent_id', 'company_name')
+            ->whereHas('projects', function ($query) {
+                $query->whereIn('progress', ['internal_rtec', 'internal_compliance', 'external_rtec', 'external_compliance', 'Awaiting Approval', 'Project Review', 'Approved']);
+            });
 
-        // Get owner details
-        $inputName = trim($request->input('owner_name', ''));
-        $inputPosition = trim($request->input('owner_position', ''));
-        
-        $ownerName = !empty($inputName) ? $inputName : ($proponent->owner_name ?? 'N/A');
-        $ownerPosition = !empty($inputPosition) ? $inputPosition : 'Owner';
-        $witness = $request->input('witness');
-
-        // Process cost in words
-        $costInWords = (new NumberFormatter('en', NumberFormatter::SPELLOUT))
-            ->format($project->project_cost);
-        $costInWords = ucwords($costInWords);
-
-        // Get director details using the office_id from proponent
-        $director = DirectorModel::where('office_id', $officeId)->first();
-        
-        $pdName = 'N/A';
-        $pdTitle = 'N/A';
-        
-        if ($director) {
-            $middleInitial = $director->middle_name 
-                ? strtoupper(substr($director->middle_name, 0, 1)) . '.' 
-                : '';
-            $pdName = trim("{$director->first_name} {$middleInitial} {$director->last_name}");
-            $pdTitle = $director->title ?? 'N/A';
+        if ($user->role === 'staff') {
+            $proponentsQuery->where('office_id', $user->office_id);
+        } elseif ($user->role !== 'rpmo') {
+            $proponentsQuery->whereRaw('0 = 1'); // No access
         }
 
-        // Save MOA record to database (NO DOCUMENT GENERATION)
-        $moa = MoaModel::updateOrCreate(
-            ['project_id' => $project->project_id],
-            [
-                'office_id' => $officeId,
-                'owner_name' => $ownerName,
-                'owner_position' => $ownerPosition,
-                'witness' => $witness,
-                'pd_name' => $pdName,
-                'pd_title' => $pdTitle,
-                'amount_words' => $costInWords,
-                'project_cost' => $project->project_cost,
-            ]
-        );
+        $proponents = $proponentsQuery->get();
 
+        $proponentId = $request->query('proponent_id');
+        $selectedproponent = null;
+        $projects = collect([]);
 
-        return redirect()->route('moa.index')
-            ->with('success', 'MOA draft saved successfully. You can now generate the document from the MOA list.');
+        if ($proponentId) {
+            $selectedproponent = ProponentModel::with('office')->find($proponentId);
 
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        return back()->withErrors($e->errors())->withInput();
-    } catch (\Exception $e) {
-        Log::error('MOA Draft Creation Error: ' . $e->getMessage());
-        Log::error('Stack trace: ' . $e->getTraceAsString());
-        
-        return back()->withErrors([
-            'error' => 'Failed to create MOA draft: ' . $e->getMessage()
-        ])->withInput();
+            if ($selectedproponent) {
+                // Verify access
+                if ($user->role === 'staff' && $selectedproponent->office_id !== $user->office_id) {
+                    abort(403, 'Unauthorized access to this proponent.');
+                }
+
+                // Only show projects with Approved or Draft MOA status
+                $projects = ProjectModel::where('proponent_id', $proponentId)
+                    ->whereIn('progress', ['Awaiting Approval', 'Project Review', 'internal_rtec', 'internal_compliance', 'external_rtec', 'external_compliance', 'Approved'])
+                    ->with(['activities', 'items'])
+                    ->select('project_id', 'project_title', 'proponent_id')
+                    ->get();
+            }
+        }
+
+        return Inertia::render('MOA/DraftMoa', [
+            'proponents' => $proponents,
+            'selectedproponent' => $selectedproponent,
+            'projects' => $projects,
+            'filters' => [
+                'proponent_id' => $proponentId,
+            ],
+        ]);
     }
-}
+
+    public function getproponentDetails($id)
+    {
+        try {
+            $proponent = ProponentModel::with([
+                'projects.activities', // assuming you have correct relations
+                'office',
+            ])->findOrFail($id);
+
+            return response()->json($proponent);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Server error',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function generateDocx(Request $request)
+    {
+        try {
+            $this->authorize('viewAny', MoaModel::class);
+
+            // Validate
+            $request->validate([
+                'project_id' => 'required|exists:tbl_projects,project_id',
+                'witness' => 'required|string',
+            ]);
+
+            // Load project with relationships
+            $project = ProjectModel::with(['proponent.office'])
+                ->findOrFail($request->project_id);
+
+            $proponent = $project->proponent;
+            $officeId = $proponent->office_id;
+
+            // Get owner details
+            $inputName = trim($request->input('owner_name', ''));
+            $inputPosition = trim($request->input('owner_position', ''));
+
+            $ownerName = !empty($inputName) ? $inputName : ($proponent->owner_name ?? 'N/A');
+            $ownerPosition = !empty($inputPosition) ? $inputPosition : 'Owner';
+            $witness = $request->input('witness');
+
+            // Process cost in words
+            $costInWords = (new \NumberFormatter('en', \NumberFormatter::SPELLOUT))
+                ->format($project->project_cost);
+            $costInWords = ucwords($costInWords);
+
+            // Get director details using the office_id from proponent
+            $director = DirectorModel::where('office_id', $officeId)->first();
+
+            $pdName = 'N/A';
+            $pdTitle = 'N/A';
+
+            if ($director) {
+                $middleInitial = $director->middle_name
+                    ? strtoupper(substr($director->middle_name, 0, 1)).'.'
+                    : '';
+                $pdName = trim("{$director->first_name} {$middleInitial} {$director->last_name}");
+                $pdTitle = $director->title ?? 'N/A';
+            }
+
+            // Save MOA record to database (NO DOCUMENT GENERATION)
+            $moa = MoaModel::updateOrCreate(
+                ['project_id' => $project->project_id],
+                [
+                    'office_id' => $officeId,
+                    'owner_name' => $ownerName,
+                    'owner_position' => $ownerPosition,
+                    'witness' => $witness,
+                    'pd_name' => $pdName,
+                    'pd_title' => $pdTitle,
+                    'amount_words' => $costInWords,
+                    'project_cost' => $project->project_cost,
+                ]
+            );
+
+            return redirect()->route('moa.index')
+                ->with('success', 'MOA draft saved successfully. You can now generate the document from the MOA list.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('MOA Draft Creation Error: '.$e->getMessage());
+            Log::error('Stack trace: '.$e->getTraceAsString());
+
+            return back()->withErrors([
+                'error' => 'Failed to create MOA draft: '.$e->getMessage(),
+            ])->withInput();
+        }
+    }
 }

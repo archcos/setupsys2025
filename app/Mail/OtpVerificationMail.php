@@ -2,14 +2,16 @@
 
 namespace App\Mail;
 
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
-use Carbon\Carbon;
 
-class OtpVerificationMail extends Mailable
+class OtpVerificationMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable;
+    use SerializesModels;
 
     public $otp;
     public $userName;
@@ -18,7 +20,7 @@ class OtpVerificationMail extends Mailable
     /**
      * Create a new message instance.
      *
-     * @param string $otp
+     * @param string      $otp
      * @param string|null $userName
      * @param Carbon|null $expiresAt
      */
@@ -44,9 +46,9 @@ class OtpVerificationMail extends Mailable
 
         $otp = htmlspecialchars($this->otp);
         $userName = htmlspecialchars($this->userName);
-        
+
         $expiryDateTime = $this->expiresAt->format('F d, Y \a\t h:i A T');
-        
+
         $currentDate = Carbon::now()->format('F d, Y \a\t h:i A');
         $currentYear = Carbon::now()->year;
 

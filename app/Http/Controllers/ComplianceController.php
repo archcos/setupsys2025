@@ -2,31 +2,30 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Inertia\Inertia;
+use App\Mail\ComplianceApprovalMail;
+use App\Mail\ComplianceCompletedMail;
+use App\Mail\ComplianceDenyMail;
 use App\Models\ComplianceModel;
-use App\Models\ProjectModel;
 use App\Models\DirectorModel;
 use App\Models\OfficeModel;
+use App\Models\ProjectModel;
 use App\Models\UserModel;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
-use App\Mail\ComplianceApprovalMail;
-use App\Mail\ComplianceDenyMail;
-use App\Mail\ComplianceCompletedMail;
+use Inertia\Inertia;
 
 class ComplianceController extends Controller
 {
     public function index(Request $request)
     {
-        $search       = $request->input('search', '');
-        $year         = $request->input('year', '');
+        $search = $request->input('search', '');
+        $year = $request->input('year', '');
         $officeFilter = $request->input('officeFilter', '');
-        $sortBy       = $request->input('sortBy', 'project_id');
-        $sortOrder    = $request->input('sortOrder', 'desc');
+        $sortBy = $request->input('sortBy', 'project_id');
+        $sortOrder = $request->input('sortOrder', 'desc');
         $statusFilter = $request->input('statusFilter', 'all');
-        $perPage      = $request->input('perPage', 10);
+        $perPage = $request->input('perPage', 10);
 
         // Valid sort columns
         $validSortColumns = ['project_id', 'project_title', 'proponent_id', 'year_obligated', 'created_at', 'progress'];
@@ -57,10 +56,10 @@ class ComplianceController extends Controller
         if ($search) {
             $baseQuery->where(function ($q) use ($search) {
                 $q->where('project_title', 'like', "%{$search}%")
-                  ->orWhere('project_id', 'like', "%{$search}%")
-                  ->orWhereHas('proponent', function ($q) use ($search) {
-                      $q->where('company_name', 'like', "%{$search}%");
-                  });
+                    ->orWhere('project_id', 'like', "%{$search}%")
+                    ->orWhereHas('proponent', function ($q) use ($search) {
+                        $q->where('company_name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -78,13 +77,13 @@ class ComplianceController extends Controller
 
         // ── Compute status counts BEFORE applying status filter ───────────────
         $statusCounts = [
-            'all'         => (clone $baseQuery)->count(),
-            'pending'     => (clone $baseQuery)->where(function ($q) {
-                                $q->whereDoesntHave('compliance')
-                                  ->orWhereHas('compliance', fn($q) => $q->where('status', 'pending'));
-                             })->count(),
-            'recommended' => (clone $baseQuery)->whereHas('compliance', fn($q) => $q->where('status', 'recommended'))->count(),
-            'approved'    => (clone $baseQuery)->whereHas('compliance', fn($q) => $q->where('status', 'approved'))->count(),
+            'all' => (clone $baseQuery)->count(),
+            'pending' => (clone $baseQuery)->where(function ($q) {
+                $q->whereDoesntHave('compliance')
+                  ->orWhereHas('compliance', fn ($q) => $q->where('status', 'pending'));
+            })->count(),
+            'recommended' => (clone $baseQuery)->whereHas('compliance', fn ($q) => $q->where('status', 'recommended'))->count(),
+            'approved' => (clone $baseQuery)->whereHas('compliance', fn ($q) => $q->where('status', 'approved'))->count(),
         ];
 
         // ── Apply status filter ───────────────────────────────────────────────
@@ -93,10 +92,10 @@ class ComplianceController extends Controller
         if ($statusFilter === 'pending') {
             $query->where(function ($q) {
                 $q->whereDoesntHave('compliance')
-                  ->orWhereHas('compliance', fn($q) => $q->where('status', 'pending'));
+                  ->orWhereHas('compliance', fn ($q) => $q->where('status', 'pending'));
             });
         } elseif (in_array($statusFilter, ['recommended', 'approved'])) {
-            $query->whereHas('compliance', fn($q) => $q->where('status', $statusFilter));
+            $query->whereHas('compliance', fn ($q) => $q->where('status', $statusFilter));
         }
         // 'all' → no additional filter
 
@@ -117,7 +116,7 @@ class ComplianceController extends Controller
 
         if ($user) {
             if ($user->role === 'staff' && $user->office_id) {
-                $yearsQuery->whereHas('proponent', fn($q) => $q->where('office_id', $user->office_id));
+                $yearsQuery->whereHas('proponent', fn ($q) => $q->where('office_id', $user->office_id));
             } elseif ($user->role !== 'rpmo') {
                 $yearsQuery->whereRaw('1 = 0');
             }
@@ -132,25 +131,25 @@ class ComplianceController extends Controller
         }
 
         return Inertia::render('Compliance/Index', [
-            'projects'     => $projects,
-            'years'        => $years,
-            'offices'      => $offices,
+            'projects' => $projects,
+            'years' => $years,
+            'offices' => $offices,
             'statusCounts' => $statusCounts,
-            'filters'      => [
-                'search'       => $search,
-                'year'         => $year,
+            'filters' => [
+                'search' => $search,
+                'year' => $year,
                 'officeFilter' => $officeFilter,
-                'sortBy'       => $sortBy,
-                'sortOrder'    => $sortOrder,
+                'sortBy' => $sortBy,
+                'sortOrder' => $sortOrder,
                 'statusFilter' => $statusFilter,
-                'perPage'      => $perPage,
+                'perPage' => $perPage,
             ],
         ]);
     }
 
     public function show($projectId)
     {
-        $project    = ProjectModel::findOrFail($projectId);
+        $project = ProjectModel::findOrFail($projectId);
         $compliance = ComplianceModel::where('project_id', $projectId)->first();
 
         $user = Auth::user();
@@ -165,10 +164,10 @@ class ComplianceController extends Controller
         }
 
         return Inertia::render('Compliance/Checklist', [
-            'project'    => $project,
+            'project' => $project,
             'compliance' => $compliance,
-            'userRole'   => $user->role ?? null,
-            'backUrl'    => url()->previous(),
+            'userRole' => $user->role ?? null,
+            'backUrl' => url()->previous(),
         ]);
     }
 
@@ -176,10 +175,10 @@ class ComplianceController extends Controller
     {
         $request->validate([
             'project_id' => 'required|exists:tbl_projects,project_id',
-            'links'      => 'array',
+            'links' => 'array',
         ]);
 
-        $user    = Auth::user();
+        $user = Auth::user();
         $project = ProjectModel::findOrFail($request->project_id);
 
         if ($user) {
@@ -201,24 +200,24 @@ class ComplianceController extends Controller
             if (!empty($request->links[$linkKey])) {
                 if (!$this->isValidCloudLink($request->links[$linkKey])) {
                     return back()->withErrors([
-                        "links.$linkKey" => "$linkLabel must be a valid Google Drive or OneDrive link"
+                        "links.$linkKey" => "$linkLabel must be a valid Google Drive or OneDrive link",
                     ])->withInput();
                 }
             }
         }
 
-        $compliance  = ComplianceModel::firstOrNew(['project_id' => $request->project_id]);
+        $compliance = ComplianceModel::firstOrNew(['project_id' => $request->project_id]);
         $currentUser = Auth::user()->name ?? 'System';
 
         foreach ($linkMapping as $linkKey => $linkLabel) {
-            $dateKey    = "{$linkKey}_date";
+            $dateKey = "{$linkKey}_date";
             $addedByKey = "{$linkKey}_added_by";
 
             if (!empty($request->links[$linkKey])) {
                 $link = $request->links[$linkKey];
                 if ($compliance->$linkKey !== $link) {
-                    $compliance->$linkKey    = $link;
-                    $compliance->$dateKey    = now();
+                    $compliance->$linkKey = $link;
+                    $compliance->$dateKey = now();
                     $compliance->$addedByKey = $currentUser;
                 }
             }
@@ -228,7 +227,7 @@ class ComplianceController extends Controller
         $compliance->save();
 
         $filledLinks = collect(['pp_link', 'fs_link'])
-            ->filter(fn($k) => !empty($compliance->$k))
+            ->filter(fn ($k) => !empty($compliance->$k))
             ->count();
 
         if ($user->role === 'staff' && $filledLinks === 2) {
@@ -255,7 +254,7 @@ class ComplianceController extends Controller
             abort(403, 'Only RPMO can approve projects.');
         }
 
-        $project    = ProjectModel::findOrFail($request->project_id);
+        $project = ProjectModel::findOrFail($request->project_id);
         $compliance = ComplianceModel::where('project_id', $request->project_id)->first();
 
         if ($compliance) {
@@ -278,7 +277,7 @@ class ComplianceController extends Controller
     {
         $request->validate([
             'project_id' => 'required|exists:tbl_projects,project_id',
-            'remark'     => 'required|string|min:5|max:500',
+            'remark' => 'required|string|min:5|max:500',
         ]);
 
         $user = Auth::user();
@@ -286,7 +285,7 @@ class ComplianceController extends Controller
             abort(403, 'Only RPMO can deny projects.');
         }
 
-        $project    = ProjectModel::findOrFail($request->project_id);
+        $project = ProjectModel::findOrFail($request->project_id);
         $compliance = ComplianceModel::where('project_id', $request->project_id)->first();
 
         if ($compliance) {
@@ -304,10 +303,13 @@ class ComplianceController extends Controller
 
     private function isValidCloudLink($url)
     {
-        if (empty($url)) return true;
+        if (empty($url)) {
+            return true;
+        }
         $lower = strtolower(trim($url));
-        return str_contains($lower, 'drive.google.com')   ||
-               str_contains($lower, 'onedrive.live.com')  ||
-               str_contains($lower, '1drv.ms');
+
+        return str_contains($lower, 'drive.google.com')
+               || str_contains($lower, 'onedrive.live.com')
+               || str_contains($lower, '1drv.ms');
     }
 }

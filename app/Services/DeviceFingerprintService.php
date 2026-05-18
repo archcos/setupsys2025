@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use Illuminate\Http\Request;
 use App\Models\SavedDeviceModel;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class DeviceFingerprintService
@@ -15,28 +15,28 @@ class DeviceFingerprintService
 
     /**
      * Generate multi-layered device fingerprint with versioning
-     * NOTE: IP address intentionally excluded - it changes on network/restart
+     * NOTE: IP address intentionally excluded - it changes on network/restart.
      */
     public static function generateFingerprint(Request $request): array
     {
         $components = self::extractComponents($request);
         $normalizedComponents = self::normalizeComponents($components);
-        
+
         // PRIMARY FINGERPRINT (strict - must be consistent)
         $fingerprintString = implode('|', [
             self::FINGERPRINT_VERSION,
             ...array_values($normalizedComponents),
         ]);
-        
+
         // SECONDARY FINGERPRINT (relaxed - allows updates)
         $relaxedString = implode('|', [
             self::FINGERPRINT_VERSION,
             ...self::relaxComponents($normalizedComponents),
         ]);
-        
+
         $fingerprint = hash('sha256', $fingerprintString);
         $fingerprintRelaxed = hash('sha256', $relaxedString);
-        
+
         // DEBUG: Log the actual fingerprint components
         Log::debug('🔍 FINGERPRINT GENERATION', [
             'fingerprint_string' => $fingerprintString,
@@ -44,7 +44,7 @@ class DeviceFingerprintService
             'fingerprint_relaxed' => $fingerprintRelaxed,
             'components' => $normalizedComponents,
         ]);
-        
+
         return [
             'fingerprint' => $fingerprint,
             'fingerprint_relaxed' => $fingerprintRelaxed,
@@ -55,155 +55,178 @@ class DeviceFingerprintService
         ];
     }
 
-private static function extractComponents(Request $request): array
-{
-    return [
-        'user_agent'      => self::sanitizeUserAgent($request->header('User-Agent', '')),
-        'accept'          => $request->header('Accept', 'unknown'),
-        'accept_language' => $request->header('Accept-Language', 'unknown'),
-        'accept_encoding' => $request->header('Accept-Encoding', 'unknown'),
-        'http_version'    => $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1',
-        'platform_info'   => self::extractPlatformHints($request->header('User-Agent', '')),
+    private static function extractComponents(Request $request): array
+    {
+        return [
+            'user_agent' => self::sanitizeUserAgent($request->header('User-Agent', '')),
+            'accept' => $request->header('Accept', 'unknown'),
+            'accept_language' => $request->header('Accept-Language', 'unknown'),
+            'accept_encoding' => $request->header('Accept-Encoding', 'unknown'),
+            'http_version' => $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1',
+            'platform_info' => self::extractPlatformHints($request->header('User-Agent', '')),
 
-        // Client Hints — Chrome/Edge sends these over HTTP too
-        'ch_platform'     => strtolower($request->header('Sec-CH-UA-Platform', 'unknown')),
-        'ch_mobile'       => $request->header('Sec-CH-UA-Mobile', 'unknown'),
-        'ch_ua'           => self::normalizeClientHint($request->header('Sec-CH-UA', 'unknown')),
+            // Client Hints — Chrome/Edge sends these over HTTP too
+            'ch_platform' => strtolower($request->header('Sec-CH-UA-Platform', 'unknown')),
+            'ch_mobile' => $request->header('Sec-CH-UA-Mobile', 'unknown'),
+            'ch_ua' => self::normalizeClientHint($request->header('Sec-CH-UA', 'unknown')),
 
-        // Sec-Fetch signals
-        'sec_fetch_site'  => $request->header('Sec-Fetch-Site', 'unknown'),
-        'sec_fetch_mode'  => $request->header('Sec-Fetch-Mode', 'unknown'),
-        'sec_fetch_dest'  => $request->header('Sec-Fetch-Dest', 'unknown'),
+            // Sec-Fetch signals
+            'sec_fetch_site' => $request->header('Sec-Fetch-Site', 'unknown'),
+            'sec_fetch_mode' => $request->header('Sec-Fetch-Mode', 'unknown'),
+            'sec_fetch_dest' => $request->header('Sec-Fetch-Dest', 'unknown'),
 
-        // Header order — engine-level signal, works on HTTP
-        'header_order'    => self::extractHeaderOrder($request),
-    ];
-}
+            // Header order — engine-level signal, works on HTTP
+            'header_order' => self::extractHeaderOrder($request),
+        ];
+    }
 
-private static function normalizeComponents(array $components): array
-{
-    return [
-        'user_agent'      => strtolower(trim($components['user_agent'])),
-        'accept'          => strtolower(trim($components['accept'])),
-        'accept_language' => strtolower(trim($components['accept_language'])),
-        'accept_encoding' => strtolower(trim($components['accept_encoding'])),
-        'http_version'    => $components['http_version'],
-        'platform_info'   => $components['platform_info'],
-        'ch_platform'     => $components['ch_platform'],
-        'ch_mobile'       => $components['ch_mobile'],
-        'ch_ua'           => $components['ch_ua'],
-        'sec_fetch_site'  => $components['sec_fetch_site'],
-        'sec_fetch_mode'  => $components['sec_fetch_mode'],
-        'sec_fetch_dest'  => $components['sec_fetch_dest'],
-        'header_order'    => $components['header_order'],
-    ];
-}
+    private static function normalizeComponents(array $components): array
+    {
+        return [
+            'user_agent' => strtolower(trim($components['user_agent'])),
+            'accept' => strtolower(trim($components['accept'])),
+            'accept_language' => strtolower(trim($components['accept_language'])),
+            'accept_encoding' => strtolower(trim($components['accept_encoding'])),
+            'http_version' => $components['http_version'],
+            'platform_info' => $components['platform_info'],
+            'ch_platform' => $components['ch_platform'],
+            'ch_mobile' => $components['ch_mobile'],
+            'ch_ua' => $components['ch_ua'],
+            'sec_fetch_site' => $components['sec_fetch_site'],
+            'sec_fetch_mode' => $components['sec_fetch_mode'],
+            'sec_fetch_dest' => $components['sec_fetch_dest'],
+            'header_order' => $components['header_order'],
+        ];
+    }
 
-private static function relaxComponents(array $components): array
-{
-    $relaxed = $components;
+    private static function relaxComponents(array $components): array
+    {
+        $relaxed = $components;
 
-    // UA → stable platform_info only (no version numbers)
-    $relaxed['user_agent'] = $components['platform_info'];
+        // UA → stable platform_info only (no version numbers)
+        $relaxed['user_agent'] = $components['platform_info'];
 
-    // Language → strip region ("en-US" → "en")
-    $langs = explode(',', $components['accept_language']);
-    $relaxed['accept_language'] = trim(explode('-', trim($langs[0]))[0]);
+        // Language → strip region ("en-US" → "en")
+        $langs = explode(',', $components['accept_language']);
+        $relaxed['accept_language'] = trim(explode('-', trim($langs[0]))[0]);
 
-    // These vary by entry point / VPN routing
-    $relaxed['sec_fetch_site'] = 'any';
-    $relaxed['sec_fetch_dest'] = 'any';
-    $relaxed['sec_fetch_mode'] = 'any';
+        // These vary by entry point / VPN routing
+        $relaxed['sec_fetch_site'] = 'any';
+        $relaxed['sec_fetch_dest'] = 'any';
+        $relaxed['sec_fetch_mode'] = 'any';
 
-    // Accept header has minor variation between versions
-    $relaxed['accept'] = 'any';
+        // Accept header has minor variation between versions
+        $relaxed['accept'] = 'any';
 
-    // ch_platform, ch_mobile, ch_ua — already stable, keep as-is
-    // header_order — engine-level, keep as-is
+        // ch_platform, ch_mobile, ch_ua — already stable, keep as-is
+        // header_order — engine-level, keep as-is
 
-    return $relaxed;
-}
+        return $relaxed;
+    }
 
-private static function sanitizeUserAgent(string $ua): string
-{
-    $ua = preg_replace('/WebKit\/[\d.]+/', 'WebKit/X', $ua);
-    $ua = preg_replace('/Safari\/[\d.]+/', 'Safari/X', $ua);
-    $ua = preg_replace('/Chrome\/[\d.]+/', 'Chrome/X', $ua);
-    $ua = preg_replace('/Firefox\/[\d.]+/', 'Firefox/X', $ua);
-    $ua = preg_replace('/\s+/', ' ', trim($ua));
-    return $ua;
-}
+    private static function sanitizeUserAgent(string $ua): string
+    {
+        $ua = preg_replace('/WebKit\/[\d.]+/', 'WebKit/X', $ua);
+        $ua = preg_replace('/Safari\/[\d.]+/', 'Safari/X', $ua);
+        $ua = preg_replace('/Chrome\/[\d.]+/', 'Chrome/X', $ua);
+        $ua = preg_replace('/Firefox\/[\d.]+/', 'Firefox/X', $ua);
+        $ua = preg_replace('/\s+/', ' ', trim($ua));
 
-private static function normalizeClientHint(string $ch): string
-{
-    preg_match_all('/"([^"]+)";v="\d+"/', $ch, $matches);
-    $brands = array_map('strtolower', $matches[1] ?? []);
-    $brands = array_filter($brands, fn($b) => !str_contains($b, 'not'));
-    sort($brands);
-    return implode(',', $brands) ?: 'unknown';
-}
+        return $ua;
+    }
 
-private static function extractHeaderOrder(Request $request): string
-{
-    $tracked = [
-        'host', 'user-agent', 'accept', 'accept-language',
-        'accept-encoding', 'sec-fetch-site', 'sec-fetch-mode',
-        'sec-ch-ua', 'sec-ch-ua-platform', 'sec-ch-ua-mobile',
-    ];
-    $present = array_filter(
-        $tracked,
-        fn($h) => $request->headers->has($h)
-    );
-    return implode(',', array_values($present));
-}
+    private static function normalizeClientHint(string $ch): string
+    {
+        preg_match_all('/"([^"]+)";v="\d+"/', $ch, $matches);
+        $brands = array_map('strtolower', $matches[1] ?? []);
+        $brands = array_filter($brands, fn ($b) => !str_contains($b, 'not'));
+        sort($brands);
 
-private static function extractPlatformHints(string $ua): string
-{
-    $hints = [];
-    if (str_contains($ua, 'Windows')) $hints[] = 'windows';
-    if (str_contains($ua, 'Mac'))     $hints[] = 'macos';
-    if (str_contains($ua, 'Linux'))   $hints[] = 'linux';
-    if (str_contains($ua, 'iPhone'))  $hints[] = 'ios';
-    if (str_contains($ua, 'Android')) $hints[] = 'android';
-    if (str_contains($ua, 'Chrome'))  $hints[] = 'chrome';
-    if (str_contains($ua, 'Firefox')) $hints[] = 'firefox';
-    if (str_contains($ua, 'Safari'))  $hints[] = 'safari';
-    if (str_contains($ua, 'Edg'))     $hints[] = 'edge';
+        return implode(',', $brands) ?: 'unknown';
+    }
 
-    return implode('|', $hints) ?: 'unknown';
-}
+    private static function extractHeaderOrder(Request $request): string
+    {
+        $tracked = [
+            'host', 'user-agent', 'accept', 'accept-language',
+            'accept-encoding', 'sec-fetch-site', 'sec-fetch-mode',
+            'sec-ch-ua', 'sec-ch-ua-platform', 'sec-ch-ua-mobile',
+        ];
+        $present = array_filter(
+            $tracked,
+            fn ($h) => $request->headers->has($h)
+        );
+
+        return implode(',', array_values($present));
+    }
+
+    private static function extractPlatformHints(string $ua): string
+    {
+        $hints = [];
+        if (str_contains($ua, 'Windows')) {
+            $hints[] = 'windows';
+        }
+        if (str_contains($ua, 'Mac')) {
+            $hints[] = 'macos';
+        }
+        if (str_contains($ua, 'Linux')) {
+            $hints[] = 'linux';
+        }
+        if (str_contains($ua, 'iPhone')) {
+            $hints[] = 'ios';
+        }
+        if (str_contains($ua, 'Android')) {
+            $hints[] = 'android';
+        }
+        if (str_contains($ua, 'Chrome')) {
+            $hints[] = 'chrome';
+        }
+        if (str_contains($ua, 'Firefox')) {
+            $hints[] = 'firefox';
+        }
+        if (str_contains($ua, 'Safari')) {
+            $hints[] = 'safari';
+        }
+        if (str_contains($ua, 'Edg')) {
+            $hints[] = 'edge';
+        }
+
+        return implode('|', $hints) ?: 'unknown';
+    }
+
     private static function calculateEntropy(array $components): float
     {
         $entropy = 0;
         $totalWeight = 0;
-        
-       $weights = [
-            'user_agent'      => 0.20, // sanitized, less unique now
+
+        $weights = [
+            'user_agent' => 0.20, // sanitized, less unique now
             'accept_language' => 0.10,
             'accept_encoding' => 0.05,
-            'http_version'    => 0.05,
-            'platform_info'   => 0.15, // stable and meaningful
-            'ch_platform'     => 0.15, // very stable OS signal
-            'ch_ua'           => 0.10, // browser family
-            'header_order'    => 0.15, // engine-level, hard to spoof
-            'sec_fetch_mode'  => 0.05,
+            'http_version' => 0.05,
+            'platform_info' => 0.15, // stable and meaningful
+            'ch_platform' => 0.15, // very stable OS signal
+            'ch_ua' => 0.10, // browser family
+            'header_order' => 0.15, // engine-level, hard to spoof
+            'sec_fetch_mode' => 0.05,
         ];
-        
+
         foreach ($weights as $key => $weight) {
-            if (!isset($components[$key])) continue;
-            
+            if (!isset($components[$key])) {
+                continue;
+            }
+
             $value = $components[$key];
             $length = strlen($value);
             $uniqueChars = count(array_unique(str_split($value)));
-            
+
             $componentEntropy = ($uniqueChars / 256);
             $entropy += $componentEntropy * $weight;
             $totalWeight += $weight;
         }
-        
+
         return $totalWeight > 0 ? $entropy / $totalWeight : 0;
     }
-
 
     public static function verifyDevice(
         string $userId,
@@ -212,8 +235,8 @@ private static function extractPlatformHints(string $ua): string
     ): array {
         Log::info('🔐 VERIFY DEVICE START', [
             'user_id' => $userId,
-            'current_fp_strict' => substr($currentFingerprint['fingerprint'], 0, 16) . '...',
-            'current_fp_relaxed' => substr($currentFingerprint['fingerprint_relaxed'], 0, 16) . '...',
+            'current_fp_strict' => substr($currentFingerprint['fingerprint'], 0, 16).'...',
+            'current_fp_relaxed' => substr($currentFingerprint['fingerprint_relaxed'], 0, 16).'...',
             'ip' => $currentIp,
             'entropy' => $currentFingerprint['entropy_score'],
         ]);
@@ -230,14 +253,14 @@ private static function extractPlatformHints(string $ua): string
             ]);
         } else {
             Log::warning('❌ NO STRICT MATCH', [
-                'looking_for' => substr($currentFingerprint['fingerprint'], 0, 16) . '...',
+                'looking_for' => substr($currentFingerprint['fingerprint'], 0, 16).'...',
             ]);
-            
+
             // Try relaxed match (e.g., browser updated from Chrome 120.0.1 to 120.0.2)
             $device = SavedDeviceModel::where('user_id', $userId)
                 ->where('device_fingerprint_relaxed', $currentFingerprint['fingerprint_relaxed'])
                 ->first();
-            
+
             if ($device) {
                 Log::info('✅ RELAXED MATCH FOUND (browser update)', [
                     'device_id' => $device->id,
@@ -250,7 +273,7 @@ private static function extractPlatformHints(string $ua): string
                 'user_id' => $userId,
                 'all_devices' => SavedDeviceModel::where('user_id', $userId)->get(['id', 'device_fingerprint', 'device_fingerprint_relaxed', 'created_at'])->toArray(),
             ]);
-            
+
             return [
                 'recognized' => false,
                 'reason' => 'UNKNOWN_DEVICE',
@@ -266,6 +289,7 @@ private static function extractPlatformHints(string $ua): string
                 'is_trusted' => $device->is_trusted,
                 'expires_at' => $device->trust_expires_at,
             ]);
+
             return [
                 'recognized' => false,
                 'reason' => 'TRUST_EXPIRED',
@@ -280,7 +304,7 @@ private static function extractPlatformHints(string $ua): string
             'device_id' => $device->id,
             'device_name' => $device->device_name,
         ]);
-        
+
         $device->update([
             'last_used_at' => now(),
             'last_ip' => $currentIp,
@@ -300,11 +324,11 @@ private static function extractPlatformHints(string $ua): string
         string $userId,
         array $fingerprint,
         string $ip,
-        string $deviceName = null
+        ?string $deviceName = null
     ): SavedDeviceModel {
         Log::info('💾 REGISTERING DEVICE', [
             'user_id' => $userId,
-            'fingerprint' => substr($fingerprint['fingerprint'], 0, 16) . '...',
+            'fingerprint' => substr($fingerprint['fingerprint'], 0, 16).'...',
             'device_name' => $deviceName,
         ]);
 

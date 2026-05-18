@@ -6,16 +6,14 @@ use App\Models\AnnouncementModel;
 use App\Models\BlockedIp;
 use App\Models\FrequencyModel;
 use App\Models\OtpModel;
-use App\Models\SavedDeviceModel;
-use App\Services\DeviceFingerprintService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use App\Models\UserModel;
+use App\Services\DeviceFingerprintService;
 use Carbon\Carbon;
-use Exception;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
@@ -33,19 +31,19 @@ class AuthController extends Controller
             ->get(['announce_id', 'title', 'office_id', 'details', 'created_at']);
 
         return inertia('Login', [
-            'announcements' => $announcements
+            'announcements' => $announcements,
         ]);
     }
 
     public function signin(Request $request)
     {
-        $ip  = $request->ip();
-        $key = 'signin:' . $ip;
+        $ip = $request->ip();
+        $key = 'signin:'.$ip;
 
         // 1. Check if IP is currently blocked.
         //    TTL is kept short (15s) so a naturally-expired block is picked up quickly
         //    without hammering the DB on every request.
-        $blockedUntil = Cache::remember('blocked_ip:' . $ip, 15, function () use ($ip) {
+        $blockedUntil = Cache::remember('blocked_ip:'.$ip, 15, function () use ($ip) {
             return BlockedIp::where('ip', $ip)
                 ->where('blocked_until', '>', Carbon::now())
                 ->value('blocked_until');
@@ -62,11 +60,11 @@ class AuthController extends Controller
             BlockedIp::updateOrCreate(
                 ['ip' => $ip],
                 [
-                    'reason'        => 'Rate limit exceeded in sign-in',
+                    'reason' => 'Rate limit exceeded in sign-in',
                     'blocked_until' => Carbon::now()->addHours(1),
                 ]
             );
-            Cache::forget('blocked_ip:' . $ip);
+            Cache::forget('blocked_ip:'.$ip);
 
             return back()->withErrors([
                 'message' => 'Too many sign-in attempts. You are temporarily blocked for 1 hour.',
@@ -77,11 +75,11 @@ class AuthController extends Controller
 
         // 3. Validate credentials
         $credentials = $request->validate([
-            'login'    => 'required|string|max:255',
+            'login' => 'required|string|max:255',
             'password' => 'required|string|min:8|max:255',
         ], [
             'login.required' => 'Username or email is required.',
-            'password.min'   => 'Password must be at least 8 characters.',
+            'password.min' => 'Password must be at least 8 characters.',
         ]);
 
         // 4. Find user by username or email
@@ -95,11 +93,11 @@ class AuthController extends Controller
             BlockedIp::updateOrCreate(
                 ['ip' => $ip],
                 [
-                    'reason'        => 'Attempted login as iamsuperadmin',
+                    'reason' => 'Attempted login as iamsuperadmin',
                     'blocked_until' => Carbon::now()->addHours(1),
                 ]
             );
-            Cache::forget('blocked_ip:' . $ip);
+            Cache::forget('blocked_ip:'.$ip);
 
             Log::warning('Attempted iamsuperadmin login', ['ip' => $ip, 'timestamp' => now()]);
 
@@ -109,8 +107,8 @@ class AuthController extends Controller
         // 6. Per-account brute-force protection.
         //    Track failed attempts independently of IP so distributed attacks
         //    (many IPs, one target account) are also caught.
-        $loginIdentifier  = strtolower($credentials['login']);
-        $userAttemptKey   = 'signin:user:' . hash('sha256', $loginIdentifier);
+        $loginIdentifier = strtolower($credentials['login']);
+        $userAttemptKey = 'signin:user:'.hash('sha256', $loginIdentifier);
 
         if (RateLimiter::tooManyAttempts($userAttemptKey, 5)) {
             // Lock the actual account if the user was found
@@ -118,9 +116,9 @@ class AuthController extends Controller
                 $user->update(['status' => 'inactive']);
 
                 Log::warning('Account locked due to too many failed login attempts', [
-                    'user_id'  => $user->user_id,
+                    'user_id' => $user->user_id,
                     'username' => $user->username,
-                    'ip'       => $ip,
+                    'ip' => $ip,
                 ]);
             }
 
@@ -135,9 +133,9 @@ class AuthController extends Controller
             RateLimiter::hit($userAttemptKey, 60 * 15);
 
             Log::warning('Failed login attempt', [
-                'ip'            => $ip,
+                'ip' => $ip,
                 'login_attempt' => $credentials['login'],
-                'timestamp'     => now(),
+                'timestamp' => now(),
             ]);
 
             return back()->withErrors(['message' => 'Invalid username/email or password.']);
@@ -151,6 +149,7 @@ class AuthController extends Controller
         // 9. Role check before doing any further work
         if (empty($user->role)) {
             Log::error('User without role attempted login', ['user_id' => $user->user_id]);
+
             return back()->withErrors(['message' => 'Your account does not have a valid role assigned.']);
         }
 
@@ -168,7 +167,7 @@ class AuthController extends Controller
 
         // 11. Generate device fingerprint
         $deviceFingerprint = DeviceFingerprintService::generateFingerprint($request);
-        $deviceName        = substr(
+        $deviceName = substr(
             htmlspecialchars($request->header('User-Agent') ?? 'Unknown', ENT_QUOTES, 'UTF-8'),
             0,
             255
@@ -184,8 +183,8 @@ class AuthController extends Controller
         if (!$verification['require_mfa']) {
             Log::info('Login via recognized device - skipping MFA', [
                 'user_id' => $user->user_id,
-                'ip'      => $ip,
-                'reason'  => $verification['reason'],
+                'ip' => $ip,
+                'reason' => $verification['reason'],
             ]);
 
             $this->completeLogin($user, $request);
@@ -199,9 +198,9 @@ class AuthController extends Controller
 
         // 13. New/unrecognized device — require OTP (login type)
         Log::warning('MFA required - device not recognized', [
-            'user_id'      => $user->user_id,
-            'ip'           => $ip,
-            'reason'       => $verification['reason'],
+            'user_id' => $user->user_id,
+            'ip' => $ip,
+            'reason' => $verification['reason'],
             'threat_level' => $verification['threat_level'],
         ]);
 
@@ -209,10 +208,10 @@ class AuthController extends Controller
             return back()->withErrors(['message' => 'Failed to send OTP. Please try again.']);
         }
 
-        Session::put('pending_user_id',    $user->user_id);
-        Session::put('otp_email',          $user->email);
-        Session::put('otp_type',           OtpModel::TYPE_LOGIN);
-        Session::put('device_name',        $deviceName);
+        Session::put('pending_user_id', $user->user_id);
+        Session::put('otp_email', $user->email);
+        Session::put('otp_type', OtpModel::TYPE_LOGIN);
+        Session::put('device_name', $deviceName);
         Session::put('device_fingerprint', json_encode($deviceFingerprint));
 
         return redirect()->route('otp.verify.form');
@@ -223,6 +222,7 @@ class AuthController extends Controller
         if (empty($user->role)) {
             Log::error('User without role attempted login', ['user_id' => $user->user_id]);
             Session::flash('error', 'Your account does not have a valid role assigned.');
+
             return;
         }
 
@@ -231,38 +231,38 @@ class AuthController extends Controller
 
         Auth::login($user);
         Session::put('user_id', $user->user_id);
-        Session::put('role',    $user->role);
+        Session::put('role', $user->role);
 
         if ($user->role === 'user') {
             $today = now()->format('Y-m-d');
 
-           $frequency = FrequencyModel::firstOrNew(
+            $frequency = FrequencyModel::firstOrNew(
                 ['user_id' => $user->user_id, 'login_date' => $today]
             );
 
-            $frequency->office_id    = $user->office_id;
-            $frequency->login_count  = ($frequency->login_count ?? 0) + 1;
+            $frequency->office_id = $user->office_id;
+            $frequency->login_count = ($frequency->login_count ?? 0) + 1;
             $frequency->save();
         }
 
         Log::info('User logged in successfully', [
             'user_id' => $user->user_id,
-            'role'    => $user->role,
-            'ip'      => $request->ip(),
+            'role' => $user->role,
+            'ip' => $request->ip(),
         ]);
     }
 
     /**
-     * @param string $email
-     * @param string $userName  Passed directly to avoid an extra DB query.
-     * @param string $otpType   Type of OTP: 'login' or 'reset'
+     * @param string $userName passed directly to avoid an extra DB query
+     * @param string $otpType  Type of OTP: 'login' or 'reset'
      */
     protected function sendOtp(string $email, string $userName = 'User', string $otpType = 'login'): bool
     {
-        $resendKey = 'otp_resend_' . hash('sha256', $email . $otpType);
+        $resendKey = 'otp_resend_'.hash('sha256', $email.$otpType);
 
         if (Cache::has($resendKey)) {
             Log::warning('OTP resend rate limited', ['email' => $email, 'otp_type' => $otpType, 'ip' => request()->ip()]);
+
             return false;
         }
 
@@ -276,20 +276,22 @@ class AuthController extends Controller
 
             if ($secondsSinceCreation < 30) {
                 Log::warning('OTP resend too soon', [
-                    'email'                  => $email,
-                    'otp_type'               => $otpType,
+                    'email' => $email,
+                    'otp_type' => $otpType,
                     'seconds_since_creation' => $secondsSinceCreation,
                 ]);
+
                 return false;
             }
 
             if ($existingOtp->resend_count >= 5) {
                 Log::warning('OTP resend limit exceeded', [
-                    'email'        => $email,
-                    'otp_type'     => $otpType,
+                    'email' => $email,
+                    'otp_type' => $otpType,
                     'resend_count' => $existingOtp->resend_count,
                 ]);
                 $existingOtp->delete();
+
                 return false;
             }
 
@@ -297,17 +299,18 @@ class AuthController extends Controller
         }
 
         // 6-digit OTP (industry standard, easier to type, still safe with attempt limits)
-        $otp    = sprintf('%06d', random_int(0, 999999));
+        $otp = sprintf('%06d', random_int(0, 999999));
         $secret = config('security.otp_secret');
 
         if (empty($secret)) {
             Log::error('OTP_SECRET not configured in .env file');
+
             return false;
         }
 
-        $otpHash     = hash_hmac('sha256', $otp, $secret);
+        $otpHash = hash_hmac('sha256', $otp, $secret);
         $otpLifetime = min((int) config('security.otp_lifetime'), 5);
-        $expiresAt   = now()->addMinutes($otpLifetime);
+        $expiresAt = now()->addMinutes($otpLifetime);
 
         try {
             OtpModel::where('email', $email)
@@ -316,13 +319,13 @@ class AuthController extends Controller
                 ->delete();
 
             $otpRecord = OtpModel::create([
-                'email'        => $email,
-                'otp_type'     => $otpType,
-                'code'         => $otpHash,
-                'expires_at'   => $expiresAt,
-                'attempts'     => 0,
-                'used_at'      => null,
-                'used_ip'      => null,
+                'email' => $email,
+                'otp_type' => $otpType,
+                'code' => $otpHash,
+                'expires_at' => $expiresAt,
+                'attempts' => 0,
+                'used_at' => null,
+                'used_ip' => null,
                 'resend_count' => 1,
             ]);
 
@@ -332,22 +335,24 @@ class AuthController extends Controller
                 Mail::to($email)->send(new \App\Mail\OtpVerificationMail($otp, $userName, $expiresAt));
 
                 Log::info('OTP sent successfully', [
-                    'email'        => $email,
-                    'otp_type'     => $otpType,
-                    'otp_id'       => $otpRecord->id,
+                    'email' => $email,
+                    'otp_type' => $otpType,
+                    'otp_id' => $otpRecord->id,
                     'otp_lifetime' => $otpLifetime,
-                    'expires_at'   => $expiresAt,
-                    'ip'           => request()->ip(),
+                    'expires_at' => $expiresAt,
+                    'ip' => request()->ip(),
                 ]);
 
                 return true;
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 Log::error('Failed to send OTP email', ['email' => $email, 'otp_type' => $otpType, 'error' => $e->getMessage()]);
                 $otpRecord->delete();
+
                 return false;
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             Log::error('Failed to create OTP record', ['email' => $email, 'otp_type' => $otpType, 'error' => $e->getMessage()]);
+
             return false;
         }
     }
@@ -358,26 +363,27 @@ class AuthController extends Controller
 
         $validated = $request->validate([
             'email' => 'required|email',
-            'otp'   => 'required|numeric|digits:6',
+            'otp' => 'required|numeric|digits:6',
         ]);
 
-        $email                 = $validated['email'];
-        $otp                   = $validated['otp'];
-        $pendingUserId         = Session::get('pending_user_id');
-        $otpEmail              = Session::get('otp_email');
-        $otpType               = Session::get('otp_type', OtpModel::TYPE_LOGIN);
+        $email = $validated['email'];
+        $otp = $validated['otp'];
+        $pendingUserId = Session::get('pending_user_id');
+        $otpEmail = Session::get('otp_email');
+        $otpType = Session::get('otp_type', OtpModel::TYPE_LOGIN);
         $deviceFingerprintJson = Session::get('device_fingerprint');
 
-        $ipKey   = 'otp_verify:ip:' . $ip;
-        $userKey = 'otp_verify:user:' . $pendingUserId;
+        $ipKey = 'otp_verify:ip:'.$ip;
+        $userKey = 'otp_verify:user:'.$pendingUserId;
 
         if (!$pendingUserId || !$otpEmail) {
             Log::warning('Missing session data during OTP verification', [
                 'has_pending_user' => (bool) $pendingUserId,
-                'has_otp_email'    => (bool) $otpEmail,
-                'otp_type'         => $otpType,
-                'ip'               => $ip,
+                'has_otp_email' => (bool) $otpEmail,
+                'otp_type' => $otpType,
+                'ip' => $ip,
             ]);
+
             return back()->withErrors(['message' => 'OTP expired or invalid.']);
         }
 
@@ -385,33 +391,37 @@ class AuthController extends Controller
 
         if (!$deviceFingerprint || !is_array($deviceFingerprint)) {
             Log::error('Device fingerprint missing or invalid from session', [
-                'email'           => $email,
+                'email' => $email,
                 'pending_user_id' => $pendingUserId,
-                'otp_type'        => $otpType,
-                'ip'              => $ip,
+                'otp_type' => $otpType,
+                'ip' => $ip,
             ]);
             Session::forget(['pending_user_id', 'otp_email', 'otp_type', 'device_fingerprint']);
+
             return back()->withErrors(['message' => 'Device verification failed. Please try again.']);
         }
 
         if ($otpEmail !== $email) {
             Log::warning('Email mismatch in OTP verification', [
-                'expected'  => $otpEmail,
+                'expected' => $otpEmail,
                 'submitted' => $email,
-                'otp_type'  => $otpType,
-                'ip'        => $ip,
+                'otp_type' => $otpType,
+                'ip' => $ip,
             ]);
             Session::forget(['pending_user_id', 'otp_email', 'otp_type', 'device_fingerprint']);
+
             return back()->withErrors(['message' => 'Invalid email for OTP.']);
         }
 
         if (RateLimiter::tooManyAttempts($ipKey, 15)) {
             $seconds = RateLimiter::availableIn($ipKey);
+
             return back()->withErrors(['message' => "Too many verification attempts. Try again in {$seconds} seconds."]);
         }
 
         if (RateLimiter::tooManyAttempts($userKey, 5)) {
             $seconds = RateLimiter::availableIn($userKey);
+
             return back()->withErrors(['message' => "Too many verification attempts. Try again in {$seconds} seconds."]);
         }
 
@@ -427,17 +437,19 @@ class AuthController extends Controller
 
                 if (!$otpRecord) {
                     Log::warning('OTP record not found', ['email' => $email, 'otp_type' => $otpType, 'ip' => $ip]);
+
                     return false;
                 }
 
                 if ($otpRecord->used_at !== null) {
                     Log::warning('OTP reuse attempt detected', [
-                        'email'      => $email,
-                        'otp_type'   => $otpType,
-                        'used_at'    => $otpRecord->used_at,
-                        'used_ip'    => $otpRecord->used_ip,
+                        'email' => $email,
+                        'otp_type' => $otpType,
+                        'used_at' => $otpRecord->used_at,
+                        'used_ip' => $otpRecord->used_ip,
                         'current_ip' => $ip,
                     ]);
+
                     return false;
                 }
 
@@ -445,15 +457,16 @@ class AuthController extends Controller
 
                 if (now()->isAfter($otpRecord->expires_at)) {
                     Log::warning('Expired OTP submission', [
-                        'email'      => $email,
-                        'otp_type'   => $otpType,
+                        'email' => $email,
+                        'otp_type' => $otpType,
                         'expired_at' => $otpRecord->expires_at,
-                        'ip'         => $ip,
+                        'ip' => $ip,
                     ]);
+
                     return false;
                 }
 
-                $secret        = config('security.otp_secret');
+                $secret = config('security.otp_secret');
                 $submittedHash = hash_hmac('sha256', $otp, $secret);
 
                 if (!hash_equals($submittedHash, $otpRecord->code)) {
@@ -463,21 +476,21 @@ class AuthController extends Controller
                     $attemptsLeft = $maxAttempts - $otpRecord->attempts;
 
                     Log::warning('Invalid OTP submitted', [
-                        'email'            => $email,
-                        'otp_type'         => $otpType,
+                        'email' => $email,
+                        'otp_type' => $otpType,
                         'current_attempts' => $otpRecord->attempts,
-                        'max_attempts'     => $maxAttempts,
-                        'attempts_left'    => $attemptsLeft,
-                        'ip'               => $ip,
+                        'max_attempts' => $maxAttempts,
+                        'attempts_left' => $attemptsLeft,
+                        'ip' => $ip,
                     ]);
 
                     if ($otpRecord->attempts >= $maxAttempts) {
                         $otpRecord->delete();
                         Log::warning('OTP invalidated after max attempts', [
-                            'email'        => $email,
-                            'otp_type'     => $otpType,
+                            'email' => $email,
+                            'otp_type' => $otpType,
                             'max_attempts' => $maxAttempts,
-                            'ip'           => $ip,
+                            'ip' => $ip,
                         ]);
                     }
 
@@ -487,22 +500,23 @@ class AuthController extends Controller
                 $otpRecord->update(['used_at' => now(), 'used_ip' => $ip]);
 
                 Log::info('OTP verified successfully', [
-                    'email'    => $email,
+                    'email' => $email,
                     'otp_type' => $otpType,
-                    'ip'       => $ip,
-                    'otp_id'   => $otpRecord->id,
+                    'ip' => $ip,
+                    'otp_id' => $otpRecord->id,
                 ]);
 
                 return true;
             });
         } catch (\Throwable $e) {
             Log::error('Database transaction error during OTP verification', [
-                'email'    => $email,
+                'email' => $email,
                 'otp_type' => $otpType,
-                'error'    => $e->getMessage(),
-                'ip'       => $ip,
+                'error' => $e->getMessage(),
+                'ip' => $ip,
             ]);
             Session::forget(['pending_user_id', 'otp_email', 'otp_type', 'device_fingerprint']);
+
             return back()->withErrors(['message' => 'Verification failed. Please try again.']);
         }
 
@@ -526,23 +540,26 @@ class AuthController extends Controller
         if (!$user) {
             Log::error('User not found during OTP verification', ['user_id' => $pendingUserId, 'email' => $email, 'otp_type' => $otpType]);
             Session::forget(['pending_user_id', 'otp_email', 'otp_type', 'device_fingerprint']);
+
             return back()->withErrors(['message' => 'User not found.']);
         }
 
         if ($user->email !== $email) {
             Log::error('User email mismatch during OTP', [
-                'user_id'        => $user->user_id,
+                'user_id' => $user->user_id,
                 'expected_email' => $email,
-                'actual_email'   => $user->email,
-                'otp_type'       => $otpType,
-                'ip'             => $ip,
+                'actual_email' => $user->email,
+                'otp_type' => $otpType,
+                'ip' => $ip,
             ]);
             Session::forget(['pending_user_id', 'otp_email', 'otp_type', 'device_fingerprint']);
+
             return back()->withErrors(['message' => 'Invalid user for OTP.']);
         }
 
         if ($user->status === 'inactive') {
             Session::forget(['pending_user_id', 'otp_email', 'otp_type', 'device_fingerprint']);
+
             return back()->withErrors(['message' => 'Your account is locked. Please contact your administrator.']);
         }
 
@@ -562,15 +579,15 @@ class AuthController extends Controller
             Log::info('Device registered successfully after OTP', [
                 'user_id' => $user->user_id,
                 'otp_type' => $otpType,
-                'ip'      => $ip,
+                'ip' => $ip,
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             Log::error('Failed to save device after OTP', [
                 'user_id' => $user->user_id,
-                'email'   => $email,
+                'email' => $email,
                 'otp_type' => $otpType,
-                'ip'      => $ip,
-                'error'   => $e->getMessage(),
+                'ip' => $ip,
+                'error' => $e->getMessage(),
             ]);
         }
 
@@ -580,10 +597,10 @@ class AuthController extends Controller
 
         Log::info('OTP verified and login completed', [
             'user_id' => $user->user_id,
-            'email'   => $email,
+            'email' => $email,
             'otp_type' => $otpType,
-            'ip'      => $ip,
-            'role'    => $user->role,
+            'ip' => $ip,
+            'role' => $user->role,
         ]);
 
         return $user->role === 'user'
@@ -593,38 +610,40 @@ class AuthController extends Controller
 
     public function resendOtp(Request $request)
     {
-        $ip           = $request->ip();
-        $rateLimitKey = 'resend_otp_ip:' . $ip;
+        $ip = $request->ip();
+        $rateLimitKey = 'resend_otp_ip:'.$ip;
 
         if (RateLimiter::tooManyAttempts($rateLimitKey, 5)) {
             $seconds = RateLimiter::availableIn($rateLimitKey);
+
             return back()->withErrors([
-                'message' => "Too many resend requests. Try again in {$seconds} seconds."
+                'message' => "Too many resend requests. Try again in {$seconds} seconds.",
             ]);
         }
 
         RateLimiter::hit($rateLimitKey, 30);
 
         $validated = $request->validate(['email' => 'required|email']);
-        $email     = $validated['email'];
+        $email = $validated['email'];
 
         if (!Session::has('pending_user_id')) {
             return back()->withErrors(['message' => 'Invalid session. Please log in again.']);
         }
 
         $sessionEmail = Session::get('otp_email');
-        $otpType      = Session::get('otp_type', OtpModel::TYPE_LOGIN);
+        $otpType = Session::get('otp_type', OtpModel::TYPE_LOGIN);
 
         if ($sessionEmail !== $email) {
             return back()->withErrors(['message' => 'Email does not match session.']);
         }
 
-        $cooldownKey = 'resend_otp_cooldown:' . hash('sha256', $email . $otpType . $ip);
+        $cooldownKey = 'resend_otp_cooldown:'.hash('sha256', $email.$otpType.$ip);
 
         if (Cache::has($cooldownKey)) {
             $secondsLeft = Cache::getSeconds($cooldownKey) ?? 30;
+
             return back()->withErrors([
-                'message' => "Please wait {$secondsLeft} seconds before requesting another OTP."
+                'message' => "Please wait {$secondsLeft} seconds before requesting another OTP.",
             ]);
         }
 
@@ -635,7 +654,7 @@ class AuthController extends Controller
 
         $user = UserModel::where('email', $email)->first();
         $userName = $user?->name ?? 'User';
-        
+
         if (!$this->sendOtp($email, $userName, $otpType)) {
             return back()->withErrors(['message' => 'Failed to send OTP. Please try again.']);
         }
@@ -653,22 +672,22 @@ class AuthController extends Controller
         }
 
         Log::info('OTP resent successfully', [
-            'email'      => $email,
-            'otp_type'   => $otpType,
-            'otp_id'     => $otpRecord->id,
+            'email' => $email,
+            'otp_type' => $otpType,
+            'otp_id' => $otpRecord->id,
             'expires_at' => $otpRecord->expires_at,
-            'ip'         => $ip,
+            'ip' => $ip,
         ]);
 
         return back()->with([
-            'message'   => 'OTP resent successfully! Check your email.',
+            'message' => 'OTP resent successfully! Check your email.',
             'expiresAt' => $otpRecord->expires_at->toIso8601String(),
         ]);
     }
 
     public function showOtpForm()
     {
-        $email   = Session::get('otp_email');
+        $email = Session::get('otp_email');
         $otpType = Session::get('otp_type', OtpModel::TYPE_LOGIN);
 
         if (!$email) {
@@ -681,43 +700,47 @@ class AuthController extends Controller
             ->where('expires_at', '>', now())
             ->first();
 
-        $expiresAt    = $otpRecord?->expires_at?->toIso8601String() ?? null;
-        $maxAttempts  = 3;
+        $expiresAt = $otpRecord?->expires_at?->toIso8601String() ?? null;
+        $maxAttempts = 3;
         $attemptsUsed = $otpRecord?->attempts ?? 0;
         $attemptsLeft = max(0, $maxAttempts - $attemptsUsed);
 
         return inertia('Auth/VerifyOtp', [
-            'email'        => $email,
-            'maskedEmail'  => $this->maskEmail($email),
-            'expiresAt'    => $expiresAt,
+            'email' => $email,
+            'maskedEmail' => $this->maskEmail($email),
+            'expiresAt' => $expiresAt,
             'attemptsLeft' => $attemptsLeft,
         ]);
     }
 
     protected function maskEmail($email): string
     {
-        if (empty($email)) return '';
+        if (empty($email)) {
+            return '';
+        }
 
         $parts = explode('@', $email);
-        if (count($parts) !== 2) return $email;
+        if (count($parts) !== 2) {
+            return $email;
+        }
 
         [$localPart, $domain] = $parts;
 
-        $localLength  = strlen($localPart);
-        $maskedLocal  = $localLength > 2
-            ? $localPart[0] . str_repeat('*', $localLength - 2) . $localPart[$localLength - 1]
-            : $localPart[0] . '*';
+        $localLength = strlen($localPart);
+        $maskedLocal = $localLength > 2
+            ? $localPart[0].str_repeat('*', $localLength - 2).$localPart[$localLength - 1]
+            : $localPart[0].'*';
 
-        $domainParts  = explode('.', $domain);
-        $domainName   = $domainParts[0];
-        $extension    = $domainParts[1] ?? '';
+        $domainParts = explode('.', $domain);
+        $domainName = $domainParts[0];
+        $extension = $domainParts[1] ?? '';
         $domainLength = strlen($domainName);
 
         $maskedDomain = $domainLength > 2
-            ? $domainName[0] . str_repeat('*', $domainLength - 2) . $domainName[$domainLength - 1]
-            : $domainName[0] . '*';
+            ? $domainName[0].str_repeat('*', $domainLength - 2).$domainName[$domainLength - 1]
+            : $domainName[0].'*';
 
-        return $maskedLocal . '@' . $maskedDomain . ($extension ? '.' . $extension : '');
+        return $maskedLocal.'@'.$maskedDomain.($extension ? '.'.$extension : '');
     }
 
     public function logout(Request $request)
@@ -731,11 +754,11 @@ class AuthController extends Controller
 
     public function edit(string $id)
     {
-        $user    = UserModel::with('office')->findOrFail($id);
+        $user = UserModel::with('office')->findOrFail($id);
         $offices = \App\Models\OfficeModel::all();
 
         return inertia('Settings', [
-            'user'    => $user,
+            'user' => $user,
             'offices' => $offices,
         ]);
     }
@@ -746,27 +769,27 @@ class AuthController extends Controller
 
         try {
             $validated = $request->validate([
-                'first_name'  => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
+                'first_name' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
                 'middle_name' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
-                'last_name'   => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
-                'username'    => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9_]+$/', Rule::unique('tbl_users', 'username')->ignore($id, 'user_id')],
-                'email'       => ['required', 'email', 'max:255', Rule::unique('tbl_users', 'email')->ignore($id, 'user_id')],
-                'password'    => [
+                'last_name' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
+                'username' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9_]+$/', Rule::unique('tbl_users', 'username')->ignore($id, 'user_id')],
+                'email' => ['required', 'email', 'max:255', Rule::unique('tbl_users', 'email')->ignore($id, 'user_id')],
+                'password' => [
                     'nullable', 'string', 'min:12', 'max:72',
                     'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,72}$/',
                     'confirmed',
                 ],
-                'office_id'   => ['required', 'exists:tbl_offices,office_id'],
-                'website'     => ['nullable', 'string', 'max:255'],
+                'office_id' => ['required', 'exists:tbl_offices,office_id'],
+                'website' => ['nullable', 'string', 'max:255'],
             ], [
-                'password.regex'     => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
+                'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
                 'password.confirmed' => 'Password confirmation does not match.',
-                'first_name.regex'   => 'First Name must contain letters, spaces, or hyphens only.',
-                'middle_name.regex'  => 'Middle Name must contain letters, spaces, or hyphens only.',
-                'last_name.regex'    => 'Last Name must contain letters, spaces, or hyphens only.',
-                'username.regex'     => 'Username must contain only letters, numbers, and underscores.',
-                'username.unique'    => 'This username is already taken.',
-                'email.unique'       => 'This email is already registered.',
+                'first_name.regex' => 'First Name must contain letters, spaces, or hyphens only.',
+                'middle_name.regex' => 'Middle Name must contain letters, spaces, or hyphens only.',
+                'last_name.regex' => 'Last Name must contain letters, spaces, or hyphens only.',
+                'username.regex' => 'Username must contain only letters, numbers, and underscores.',
+                'username.unique' => 'This username is already taken.',
+                'email.unique' => 'This email is already registered.',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()
@@ -776,16 +799,17 @@ class AuthController extends Controller
 
         if (!empty($validated['website'])) {
             Log::warning('HP triggered in user update', ['ip' => $request->ip(), 'user_id' => Auth::id()]);
+
             return back()->with('success', 'Settings updated successfully!');
         }
 
         $user->fill([
-            'first_name'  => $validated['first_name'],
+            'first_name' => $validated['first_name'],
             'middle_name' => $validated['middle_name'] ?? null,
-            'last_name'   => $validated['last_name'],
-            'username'    => $validated['username'],
-            'email'       => $validated['email'],
-            'office_id'   => $validated['office_id'],
+            'last_name' => $validated['last_name'],
+            'username' => $validated['username'],
+            'email' => $validated['email'],
+            'office_id' => $validated['office_id'],
         ]);
 
         if (!empty($validated['password'])) {

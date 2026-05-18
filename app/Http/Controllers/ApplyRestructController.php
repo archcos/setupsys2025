@@ -55,7 +55,7 @@ class ApplyRestructController extends Controller
 
             // Status counts (before status filter so tabs always show real numbers)
             $allIds     = (clone $base)->pluck('apply_id');
-            $statusRows = \DB::table('tbl_restructures')
+            $statusRows = DB::table('tbl_restructures')
                 ->selectRaw('status, apply_id')
                 ->whereIn('apply_id', $allIds)
                 ->orderByDesc('created_at')
@@ -80,7 +80,7 @@ class ApplyRestructController extends Controller
                                  ->whereNotExists(function ($sub) {
                                      $sub->from('tbl_restructures as r2')
                                          ->whereColumn('r2.apply_id', 'tbl_restructures.apply_id')
-                                         ->where('r2.created_at', '>', \DB::raw('tbl_restructures.created_at'));
+                                         ->where('r2.created_at', '>', DB::raw('tbl_restructures.created_at'));
                                  });
                           });
                     });
@@ -90,7 +90,7 @@ class ApplyRestructController extends Controller
                           ->whereNotExists(function ($sub) {
                               $sub->from('tbl_restructures as r2')
                                   ->whereColumn('r2.apply_id', 'tbl_restructures.apply_id')
-                                  ->where('r2.created_at', '>', \DB::raw('tbl_restructures.created_at'));
+                                  ->where('r2.created_at', '>', DB::raw('tbl_restructures.created_at'));
                           });
                     });
                 }

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ProjectModel;
 use App\Models\OfficeModel;
+use App\Models\ProjectModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -19,7 +19,7 @@ class HomeController extends Controller
 
         // Only filter by year if not 'all'
         if ($year !== 'all') {
-          $query->whereYear('year_obligated', $year);
+            $query->whereYear('year_obligated', $year);
         }
 
         // Filter projects based on user role
@@ -38,8 +38,8 @@ class HomeController extends Controller
 
         // Group projects by office for the "Projects Per Office" card and sort alphabetically
         $projectsPerOffice = $projects
-            ->groupBy(fn($p) => $p->proponent->office->office_name ?? 'No Office')
-            ->map(fn($group) => $group->count())
+            ->groupBy(fn ($p) => $p->proponent->office->office_name ?? 'No Office')
+            ->map(fn ($group) => $group->count())
             ->sortKeys(); // Sort offices alphabetically
 
         // Get all available years from the database

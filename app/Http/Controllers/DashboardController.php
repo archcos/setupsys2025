@@ -2,16 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ProjectModel;
 use App\Models\ActivityModel;
-use App\Models\MoaModel;
-use App\Models\RtecModel;
 use App\Models\LogModel;
+use App\Models\MoaModel;
+use App\Models\ProjectModel;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use Carbon\Carbon;
-use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -22,7 +20,7 @@ class DashboardController extends Controller
         $projects = ProjectModel::with([
             'proponent',
             'implementation.tags',
-            'refunds'
+            'refunds',
         ])
         ->when($user->role === 'user', function ($q) use ($user) {
             $q->whereHas('proponent', function ($sub) use ($user) {
@@ -78,7 +76,7 @@ class DashboardController extends Controller
                     }
 
                     $refundsByMonth = $project->refunds
-                        ->keyBy(fn($refund) => Carbon::parse($refund->month_paid)->format('Y-m'));
+                        ->keyBy(fn ($refund) => Carbon::parse($refund->month_paid)->format('Y-m'));
 
                     $allPaid = true;
                     $isRefundOngoing = false;
@@ -107,7 +105,7 @@ class DashboardController extends Controller
 
                 // Get timestamps for progress transitions
                 $projectLogs = $progressLogs->get($project->project_id, collect());
-                
+
                 $projectReviewDate = $this->getProgressTransitionDate($projectLogs, 'Project Review');
                 $awaitingApprovalDate = $this->getProgressTransitionDate($projectLogs, 'Awaiting Approval');
                 $approvedDate = $this->getProgressTransitionDate($projectLogs, 'Approved');
@@ -136,7 +134,7 @@ class DashboardController extends Controller
                         'tarp_upload' => $implementation->tarp_upload ?? null,
                         'pdc_upload' => $implementation->pdc_upload ?? null,
                         'liquidation_upload' => $implementation->liquidation_upload ?? null,
-                        'tags' => $tags->map(fn($tag) => [
+                        'tags' => $tags->map(fn ($tag) => [
                             'tag_name' => $tag->tag_name,
                             'tag_amount' => $tag->tag_amount,
                             'created_at' => $tag->created_at,
@@ -144,7 +142,7 @@ class DashboardController extends Controller
                         'untagging' => [
                             'first' => $projectCost > 0 && $totalTagAmount >= $projectCost * 0.5,
                             'final' => $projectCost > 0 && $totalTagAmount >= $projectCost,
-                        ]
+                        ],
                     ] : null,
                     'last_tag_date' => $lastTagDate,
 
@@ -163,7 +161,7 @@ class DashboardController extends Controller
                         'end_formatted' => $refundEnd ? $refundEnd->format('F, Y') : null,
                         'currentMonthOngoing' => $isRefundOngoing,
                         'completed' => $isRefundCompleted,
-                        'refunds' => $project->refunds->map(fn($refund) => [
+                        'refunds' => $project->refunds->map(fn ($refund) => [
                             'month_paid' => $refund->month_paid,
                             'refund_amount' => $refund->refund_amount,
                             'amount_due' => $refund->amount_due,
@@ -171,7 +169,7 @@ class DashboardController extends Controller
                             'check_num' => $refund->check_num,
                             'receipt_num' => $refund->receipt_num,
                         ]),
-                    ]
+                    ],
                 ];
             }),
             'usercompanyName' => $user->proponents->first()?->company_name ?? 'Your proponent',
@@ -180,11 +178,12 @@ class DashboardController extends Controller
 
     /**
      * Get the date when a project transitioned to a specific progress status
-     * Looks for log entries where the "after" progress matches the target progress
-     * 
+     * Looks for log entries where the "after" progress matches the target progress.
+     *
      * @param \Illuminate\Support\Collection $logs
-     * @param string $targetProgress
-     * @return \Carbon\Carbon|null
+     * @param string                         $targetProgress
+     *
+     * @return Carbon|null
      */
     private function getProgressTransitionDate($logs, $targetProgress)
     {
@@ -195,6 +194,7 @@ class DashboardController extends Controller
         $log = $logs->first(function ($log) use ($targetProgress) {
             try {
                 $after = is_array($log->after) ? $log->after : json_decode($log->after ?? '{}', true);
+
                 return ($after['progress'] ?? null) === $targetProgress;
             } catch (\Exception $e) {
                 return false;
