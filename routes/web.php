@@ -1,43 +1,42 @@
 <?php
 
-use App\Http\Controllers\ApprovalController;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\RegisterController;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ProponentController;
-use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ActivityController;
-use App\Http\Controllers\Admin\UserManagementController;
-use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\Admin\BlockedIpController;
 use App\Http\Controllers\Admin\DirectorController;
+use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ApplyRestructController;
+use App\Http\Controllers\ApprovalController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ComplianceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\FrequencyController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImplementationController;
+use App\Http\Controllers\LogController;
 use App\Http\Controllers\MOAController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectMapController;
+use App\Http\Controllers\ProponentController;
 use App\Http\Controllers\RDDashboardController;
 use App\Http\Controllers\RefundController;
+use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ReportReviewController;
 use App\Http\Controllers\RestructureController;
 use App\Http\Controllers\TagController;
-use App\Http\Controllers\LogController;
-use App\Http\Controllers\ReportReviewController;
-use App\Http\Controllers\PasswordResetController;
-use App\Http\Controllers\ProjectMapController;
+use Illuminate\Support\Facades\Route;
 
 Route::middleware(['log-suspicious'])->group(function () {
-
     Route::middleware(['redirectIfAuthenticated'])->group(function () {
         // Login
         Route::get('/', [AuthController::class, 'index'])->name('login');
         Route::post('/signin', [AuthController::class, 'signin'])->name('signin');
-        
-        //OTP
+
+        // OTP
         Route::get('/verify-otp', [AuthController::class, 'showOtpForm'])->name('otp.verify.form');
         Route::post('/verify-otp', [AuthController::class, 'verifyOtp'])->name('otp.verify');
         Route::post('/resend-otp', [AuthController::class, 'resendOtp'])->name('otp.resend');
@@ -48,35 +47,33 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/registration', [RegisterController::class, 'register'])->name('registration');
     });
 
-
-       // Request password reset form
+    // Request password reset form
     Route::get('/password/reset/request', [PasswordResetController::class, 'showRequestForm'])
         ->name('password.request');
-    
+
     // Handle password reset request
     Route::post('/password/reset/request', [PasswordResetController::class, 'requestReset'])
         ->name('password.reset.request');
-    
+
     // Show OTP verification form
     Route::get('/password/reset/verify', [PasswordResetController::class, 'showVerifyForm'])
         ->name('password.reset.verify-form');
-    
+
     // Verify OTP
     Route::post('/password/reset/verify', [PasswordResetController::class, 'verifyOtp'])
         ->name('password.reset.verify');
-    
+
     // Resend OTP during password reset
     Route::post('/password/reset/resend-otp', [PasswordResetController::class, 'resendOtp'])
         ->name('password.reset.resend-otp');
-    
+
     // Show password reset form (after OTP verification)
     Route::get('/password/reset', [PasswordResetController::class, 'showResetForm'])
         ->name('password.reset.form');
-    
+
     // Handle password reset
     Route::post('/password/reset', [PasswordResetController::class, 'resetPassword'])
         ->name('password.reset');
-
 
     Route::get('/contact', [PageController::class, 'contact'])->name('contact');
     Route::post('/contact', [PageController::class, 'sendContact'])->name('contact.send');
@@ -85,7 +82,7 @@ Route::middleware(['log-suspicious'])->group(function () {
     Route::get('/announcements/view', [PageController::class, 'announcements'])->name('announcements.public');
 
     Route::middleware(['auth'])->group(function () {
-    // Protected Home Page
+        // Protected Home Page
         Route::get('/home', [HomeController::class, 'index'])->middleware('role:head,staff,rpmo,au')->name('home');
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('user.dashboard')->middleware('role:user');
         Route::get('/users/{id}/edit', [AuthController::class, 'edit'])->name('users.edit');
@@ -94,18 +91,15 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     });
 
-
-
-
     // DEVELOPMENT
     Route::middleware(['auth'])->group(function () {
         Route::post('/proponents/sync', [ProponentController::class, 'syncFromCSV'])->name('proponents.sync')->middleware('role:rpmo');
         Route::post('/proponents/{id}/update-added-by', [ProponentController::class, 'updateAddedBy'])->middleware('role:rpmo')->name('proponents.update-added-by');
         Route::get('/proponents/export', [ProponentController::class, 'export'])->middleware('role:rpmo,staff')->name('proponents.export');
-        Route::get('/projects/export', [ProjectController::class, 'export']) ->middleware('role:rpmo,staff')->name('projects.export');
+        Route::get('/projects/export', [ProjectController::class, 'export'])->middleware('role:rpmo,staff')->name('projects.export');
         Route::resource('proponents', ProponentController::class)->except(['show']);
         Route::resource('projects', ProjectController::class)->middleware('role:head,staff,rpmo')->except(['destroy', 'show']);
-        Route::delete('/projects/{id}', [ProjectController::class, 'destroy'])->middleware('role:rpmo')->name('projects.destroy');    
+        Route::delete('/projects/{id}', [ProjectController::class, 'destroy'])->middleware('role:rpmo')->name('projects.destroy');
         Route::resource('activities', ActivityController::class)->middleware('role:head,staff,rpmo');
         Route::post('/projects/{id}/update-status', [ProjectController::class, 'updateStatus'])->name('projects.updateStatus')->middleware('role:rpmo');
         Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly')->middleware('role:user');
@@ -118,13 +112,12 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::get('/projects/map/data', [ProjectMapController::class, 'mapData'])->name('projects.map.data');
     });
 
-
-    //MOA
+    // MOA
     Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
         Route::get('/draft-moa', [MOAController::class, 'showForm'])->name('docx.form');
         Route::post('/moa/generate-docx', [MOAController::class, 'generateDocx'])->name('moa.generateDocx');
 
-            // View approved PDF in browser (new route)
+        // View approved PDF in browser (new route)
         Route::get('/moa/{moa_id}/view-approved', [MOAController::class, 'viewApprovedFile'])
             ->name('moa.view-approved');
 
@@ -134,19 +127,19 @@ Route::middleware(['log-suspicious'])->group(function () {
         // New routes for approved file management
         Route::post('/moa/{moa_id}/upload-approved', [MOAController::class, 'uploadApprovedFile'])->name('moa.upload.approved');
         Route::get('/moa/{moa_id}/download-approved', [MOAController::class, 'downloadApprovedFile'])->name('moa.download.approved');
-        
+
         Route::put('/projects/{id}/progress', [ProjectController::class, 'updateProgress'])->middleware('role:staff');
     });
 
-    //APPROVAL
+    // APPROVAL
     Route::middleware(['auth', 'role:staff,rpmo'])->group(function () {
-    Route::get('/approved-projects', [ApprovalController::class, 'index'])->name('approvals.index');
-    Route::post('/approvals/{project_id}/generate', [ApprovalController::class, 'generateDocument'])->name('approvals.generate');
-    Route::get('/approvals/{project_id}/download/{fileName}', [ApprovalController::class, 'download'])->name('approvals.download');
-    Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+        Route::get('/approved-projects', [ApprovalController::class, 'index'])->name('approvals.index');
+        Route::post('/approvals/{project_id}/generate', [ApprovalController::class, 'generateDocument'])->name('approvals.generate');
+        Route::get('/approvals/{project_id}/download/{fileName}', [ApprovalController::class, 'download'])->name('approvals.download');
+        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
     });
 
-    //COMPLIANCE
+    // COMPLIANCE
     Route::middleware(['auth', 'role:staff,rpmo,rd'])->group(function () {
         Route::get('/compliance', [ComplianceController::class, 'index'])->name('compliance.index');
         Route::get('/compliance/{id}', [ComplianceController::class, 'show'])->name('compliance.show');
@@ -155,14 +148,14 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/compliance/deny', [ComplianceController::class, 'deny'])->name('compliance.deny');
     });
 
-    //RD-DASHBOARD
+    // RD-DASHBOARD
     Route::middleware(['auth',  'role:rd'])->group(function () {
         Route::get('/rd/dashboard', [RDDashboardController::class, 'index'])->name('rd-dashboard.index');
         Route::post('/rd/dashboard/{projectId}/update-status', [RDDashboardController::class, 'updateStatus'])->name('rd-dashboard.update-status');
         Route::get('/rd/dashboard/{projectId}', [RDDashboardController::class, 'show'])->name('rd-dashboard.show');
     });
 
-    //IMPLEMENTATION
+    // IMPLEMENTATION
     Route::middleware(['auth', 'role:staff,rpmo,au'])->group(function () {
         Route::get('/implementation', [ImplementationController::class, 'index'])->name('implementation.index');
         Route::get('/implementation/checklist/{implementId}', [ImplementationController::class, 'checklist']);
@@ -172,14 +165,14 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::get('/implementation/download/{field}', [ImplementationController::class, 'download']);
     });
 
-    //  TAGS: RPMO ONLY 
+    //  TAGS: RPMO ONLY
     Route::middleware(['auth', 'role:rpmo'])->group(function () {
         Route::post('/tags', [TagController::class, 'store']);
         Route::delete('/tags/{id}', [TagController::class, 'destroy']);
         Route::put('/tags/{tagId}', [TagController::class, 'update']);
     });
 
-    //ADMIN
+    // ADMIN
     Route::middleware(['auth', 'role:head'])->group(function () {
         Route::get('/admin/users', [UserManagementController::class, 'index'])->name('admin.users');
         Route::put('/admin/users/{id}', [UserManagementController::class, 'update'])->name('admin.users.update');
@@ -187,19 +180,19 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/admin/users/{id}/delete', [UserManagementController::class, 'deleteUser']);
         Route::put('/admin/users/{id}/restore', [UserManagementController::class, 'restoreUser'])->name('users.restore');
     });
-    //ADMIN-DIRECTORS
+    // ADMIN-DIRECTORS
     Route::middleware(['auth', 'role:head'])->group(function () {
         Route::get('/admin/directors', [DirectorController::class, 'index'])->name('admin.directors.index');
         Route::put('/admin/directors/{id}', [DirectorController::class, 'update'])->name('admin.directors.update');
     });
 
-    //ADMIN-LOGS
+    // ADMIN-LOGS
     Route::middleware(['auth', 'role:head'])->group(function () {
         Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
         Route::get('/logs/export', [LogController::class, 'export'])->name('logs.export');
     });
 
-    //BLOCKED-IPS
+    // BLOCKED-IPS
     Route::middleware(['auth', 'role:head'])->group(function () {
         Route::get('/blocked-ips', [BlockedIpController::class, 'index'])->name('blocked.ips.index');
         Route::post('/blocked-ips', [BlockedIpController::class, 'store'])->name('blocked.ips.store');
@@ -209,18 +202,17 @@ Route::middleware(['log-suspicious'])->group(function () {
 
         Route::get('/login-frequency', [FrequencyController::class, 'index'])->name('login-frequency.index');
         Route::get('/login-frequency/download', [FrequencyController::class, 'download'])->name('login-frequency.download');
-
     });
 
-    //  VIEWING (Accessible to staff, rpmo, and users) 
+    //  VIEWING (Accessible to staff, rpmo, and users)
     Route::middleware(['auth', 'role:staff,rpmo,au'])->group(function () {
         Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index');
         Route::get('/refunds/project/{projectId}', [RefundController::class, 'projectRefunds'])
             ->name('refunds.project.details');
+        Route::post('/refunds/remove-payment', [RefundController::class, 'removePayment']);
     });
 
-
-    //  RPMO ONLY (Save + Bulk Update) 
+    //  RPMO ONLY (Save + Bulk Update)
     Route::middleware(['auth', 'role:rpmo,au'])->group(function () {
         Route::post('/refunds/save', [RefundController::class, 'save']);
         Route::post('/refunds/bulk-update', [RefundController::class, 'bulkUpdate'])
@@ -228,95 +220,89 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/refunds/sync', [RefundController::class, 'syncRefundsFromCSV']);
     });
 
-
-    //  USER-ONLY ROUTES 
+    //  USER-ONLY ROUTES
     Route::middleware(['auth', 'role:user'])->group(function () {
         Route::get('/my-refunds', [RefundController::class, 'userRefunds'])->name('refunds.user');
         Route::get('/my-refunds/{projectId}', [RefundController::class, 'userProjectRefunds'])
             ->name('user.refunds.details');
     });
 
-
-    //APPLY-RESTRUCT
+    // APPLY-RESTRUCT
     Route::middleware(['auth',  'role:rpmo,staff,rd'])->prefix('apply-restruct')->name('apply_restruct.')->group(function () {
-    
-        Route::get('/',                [ApplyRestructController::class, 'index'])       ->name('index');
-        Route::get('/create',          [ApplyRestructController::class, 'create'])      ->name('create');
-        Route::post('/',               [ApplyRestructController::class, 'store'])       ->name('store');
-        Route::get('/{apply_id}/edit', [ApplyRestructController::class, 'edit'])        ->name('edit');
-        Route::put('/{apply_id}',      [ApplyRestructController::class, 'update'])      ->name('update');
-        Route::delete('/{apply_id}',   [ApplyRestructController::class, 'destroy'])     ->name('destroy');
-    
-        // File operations (field = proponent | psto | annexc | annexd)
-        Route::post('/upload/{field}',  [ApplyRestructController::class, 'uploadFile']) ->name('upload_file');
-        Route::delete('/delete/{field}',[ApplyRestructController::class, 'deleteFile']) ->name('delete_file');
-        Route::get('/view-file',        [ApplyRestructController::class, 'viewFile'])   ->name('view_file');
-        Route::get('/download-file',    [ApplyRestructController::class, 'downloadFile'])->name('download_file');
-    });
+        Route::get('/', [ApplyRestructController::class, 'index'])->name('index');
+        Route::get('/create', [ApplyRestructController::class, 'create'])->name('create');
+        Route::post('/', [ApplyRestructController::class, 'store'])->name('store');
+        Route::get('/{apply_id}/edit', [ApplyRestructController::class, 'edit'])->name('edit');
+        Route::put('/{apply_id}', [ApplyRestructController::class, 'update'])->name('update');
+        Route::delete('/{apply_id}', [ApplyRestructController::class, 'destroy'])->name('destroy');
 
+        // File operations (field = proponent | psto | annexc | annexd)
+        Route::post('/upload/{field}', [ApplyRestructController::class, 'uploadFile'])->name('upload_file');
+        Route::delete('/delete/{field}', [ApplyRestructController::class, 'deleteFile'])->name('delete_file');
+        Route::get('/view-file', [ApplyRestructController::class, 'viewFile'])->name('view_file');
+        Route::get('/download-file', [ApplyRestructController::class, 'downloadFile'])->name('download_file');
+    });
 
     // RESTRUCT
     Route::middleware(['auth',  'role:rpmo,rd'])->group(function () {
         // List of applications to verify (accessible by RPMO and RD)
         Route::get('/verify-restructure', [RestructureController::class, 'verifyList'])
             ->name('verify_restruct.list');
-        
+
         // Show verification page (accessible by RPMO and RD)
         Route::get('/verify-restructure/{apply_id}', [RestructureController::class, 'verifyShow'])
             ->name('verify_restruct.show');
-        
+
         // RPMO only routes - Create, Update, Delete
         Route::middleware(['role:rpmo'])->group(function () {
             Route::post('/restructure', [RestructureController::class, 'store'])
                 ->name('restructure.store');
-            
+
             Route::put('/restructure/{restruct_id}', [RestructureController::class, 'update'])
                 ->name('restructure.update');
-            
+
             Route::delete('/restructure/{restruct_id}', [RestructureController::class, 'destroy'])
                 ->name('restructure.destroy');
         });
-        
+
         // Update status (accessible by both RPMO and RD with different statuses)
         Route::put('/restructure/{restruct_id}/status', [RestructureController::class, 'updateStatus'])
             ->name('restructure.update-status');
-        
+
         // Update refund end date
         Route::put('/project/{project_id}/refund-end', [RestructureController::class, 'updateRefundEnd'])
             ->name('project.update-refund-end');
     });
 
-
-    //REPORTS
+    // REPORTS
 
     Route::middleware(['auth', 'role:user,staff,rpmo'])->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/create/{project}', [ReportController::class, 'create'])->name('reports.create');
         Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');
         Route::delete('/reports/{id}', [ReportController::class, 'destroy'])->name('reports.destroy');
-        
+
         // New routes for viewing and downloading
         Route::get('/reports/{report_id}/view', [ReportController::class, 'viewReport'])->name('reports.view');
         Route::get('/reports/{report_id}/download', [ReportController::class, 'downloadReport'])->name('reports.download');
 
-          Route::get('/review-reports', [ReportReviewController::class, 'index'])
-                ->name('review-reports.index');
+        Route::get('/review-reports', [ReportReviewController::class, 'index'])
+              ->name('review-reports.index');
 
-            // Staff action: Recommend a report (submitted -> recommended)
-            Route::post('/review-reports/{reportId}/recommend', [ReportReviewController::class, 'recommend'])
-                ->name('review-reports.recommend');
+        // Staff action: Recommend a report (submitted -> recommended)
+        Route::post('/review-reports/{reportId}/recommend', [ReportReviewController::class, 'recommend'])
+            ->name('review-reports.recommend');
 
-            // RPMO action: Mark report as reviewed (recommended -> reviewed)
-            Route::post('/review-reports/{reportId}/reviewed', [ReportReviewController::class, 'reviewed'])
-                ->name('review-reports.reviewed');
+        // RPMO action: Mark report as reviewed (recommended -> reviewed)
+        Route::post('/review-reports/{reportId}/reviewed', [ReportReviewController::class, 'reviewed'])
+            ->name('review-reports.reviewed');
 
-            // Both roles: Deny a report with reason in status
-            Route::post('/review-reports/{reportId}/deny', [ReportReviewController::class, 'deny'])
-                ->name('review-reports.deny');
+        // Both roles: Deny a report with reason in status
+        Route::post('/review-reports/{reportId}/deny', [ReportReviewController::class, 'deny'])
+            ->name('review-reports.deny');
     });
 
-
-    //ANNOUCNEMENTS
+    // ANNOUCNEMENTS
     Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
         Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
         Route::get('/announcements/create', [AnnouncementController::class, 'create'])->name('announcements.create');
@@ -326,18 +312,14 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::delete('/announcements/{id}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
     });
 
-    Route::middleware(['auth'])->group(function () {       
+    Route::middleware(['auth'])->group(function () {
         Route::get('/settings/devices', [DeviceController::class, 'list'])->name('devices.list');
         Route::delete('/settings/devices/{id}', [DeviceController::class, 'revoke'])->name('devices.revoke');
         Route::get('/api/devices/stats', [DeviceController::class, 'getDeviceStats'])->name('devices.stats');
-        
+
         // Admin-only: Cleanup expired devices (can be run manually or via scheduler)
         Route::post('/admin/devices/cleanup', [DeviceController::class, 'cleanupExpiredDevices'])
             ->middleware('role:head')
             ->name('devices.cleanup');
     });
-
-
- 
 });
-

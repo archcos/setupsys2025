@@ -359,8 +359,18 @@ export default function Index({
                 "/refunds/save",
                 {
                     project_id: projectId,
-                    refund_amount: refundAmount,
-                    amount_due: amountDue,
+                    amount:
+                        currentStatus === REFUND_STATUS.RESTRUCTURED // <-- was refund_amount
+                            ? 0
+                            : (data[`refund_amount_${projectId}`] ??
+                              project?.refund_amount ??
+                              0),
+                    amount_due:
+                        currentStatus === REFUND_STATUS.RESTRUCTURED
+                            ? 0
+                            : (data[`amount_due_${projectId}`] ??
+                              project?.amount_due ??
+                              0),
                     check_num: data[`check_num_${projectId}`] ?? "",
                     check_date: data[`check_date_${projectId}`] ?? "",
                     receipt_num: data[`receipt_num_${projectId}`] ?? "",
@@ -599,25 +609,25 @@ export default function Index({
                                             Project & Proponent
                                         </div>
                                     </th>
-                                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                    <th className="px-2 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-36 md:w-44">
                                         <div className="flex items-center gap-2">
                                             <Banknote className="w-4 h-4" />
                                             Amount Due
                                         </div>
                                     </th>
-                                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                    <th className="px-2 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-36 md:w-44">
                                         <div className="flex items-center gap-2">
                                             <BanknoteArrowUp className="w-4 h-4" />
                                             Refund Amount
                                         </div>
                                     </th>
-                                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                    <th className="px-2 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-28 md:w-32">
                                         <div className="flex items-center gap-2">
                                             <TicketSlash className="w-4 h-4" />
                                             Check Number & Date
                                         </div>
                                     </th>
-                                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                    <th className="px-2 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-28 md:w-32">
                                         <div className="flex items-center gap-2">
                                             <ReceiptText className="w-4 h-4" />
                                             OR Number & Date
@@ -659,6 +669,8 @@ export default function Index({
                                             }
                                             renderSaveButton={renderSaveButton}
                                             renderUpdatedBy={renderUpdatedBy}
+                                            selectedMonth={selectedMonth}
+                                            selectedYear={selectedYear}
                                         />
                                     ))
                                 ) : (
@@ -723,6 +735,8 @@ export default function Index({
                                     onSaveClick={() => handleSave(p.project_id)}
                                     renderSaveButton={renderSaveButton}
                                     renderUpdatedBy={renderUpdatedBy}
+                                    selectedMonth={selectedMonth} // <-- add
+                                    selectedYear={selectedYear}
                                 />
                             ))
                         ) : (

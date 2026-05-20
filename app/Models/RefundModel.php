@@ -15,25 +15,28 @@ class RefundModel extends Model
     protected $primaryKey = 'refund_id';
     public $timestamps = true;
 
+    public const STATUS_PAID = 'paid';
+    public const STATUS_UNPAID = 'unpaid';
+    public const STATUS_RESTRUCTURED = 'restructured';
+    public const STATUS_PARTIAL = 'partial';
+
     protected $fillable = [
-        'refund_amount',
-        'status',
         'project_id',
-        'month_paid',
-        'amount_due',
-        'check_date',
-        'receipt_date',
-        'check_num',
-        'receipt_num',
         'updated_by',
+        'amount_due',
+        'payments',
+        'status',
+        'month_paid',
     ];
 
-    // Define valid status values
-    const STATUS_PAID = 'paid';
-    const STATUS_UNPAID = 'unpaid';
-    const STATUS_RESTRUCTURED = 'restructured';
+    protected $casts = [
+        'payments' => 'array',
+        'amount_due' => 'decimal:2',
+        'month_paid' => 'date',
+    ];
 
-    // Rename relation to project for clarity
+    // ── Relationships ─────────────────────────────────────────────────────────
+
     public function project()
     {
         return $this->belongsTo(ProjectModel::class, 'project_id', 'project_id');
@@ -45,15 +48,66 @@ class RefundModel extends Model
                     ->select(['user_id', 'first_name', 'middle_name', 'last_name']);
     }
 
-    // Optional: Add a scope to filter by status
+    // ── Scopes ────────────────────────────────────────────────────────────────
+
     public function scopeByStatus($query, $status)
     {
         return $query->where('status', $status);
     }
 
-    // Optional: Add accessor to get formatted status
+    // ── Accessors ─────────────────────────────────────────────────────────────
+
     public function getStatusLabelAttribute()
     {
         return ucfirst($this->status);
+    }
+
+    // ── Computed helpers ──────────────────────────────────────────────────────
+
+    public function getTotalPaidAttribute(): float
+    {
+        if (empty($this->payments)) {
+            return 0;
+        }
+
+        return (float) collect($this->payments)->sum('amount');
+    }
+
+    public function getLatestPaymentAttribute(): ?array
+    {
+        if (empty($this->payments)) {
+            return null;
+        }
+
+        return collect($this->payments)->last();
+    }
+
+    // ── Mutators ──────────────────────────────────────────────────────────────
+
+    public function appendPayment(array $payment): void
+    {
+        // Never store a zero or empty payment entry
+        if (empty($payment['amount']) || (float) $payment['amount'] <= 0) {
+            return;
+        }
+
+        $current = $this->payments ?? [];
+        $current[] = array_merge([
+            'amount' => 0,
+            'check_num' => null,
+            'check_date' => null,
+            'receipt_num' => null,
+            'receipt_date' => null,
+            'saved_at' => now()->toDateTimeString(),
+        ], $payment);
+
+        $this->payments = $current;
+    }
+
+    public function removePayment(int $index): void
+    {
+        $current = $this->payments ?? [];
+        array_splice($current, $index, 1);
+        $this->payments = array_values($current);
     }
 }
