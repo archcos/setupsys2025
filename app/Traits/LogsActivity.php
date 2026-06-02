@@ -2,7 +2,6 @@
 
 namespace App\Traits;
 
-use App\Models\Log;
 use App\Models\LogModel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log as FacadesLog;
@@ -10,6 +9,10 @@ use Illuminate\Support\Facades\Request;
 
 trait LogsActivity
 {
+    /**
+     * Sensitive fields never written to the log table.
+     * Models can extend this by defining $extraSensitiveAttributes.
+     */
     protected static array $sensitiveAttributes = [
         'password',
         'password_confirmation',
@@ -18,122 +21,278 @@ trait LogsActivity
         'secret',
         'credit_card',
         'ssn',
-        'updated_at'
     ];
 
-    protected static function boot()
+    /**
+     * Fields that change on almost every save but carry no audit value.
+     */
+    protected static array $ignoredAttributes = [
+        'updated_at',
+        'last_seen_at',
+        'remember_token',
+        'login_count',
+    ];
+
+    /**
+     * JSON columns that Laravel may falsely flag as changed because it compares
+     * serialized strings. The trait deep-compares these before logging.
+     *
+     * Override in your model:
+     *   protected array $jsonAttributes = ['payments', 'metadata'];
+     */
+    // protected array $jsonAttributes = [];
+
+    /**
+     * Runtime registry of model classes that have been disabled via disableLogging().
+     * Keyed by fully-qualified class name. No property declaration needed on models.
+     */
+    private static array $disabledModels = [];
+
+    private const MAX_CHANGES_IN_DESCRIPTION = 5;
+
+    // -------------------------------------------------------------------------
+    // Logging toggle (safe to call without declaring a property on the model)
+    // -------------------------------------------------------------------------
+
+    public static function disableLogging(): void
+    {
+        self::$disabledModels[static::class] = true;
+    }
+
+    public static function enableLogging(): void
+    {
+        unset(self::$disabledModels[static::class]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Boot
+    // -------------------------------------------------------------------------
+
+    protected static function boot(): void
     {
         parent::boot();
 
         static::created(function ($model) {
+            if (!static::loggingEnabled()) {
+                return;
+            }
             $model->logActivity('Created', null, $model->getAttributes());
         });
 
         static::updated(function ($model) {
-            $model->logActivity('Updated', $model->getOriginal(), $model->getChanges());
+            if (!static::loggingEnabled()) {
+                return;
+            }
+
+            $changes = $model->getChanges();
+            $original = $model->getOriginal();
+
+            // Remove noise columns first
+            $meaningful = array_diff_key(
+                $changes,
+                array_flip(array_merge(static::$ignoredAttributes, ['updated_at']))
+            );
+
+            if (empty($meaningful)) {
+                return;
+            }
+
+            // Deep-compare JSON columns: remove them from $meaningful when the
+            // decoded content is identical (Laravel flags them changed because
+            // the serialized string differs even for equal values).
+            $jsonColumns = $model->jsonAttributes ?? [];
+            foreach ($jsonColumns as $col) {
+                if (!array_key_exists($col, $meaningful)) {
+                    continue;
+                }
+
+                $oldDecoded = is_string($original[$col] ?? null)
+                    ? json_decode($original[$col], true)
+                    : ($original[$col] ?? null);
+
+                $newDecoded = is_string($changes[$col] ?? null)
+                    ? json_decode($changes[$col], true)
+                    : ($model->getAttribute($col) ?? null);
+
+                if ($oldDecoded === $newDecoded) {
+                    unset($meaningful[$col]);
+                }
+            }
+
+            if (empty($meaningful)) {
+                return;
+            }
+
+            // For the 'before' snapshot, pass the decoded version of JSON
+            // columns so descriptions and before/after diffs are readable.
+            $originalNormalized = $original;
+            foreach ($jsonColumns as $col) {
+                if (isset($originalNormalized[$col]) && is_string($originalNormalized[$col])) {
+                    $originalNormalized[$col] = json_decode($originalNormalized[$col], true);
+                }
+            }
+
+            // Replace raw JSON strings in $meaningful with decoded arrays too
+            $meaningfulNormalized = $meaningful;
+            foreach ($jsonColumns as $col) {
+                if (array_key_exists($col, $meaningfulNormalized)) {
+                    $meaningfulNormalized[$col] = $model->getAttribute($col);
+                }
+            }
+
+            $model->logActivity('Updated', $originalNormalized, $meaningfulNormalized);
         });
 
         static::deleted(function ($model) {
+            if (!static::loggingEnabled()) {
+                return;
+            }
             $model->logActivity('Deleted', $model->getAttributes(), null);
         });
     }
 
-    protected function detectProjectId(): ?int
-    {
-        // Case 1: The model itself has a project_id column
-        if ($this->getAttribute('project_id')) {
-            return $this->getAttribute('project_id');
-        }
+    // -------------------------------------------------------------------------
+    // Public API
+    // -------------------------------------------------------------------------
 
-        // Case 2: If the model itself IS a project, use its own ID
-        if (str_contains(strtolower(class_basename($this)), 'project')) {
-            return $this->getKey();
-        }
-
-        // Case 3: If model has relationship like $model->project->id (optional)
-        if (method_exists($this, 'project') && $this->project()->exists()) {
-            return $this->project->id ?? null;
-        }
-
-        return null;
-    }
-
-    /**
-     * Filter out sensitive attributes from data
-     */
-    protected function filterSensitiveData(?array $data): ?array
-    {
-        if ($data === null) {
-            return null;
-        }
-
-        return collect($data)
-            ->reject(function ($value, $key) {
-                return in_array(strtolower($key), self::$sensitiveAttributes, true);
-            })
-            ->toArray();
-    }
-
-    /**
-     * Log an activity to the logs table
-     *
-     * @param string $action The action performed (Created, Updated, Deleted, etc.)
-     * @param array|null $before The original attributes
-     * @param array|null $after The new attributes
-     * @param string|null $description Human-readable description
-     */
     public function logActivity(
         string $action,
         ?array $before = null,
         ?array $after = null,
         ?string $description = null
     ): void {
-        try {
-            // For updates, only log the changed fields in 'before'
-            if ($action === 'Updated' && $before && $after) {
-                $changedFields = [];
-                foreach ($after as $key => $value) {
-                    if (isset($before[$key]) && $before[$key] !== $value) {
-                        $changedFields[$key] = $before[$key];
-                    }
-                }
-                $before = $changedFields ?: null;
+        $userId = Auth::id();
+        $projectId = $this->detectProjectId();
+        $modelType = get_class($this);
+        $modelId = $this->getKey();
+        $ip = Request::ip();
+        $ua = Request::userAgent();
+        $now = now();
+
+        if ($action === 'Updated' && $before && $after) {
+            $before = array_intersect_key($before, $after);
+        }
+
+        $beforeFiltered = $this->filterIgnoredData($this->filterSensitiveData($before));
+        $afterFiltered = $this->filterIgnoredData($this->filterSensitiveData($after));
+
+        $desc = $description ?? $this->generateDescription(
+            $action,
+            $beforeFiltered,
+            $afterFiltered,
+            $userId,
+            $now
+        );
+
+        $payload = [
+            'user_id' => $userId,
+            'project_id' => $projectId,
+            'action' => $action,
+            'description' => $desc,
+            'model_type' => $modelType,
+            'model_id' => $modelId,
+            'before' => $beforeFiltered,
+            'after' => $afterFiltered,
+            'ip_address' => $ip,
+            'user_agent' => $ua,
+            'created_at' => $now,
+        ];
+
+        $this->writeLog($payload);
+    }
+
+    public function manualLog(string $action, ?string $description = null): void
+    {
+        $this->logActivity($action, null, null, $description);
+    }
+
+    public function activityLogs()
+    {
+        return LogModel::where('model_type', get_class($this))
+            ->where('model_id', $this->getKey())
+            ->latest('created_at')
+            ->get();
+    }
+
+    public function getDisplayName(): string
+    {
+        foreach (['name', 'title', 'company_name', 'project_name', 'user_name', 'email', 'subject'] as $attr) {
+            if ($this->hasAttribute($attr) && !empty($this->getAttribute($attr))) {
+                return (string) $this->getAttribute($attr);
             }
+        }
 
-            // Filter sensitive data for all actions
-            $beforeFiltered = $this->filterSensitiveData($before);
-            $afterFiltered  = $this->filterSensitiveData($after);
+        return "#{$this->getKey()}";
+    }
 
-            LogModel::create([
-                'user_id'      => Auth::id(),
-                'project_id'   => $this->detectProjectId(),
-                'action'       => $action,
-                'description'  => $description ?? $this->generateDescription(
-                    $action,
-                    $beforeFiltered,
-                    $afterFiltered,
-                    Auth::id(),
-                    now()
-                ),
-                'model_type'   => get_class($this),
-                'model_id'     => $this->getKey(),
-                'before'       => $beforeFiltered,
-                'after'        => $afterFiltered,
-                'ip_address'   => Request::ip(),
-                'user_agent'   => Request::userAgent(),
-                'created_at'   => now(),
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
+
+    private function writeLog(array $payload): void
+    {
+        try {
+            LogModel::create($payload);
+        } catch (\Throwable $e) {
+            FacadesLog::error('LogsActivity: failed to write log entry', [
+                'error' => $e->getMessage(),
+                'model_type' => $payload['model_type'] ?? null,
+                'model_id' => $payload['model_id'] ?? null,
+                'action' => $payload['action'] ?? null,
             ]);
-
-        } catch (\Exception $e) {
-            FacadesLog::error('Failed to log activity: ' . $e->getMessage());
         }
     }
 
+    private static function loggingEnabled(): bool
+    {
+        return !isset(self::$disabledModels[static::class]);
+    }
 
-    /**
-     * Generate a human-readable description based on action
-     * Override this method in your model for custom descriptions
-     */
+    protected function detectProjectId(): ?int
+    {
+        $pid = $this->getAttribute('project_id');
+        if ($pid) {
+            return (int) $pid;
+        }
+
+        if (str_contains(strtolower(class_basename($this)), 'project')) {
+            return (int) $this->getKey();
+        }
+
+        if (method_exists($this, 'project') && $this->relationLoaded('project')) {
+            return $this->project->id ?? null;
+        }
+
+        return null;
+    }
+
+    protected function filterSensitiveData(?array $data): ?array
+    {
+        if ($data === null) {
+            return null;
+        }
+
+        $sensitive = array_merge(
+            static::$sensitiveAttributes,
+            property_exists($this, 'extraSensitiveAttributes') ? $this->extraSensitiveAttributes : []
+        );
+
+        return collect($data)
+            ->reject(fn ($v, $key) => in_array(strtolower($key), $sensitive, true))
+            ->toArray();
+    }
+
+    protected function filterIgnoredData(?array $data): ?array
+    {
+        if ($data === null) {
+            return null;
+        }
+
+        return collect($data)
+            ->reject(fn ($v, $key) => in_array($key, static::$ignoredAttributes, true))
+            ->toArray();
+    }
+
     protected function generateDescription(
         string $action,
         ?array $before = null,
@@ -143,98 +302,89 @@ trait LogsActivity
     ): string {
         $model = class_basename($this);
         $name = $this->getDisplayName();
-
-        // Get the user's full name with ID
-        $userPart = '';
-        if ($userId) {
-            $user = \App\Models\UserModel::find($userId);
-            if ($user) {
-                $userPart = " by {$user->user_id} - {$user->name}";
-            } else {
-                $userPart = " by {$userId}";
-            }
-        }
-
+        $userPart = $this->resolveUserPart($userId);
         $timePart = $createdAt ? " on {$createdAt->format('Y-m-d H:i:s')}" : '';
 
-        // CREATED
-        if ($action === 'Created') {
-            return "Created new {$model}: {$name}{$userPart}{$timePart}";
-        }
+        return match ($action) {
+            'Created' => "Created new {$model}: {$name}{$userPart}{$timePart}",
+            'Deleted' => "Deleted {$model}: {$name}{$userPart}{$timePart}",
+            'Updated' => $this->buildUpdateDescription($model, $name, $before, $after, $userPart, $timePart),
+            default => "{$action} {$model}: {$name}{$userPart}{$timePart}",
+        };
+    }
 
-        // UPDATED: Show changed fields
-        if ($action === 'Updated' && $before && $after) {
-            $changes = [];
+    private function buildUpdateDescription(
+        string $model,
+        string $name,
+        ?array $before,
+        ?array $after,
+        string $userPart,
+        string $timePart
+    ): string {
+        $changes = [];
+        $jsonCols = $this->jsonAttributes ?? [];
+
+        if ($before && $after) {
             foreach ($after as $field => $newValue) {
-                if (isset($before[$field])) {
-                    $oldValue = $before[$field];
-                    if (is_numeric($oldValue) && is_numeric($newValue)) {
-                        $oldValue = number_format($oldValue);
-                        $newValue = number_format($newValue);
-                    }
-                    $changes[] = "{$field} ({$oldValue} → {$newValue})";
+                if (!array_key_exists($field, $before)) {
+                    continue;
                 }
-            }
 
-            $changesStr = !empty($changes) ? ': ' . implode(', ', $changes) : '';
-            return "Updated {$model} {$name}{$changesStr}{$userPart}{$timePart}";
-        }
+                $oldValue = $before[$field];
 
-        // DELETED
-        if ($action === 'Deleted') {
-            return "Deleted {$model}: {$name}{$userPart}{$timePart}";
-        }
+                // For JSON columns, show a count/summary instead of raw JSON
+                if (in_array($field, $jsonCols, true)) {
+                    $oldCount = is_array($oldValue) ? count($oldValue) : 0;
+                    $newCount = is_array($newValue) ? count($newValue) : 0;
+                    $changes[] = "{$field} ({$oldCount} entries → {$newCount} entries)";
+                    continue;
+                }
 
-        return "{$action} {$model}: {$name}{$userPart}{$timePart}";
-    }
+                if (is_numeric($oldValue) && is_numeric($newValue)) {
+                    $oldValue = number_format((float) $oldValue);
+                    $newValue = number_format((float) $newValue);
+                }
 
-
-
-    /**
-     * Get a display name for the model
-     * Override this method in your model to customize the display name
-     * Default: tries common naming conventions
-     */
-    public function getDisplayName(): string
-    {
-        // Try common naming attributes in order
-        $commonAttributes = [
-            'name',
-            'title',
-            'company_name',
-            'project_name',
-            'user_name',
-            'email',
-            'subject',
-        ];
-
-        foreach ($commonAttributes as $attr) {
-            if ($this->hasAttribute($attr) && !empty($this->getAttribute($attr))) {
-                return $this->getAttribute($attr);
+                $changes[] = "{$field} ({$this->truncateValue($oldValue)} → {$this->truncateValue($newValue)})";
             }
         }
 
-        // Fallback to ID if no display name found
-        return "#{$this->getKey()}";
+        $shown = array_slice($changes, 0, self::MAX_CHANGES_IN_DESCRIPTION);
+        $overflow = count($changes) - count($shown);
+        $changesStr = !empty($shown)
+            ? ': '.implode(', ', $shown).($overflow > 0 ? " (+{$overflow} more)" : '')
+            : '';
+
+        return "Updated {$model} {$name}{$changesStr}{$userPart}{$timePart}";
     }
 
-    /**
-     * Get logs related to this model
-     */
-    public function logs()
+    private function resolveUserPart(?int $userId): string
     {
-        return LogModel::where('model_type', get_class($this))
-            ->where('model_id', $this->getKey())
-            ->latest()
-            ->get();
+        if (!$userId) {
+            return '';
+        }
+
+        static $cache = [];
+
+        if (!isset($cache[$userId])) {
+            $user = \App\Models\UserModel::select(['user_id', 'first_name', 'middle_name', 'last_name'])
+                ->find($userId);
+            $cache[$userId] = $user
+                ? "{$user->user_id} - {$user->name}"  // ->name triggers the appended accessor
+                : (string) $userId;
+        }
+
+        return " by {$cache[$userId]}";
     }
 
-    /**
-     * Manually log a custom action
-     */
-    public function manualLog(string $action, ?string $description = null): void
+    private function truncateValue(mixed $value, int $max = 60): string
     {
-        $this->logActivity($action, null, null, $description);
+        if (is_array($value) || is_object($value)) {
+            return '[complex value]';
+        }
+
+        $str = (string) $value;
+
+        return mb_strlen($str) > $max ? mb_substr($str, 0, $max).'…' : $str;
     }
-    
 }

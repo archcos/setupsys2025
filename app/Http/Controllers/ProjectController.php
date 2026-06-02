@@ -269,7 +269,7 @@ class ProjectController extends Controller
             'fund_release' => 'nullable|date',
             'project_cost' => 'required|numeric',
             'counterpart' => 'nullable|numeric',
-            'released_amount' => 'nullable|numeric',                      // NEW
+            'released_amount' => 'nullable|numeric',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
             'refund_amount' => 'nullable|numeric',
@@ -313,10 +313,10 @@ class ProjectController extends Controller
             'counterpart' => $validated['counterpart'] ?? null,
             'latitude' => $validated['latitude'] ?? null,
             'longitude' => $validated['longitude'] ?? null,
-            'released_amount' => $validated['released_amount'] ?? null,   // NEW
+            'released_amount' => $validated['released_amount'] ?? null,
             'refund_amount' => $validated['refund_amount'] ?? null,
             'last_refund' => $validated['last_refund'] ?? null,
-            'progress' => $validated['progress'] ?? 'Proponent Details',
+            'progress' => 'Project Created',
             'year_obligated' => $validated['year_obligated'] ?? null,
             'revenue' => $validated['revenue'] ?? null,
             'net_income' => $validated['net_income'] ?? null,
@@ -335,9 +335,6 @@ class ProjectController extends Controller
             'refund_end' => $validated['refund_end'] ?? null,
             'added_by' => $user->user_id,
         ]);
-
-        $project->progress = 'Project Created';
-        $project->save();
 
         if (!empty($validated['items'])) {
             foreach ($validated['items'] as $item) {
@@ -385,7 +382,11 @@ class ProjectController extends Controller
             }
         }
 
-        return redirect('/projects')->with('success', 'Project, items, and objectives created successfully.');
+        $redirectTo = in_array($user->role, ['rpmo', 'staff', 'head'])
+            ? '/projects'
+            : '/project-list';
+
+        return redirect($redirectTo)->with('success', 'Project, items, and objectives created successfully.');
     }
 
     public function export(Request $request)
@@ -660,11 +661,17 @@ class ProjectController extends Controller
             }
         }
 
-        $project->objectives()->where('report', 'approved')->delete();
-        if (!empty($validated['objectives'])) {
-            foreach ($validated['objectives'] as $objective) {
+        $existingObjectives = $project->objectives()->where('report', 'approved')->get();
+        $incomingDetails = collect($validated['objectives'] ?? [])->pluck('details')->map('trim')->filter()->values();
+        $existingDetails = $existingObjectives->pluck('details')->map('trim')->values();
+
+        // Only touch objectives if the content actually changed
+        if ($incomingDetails->toArray() !== $existingDetails->toArray()) {
+            $project->objectives()->where('report', 'approved')->delete();
+
+            foreach ($incomingDetails as $detail) {
                 $project->objectives()->create([
-                    'details' => $objective['details'],
+                    'details' => $detail,
                     'report' => 'approved',
                 ]);
             }
@@ -685,7 +692,6 @@ class ProjectController extends Controller
     {
         $user = Auth::user();
 
-        // Only RPMO can trigger CSV sync
         if (!$user || $user->role !== 'rpmo') {
             return back()->with('error', 'Unauthorized: Only RPMO can sync projects from CSV.');
         }
@@ -695,6 +701,11 @@ class ProjectController extends Controller
         if (!$csvUrl) {
             return back()->with('error', 'PROJECT_CSV_URL is not configured.');
         }
+
+        // Disable logging for all models touched during this bulk sync
+        ProjectModel::disableLogging();
+        ImplementationModel::disableLogging();
+        MarketModel::disableLogging();
 
         try {
             $response = Http::timeout(300)->get($csvUrl);
@@ -727,6 +738,7 @@ class ProjectController extends Controller
 
             while (($row = fgetcsv($stream)) !== false) {
                 ++$rowIndex;
+                // ↑ No try/finally here — enableLogging() must NOT fire per row
                 try {
                     $row = array_pad(array_map('trim', $row), count($header), '');
                     if (count(array_filter($row)) === 0) {
@@ -745,7 +757,6 @@ class ProjectController extends Controller
                         continue;
                     }
 
-                    // Normalize: strip trailing (2), (3), etc. so duplicates match the same proponent
                     $normalizedName = trim(preg_replace('/\s*\(\d+\)\s*$/', '', $proponentName));
 
                     $proponent = ProponentModel::where('company_name', $normalizedName)->first();
@@ -793,7 +804,6 @@ class ProjectController extends Controller
                         default => 'Implementation',
                     };
 
-                    // Override to 'Refund' if today falls within the refund period
                     if ($progress === 'Implementation' && $refundInitial && $refundEnd) {
                         $today = now()->startOfDay();
                         $refundStart = Carbon::parse($refundInitial)->startOfDay();
@@ -830,17 +840,20 @@ class ProjectController extends Controller
                             'male' => $this->sanitizeNumeric($data['Male indirect employees'] ?? null),
                             'direct_male' => $this->sanitizeNumeric($data['Male direct Employees'] ?? null),
                             'direct_female' => $this->sanitizeNumeric($data['Female direct Employees'] ?? null),
-                            // released_date, released_amount not in CSV — left null
                         ]
                     );
 
                     if (!ImplementationModel::where('project_id', $project->project_id)->exists() && $progress === 'Implementation') {
-                        ImplementationModel::create(['project_id' => $project->project_id, 'tarp' => null, 'pdc' => null, 'liquidation' => null]);
+                        ImplementationModel::create([
+                            'project_id' => $project->project_id,
+                            'tarp' => null,
+                            'pdc' => null,
+                            'liquidation' => null,
+                        ]);
                     }
 
                     $barangay = trim($data['Barangay'] ?? '');
                     $municipality = trim($data['Municipality'] ?? '');
-
                     $placeParts = array_filter([$barangay, $municipality]);
                     $placeName = implode(', ', $placeParts);
 
@@ -864,18 +877,26 @@ class ProjectController extends Controller
                     ++$newRecords;
                 } catch (\Exception $e) {
                     $errors[] = "Row $rowIndex failed: ".$e->getMessage();
-                    continue;
                 }
             }
 
             fclose($stream);
+
+            // One summary log for the entire projects sync
+            $dummy = new ProjectModel();
+            $dummy->manualLog(
+                'Synced',
+                "Synced {$newRecords} projects from CSV.".
+                (!empty($errors) ? ' '.count($errors).' rows had errors.' : '')
+            );
+
+            // Run geo/objectives sync (manages its own disable/enable internally)
             $geoSummary = $this->syncGeoAndObjectivesFromCSV();
 
             $message = "$newRecords projects synced successfully.";
             if (!empty($errors)) {
                 $message .= ' '.count($errors).' rows had errors.';
             }
-
             $message .= ' '.$geoSummary;
 
             return back()->with('success', $message);
@@ -883,20 +904,29 @@ class ProjectController extends Controller
             Log::error('Project CSV Sync failed: '.$e->getMessage());
 
             return back()->with('error', 'Sync failed: '.$e->getMessage());
+        } finally {
+            // Runs exactly once — restores logging whether sync succeeded or crashed
+            ProjectModel::enableLogging();
+            ImplementationModel::enableLogging();
+            MarketModel::enableLogging();
         }
     }
+
+    // -------------------------------------------------------------------------
 
     private function syncGeoAndObjectivesFromCSV(): string
     {
         $csvUrl = env('PROJECT_GEO_CSV_URL');
 
         if (!$csvUrl) {
-            return back()->with('error', 'PROJECT_GEO_CSV_URL is not configured.');
+            return 'Geo sync skipped: PROJECT_GEO_CSV_URL is not configured.';
         }
+
+        ProjectModel::disableLogging();
+        ObjectiveModel::disableLogging();
 
         try {
             $response = Http::timeout(300)->get($csvUrl);
-
             if (!$response->ok()) {
                 Log::error('Failed to fetch geo CSV: '.$response->status());
 
@@ -914,7 +944,6 @@ class ProjectController extends Controller
 
             $header = array_map(fn ($col) => preg_replace('/\s+/', ' ', trim($col)), $rawHeader);
 
-            // Locate columns — add more aliases here if your headers differ
             $colTitle = $this->findColumnIndex($header, ['Project Title', 'Name of Project', 'Project Name']);
             $colLat = $this->findColumnIndex($header, ['Latitude', 'Lat']);
             $colLng = $this->findColumnIndex($header, ['Longitude', 'Long', 'Lng']);
@@ -932,7 +961,7 @@ class ProjectController extends Controller
 
             while (($row = fgetcsv($stream)) !== false) {
                 ++$rowIndex;
-
+                // ↑ No try/finally here — enableLogging() must NOT fire per row
                 try {
                     $row = array_map('trim', $row);
                     if (count(array_filter($row)) === 0) {
@@ -956,7 +985,6 @@ class ProjectController extends Controller
                         continue;
                     }
 
-                    // ── Latitude & Longitude ──────────────────────────────────────
                     $updateData = [];
 
                     if ($colLat !== null && ($row[$colLat] ?? '') !== '') {
@@ -982,7 +1010,6 @@ class ProjectController extends Controller
                         ++$updatedProjects;
                     }
 
-                    // ── Objectives ────────────────────────────────────────────────
                     if ($colObjectives !== null && ($row[$colObjectives] ?? '') !== '') {
                         $lines = preg_split('/\r\n|\r|\n/', $row[$colObjectives]);
 
@@ -1015,6 +1042,14 @@ class ProjectController extends Controller
 
             fclose($stream);
 
+            // One summary log for the geo/objectives sync
+            $dummy = new ProjectModel();
+            $dummy->manualLog(
+                'Synced',
+                "Geo sync: {$updatedProjects} project(s) updated, {$objectivesAdded} objective(s) added, {$skippedRows} skipped.".
+                (!empty($errors) ? ' '.count($errors).' rows had errors.' : '')
+            );
+
             if (!empty($errors)) {
                 Log::warning('Geo CSV sync had errors', ['errors' => $errors]);
             }
@@ -1024,6 +1059,10 @@ class ProjectController extends Controller
             Log::error('Geo CSV sync failed: '.$e->getMessage());
 
             return 'Geo sync failed: '.$e->getMessage();
+        } finally {
+            // Runs exactly once — restores logging whether geo sync succeeded or crashed
+            ProjectModel::enableLogging();
+            ObjectiveModel::enableLogging();
         }
     }
 

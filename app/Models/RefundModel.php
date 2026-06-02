@@ -35,6 +35,13 @@ class RefundModel extends Model
         'month_paid' => 'date',
     ];
 
+    /**
+     * Columns whose raw serialized value changes on every save even when the
+     * decoded content is identical. The trait will do a deep comparison for
+     * these instead of a simple !== check.
+     */
+    protected array $jsonAttributes = ['payments'];
+
     // ── Relationships ─────────────────────────────────────────────────────────
 
     public function project()
@@ -57,7 +64,7 @@ class RefundModel extends Model
 
     // ── Accessors ─────────────────────────────────────────────────────────────
 
-    public function getStatusLabelAttribute()
+    public function getStatusLabelAttribute(): string
     {
         return ucfirst($this->status);
     }
@@ -66,27 +73,18 @@ class RefundModel extends Model
 
     public function getTotalPaidAttribute(): float
     {
-        if (empty($this->payments)) {
-            return 0;
-        }
-
-        return (float) collect($this->payments)->sum('amount');
+        return (float) collect($this->payments ?? [])->sum('amount');
     }
 
     public function getLatestPaymentAttribute(): ?array
     {
-        if (empty($this->payments)) {
-            return null;
-        }
-
-        return collect($this->payments)->last();
+        return collect($this->payments ?? [])->last();
     }
 
     // ── Mutators ──────────────────────────────────────────────────────────────
 
     public function appendPayment(array $payment): void
     {
-        // Never store a zero or empty payment entry
         if (empty($payment['amount']) || (float) $payment['amount'] <= 0) {
             return;
         }
@@ -109,5 +107,118 @@ class RefundModel extends Model
         $current = $this->payments ?? [];
         array_splice($current, $index, 1);
         $this->payments = array_values($current);
+    }
+
+    // ── Logging overrides ─────────────────────────────────────────────────────
+
+    /**
+     * Produce a readable display name for log descriptions.
+     */
+    public function getDisplayName(): string
+    {
+        $month = $this->month_paid?->format('F Y') ?? "#{$this->getKey()}";
+
+        return "Refund {$month}";
+    }
+
+    /**
+     * Build a human-readable description that understands the payments JSON.
+     */
+    protected function generateDescription(
+        string $action,
+        ?array $before = null,
+        ?array $after = null,
+        ?int $userId = null,
+        ?\DateTimeInterface $createdAt = null
+    ): string {
+        // Let the trait handle Created / Deleted normally
+        if ($action !== 'Updated') {
+            return parent::generateDescription($action, $before, $after, $userId, $createdAt);
+        }
+
+        $parts = [];
+        $after ??= [];
+        $before ??= [];
+
+        // ── payments JSON: describe what actually changed ──────────────────
+        if (array_key_exists('payments', $after)) {
+            $oldPayments = $before['payments'] ?? [];
+            $newPayments = $after['payments'] ?? [];
+
+            // Normalise: the trait stores the decoded array, but just in case
+            // it arrives as a JSON string, decode it.
+            $oldPayments = is_string($oldPayments) ? json_decode($oldPayments, true) : $oldPayments;
+            $newPayments = is_string($newPayments) ? json_decode($newPayments, true) : $newPayments;
+
+            $oldCount = count($oldPayments ?? []);
+            $newCount = count($newPayments ?? []);
+
+            $oldTotal = collect($oldPayments)->sum('amount');
+            $newTotal = collect($newPayments)->sum('amount');
+
+            if ($newCount > $oldCount) {
+                $added = $newCount - $oldCount;
+                $parts[] = "added {$added} payment(s), total ₱".number_format($newTotal, 2);
+            } elseif ($newCount < $oldCount) {
+                $removed = $oldCount - $newCount;
+                $parts[] = "removed {$removed} payment(s), total ₱".number_format($newTotal, 2);
+            } elseif ($oldTotal != $newTotal) {
+                $parts[] = 'payments updated, total ₱'.number_format($newTotal, 2);
+            }
+            // If count and total are identical, skip — nothing meaningful changed
+        }
+
+        // ── scalar fields: delegate to parent logic ───────────────────────
+        $scalarAfter = array_diff_key($after, ['payments' => true]);
+        $scalarBefore = array_diff_key($before, ['payments' => true]);
+
+        if (!empty($scalarAfter)) {
+            $scalarDesc = parent::generateDescription(
+                'Updated',
+                $scalarBefore,
+                $scalarAfter,
+                null,    // we'll add user/time ourselves below
+                null
+            );
+
+            // Extract just the changes portion (strip "Updated RefundModel …")
+            // The parent format is: "Updated {Model} {name}: field1 (…), field2 (…)"
+            if (preg_match('/: (.+)$/', $scalarDesc, $m)) {
+                $parts[] = $m[1];
+            }
+        }
+
+        if (empty($parts)) {
+            return parent::generateDescription($action, $before, $after, $userId, $createdAt);
+        }
+
+        $name = $this->getDisplayName();
+        $userPart = $userId ? $this->resolveUserPartPublic($userId) : '';
+        $timePart = $createdAt ? " on {$createdAt->format('Y-m-d H:i:s')}" : '';
+        $changeStr = implode('; ', $parts);
+
+        return "Updated Refund {$name}: {$changeStr}{$userPart}{$timePart}";
+    }
+
+    /**
+     * Thin public wrapper so generateDescription() can call the trait's
+     * private resolveUserPart() without reflection hacks.
+     */
+    private function resolveUserPartPublic(?int $userId): string
+    {
+        if (!$userId) {
+            return '';
+        }
+
+        static $cache = [];
+
+        if (!isset($cache[$userId])) {
+            $user = UserModel::select(['user_id', 'name'])->find($userId);
+            $cache[$userId] = $user
+                ? "{$user->user_id} - {$user->name}"
+                : (string) $userId;
+        }
+
+        return " by {$cache[$userId]}";
     }
 }

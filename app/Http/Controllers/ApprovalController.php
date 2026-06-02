@@ -217,7 +217,7 @@ class ApprovalController extends Controller
                 'OWNER_NAME' => $proponent->owner_name ? strtoupper($proponent->owner_name) : 'N/A',
                 'POSITION' => $validated['position'],
                 'COMPANY_NAME' => $proponent->company_name ?? 'N/A',
-                'proponent_LOCATION' => $proponentLocation,
+                'COMPANY_LOCATION' => $proponentLocation,
                 'PD_NAME' => $pdFullName,
                 'PD_POSITION' => $pdPosition,
                 'OFFICE_NAME' => $office->office_name ?? 'N/A',
@@ -241,9 +241,9 @@ class ApprovalController extends Controller
                 }
             }
 
-            $safeProjectTitle = substr(preg_replace('/[^A-Za-z0-9_\-]/', '_', $project->project_title), 0, 50);
+            $safeCompanyName = substr(preg_replace('/[^A-Za-z0-9_\-]/', '_', $proponent->company_name ?? 'Unknown'), 0, 50);
             $timestamp = now()->format('Y-m-d_His');
-            $fileName = "approval_{$safeProjectTitle}_{$timestamp}.docx";
+            $fileName = "Approval-{$safeCompanyName}_{$timestamp}.docx";
             $currentYear = now()->year;
             $localFolderPath = "{$currentYear}/{$project_id}/approval";
             $fullPath = storage_path("app/private/{$localFolderPath}/{$fileName}");
