@@ -774,6 +774,16 @@ class AuthController extends Controller
                 'last_name' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
                 'username' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9_]+$/', Rule::unique('tbl_users', 'username')->ignore($id, 'user_id')],
                 'email' => ['required', 'email', 'max:255', Rule::unique('tbl_users', 'email')->ignore($id, 'user_id')],
+                'current_password' => [
+                    'nullable',
+                    'string',
+                    'required_with:password',
+                    function ($attribute, $value, $fail) use ($user) {
+                        if (!empty($value) && !Hash::check($value, $user->password)) {
+                            $fail('The current password is incorrect.');
+                        }
+                    },
+                ],
                 'password' => [
                     'nullable', 'string', 'min:12', 'max:72',
                     'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,72}$/',
@@ -782,6 +792,7 @@ class AuthController extends Controller
                 'office_id' => ['required', 'exists:tbl_offices,office_id'],
                 'website' => ['nullable', 'string', 'max:255'],
             ], [
+                'current_password.required_with' => 'Current password is required to set a new password.',
                 'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
                 'password.confirmed' => 'Password confirmation does not match.',
                 'first_name.regex' => 'First Name must contain letters, spaces, or hyphens only.',
@@ -794,7 +805,7 @@ class AuthController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()
                 ->withErrors($e->errors())
-                ->withInput($request->except('password', 'password_confirmation'));
+                ->withInput($request->except('password', 'password_confirmation', 'current_password'));
         }
 
         if (!empty($validated['website'])) {
@@ -813,7 +824,9 @@ class AuthController extends Controller
         ]);
 
         if (!empty($validated['password'])) {
+            // Current password is already verified via validation
             $user->password = Hash::make($validated['password']);
+            Log::info('User password changed', ['user_id' => $user->user_id, 'ip' => $request->ip()]);
         }
 
         $user->save();
