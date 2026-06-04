@@ -156,6 +156,7 @@ class AuthController extends Controller
         // 10. Enforce single active session per account
         $hasActiveSession = DB::table('sessions')
             ->where('user_id', $user->user_id)
+            ->where('id', '!=', $request->session()->getId()) // exclude current session
             ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->timestamp)
             ->exists();
 

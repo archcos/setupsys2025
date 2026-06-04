@@ -31,18 +31,12 @@ export default function LoginPage() {
         e.preventDefault();
         setIsAuthenticating(true);
         post("/signin", {
-            onSuccess: (page) => {
-                setAuthSuccess(true);
-                setIsAuthenticating(false);
-                // hold the success screen for 1.5s before Inertia navigates
-                setTimeout(() => {
-                    router.visit(page.url || "/dashboard");
-                }, 1500);
-            },
+            onSuccess: () => setAuthSuccess(true),
             onError: () => {
                 setIsAuthenticating(false);
                 setAuthSuccess(false);
             },
+            onFinish: () => setIsAuthenticating(false), // always runs
         });
     };
 
