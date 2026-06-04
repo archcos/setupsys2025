@@ -84,6 +84,7 @@ class RefundController extends Controller
         $office = request('office');
         $includeWithdrawn = request('include_withdrawn', false);
         $includeTerminated = request('include_terminated', false);
+        $includeAll = request('include_all', false);
         $perPage = (int) request('perPage', 10);
 
         $perPage = in_array($perPage, [10, 20, 50, 100]) ? $perPage : 10;
@@ -119,12 +120,14 @@ class RefundController extends Controller
                 }
             },
         ])
-        ->whereDate('refund_initial', '<=', $selectedDate)
-        ->whereDate('refund_end', '>=', $selectedDate)
+        ->when(!$includeAll, fn ($q) => $q
+            ->whereDate('refund_initial', '<=', $selectedDate)
+            ->whereDate('refund_end', '>=', $selectedDate)
+        )
 
-        ->when(!$includeWithdrawn && !$includeTerminated, fn ($q) => $q->whereNotIn('progress', ['Withdrawn', 'Terminated']))
-        ->when($includeWithdrawn && !$includeTerminated, fn ($q) => $q->where(fn ($q) => $q->whereNotIn('progress', ['Terminated'])->orWhereNull('progress')))
-        ->when(!$includeWithdrawn && $includeTerminated, fn ($q) => $q->where(fn ($q) => $q->whereNotIn('progress', ['Withdrawn'])->orWhereNull('progress')))
+        ->when(!$includeAll && !$includeWithdrawn && !$includeTerminated, fn ($q) => $q->whereNotIn('progress', ['Withdrawn', 'Terminated']))
+        ->when(!$includeAll && $includeWithdrawn && !$includeTerminated, fn ($q) => $q->where(fn ($q) => $q->whereNotIn('progress', ['Terminated'])->orWhereNull('progress')))
+        ->when(!$includeAll && !$includeWithdrawn && $includeTerminated, fn ($q) => $q->where(fn ($q) => $q->whereNotIn('progress', ['Withdrawn'])->orWhereNull('progress')))
 
         ->when($isRPMO && $office, fn ($q) => $q->whereHas('proponent', fn ($q) => $q->where('office_id', $office)))
 
@@ -136,27 +139,27 @@ class RefundController extends Controller
             });
         })
 
-        ->when($status, function ($query, $status) use ($selectedDate) {
-            if ($status === 'unpaid') {
-                $query->where(function ($q) use ($selectedDate) {
-                    $q->whereDoesntHave('refunds', function ($subQ) use ($selectedDate) {
-                        $subQ->whereMonth('month_paid', $selectedDate->month)
-                             ->whereYear('month_paid', $selectedDate->year);
-                    })
-                    ->orWhereHas('refunds', function ($subQ) use ($selectedDate) {
-                        $subQ->whereMonth('month_paid', $selectedDate->month)
-                             ->whereYear('month_paid', $selectedDate->year)
-                             ->where('status', 'unpaid');
-                    });
-                });
-            } else {
-                $query->whereHas('refunds', function ($q) use ($selectedDate, $status) {
-                    $q->whereMonth('month_paid', $selectedDate->month)
-                      ->whereYear('month_paid', $selectedDate->year)
-                      ->where('status', $status);
-                });
-            }
-        })
+->when($status && !$includeAll, function ($query) use ($selectedDate, $status) {
+    if ($status === 'unpaid') {
+        $query->where(function ($q) use ($selectedDate) {
+            $q->whereDoesntHave('refunds', function ($subQ) use ($selectedDate) {
+                $subQ->whereMonth('month_paid', $selectedDate->month)
+                     ->whereYear('month_paid', $selectedDate->year);
+            })
+            ->orWhereHas('refunds', function ($subQ) use ($selectedDate) {
+                $subQ->whereMonth('month_paid', $selectedDate->month)
+                     ->whereYear('month_paid', $selectedDate->year)
+                     ->where('status', 'unpaid');
+            });
+        });
+    } else {
+        $query->whereHas('refunds', function ($q) use ($selectedDate, $status) {
+            $q->whereMonth('month_paid', $selectedDate->month)
+              ->whereYear('month_paid', $selectedDate->year)
+              ->where('status', $status);
+        });
+    }
+})
 
         ->paginate($perPage)
         ->through(function ($project) use ($selectedDate) {
@@ -179,9 +182,41 @@ class RefundController extends Controller
             'offices' => $offices,
             'csvSheets' => $csvSheets,
             'userRole' => $user->role,
+            'includeAll' => (bool) $includeAll,
         ]);
     }
 
+    public function downloadProjectRefunds($projectId)
+    {
+        $project = ProjectModel::with(['proponent', 'refunds'])->findOrFail($projectId);
+        [$months] = $this->buildMonthsArray($project);
+
+        $headers = ['Content-Type' => 'text/csv', 'Content-Disposition' => "attachment; filename=\"{$projectId}_refunds.csv\""];
+
+        $callback = function () use ($project, $months) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Project ID', 'Title', 'Proponent', 'Month', 'Amount Due', 'Amount Paid', 'Status', 'Check No.', 'Check Date', 'OR No.', 'OR Date']);
+            foreach ($months as $m) {
+                $lastPayment = collect($m['payments'])->last();
+                fputcsv($out, [
+                    $project->project_id,
+                    $project->project_title,
+                    $project->proponent->company_name ?? '',
+                    $m['month'],
+                    $m['amount_due'],
+                    $m['refund_amount'],
+                    $m['status'],
+                    $lastPayment['check_num'] ?? '',
+                    $lastPayment['check_date'] ?? '',
+                    $lastPayment['receipt_num'] ?? '',
+                    $lastPayment['receipt_date'] ?? '',
+                ]);
+            }
+            fclose($out);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
     // ── Project refund history ────────────────────────────────────────────────
 
     public function projectRefunds($projectId)
@@ -402,7 +437,7 @@ class RefundController extends Controller
             ->when($search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('project_title', 'like', "%{$search}%")
-                      ->orWhereHas('proponent', fn ($q) => $q->where('company_name', 'like', "%{$search}%"));
+                        ->orWhereHas('proponent', fn ($q) => $q->where('company_name', 'like', "%{$search}%"));
                 });
             })
             ->when($year, fn ($query, $year) => $query->where('year_obligated', $year))

@@ -218,6 +218,7 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/refunds/bulk-update', [RefundController::class, 'bulkUpdate'])
             ->name('refunds.bulk.update');
         Route::post('/refunds/sync', [RefundController::class, 'syncRefundsFromCSV']);
+        Route::get('/refunds/{projectId}/download', [RefundController::class, 'downloadProjectRefunds']);
     });
 
     //  USER-ONLY ROUTES

@@ -36,6 +36,9 @@ const FilterSection = React.memo(
         onWithdrawnToggle,
         withTerminated,
         onTerminatedToggle,
+        // all projects
+        withAll,
+        onAllToggle,
     }) => {
         return (
             <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100 space-y-3">
@@ -83,7 +86,10 @@ const FilterSection = React.memo(
                 </div>
 
                 {/* Row 2: Month + Year + Status + Office (RPMO/AU only) */}
-                <div className="flex flex-wrap items-center gap-2">
+                {/* Dim entire row when withAll is active since date/status filters don't apply */}
+                <div
+                    className={`flex flex-wrap items-center gap-2 transition-opacity duration-200 ${withAll ? "opacity-40 pointer-events-none" : ""}`}
+                >
                     {/* Month */}
                     <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm">
                         <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -161,7 +167,47 @@ const FilterSection = React.memo(
                             Show also:
                         </span>
 
+                        {/* All Projects toggle — comes first */}
                         <label className="flex items-center gap-2 cursor-pointer select-none group">
+                            <div className="relative flex-shrink-0">
+                                <input
+                                    type="checkbox"
+                                    checked={withAll}
+                                    onChange={(e) =>
+                                        onAllToggle(e.target.checked)
+                                    }
+                                    className="sr-only peer"
+                                />
+                                <div className="w-4 h-4 rounded border border-gray-300 bg-white peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-colors flex items-center justify-center">
+                                    {withAll && (
+                                        <svg
+                                            className="w-2.5 h-2.5 text-white"
+                                            fill="none"
+                                            viewBox="0 0 10 10"
+                                        >
+                                            <path
+                                                d="M1.5 5l2.5 2.5 4.5-4.5"
+                                                stroke="currentColor"
+                                                strokeWidth="1.5"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            />
+                                        </svg>
+                                    )}
+                                </div>
+                            </div>
+                            <span className="text-xs md:text-sm text-gray-600 group-hover:text-gray-900 transition-colors">
+                                All Projects
+                            </span>
+                        </label>
+
+                        {/* Divider */}
+                        <div className="w-px h-4 bg-gray-300 flex-shrink-0" />
+
+                        {/* Withdrawn — dimmed when withAll is active */}
+                        <label
+                            className={`flex items-center gap-2 cursor-pointer select-none group transition-opacity duration-200 ${withAll ? "opacity-40 pointer-events-none" : ""}`}
+                        >
                             <div className="relative flex-shrink-0">
                                 <input
                                     type="checkbox"
@@ -192,10 +238,12 @@ const FilterSection = React.memo(
                             <span className="text-xs md:text-sm text-gray-600 group-hover:text-gray-900 transition-colors">
                                 Withdrawn
                             </span>
-                            {withWithdrawn}
                         </label>
 
-                        <label className="flex items-center gap-2 cursor-pointer select-none group">
+                        {/* Terminated — dimmed when withAll is active */}
+                        <label
+                            className={`flex items-center gap-2 cursor-pointer select-none group transition-opacity duration-200 ${withAll ? "opacity-40 pointer-events-none" : ""}`}
+                        >
                             <div className="relative flex-shrink-0">
                                 <input
                                     type="checkbox"
@@ -226,7 +274,6 @@ const FilterSection = React.memo(
                             <span className="text-xs md:text-sm text-gray-600 group-hover:text-gray-900 transition-colors">
                                 Terminated
                             </span>
-                            {withTerminated}
                         </label>
                     </div>
                 )}

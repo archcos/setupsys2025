@@ -31,6 +31,8 @@ import RefundMobileCard from "./components/RefundMobileCard";
 import RefundPagination from "./components/RefundPagination";
 import UnpaidMonthsWarningModal from "./components/UnpaidMonthsWarningModal";
 import { useRefundData } from "./hooks/useRefundData";
+import AllProjectsRow from "./components/AllProjectsRow";
+import AllProjectsMobileCard from "./components/AllProjectsMobileCard";
 
 export default function Index({
     projects,
@@ -41,6 +43,7 @@ export default function Index({
     selectedOffice,
     includeWithdrawn,
     includeTerminated,
+    includeAll,
     availableYears,
     offices,
     csvSheets, // { "1": "BUK", "2": "CAM", "3": "LDN", "4": "MOC", "5": "MOR" }
@@ -55,6 +58,11 @@ export default function Index({
     const [withTerminated, setWithTerminated] = useState(
         includeTerminated ?? false,
     );
+    const [withAll, setWithAll] = useState(includeAll ?? false);
+    const withAllRef = useRef(withAll);
+    useEffect(() => {
+        withAllRef.current = withAll;
+    }, [withAll]);
 
     // refs for stale-closure safety
     const officeFilterRef = useRef(officeFilter);
@@ -177,6 +185,7 @@ export default function Index({
                     office: officeFilterRef.current,
                     include_withdrawn: withWithdrawnRef.current ? 1 : 0,
                     include_terminated: withTerminatedRef.current ? 1 : 0,
+                    include_all: withAllRef.current ? 1 : 0, // ← add this
                 },
                 { preserveScroll: true, preserveState: true },
             );
@@ -216,6 +225,7 @@ export default function Index({
             officeValue,
             withdrawn,
             terminated,
+            all,
         ) => {
             router.get(
                 "/refunds",
@@ -230,11 +240,31 @@ export default function Index({
                         (withdrawn ?? withWithdrawnRef.current) ? 1 : 0,
                     include_terminated:
                         (terminated ?? withTerminatedRef.current) ? 1 : 0,
+                    include_all: (all ?? withAllRef.current) ? 1 : 0,
                 },
                 { preserveScroll: true, preserveState: true },
             );
         },
         [],
+    );
+
+    const handleAllToggle = useCallback(
+        (checked) => {
+            setWithAll(checked);
+            withAllRef.current = checked;
+            handleFilterChange(
+                selectedMonth,
+                selectedYear,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                checked,
+            );
+        },
+        [selectedMonth, selectedYear, handleFilterChange],
     );
 
     const handleOfficeChange = useCallback(
@@ -596,87 +626,134 @@ export default function Index({
                         onWithdrawnToggle={handleWithdrawnToggle}
                         withTerminated={withTerminated}
                         onTerminatedToggle={handleTerminatedToggle}
+                        withAll={withAll}
+                        onAllToggle={handleAllToggle}
                     />
 
+                    {/* Desktop Table */}
                     {/* Desktop Table */}
                     <div className="hidden md:block overflow-x-auto">
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-gray-50 border-b border-gray-200">
-                                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                        <div className="flex items-center gap-2">
-                                            <Building className="w-4 h-4" />
-                                            Project & Proponent
-                                        </div>
-                                    </th>
-                                    <th className="px-2 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-36 md:w-44">
-                                        <div className="flex items-center gap-2">
-                                            <Banknote className="w-4 h-4" />
-                                            Amount Due
-                                        </div>
-                                    </th>
-                                    <th className="px-2 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-36 md:w-44">
-                                        <div className="flex items-center gap-2">
-                                            <BanknoteArrowUp className="w-4 h-4" />
-                                            Refund Amount
-                                        </div>
-                                    </th>
-                                    <th className="px-2 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-28 md:w-32">
-                                        <div className="flex items-center gap-2">
-                                            <TicketSlash className="w-4 h-4" />
-                                            Check Number & Date
-                                        </div>
-                                    </th>
-                                    <th className="px-2 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-28 md:w-32">
-                                        <div className="flex items-center gap-2">
-                                            <ReceiptText className="w-4 h-4" />
-                                            OR Number & Date
-                                        </div>
-                                    </th>
-                                    <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <TrendingUp className="w-4 h-4" />
-                                            Status
-                                        </div>
-                                    </th>
-                                    <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <Hand className="w-4 h-4" />
-                                            Action
-                                        </div>
-                                    </th>
+                                    {withAll ? (
+                                        <>
+                                            <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                <div className="flex items-center gap-2">
+                                                    <Building className="w-4 h-4" />
+                                                    Project Code
+                                                </div>
+                                            </th>
+                                            <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                <div className="flex items-center gap-2">
+                                                    <FileText className="w-4 h-4" />
+                                                    Project Title
+                                                </div>
+                                            </th>
+                                            <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                <div className="flex items-center gap-2">
+                                                    <Building2 className="w-4 h-4" />
+                                                    Proponent
+                                                </div>
+                                            </th>
+                                            <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <Hand className="w-4 h-4" />
+                                                    Actions
+                                                </div>
+                                            </th>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                <div className="flex items-center gap-2">
+                                                    <Building className="w-4 h-4" />
+                                                    Project & Proponent
+                                                </div>
+                                            </th>
+                                            <th className="px-2 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-36 md:w-44">
+                                                <div className="flex items-center gap-2">
+                                                    <Banknote className="w-4 h-4" />
+                                                    Amount Due
+                                                </div>
+                                            </th>
+                                            <th className="px-2 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-36 md:w-44">
+                                                <div className="flex items-center gap-2">
+                                                    <BanknoteArrowUp className="w-4 h-4" />
+                                                    Refund Amount
+                                                </div>
+                                            </th>
+                                            <th className="px-2 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-28 md:w-32">
+                                                <div className="flex items-center gap-2">
+                                                    <TicketSlash className="w-4 h-4" />
+                                                    Check Number & Date
+                                                </div>
+                                            </th>
+                                            <th className="px-2 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-28 md:w-32">
+                                                <div className="flex items-center gap-2">
+                                                    <ReceiptText className="w-4 h-4" />
+                                                    OR Number & Date
+                                                </div>
+                                            </th>
+                                            <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <TrendingUp className="w-4 h-4" />
+                                                    Status
+                                                </div>
+                                            </th>
+                                            <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <Hand className="w-4 h-4" />
+                                                    Action
+                                                </div>
+                                            </th>
+                                        </>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-100">
                                 {projects.data.length > 0 ? (
-                                    projects.data.map((p) => (
-                                        <RefundTableRow
-                                            key={p.project_id}
-                                            project={p}
-                                            data={data}
-                                            setData={setData}
-                                            isRPMO={isRPMO}
-                                            currentStatus={
-                                                data[
-                                                    `status_${p.project_id}`
-                                                ] ??
-                                                p.refunds?.[0]?.status ??
-                                                "unpaid"
-                                            }
-                                            onStatusChange={handleStatusChange}
-                                            onSaveClick={() =>
-                                                handleSave(p.project_id)
-                                            }
-                                            renderSaveButton={renderSaveButton}
-                                            renderUpdatedBy={renderUpdatedBy}
-                                            selectedMonth={selectedMonth}
-                                            selectedYear={selectedYear}
-                                        />
-                                    ))
+                                    projects.data.map((p) =>
+                                        withAll ? (
+                                            <AllProjectsRow
+                                                key={p.project_id}
+                                                project={p}
+                                            />
+                                        ) : (
+                                            <RefundTableRow
+                                                key={p.project_id}
+                                                project={p}
+                                                data={data}
+                                                setData={setData}
+                                                isRPMO={isRPMO}
+                                                currentStatus={
+                                                    data[
+                                                        `status_${p.project_id}`
+                                                    ] ??
+                                                    p.refunds?.[0]?.status ??
+                                                    "unpaid"
+                                                }
+                                                onStatusChange={
+                                                    handleStatusChange
+                                                }
+                                                onSaveClick={() =>
+                                                    handleSave(p.project_id)
+                                                }
+                                                renderSaveButton={
+                                                    renderSaveButton
+                                                }
+                                                renderUpdatedBy={
+                                                    renderUpdatedBy
+                                                }
+                                                selectedMonth={selectedMonth}
+                                                selectedYear={selectedYear}
+                                            />
+                                        ),
+                                    )
                                 ) : (
                                     <tr>
                                         <td
-                                            colSpan="7"
+                                            colSpan={withAll ? 4 : 7}
                                             className="text-center py-12"
                                         >
                                             <div className="flex flex-col items-center gap-4">
@@ -685,15 +762,15 @@ export default function Index({
                                                         No projects found
                                                     </h3>
                                                     <p className="text-gray-500 text-sm">
-                                                        No projects found for{" "}
-                                                        {
-                                                            MONTHS.find(
-                                                                (m) =>
-                                                                    m.value ==
-                                                                    selectedMonth,
-                                                            )?.label
-                                                        }{" "}
-                                                        {selectedYear}.
+                                                        {withAll
+                                                            ? "No projects found in the system."
+                                                            : `No projects found for ${
+                                                                  MONTHS.find(
+                                                                      (m) =>
+                                                                          m.value ==
+                                                                          selectedMonth,
+                                                                  )?.label
+                                                              } ${selectedYear}.`}
                                                         {searchInput &&
                                                             ` Try adjusting your search term "${searchInput}".`}
                                                     </p>
@@ -719,26 +796,35 @@ export default function Index({
                     {/* Mobile Card View */}
                     <div className="md:hidden divide-y divide-gray-100">
                         {projects.data.length > 0 ? (
-                            projects.data.map((p) => (
-                                <RefundMobileCard
-                                    key={p.project_id}
-                                    project={p}
-                                    data={data}
-                                    setData={setData}
-                                    isRPMO={isRPMO}
-                                    currentStatus={
-                                        data[`status_${p.project_id}`] ??
-                                        p.refunds?.[0]?.status ??
-                                        "unpaid"
-                                    }
-                                    onStatusChange={handleStatusChange}
-                                    onSaveClick={() => handleSave(p.project_id)}
-                                    renderSaveButton={renderSaveButton}
-                                    renderUpdatedBy={renderUpdatedBy}
-                                    selectedMonth={selectedMonth} // <-- add
-                                    selectedYear={selectedYear}
-                                />
-                            ))
+                            projects.data.map((p) =>
+                                withAll ? (
+                                    <AllProjectsMobileCard
+                                        key={p.project_id}
+                                        project={p}
+                                    />
+                                ) : (
+                                    <RefundMobileCard
+                                        key={p.project_id}
+                                        project={p}
+                                        data={data}
+                                        setData={setData}
+                                        isRPMO={isRPMO}
+                                        currentStatus={
+                                            data[`status_${p.project_id}`] ??
+                                            p.refunds?.[0]?.status ??
+                                            "unpaid"
+                                        }
+                                        onStatusChange={handleStatusChange}
+                                        onSaveClick={() =>
+                                            handleSave(p.project_id)
+                                        }
+                                        renderSaveButton={renderSaveButton}
+                                        renderUpdatedBy={renderUpdatedBy}
+                                        selectedMonth={selectedMonth}
+                                        selectedYear={selectedYear}
+                                    />
+                                ),
+                            )
                         ) : (
                             <div className="p-8 text-center">
                                 <div className="flex flex-col items-center gap-3">
@@ -746,13 +832,15 @@ export default function Index({
                                         No projects found
                                     </h3>
                                     <p className="text-gray-500 text-xs">
-                                        No projects found for{" "}
-                                        {
-                                            MONTHS.find(
-                                                (m) => m.value == selectedMonth,
-                                            )?.label
-                                        }{" "}
-                                        {selectedYear}.
+                                        {withAll
+                                            ? "No projects found in the system."
+                                            : `No projects found for ${
+                                                  MONTHS.find(
+                                                      (m) =>
+                                                          m.value ==
+                                                          selectedMonth,
+                                                  )?.label
+                                              } ${selectedYear}.`}
                                         {searchInput &&
                                             ` Try adjusting your search term.`}
                                     </p>
@@ -776,6 +864,7 @@ export default function Index({
                             from={projects.from}
                             to={projects.to}
                             total={projects.total}
+                            withAll={withAll}
                         />
                     )}
                 </div>
