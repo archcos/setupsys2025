@@ -892,12 +892,14 @@ class ProjectController extends Controller
 
             // Run geo/objectives sync (manages its own disable/enable internally)
             $geoSummary = $this->syncGeoAndObjectivesFromCSV();
+            $itemsSummary = $this->syncItemsFromCSV();
 
             $message = "$newRecords projects synced successfully.";
             if (!empty($errors)) {
                 $message .= ' '.count($errors).' rows had errors.';
             }
             $message .= ' '.$geoSummary;
+            $message .= ' '.$itemsSummary;
 
             return back()->with('success', $message);
         } catch (\Exception $e) {
@@ -912,6 +914,152 @@ class ProjectController extends Controller
         }
     }
 
+    private function syncItemsFromCSV(): string
+    {
+        $csvUrl = env('ITEMS_CSV_URL');
+
+        if (!$csvUrl) {
+            return 'ITEMS_CSV_URL is not configured; items sync skipped.';
+        }
+
+        ItemModel::disableLogging();
+
+        $newRecords = 0;
+        $errors = [];
+
+        try {
+            $response = Http::timeout(300)->get($csvUrl);
+            if (!$response->ok()) {
+                Log::error('Failed to fetch Items CSV: '.$response->status());
+
+                return 'Failed to fetch items CSV data.';
+            }
+
+            $stream = fopen('php://memory', 'r+');
+            fwrite($stream, $response->body());
+            rewind($stream);
+
+            $rawHeader = fgetcsv($stream);
+            if (!$rawHeader) {
+                fclose($stream);
+
+                return 'Items CSV contains no header.';
+            }
+
+            $header = [];
+            foreach ($rawHeader as $key => $col) {
+                $normalized = preg_replace('/\s+/', ' ', trim($col));
+                if ($normalized !== '') {
+                    $header[$key] = $normalized;
+                }
+            }
+
+            $rowIndex = 1;
+
+            while (($row = fgetcsv($stream)) !== false) {
+                ++$rowIndex;
+                try {
+                    $row = array_pad(array_map('trim', $row), count($header), '');
+                    if (count(array_filter($row)) === 0) {
+                        continue;
+                    }
+
+                    $data = array_combine(array_values($header), $row);
+                    if (!$data) {
+                        continue;
+                    }
+
+                    // Resolve project
+                    $projectCode = preg_replace('/[^0-9]/', '', $data['Project Code'] ?? '');
+                    if (empty($projectCode)) {
+                        $errors[] = "Row $rowIndex skipped: 'Project Code' is empty or non-numeric.";
+                        Log::warning("Items CSV Sync - Row $rowIndex skipped: empty/non-numeric Project Code.");
+                        continue;
+                    }
+
+                    $projectId = (int) $projectCode;
+                    if (!ProjectModel::where('project_id', $projectId)->exists()) {
+                        $errors[] = "Row $rowIndex skipped: No project found for Project Code '$projectCode'.";
+                        Log::warning("Items CSV Sync - Row $rowIndex skipped: project_id=$projectId not found.");
+                        continue;
+                    }
+
+                    $itemName = trim($data['Item Name'] ?? '');
+                    if (!$itemName) {
+                        $errors[] = "Row $rowIndex skipped: 'Item Name' is empty.";
+                        Log::warning("Items CSV Sync - Row $rowIndex skipped: empty Item Name for project_id=$projectId.");
+                        continue;
+                    }
+
+                    $quantityRaw = trim($data['Quantity'] ?? '');
+                    $quantity = is_numeric($quantityRaw) ? (int) $quantityRaw : null;
+
+                    $costRaw = str_replace([',', ' '], '', trim($data['Cost'] ?? '0'));
+                    $itemCost = is_numeric($costRaw) ? (float) $costRaw : 0;
+
+                    $specifications = trim($data['Specifications'] ?? '') ?: null;
+
+                    $typeRaw = trim($data['Type'] ?? '');
+                    $type = match ($typeRaw) {
+                        'Equipment' => 'equipment',
+                        'Non-Equipment' => 'nonequip',
+                        default => 'equipment', // fallback if column is missing or unexpected value
+                    };
+
+                    // Skip exact duplicates (same project + item name + specs + qty)
+                    $alreadyExists = ItemModel::where('project_id', $projectId)
+                        ->where('item_name', $itemName)
+                        ->where('specifications', $specifications)
+                        ->where('quantity', $quantity)
+                        ->exists();
+
+                    if ($alreadyExists) {
+                        Log::info("Items CSV Sync - Row $rowIndex skipped: duplicate item '$itemName' for project_id=$projectId.");
+                        continue;
+                    }
+
+                    ItemModel::create([
+                        'project_id' => $projectId,
+                        'item_name' => $itemName,
+                        'type' => $type,
+                        'specifications' => $specifications,
+                        'quantity' => $quantity,
+                        'item_cost' => $itemCost,
+                        'added_by' => Auth::id() ?? 1,
+                        'report' => 'approved',
+                    ]);
+
+                    ++$newRecords;
+                } catch (\Exception $e) {
+                    $errors[] = "Row $rowIndex failed: ".$e->getMessage();
+                    Log::error("Items CSV Sync - Row $rowIndex exception: ".$e->getMessage());
+                }
+            }
+
+            fclose($stream);
+
+            // One summary log for the entire items sync
+            $dummy = new ItemModel();
+            $dummy->manualLog(
+                'Synced',
+                "Synced {$newRecords} items from CSV.".
+                (!empty($errors) ? ' '.count($errors).' rows had errors.' : '')
+            );
+
+            $summary = "$newRecords items synced successfully.";
+            if (!empty($errors)) {
+                $summary .= ' '.count($errors).' rows had errors.';
+            }
+
+            return $summary;
+        } catch (\Exception $e) {
+            Log::error('Items CSV Sync failed: '.$e->getMessage());
+
+            return 'Items sync failed: '.$e->getMessage();
+        } finally {
+            ItemModel::enableLogging();
+        }
+    }
     // -------------------------------------------------------------------------
 
     private function syncGeoAndObjectivesFromCSV(): string
