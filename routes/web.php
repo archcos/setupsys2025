@@ -210,6 +210,7 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::get('/refunds/project/{projectId}', [RefundController::class, 'projectRefunds'])
             ->name('refunds.project.details');
         Route::post('/refunds/remove-payment', [RefundController::class, 'removePayment']);
+        Route::post('/refunds/update-payment', [RefundController::class, 'updatePayment'])->name('refunds.update-payment');
     });
 
     //  RPMO ONLY (Save + Bulk Update)

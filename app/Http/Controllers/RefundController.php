@@ -920,6 +920,70 @@ private function getOrdinalNumber($number)
     }
     // ── Remove a specific payment entry from a refund ─────────────────────────
 
+    // ── Update a specific payment entry ─────────────────────────────────────────
+
+public function updatePayment()
+{
+    $data = request()->validate([
+        'project_id' => 'required|exists:tbl_projects,project_id',
+        'month_paid' => 'required|date_format:Y-m-d',
+        'payment_index' => 'required|integer|min:0',
+        'amount' => 'nullable|numeric|min:0',
+        'bank_name' => 'nullable|string|max:200',
+        'check_num' => 'nullable|string|max:20',
+        'check_date' => 'nullable|date_format:Y-m-d',
+        'receipt_num' => 'nullable|string|max:20',
+        'receipt_date' => 'nullable|date_format:Y-m-d',
+    ]);
+
+    try {
+        $refund = RefundModel::where('project_id', $data['project_id'])
+            ->where('month_paid', $data['month_paid'])
+            ->firstOrFail();
+
+        $payments = $refund->payments ?? [];
+        
+        if (!isset($payments[$data['payment_index']])) {
+            return back()->with('error', 'Payment entry not found.');
+        }
+
+        // Update the specific payment entry
+        $payments[$data['payment_index']] = [
+            'amount' => (float) ($data['amount'] ?? 0),
+            'bank_name' => $data['bank_name'] ?? null,
+            'check_num' => $data['check_num'] ?? null,
+            'check_date' => $data['check_date'] ?? null,
+            'receipt_num' => $data['receipt_num'] ?? null,
+            'receipt_date' => $data['receipt_date'] ?? null,
+            'saved_at' => now()->toDateTimeString(),
+        ];
+
+        // Remove payment if amount is 0
+        if ((float) ($data['amount'] ?? 0) <= 0) {
+            unset($payments[$data['payment_index']]);
+            $payments = array_values($payments); // Re-index array
+        }
+
+        $refund->payments = !empty($payments) ? $payments : null;
+        
+        // Update status based on payments
+        $totalPaid = collect($payments)->sum('amount');
+        if ($totalPaid <= 0) {
+            $refund->status = RefundModel::STATUS_UNPAID;
+        } elseif ($totalPaid >= ($refund->amount_due ?? 0)) {
+            $refund->status = RefundModel::STATUS_PAID;
+        } else {
+            $refund->status = RefundModel::STATUS_PARTIAL;
+        }
+        
+        $refund->updated_by = Auth::id();
+        $refund->save();
+
+        return back()->with('success', 'Payment entry updated successfully.');
+    } catch (\Exception $e) {
+        return back()->with('error', 'Failed to update payment: ' . $e->getMessage());
+    }
+}
     public function removePayment()
     {
         $data = request()->validate([

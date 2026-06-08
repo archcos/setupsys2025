@@ -1,7 +1,7 @@
 // components/RefundTableRow.jsx
 import React, { useState, useCallback } from "react";
 import { Link, router } from "@inertiajs/react";
-import { Eye, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Eye, Plus, Trash2, Edit2, ChevronDown, ChevronUp, X, Save, CreditCard, Building, Hash, Calendar, Receipt, FileText } from "lucide-react";
 import { REFUND_STATUS, STATUS_STYLES } from "../constants/refundConstants";
 
 const RefundTableRow = React.memo(
@@ -16,6 +16,13 @@ const RefundTableRow = React.memo(
         renderUpdatedBy,
         selectedMonth,
         selectedYear,
+        // Edit functionality props
+        onEditPayment,
+        editingPayment,
+        editFormData,
+        onEditFormChange,
+        onUpdatePayment,
+        onCancelEdit
     }) => {
         const [showPayments, setShowPayments] = useState(false);
         const latestRefund = project.refunds?.[0];
@@ -25,6 +32,9 @@ const RefundTableRow = React.memo(
             0,
         );
         const isRestructured = currentStatus === REFUND_STATUS.RESTRUCTURED;
+        
+        // Check if this project is currently being edited
+        const isEditingThis = editingPayment?.project_id === project.project_id;
 
         const refundInitialFormatted = project.refund_initial
             ? new Date(project.refund_initial).toLocaleDateString("en-PH", {
@@ -101,18 +111,26 @@ const RefundTableRow = React.memo(
                 const month = String(selectedMonth).padStart(2, "0");
                 const month_paid = `${selectedYear}-${month}-01`;
 
-                router.post(
-                    "/refunds/remove-payment",
-                    {
-                        project_id: project.project_id,
-                        month_paid,
-                        payment_index: index,
-                    },
-                    { preserveScroll: true, preserveState: true },
-                );
+                if (confirm('Are you sure you want to remove this payment entry?')) {
+                    router.post(
+                        "/refunds/remove-payment",
+                        {
+                            project_id: project.project_id,
+                            month_paid,
+                            payment_index: index,
+                        },
+                        { preserveScroll: true, preserveState: true },
+                    );
+                }
             },
             [project.project_id, selectedMonth, selectedYear],
         );
+
+        const handleStartEdit = (payment, index) => {
+            const month = String(selectedMonth).padStart(2, "0");
+            const month_paid = `${selectedYear}-${month}-01`;
+            onEditPayment(project.project_id, month_paid, index, payment);
+        };
 
         const updatedByBlock = (() => {
             const refund = project?.refunds?.[0];
@@ -143,6 +161,147 @@ const RefundTableRow = React.memo(
                 </div>
             );
         })();
+
+// Edit Modal component - Compact & Organized version
+const EditPaymentModal = () => {
+    if (!isEditingThis) return null;
+    
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full">
+                {/* Compact Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-xl px-5 py-3 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <Edit2 className="w-4 h-4 text-white" />
+                        <h3 className="text-sm font-semibold text-white">
+                            Edit Payment Entry
+                        </h3>
+                    </div>
+                    <button
+                        onClick={onCancelEdit}
+                        className="text-white/70 hover:text-white hover:bg-white/10 rounded-lg p-1 transition-all"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+
+                {/* Form Content - Compact */}
+                <div className="p-4 space-y-3">
+                    {/* Amount Row - Full width */}
+                    <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Amount (₱)
+                        </label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₱</span>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={editFormData.amount}
+                                onChange={(e) => onEditFormChange('amount', e.target.value)}
+                                className="w-full pl-7 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none"
+                                placeholder="0.00"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Bank Name Row */}
+                    <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Bank Name
+                        </label>
+                        <input
+                            type="text"
+                            value={editFormData.bank_name}
+                            onChange={(e) => onEditFormChange('bank_name', e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none"
+                            placeholder="Bank name"
+                        />
+                    </div>
+
+                    {/* Check Number & Date - Side by side */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Check Number
+                            </label>
+                            <input
+                                type="text"
+                                value={editFormData.check_num}
+                                onChange={(e) => onEditFormChange('check_num', e.target.value.replace(/\D/g, "").slice(0, 20))}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none"
+                                placeholder="Check #"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Check Date
+                            </label>
+                            <input
+                                type="date"
+                                value={editFormData.check_date}
+                                onChange={(e) => onEditFormChange('check_date', e.target.value)}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    {/* OR Number & Date - Side by side */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                                OR Number
+                            </label>
+                            <input
+                                type="text"
+                                value={editFormData.receipt_num}
+                                onChange={(e) => onEditFormChange('receipt_num', e.target.value.replace(/\D/g, "").slice(0, 20))}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none"
+                                placeholder="OR #"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                                OR Date
+                            </label>
+                            <input
+                                type="date"
+                                value={editFormData.receipt_date}
+                                onChange={(e) => onEditFormChange('receipt_date', e.target.value)}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Compact Info Hint */}
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                        <p className="text-xs text-gray-400">
+                            <FileText className="w-3 h-3 inline mr-1" />
+                            Update payment details as needed. This will not send an email.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Compact Action Buttons */}
+                <div className="bg-gray-50 rounded-b-xl px-4 py-3 flex gap-2 justify-end">
+                    <button
+                        onClick={onCancelEdit}
+                        className="px-3 py-1.5 bg-white text-gray-600 rounded-lg hover:bg-gray-100 transition-all text-xs font-medium border border-gray-200"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onUpdatePayment}
+                        className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-xs font-medium flex items-center gap-1"
+                    >
+                        <Save className="w-3 h-3" />
+                        Update
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
         return (
             <>
@@ -191,8 +350,7 @@ const RefundTableRow = React.memo(
                                     Total paid: ₱
                                     {totalPaid.toLocaleString("en-PH", {
                                         minimumFractionDigits: 2,
-                                    })}{" "}
-                                    <br />
+                                    })}<br />
                                     <span className="text-gray-400">
                                         ({payments.length} payment
                                         {payments.length > 1 ? "s" : ""})
@@ -410,15 +568,22 @@ const RefundTableRow = React.memo(
                                             </span>
                                         )}
                                         {isRPMO && (
-                                            <button
-                                                onClick={() =>
-                                                    handleRemovePayment(index)
-                                                }
-                                                className="ml-2 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                                                title="Remove this payment"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
+                                            <div className="flex gap-1 ml-2">
+                                                <button
+                                                    onClick={() => handleStartEdit(payment, index)}
+                                                    className="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                    title="Edit this payment"
+                                                >
+                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleRemovePayment(index)}
+                                                    className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                    title="Remove this payment"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 ))}
@@ -426,6 +591,9 @@ const RefundTableRow = React.memo(
                         </td>
                     </tr>
                 )}
+                
+                {/* Edit Modal - rendered outside the table row */}
+                <EditPaymentModal />
             </>
         );
     },

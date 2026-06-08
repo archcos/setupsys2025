@@ -46,7 +46,7 @@ export default function Index({
     includeAll,
     availableYears,
     offices,
-    csvSheets, // { "1": "BUK", "2": "CAM", "3": "LDN", "4": "MOC", "5": "MOR" }
+    csvSheets,
 }) {
     const { flash, userRole } = usePage().props;
     const isRPMO = ["rpmo", "au"].includes(userRole);
@@ -98,10 +98,19 @@ export default function Index({
     const isFirstRun = useRef(true);
     const [showSyncModal, setShowSyncModal] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
+    
+    // Edit payment state
+    const [editingPayment, setEditingPayment] = useState(null); // Changed to editingPayment
+    const [editFormData, setEditFormData] = useState({
+        amount: '',
+        bank_name: '',
+        check_num: '',
+        check_date: '',
+        receipt_num: '',
+        receipt_date: ''
+    });
 
     // Sheet selection state
-    // allChecked = true means "All sheets" is selected (submit with [])
-    // allChecked = false means individual selection applies
     const [allChecked, setAllChecked] = useState(true);
     const [selectedSheets, setSelectedSheets] = useState([]);
 
@@ -110,20 +119,16 @@ export default function Index({
 
     const toggleAll = () => {
         if (allChecked) {
-            // Currently all selected — deselect all
             setAllChecked(false);
             setSelectedSheets([]);
         } else {
-            // Currently some/none selected — select all
             setAllChecked(true);
             setSelectedSheets([]);
         }
     };
 
     const toggleSheet = (idx) => {
-        // Clicking an individual sheet always desyncs from "all"
         if (allChecked) {
-            // Was all-checked: keep every sheet selected except this one
             const newSelection = sheetEntries
                 .map(([i]) => Number(i))
                 .filter((i) => i !== idx);
@@ -185,7 +190,7 @@ export default function Index({
                     office: officeFilterRef.current,
                     include_withdrawn: withWithdrawnRef.current ? 1 : 0,
                     include_terminated: withTerminatedRef.current ? 1 : 0,
-                    include_all: withAllRef.current ? 1 : 0, // ← add this
+                    include_all: withAllRef.current ? 1 : 0,
                 },
                 { preserveScroll: true, preserveState: true },
             );
@@ -213,6 +218,64 @@ export default function Index({
             }
         }
     }, [flash]);
+
+    // Edit payment handlers - FIXED to use editingPayment consistently
+    const handleEditPayment = (projectId, monthPaid, paymentIndex, payment) => {
+        setEditingPayment({
+            project_id: projectId,
+            month_paid: monthPaid,
+            payment_index: paymentIndex
+        });
+        setEditFormData({
+            amount: payment.amount || '',
+            bank_name: payment.bank_name || '',
+            check_num: payment.check_num || '',
+            check_date: payment.check_date || '',
+            receipt_num: payment.receipt_num || '',
+            receipt_date: payment.receipt_date || ''
+        });
+    };
+
+    const handleEditFormChange = (field, value) => {
+        setEditFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleUpdatePayment = () => {
+        if (!editingPayment) return;
+        
+        router.post('/refunds/update-payment', {
+            project_id: editingPayment.project_id,
+            month_paid: editingPayment.month_paid,
+            payment_index: editingPayment.payment_index,
+            ...editFormData
+        }, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                setEditingPayment(null);
+                setEditFormData({
+                    amount: '',
+                    bank_name: '',
+                    check_num: '',
+                    check_date: '',
+                    receipt_num: '',
+                    receipt_date: ''
+                });
+            }
+        });
+    };
+
+    const handleCancelEdit = () => {
+        setEditingPayment(null);
+        setEditFormData({
+            amount: '',
+            bank_name: '',
+            check_num: '',
+            check_date: '',
+            receipt_num: '',
+            receipt_date: ''
+        });
+    };
 
     // FIX: reads from refs so this callback is never stale regardless of state
     const handleFilterChange = useCallback(
@@ -372,17 +435,16 @@ export default function Index({
 
             setSavingProject(projectId);
 
-                   // Pass existing payments so the backend doesn't wipe them
-        const existingPayments = (project?.refunds?.[0]?.payments ?? [])
-            .filter((p) => (parseFloat(p.amount) || 0) > 0)
-            .map((p) => ({
-                amount: p.amount,
-                bank_name: p.bank_name ?? "",
-                check_num: p.check_num ?? "",
-                check_date: p.check_date ?? "",
-                receipt_num: p.receipt_num ?? "",
-                receipt_date: p.receipt_date ?? "",
-            }));
+            const existingPayments = (project?.refunds?.[0]?.payments ?? [])
+                .filter((p) => (parseFloat(p.amount) || 0) > 0)
+                .map((p) => ({
+                    amount: p.amount,
+                    bank_name: p.bank_name ?? "",
+                    check_num: p.check_num ?? "",
+                    check_date: p.check_date ?? "",
+                    receipt_num: p.receipt_num ?? "",
+                    receipt_date: p.receipt_date ?? "",
+                }));
 
             const refundAmount =
                 currentStatus === REFUND_STATUS.RESTRUCTURED
@@ -401,18 +463,16 @@ export default function Index({
                 "/refunds/save",
                 {
                     project_id: projectId,
-                    amount:
-                        currentStatus === REFUND_STATUS.RESTRUCTURED // <-- was refund_amount
-                            ? 0
-                            : (data[`refund_amount_${projectId}`] ??
-                              project?.refund_amount ??
-                              0),
-                    amount_due:
-                        currentStatus === REFUND_STATUS.RESTRUCTURED
-                            ? 0
-                            : (data[`amount_due_${projectId}`] ??
-                              project?.amount_due ??
-                              0),
+                    amount: currentStatus === REFUND_STATUS.RESTRUCTURED
+                        ? 0
+                        : (data[`refund_amount_${projectId}`] ??
+                          project?.refund_amount ??
+                          0),
+                    amount_due: currentStatus === REFUND_STATUS.RESTRUCTURED
+                        ? 0
+                        : (data[`amount_due_${projectId}`] ??
+                          project?.amount_due ??
+                          0),
                     bank_name: data[`bank_name_${projectId}`] ?? "",
                     check_num: data[`check_num_${projectId}`] ?? "",
                     check_date: data[`check_date_${projectId}`] ?? "",
@@ -645,7 +705,6 @@ export default function Index({
                     />
 
                     {/* Desktop Table */}
-                    {/* Desktop Table */}
                     <div className="hidden md:block overflow-x-auto">
                         <table className="w-full">
                             <thead>
@@ -741,26 +800,23 @@ export default function Index({
                                                 setData={setData}
                                                 isRPMO={isRPMO}
                                                 currentStatus={
-                                                    data[
-                                                        `status_${p.project_id}`
-                                                    ] ??
+                                                    data[`status_${p.project_id}`] ??
                                                     p.refunds?.[0]?.status ??
                                                     "unpaid"
                                                 }
-                                                onStatusChange={
-                                                    handleStatusChange
-                                                }
-                                                onSaveClick={() =>
-                                                    handleSave(p.project_id)
-                                                }
-                                                renderSaveButton={
-                                                    renderSaveButton
-                                                }
-                                                renderUpdatedBy={
-                                                    renderUpdatedBy
-                                                }
+                                                onStatusChange={handleStatusChange}
+                                                onSaveClick={() => handleSave(p.project_id)}
+                                                renderSaveButton={renderSaveButton}
+                                                renderUpdatedBy={renderUpdatedBy}
                                                 selectedMonth={selectedMonth}
                                                 selectedYear={selectedYear}
+                                                // Edit functionality props - FIXED to use editingPayment
+                                                onEditPayment={handleEditPayment}
+                                                editingPayment={editingPayment}
+                                                editFormData={editFormData}
+                                                onEditFormChange={handleEditFormChange}
+                                                onUpdatePayment={handleUpdatePayment}
+                                                onCancelEdit={handleCancelEdit}
                                             />
                                         ),
                                     )
@@ -807,7 +863,7 @@ export default function Index({
                         </table>
                     </div>
 
-                    {/* Mobile Card View */}
+                    {/* Mobile Card View - You'll need to update RefundMobileCard similarly */}
                     <div className="md:hidden divide-y divide-gray-100">
                         {projects.data.length > 0 ? (
                             projects.data.map((p) =>
@@ -817,26 +873,31 @@ export default function Index({
                                         project={p}
                                     />
                                 ) : (
-                                    <RefundMobileCard
-                                        key={p.project_id}
-                                        project={p}
-                                        data={data}
-                                        setData={setData}
-                                        isRPMO={isRPMO}
-                                        currentStatus={
-                                            data[`status_${p.project_id}`] ??
-                                            p.refunds?.[0]?.status ??
-                                            "unpaid"
-                                        }
-                                        onStatusChange={handleStatusChange}
-                                        onSaveClick={() =>
-                                            handleSave(p.project_id)
-                                        }
-                                        renderSaveButton={renderSaveButton}
-                                        renderUpdatedBy={renderUpdatedBy}
-                                        selectedMonth={selectedMonth}
-                                        selectedYear={selectedYear}
-                                    />
+                                <RefundMobileCard
+                                    key={p.project_id}
+                                    project={p}
+                                    data={data}
+                                    setData={setData}
+                                    isRPMO={isRPMO}
+                                    currentStatus={
+                                        data[`status_${p.project_id}`] ??
+                                        p.refunds?.[0]?.status ??
+                                        "unpaid"
+                                    }
+                                    onStatusChange={handleStatusChange}
+                                    onSaveClick={() => handleSave(p.project_id)}
+                                    renderSaveButton={renderSaveButton}
+                                    renderUpdatedBy={renderUpdatedBy}
+                                    selectedMonth={selectedMonth}
+                                    selectedYear={selectedYear}
+                                    // Edit functionality props
+                                    onEditPayment={handleEditPayment}
+                                    editingPayment={editingPayment}
+                                    editFormData={editFormData}
+                                    onEditFormChange={handleEditFormChange}
+                                    onUpdatePayment={handleUpdatePayment}
+                                    onCancelEdit={handleCancelEdit}
+                                />
                                 ),
                             )
                         ) : (
@@ -889,7 +950,6 @@ export default function Index({
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg md:rounded-2xl shadow-2xl max-w-md w-full p-4 md:p-6">
                         {isSyncing ? (
-                            /* ── Syncing state ── */
                             <div className="flex flex-col items-center justify-center py-6 gap-4">
                                 <div className="relative w-16 h-16">
                                     <div className="absolute inset-0 rounded-full border-4 border-purple-100" />
@@ -920,7 +980,6 @@ export default function Index({
                                 </div>
                             </div>
                         ) : (
-                            /* ── Selection state ── */
                             <>
                                 {/* Header */}
                                 <div className="flex items-start gap-4 mb-4">
