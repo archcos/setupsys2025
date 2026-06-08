@@ -25,6 +25,7 @@ import UnpaidMonthsWarningModal from "./components/UnpaidMonthsWarningModal";
 
 const EMPTY_PAYMENT = {
     amount: "",
+    bank_name: "",
     check_num: "",
     check_date: "",
     receipt_num: "",
@@ -52,6 +53,13 @@ function PaymentRow({ payment, index, showIndex, onChange, onRemove }) {
                     className="w-24 px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent bg-white"
                 />
             </div>
+            <input
+                type="text"
+                value={payment.bank_name || ""}
+                onChange={(e) => onChange("bank_name", e.target.value)}
+                placeholder="Bank"
+                className={cls}
+            />
             <input
                 type="number"
                 value={payment.check_num || ""}
@@ -225,10 +233,19 @@ export default function Details({ project, months, summary }) {
         if (!isRPMO || !bulkStatus || selectedMonths.length === 0) return;
         setIsUpdating(true);
 
-        // Send only rows that have an amount > 0
+        // Send only rows that have an amount > 0, and clean up empty dates
         const monthDetails = {};
         Object.entries(monthPayments).forEach(([date, rows]) => {
-            monthDetails[date] = rows.filter((r) => parseFloat(r.amount) > 0);
+            monthDetails[date] = rows
+                .filter((r) => parseFloat(r.amount) > 0)
+                .map((r) => ({
+                    amount: r.amount,
+                    bank_name: r.bank_name || null,
+                    check_num: r.check_num || null,
+                    check_date: r.check_date || null,  // Convert empty string to null
+                    receipt_num: r.receipt_num || null,
+                    receipt_date: r.receipt_date || null,  // Convert empty string to null
+                }));
         });
 
         router.post(
@@ -286,26 +303,22 @@ export default function Details({ project, months, summary }) {
                 status: editStatus,
                 amount_due: month.amount_due,
 
-                // ── new payment row ──────────────────────────────────────
+                // new payment row - convert empty strings to null for dates
                 amount: hasNewAmount ? newPayment.amount : null,
+                bank_name: hasNewAmount ? newPayment.bank_name || null : null,
                 check_num: hasNewAmount ? newPayment.check_num || null : null,
-                check_date: hasNewAmount ? newPayment.check_date || null : null, // ← was sent but now guaranteed
-                receipt_num: hasNewAmount
-                    ? newPayment.receipt_num || null
-                    : null,
-                receipt_date: hasNewAmount
-                    ? newPayment.receipt_date || null
-                    : null, // ← was sent but now guaranteed
+                check_date: hasNewAmount ? (newPayment.check_date || null) : null,
+                receipt_num: hasNewAmount ? newPayment.receipt_num || null : null,
+                receipt_date: hasNewAmount ? (newPayment.receipt_date || null) : null,
 
-                // ── existing payments (edited in-place) ──────────────────
-                // This is what was missing — edits to existing rows were
-                // never sent to the server before.
+                // existing payments - convert empty strings to null for dates
                 existing_payments: editPayments.map((ep) => ({
                     amount: ep.amount || null,
+                    bank_name: ep.bank_name || null,  // Add this - it was missing!
                     check_num: ep.check_num || null,
-                    check_date: ep.check_date || null, // ← the core fix
+                    check_date: ep.check_date || null,
                     receipt_num: ep.receipt_num || null,
-                    receipt_date: ep.receipt_date || null, // ← the core fix
+                    receipt_date: ep.receipt_date || null,
                 })),
             },
             {
@@ -867,6 +880,15 @@ export default function Details({ project, months, summary }) {
                                                                                 </div>
                                                                             </>
                                                                         )}
+                                                                        {payment.bank_name && (
+                                                                            <>
+                                                                                <span className="text-gray-200">|</span>
+                                                                                <div className="flex items-center gap-1 text-gray-600">
+                                                                                    <Building2 className="w-3 h-3 text-gray-400" />
+                                                                                    <span>{payment.bank_name}</span>
+                                                                                </div>
+                                                                            </>
+                                                                        )}
                                                                         {payments.length >
                                                                             1 && (
                                                                             <span className="ml-0.5 text-[10px] text-gray-400">
@@ -936,239 +958,118 @@ export default function Details({ project, months, summary }) {
                                                         <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
                                                             Existing Payments
                                                         </p>
-                                                        {editPayments.map(
-                                                            (ep, idx) => (
-                                                                <div
-                                                                    key={idx}
-                                                                    className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-2 py-1.5"
-                                                                >
-                                                                    <span className="text-[10px] text-gray-400 w-4 flex-shrink-0">
-                                                                        #
-                                                                        {idx +
-                                                                            1}
-                                                                    </span>
-                                                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                                                        <PhilippinePeso className="w-3 h-3 text-gray-400" />
-                                                                        <input
-                                                                            type="number"
-                                                                            value={
-                                                                                ep.amount
-                                                                            }
-                                                                            onChange={(
-                                                                                e,
-                                                                            ) =>
-                                                                                updateExistingPayment(
-                                                                                    idx,
-                                                                                    "amount",
-                                                                                    e
-                                                                                        .target
-                                                                                        .value,
-                                                                                )
-                                                                            }
-                                                                            placeholder="Amount"
-                                                                            className="w-24 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
-                                                                        />
-                                                                    </div>
+                                                        {editPayments.map((ep, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-2 py-1.5"
+                                                            >
+                                                                <span className="text-[10px] text-gray-400 w-4 flex-shrink-0">
+                                                                    #{idx + 1}
+                                                                </span>
+                                                                <div className="flex items-center gap-1 flex-shrink-0">
+                                                                    <PhilippinePeso className="w-3 h-3 text-gray-400" />
                                                                     <input
                                                                         type="number"
-                                                                        value={
-                                                                            ep.check_num ||
-                                                                            ""
-                                                                        }
-                                                                        onChange={(
-                                                                            e,
-                                                                        ) =>
-                                                                            updateExistingPayment(
-                                                                                idx,
-                                                                                "check_num",
-                                                                                e
-                                                                                    .target
-                                                                                    .value,
-                                                                            )
-                                                                        }
-                                                                        placeholder="Check #"
-                                                                        className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                                                                        value={ep.amount}
+                                                                        onChange={(e) => updateExistingPayment(idx, "amount", e.target.value)}
+                                                                        placeholder="Amount"
+                                                                        className="w-24 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                                                                     />
-                                                                    <input
-                                                                        type="date"
-                                                                        value={
-                                                                            ep.check_date ||
-                                                                            ""
-                                                                        }
-                                                                        onChange={(
-                                                                            e,
-                                                                        ) =>
-                                                                            updateExistingPayment(
-                                                                                idx,
-                                                                                "check_date",
-                                                                                e
-                                                                                    .target
-                                                                                    .value,
-                                                                            )
-                                                                        }
-                                                                        className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
-                                                                    />
-                                                                    <input
-                                                                        type="number"
-                                                                        value={
-                                                                            ep.receipt_num ||
-                                                                            ""
-                                                                        }
-                                                                        onChange={(
-                                                                            e,
-                                                                        ) =>
-                                                                            updateExistingPayment(
-                                                                                idx,
-                                                                                "receipt_num",
-                                                                                e
-                                                                                    .target
-                                                                                    .value,
-                                                                            )
-                                                                        }
-                                                                        placeholder="OR #"
-                                                                        className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
-                                                                    />
-                                                                    <input
-                                                                        type="date"
-                                                                        value={
-                                                                            ep.receipt_date ||
-                                                                            ""
-                                                                        }
-                                                                        onChange={(
-                                                                            e,
-                                                                        ) =>
-                                                                            updateExistingPayment(
-                                                                                idx,
-                                                                                "receipt_date",
-                                                                                e
-                                                                                    .target
-                                                                                    .value,
-                                                                            )
-                                                                        }
-                                                                        className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
-                                                                    />
-                                                                    <button
-                                                                        onClick={() =>
-                                                                            handleRemovePayment(
-                                                                                month,
-                                                                                idx,
-                                                                            )
-                                                                        }
-                                                                        className="flex-shrink-0 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                                                                        title="Remove payment"
-                                                                    >
-                                                                        <Trash2 className="w-3 h-3" />
-                                                                    </button>
                                                                 </div>
-                                                            ),
-                                                        )}
+                                                                {/* ── bank name ── */}
+                                                                <input
+                                                                    type="text"
+                                                                    value={ep.bank_name || ""}
+                                                                    onChange={(e) => updateExistingPayment(idx, "bank_name", e.target.value)}
+                                                                    placeholder="Bank"
+                                                                    className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                                                                />
+                                                                <input
+                                                                    type="number"
+                                                                    value={ep.check_num || ""}
+                                                                    onChange={(e) => updateExistingPayment(idx, "check_num", e.target.value)}
+                                                                    placeholder="Check #"
+                                                                    className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                                                                />
+                                                                <input
+                                                                    type="date"
+                                                                    value={ep.check_date || ""}
+                                                                    onChange={(e) => updateExistingPayment(idx, "check_date", e.target.value)}
+                                                                    className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                                                                />
+                                                                <input
+                                                                    type="number"
+                                                                    value={ep.receipt_num || ""}
+                                                                    onChange={(e) => updateExistingPayment(idx, "receipt_num", e.target.value)}
+                                                                    placeholder="OR #"
+                                                                    className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                                                                />
+                                                                <input
+                                                                    type="date"
+                                                                    value={ep.receipt_date || ""}
+                                                                    onChange={(e) => updateExistingPayment(idx, "receipt_date", e.target.value)}
+                                                                    className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                                                                />
+                                                                <button
+                                                                    onClick={() => handleRemovePayment(month, idx)}
+                                                                    className="flex-shrink-0 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                                    title="Remove payment"
+                                                                >
+                                                                    <Trash2 className="w-3 h-3" />
+                                                                </button>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 )}
 
                                                 {/* New payment entry row */}
                                                 <div className="px-3 pt-2 pb-2.5">
                                                     <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                                                        <Plus className="w-3 h-3" />{" "}
-                                                        Add Payment Entry
+                                                        <Plus className="w-3 h-3" /> Add Payment Entry
                                                     </p>
                                                     <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-2 py-1.5">
                                                         <div className="flex items-center gap-1 flex-shrink-0">
                                                             <PhilippinePeso className="w-3 h-3 text-gray-400" />
                                                             <input
                                                                 type="number"
-                                                                value={
-                                                                    newPayment.amount
-                                                                }
-                                                                onChange={(e) =>
-                                                                    setNewPayment(
-                                                                        (
-                                                                            p,
-                                                                        ) => ({
-                                                                            ...p,
-                                                                            amount: e
-                                                                                .target
-                                                                                .value,
-                                                                        }),
-                                                                    )
-                                                                }
+                                                                value={newPayment.amount}
+                                                                onChange={(e) => setNewPayment((p) => ({ ...p, amount: e.target.value }))}
                                                                 placeholder="Amount"
                                                                 className="w-24 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                                                             />
                                                         </div>
+                                                        {/* ── bank name ── */}
+                                                        <input
+                                                            type="text"
+                                                            value={newPayment.bank_name}
+                                                            onChange={(e) => setNewPayment((p) => ({ ...p, bank_name: e.target.value }))}
+                                                            placeholder="Bank"
+                                                            className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                                                        />
                                                         <input
                                                             type="number"
-                                                            value={
-                                                                newPayment.check_num
-                                                            }
-                                                            onChange={(e) =>
-                                                                setNewPayment(
-                                                                    (p) => ({
-                                                                        ...p,
-                                                                        check_num:
-                                                                            e.target.value.slice(
-                                                                                0,
-                                                                                10,
-                                                                            ),
-                                                                    }),
-                                                                )
-                                                            }
+                                                            value={newPayment.check_num}
+                                                            onChange={(e) => setNewPayment((p) => ({ ...p, check_num: e.target.value.slice(0, 10) }))}
                                                             placeholder="Check #"
                                                             className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                                                         />
                                                         <input
                                                             type="date"
-                                                            value={
-                                                                newPayment.check_date
-                                                            }
-                                                            onChange={(e) =>
-                                                                setNewPayment(
-                                                                    (p) => ({
-                                                                        ...p,
-                                                                        check_date:
-                                                                            e
-                                                                                .target
-                                                                                .value,
-                                                                    }),
-                                                                )
-                                                            }
+                                                            value={newPayment.check_date}
+                                                            onChange={(e) => setNewPayment((p) => ({ ...p, check_date: e.target.value }))}
                                                             className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                                                         />
                                                         <input
                                                             type="number"
-                                                            value={
-                                                                newPayment.receipt_num
-                                                            }
-                                                            onChange={(e) =>
-                                                                setNewPayment(
-                                                                    (p) => ({
-                                                                        ...p,
-                                                                        receipt_num:
-                                                                            e.target.value.slice(
-                                                                                0,
-                                                                                10,
-                                                                            ),
-                                                                    }),
-                                                                )
-                                                            }
+                                                            value={newPayment.receipt_num}
+                                                            onChange={(e) => setNewPayment((p) => ({ ...p, receipt_num: e.target.value.slice(0, 10) }))}
                                                             placeholder="OR #"
                                                             className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                                                         />
                                                         <input
                                                             type="date"
-                                                            value={
-                                                                newPayment.receipt_date
-                                                            }
-                                                            onChange={(e) =>
-                                                                setNewPayment(
-                                                                    (p) => ({
-                                                                        ...p,
-                                                                        receipt_date:
-                                                                            e
-                                                                                .target
-                                                                                .value,
-                                                                    }),
-                                                                )
-                                                            }
+                                                            value={newPayment.receipt_date}
+                                                            onChange={(e) => setNewPayment((p) => ({ ...p, receipt_date: e.target.value }))}
                                                             className="w-0 flex-1 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                                                         />
                                                     </div>

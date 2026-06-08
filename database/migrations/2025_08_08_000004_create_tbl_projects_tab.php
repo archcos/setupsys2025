@@ -4,20 +4,19 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
-
-Schema::create('tbl_projects', function (Blueprint $table) {
+        Schema::create('tbl_projects', function (Blueprint $table) {
             $table->unsignedBigInteger('project_id')->primary();
-            
+
             $table->text('project_title')->nullable();
             $table->unsignedBigInteger('proponent_id')->nullable();
             $table->decimal('project_cost', 11, 2)->nullable();
             $table->decimal('counterpart', 11, 2)->nullable();
             $table->date('fund_release')->nullable();
             $table->decimal('released_amount', 11, 2)->nullable();
+            $table->decimal('unexpended_balance', 11, 2)->nullable();
 
             $table->unsignedBigInteger('added_by')->nullable();
             $table->string('progress', 45)->nullable();
@@ -45,10 +44,9 @@ Schema::create('tbl_projects', function (Blueprint $table) {
             $table->decimal('latitude', 10, 7)->nullable();
             $table->decimal('longitude', 11, 7)->nullable();
             $table->timestamps();
-    $table->foreign('proponent_id')->references('proponent_id')->on('tbl_proponents')->onDelete('cascade')->onUpdate('cascade');
-    $table->foreign('added_by')->references('user_id')->on('tbl_users')->onDelete('set null');
-});
-
+            $table->foreign('proponent_id')->references('proponent_id')->on('tbl_proponents')->onDelete('cascade')->onUpdate('cascade');
+            $table->foreign('added_by')->references('user_id')->on('tbl_users')->onDelete('set null');
+        });
     }
 
     public function down(): void

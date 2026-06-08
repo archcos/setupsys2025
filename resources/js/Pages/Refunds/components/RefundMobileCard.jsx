@@ -55,6 +55,13 @@ const RefundMobileCard = React.memo(
             [project.project_id, setData],
         );
 
+        const handleBankNameChange = useCallback(
+            (e) => {
+                setData(`bank_name_${project.project_id}`, e.target.value);
+            },
+            [project.project_id, setData],
+        );
+
         const handleRemovePayment = useCallback(
             (index) => {
                 const month = String(selectedMonth).padStart(2, "0");
@@ -193,6 +200,11 @@ const RefundMobileCard = React.memo(
                                         OR: {payment.receipt_num}
                                     </span>
                                 )}
+                                {payment.bank_name && (
+                                    <span className="text-gray-500">
+                                        {payment.bank_name}
+                                    </span>
+                                )}
                                 {isRPMO && (
                                     <button
                                         onClick={() =>
@@ -209,7 +221,7 @@ const RefundMobileCard = React.memo(
                 )}
 
                 {/* Check and Receipt Numbers for new payment */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                     <div className="bg-gray-50 rounded-lg p-2.5">
                         <label className="text-xs text-gray-600 font-medium block mb-1">
                             Check No.
@@ -238,6 +250,19 @@ const RefundMobileCard = React.memo(
                             className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             placeholder="Receipt No."
                             disabled={!isRPMO}
+                        />
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-2.5 col-span-2">
+                        <label className="text-xs text-gray-600 font-medium block mb-1">
+                            Bank Name
+                        </label>
+                        <input
+                            type="text"
+                            value={data[`bank_name_${project.project_id}`] ?? ""}
+                            onChange={handleBankNameChange}
+                            className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Bank name"
+                            disabled={!isRPMO || isRestructured}
                         />
                     </div>
                 </div>

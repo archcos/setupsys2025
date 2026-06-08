@@ -2,7 +2,7 @@ import { BarChart3, AlertCircle } from 'lucide-react';
 import FormCard from '../FormCard';
 
 export default function FinancialSection({ data, setData, errors }) {
-  const financialFields = [
+const financialFields = [
     { key: 'year_obligated', label: 'Year Obligated', isCurrency: false },
     { key: 'revenue', label: 'Revenue', isCurrency: true },
     { key: 'net_income', label: 'Net Income', isCurrency: true },
@@ -10,6 +10,7 @@ export default function FinancialSection({ data, setData, errors }) {
     { key: 'noncurrent_asset', label: 'Non-Current Asset', isCurrency: true },
     { key: 'equity', label: 'Equity', isCurrency: true },
     { key: 'liability', label: 'Liability', isCurrency: true },
+    { key: 'unexpended_balance', label: 'Unexpended Balance', isCurrency: true },
   ];
 
   return (

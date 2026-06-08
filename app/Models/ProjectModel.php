@@ -16,7 +16,7 @@ class ProjectModel extends Model
     public $incrementing = false;  // Important!
     protected $keyType = 'bigInteger';
     protected $fillable = [
-    'project_id',
+        'project_id',
         'project_title',
         'proponent_id',
         'fund_release',
@@ -26,6 +26,7 @@ class ProjectModel extends Model
         'refund_initial',
         'refund_end',
         'project_cost',
+        'unexpended_balance',
         'counterpart',
         'latitude',
         'longitude',
@@ -48,24 +49,24 @@ class ProjectModel extends Model
         'updated_at',
     ];
 
-        public function setReleaseInitialAttribute($value)
+    public function setReleaseInitialAttribute($value)
     {
-        $this->attributes['release_initial'] = $value ? $value . '-01' : null;
+        $this->attributes['release_initial'] = $value ? $value.'-01' : null;
     }
 
     public function setReleaseEndAttribute($value)
     {
-        $this->attributes['release_end'] = $value ? $value . '-01' : null;
+        $this->attributes['release_end'] = $value ? $value.'-01' : null;
     }
 
     public function setRefundInitialAttribute($value)
     {
-        $this->attributes['refund_initial'] = $value ? $value . '-01' : null;
+        $this->attributes['refund_initial'] = $value ? $value.'-01' : null;
     }
 
     public function setRefundEndAttribute($value)
     {
-        $this->attributes['refund_end'] = $value ? $value . '-01' : null;
+        $this->attributes['refund_end'] = $value ? $value.'-01' : null;
     }
 
     public function proponent()
@@ -93,7 +94,7 @@ class ProjectModel extends Model
         return $this->hasOne(ImplementationModel::class, 'project_id');
     }
 
-        public function refunds()
+    public function refunds()
     {
         return $this->hasMany(RefundModel::class, 'project_id', 'project_id');
     }
@@ -107,10 +108,12 @@ class ProjectModel extends Model
     {
         return $this->hasMany(MarketModel::class, 'project_id', 'project_id');
     }
+
     public function reports()
     {
         return $this->hasMany(ReportModel::class, 'project_id', 'project_id');
     }
+
     public function messages()
     {
         return $this->hasMany(MessageModel::class, 'project_id', 'project_id')->latest();
@@ -120,6 +123,7 @@ class ProjectModel extends Model
     {
         return $this->hasMany(RtecModel::class, 'project_id', 'project_id');
     }
+
     public function compliance()
     {
         return $this->hasOne(ComplianceModel::class, 'project_id');
@@ -145,11 +149,12 @@ class ProjectModel extends Model
         return $this->hasOne(MoaModel::class, 'project_id', 'project_id');
     }
 
-    public function checkRefundCompletion(){
+    public function checkRefundCompletion()
+    {
         if (!$this->refund_initial || !$this->refund_end) {
             return [
                 'is_complete' => false,
-                'unpaid_months' => []
+                'unpaid_months' => [],
             ];
         }
 
@@ -163,7 +168,7 @@ class ProjectModel extends Model
         // Using lessThanOrEqualTo instead of isSameOrBefore
         while ($current->lessThanOrEqualTo($refundEnd)) {
             $monthDate = $current->format('Y-m-d');
-            
+
             $refund = $this->refunds()
                 ->where('month_paid', $monthDate)
                 ->first();
@@ -178,19 +183,20 @@ class ProjectModel extends Model
 
         return [
             'is_complete' => empty($unPaidMonths),
-            'unpaid_months' => $unPaidMonths
+            'unpaid_months' => $unPaidMonths,
         ];
     }
 
     /**
      * Check refund completion including a new refund entry that hasn't been saved yet
-     * This is used before saving to check if completion would be achieved
+     * This is used before saving to check if completion would be achieved.
      */
-    public function checkRefundCompletionWithNewEntry($newMonthDate, $newStatus){
+    public function checkRefundCompletionWithNewEntry($newMonthDate, $newStatus)
+    {
         if (!$this->refund_initial || !$this->refund_end) {
             return [
                 'is_complete' => false,
-                'unpaid_months' => []
+                'unpaid_months' => [],
             ];
         }
 
@@ -204,7 +210,7 @@ class ProjectModel extends Model
         // Using lessThanOrEqualTo instead of isSameOrBefore
         while ($current->lessThanOrEqualTo($refundEnd)) {
             $monthDate = $current->format('Y-m-d');
-            
+
             $refund = $this->refunds()
                 ->where('month_paid', $monthDate)
                 ->first();
@@ -226,7 +232,7 @@ class ProjectModel extends Model
 
         return [
             'is_complete' => empty($unPaidMonths),
-            'unpaid_months' => $unPaidMonths
+            'unpaid_months' => $unPaidMonths,
         ];
     }
 
@@ -234,38 +240,37 @@ class ProjectModel extends Model
     {
         $refundInitial = Carbon::parse($this->refund_initial)->startOfMonth();
         $refundEnd = Carbon::parse($this->refund_end)->startOfMonth();
-        
+
         $unpaidMonths = [];
-        
+
         // Generate all months in the range
         $current = $refundInitial->copy();
         while ($current <= $refundEnd) {
             $monthKey = $current->format('Y-m-d');
-            
+
             // Check if this month is being updated to paid status
             if (in_array($monthKey, $monthsBeingUpdated) && $newStatus === 'paid') {
                 // This month will be marked as paid
                 $current->addMonth();
                 continue;
             }
-            
+
             // Check if this month already has a paid refund
             $refund = $this->refunds()
                 ->where('month_paid', $monthKey)
                 ->first();
-            
+
             if (!$refund || $refund->status !== 'paid') {
                 // This month is not paid
                 $unpaidMonths[] = $current->format('F Y');
             }
-            
+
             $current->addMonth();
         }
-        
+
         return [
             'is_complete' => empty($unpaidMonths),
             'unpaid_months' => $unpaidMonths,
         ];
     }
-
 }

@@ -794,7 +794,15 @@ function ProjectModal({ project, isOpen, onClose }) {
               </div>
               <div className="bg-white rounded p-3 border border-green-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Released Amount</p>
-                <p className="text-sm font-semibold text-green-600">{formatCurrency(project.released_amount)}</p>
+                <p className="text-sm font-semibold text-green-600">
+                {formatCurrency(!project.released_amount || parseFloat(project.released_amount) === 0 
+                  ? project.project_cost 
+                  : project.released_amount)}
+                  </p>
+              </div>
+              <div className="bg-white rounded p-3 border border-green-100">
+                <p className="text-xs font-medium text-gray-600 mb-1">Unexpended Balance</p>
+                <p className="text-sm font-semibold text-gray-900">{formatCurrency(project.unexpended_balance)}</p>
               </div>
               <div className="bg-white rounded p-3 border border-green-100">
                 <p className="text-xs font-medium text-gray-600 mb-1">Monthly Refund Amount</p>

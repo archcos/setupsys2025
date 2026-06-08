@@ -796,6 +796,9 @@ class ProjectController extends Controller
                     $releasedAmountRaw = str_replace([',', ' '], '', trim($data['Amount of Released Assistance'] ?? '0'));
                     $releasedAmount = is_numeric($releasedAmountRaw) ? (float) $releasedAmountRaw : 0;
 
+                    $unexpendedBalanceRaw = str_replace([',', ' '], '', trim($data['Unexpended Balance'] ?? '0'));
+                    $unexpendedBalance = is_numeric($unexpendedBalanceRaw) ? (float) $unexpendedBalanceRaw : 0;
+
                     $status = trim($data['Status of Implementation (On-Time, Delayed, Terminated, Graduated) . This is linked to Project Monitoring Database'] ?? '');
                     $progress = match ($status) {
                         'WITHDRAWN' => 'Withdrawn',
@@ -827,6 +830,7 @@ class ProjectController extends Controller
                             'year_obligated' => $data['Year Obligated'] ?? null,
                             'added_by' => Auth::id() ?? 1,
                             'project_cost' => $projectCost,
+                            'unexpended_balance' => $unexpendedBalance,
                             'counterpart' => $counterpartCost,
                             'released_amount' => $releasedAmount,
                             'progress' => $progress,

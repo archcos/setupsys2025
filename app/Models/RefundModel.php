@@ -9,8 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 class RefundModel extends Model
 {
     use HasFactory;
-    use LogsActivity;
-
+    use LogsActivity {
+        LogsActivity::generateDescription as traitGenerateDescription;
+    }
     protected $table = 'tbl_refunds';
     protected $primaryKey = 'refund_id';
     public $timestamps = true;
@@ -92,6 +93,7 @@ class RefundModel extends Model
         $current = $this->payments ?? [];
         $current[] = array_merge([
             'amount' => 0,
+            'bank_name' => null,
             'check_num' => null,
             'check_date' => null,
             'receipt_num' => null,
@@ -131,10 +133,10 @@ class RefundModel extends Model
         ?int $userId = null,
         ?\DateTimeInterface $createdAt = null
     ): string {
-        // Let the trait handle Created / Deleted normally
         if ($action !== 'Updated') {
-            return parent::generateDescription($action, $before, $after, $userId, $createdAt);
+            return $this->traitGenerateDescription($action, $before, $after, $userId, $createdAt);
         }
+
 
         $parts = [];
         $after ??= [];
@@ -172,14 +174,14 @@ class RefundModel extends Model
         $scalarAfter = array_diff_key($after, ['payments' => true]);
         $scalarBefore = array_diff_key($before, ['payments' => true]);
 
-        if (!empty($scalarAfter)) {
-            $scalarDesc = parent::generateDescription(
-                'Updated',
-                $scalarBefore,
-                $scalarAfter,
-                null,    // we'll add user/time ourselves below
-                null
-            );
+    if (!empty($scalarAfter)) {
+        $scalarDesc = $this->traitGenerateDescription(
+            'Updated',
+            $scalarBefore,
+            $scalarAfter,
+            null,
+            null
+        );
 
             // Extract just the changes portion (strip "Updated RefundModel …")
             // The parent format is: "Updated {Model} {name}: field1 (…), field2 (…)"
@@ -188,9 +190,9 @@ class RefundModel extends Model
             }
         }
 
-        if (empty($parts)) {
-            return parent::generateDescription($action, $before, $after, $userId, $createdAt);
-        }
+   if (empty($parts)) {
+        return $this->traitGenerateDescription($action, $before, $after, $userId, $createdAt);
+    }   
 
         $name = $this->getDisplayName();
         $userPart = $userId ? $this->resolveUserPartPublic($userId) : '';
@@ -204,21 +206,21 @@ class RefundModel extends Model
      * Thin public wrapper so generateDescription() can call the trait's
      * private resolveUserPart() without reflection hacks.
      */
-    private function resolveUserPartPublic(?int $userId): string
-    {
-        if (!$userId) {
-            return '';
-        }
-
-        static $cache = [];
-
-        if (!isset($cache[$userId])) {
-            $user = UserModel::select(['user_id', 'name'])->find($userId);
-            $cache[$userId] = $user
-                ? "{$user->user_id} - {$user->name}"
-                : (string) $userId;
-        }
-
-        return " by {$cache[$userId]}";
+private function resolveUserPartPublic(?int $userId): string
+{
+    if (!$userId) {
+        return '';
     }
+
+    static $cache = [];
+
+    if (!isset($cache[$userId])) {
+        $user = UserModel::select(['user_id', 'first_name', 'middle_name', 'last_name'])->find($userId);
+        $cache[$userId] = $user
+            ? "{$user->user_id} - {$user->name}"
+            : (string) $userId;
+    }
+
+    return " by {$cache[$userId]}";
+}
 }

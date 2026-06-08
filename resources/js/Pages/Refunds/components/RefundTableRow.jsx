@@ -89,6 +89,13 @@ const RefundTableRow = React.memo(
             [project.project_id, setData],
         );
 
+        const handleBankNameChange = useCallback(
+            (e) => {
+                setData(`bank_name_${project.project_id}`, e.target.value);
+            },
+            [project.project_id, setData],
+        );
+
         const handleRemovePayment = useCallback(
             (index) => {
                 const month = String(selectedMonth).padStart(2, "0");
@@ -200,25 +207,26 @@ const RefundTableRow = React.memo(
                                 </span>
                                 <input
                                     type="number"
-                                    value={
-                                        data[
-                                            `refund_amount_${project.project_id}`
-                                        ] ?? ""
-                                    }
+                                    value={data[`refund_amount_${project.project_id}`] ?? ""}
                                     onChange={handleNewAmountChange}
                                     className={`w-full pl-6 pr-2 py-2 text-xs md:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                                        isRestructured
-                                            ? "bg-gray-100 cursor-not-allowed"
-                                            : ""
+                                        isRestructured ? "bg-gray-100 cursor-not-allowed" : ""
                                     }`}
-                                    placeholder={
-                                        payments.length > 0
-                                            ? "Add payment..."
-                                            : "0.00"
-                                    }
+                                    placeholder={payments.length > 0 ? "Add payment..." : "0.00"}
                                     disabled={isRestructured || !isRPMO}
                                 />
                             </div>
+
+                            <input
+                                type="text"
+                                value={data[`bank_name_${project.project_id}`] ?? ""}
+                                onChange={handleBankNameChange}
+                                className={`w-full px-2 py-2 text-xs md:text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                                    isRestructured ? "bg-gray-100 cursor-not-allowed" : ""
+                                }`}
+                                placeholder="Bank name"
+                                disabled={isRestructured || !isRPMO}
+                            />
 
                             {/* Toggle payments list */}
                             {payments.length > 0 && (
@@ -380,6 +388,14 @@ const RefundTableRow = React.memo(
                                                         ({payment.receipt_date})
                                                     </span>
                                                 )}
+                                            </span>
+                                        )}
+                                        {payment.bank_name && (
+                                            <span className="text-gray-500">
+                                                Bank:{" "}
+                                                <span className="text-gray-700 font-medium">
+                                                    {payment.bank_name}
+                                                </span>
                                             </span>
                                         )}
                                         {payment.saved_at && (

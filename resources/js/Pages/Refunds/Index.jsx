@@ -372,6 +372,18 @@ export default function Index({
 
             setSavingProject(projectId);
 
+                   // Pass existing payments so the backend doesn't wipe them
+        const existingPayments = (project?.refunds?.[0]?.payments ?? [])
+            .filter((p) => (parseFloat(p.amount) || 0) > 0)
+            .map((p) => ({
+                amount: p.amount,
+                bank_name: p.bank_name ?? "",
+                check_num: p.check_num ?? "",
+                check_date: p.check_date ?? "",
+                receipt_num: p.receipt_num ?? "",
+                receipt_date: p.receipt_date ?? "",
+            }));
+
             const refundAmount =
                 currentStatus === REFUND_STATUS.RESTRUCTURED
                     ? 0
@@ -401,12 +413,14 @@ export default function Index({
                             : (data[`amount_due_${projectId}`] ??
                               project?.amount_due ??
                               0),
+                    bank_name: data[`bank_name_${projectId}`] ?? "",
                     check_num: data[`check_num_${projectId}`] ?? "",
                     check_date: data[`check_date_${projectId}`] ?? "",
                     receipt_num: data[`receipt_num_${projectId}`] ?? "",
                     receipt_date: data[`receipt_date_${projectId}`] ?? "",
                     status: currentStatus,
                     save_date: saveDate,
+                    existing_payments: existingPayments,
                 },
                 {
                     preserveScroll: true,
