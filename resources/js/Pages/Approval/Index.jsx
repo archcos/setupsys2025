@@ -7,6 +7,7 @@ import PaginationLinks from '@/components/PaginationLinks';
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const ALL_STATUSES = ['All', 'Approved', 'Implementation', 'Liquidation', 'Refund', 'Completed'];
+const HONORIFICS = ['Mr.', 'Ms.', 'Mrs.', 'Engr.', 'Dr.', 'Atty.', 'Others'];
 
 const STATUS_STYLES = {
   Approved:       { tab: 'bg-blue-500 text-white',    badge: 'bg-blue-100 text-blue-700 border border-blue-200'       },
@@ -123,6 +124,9 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
   const [selected,      setSelected]      = useState(null);
   const [showModal,     setShowModal]     = useState(false);
   const [formData,      setFormData]      = useState({ owner_lastname: '', position: '' });
+  const [selectedHonorific, setSelectedHonorific] = useState('');
+  const [customHonorific, setCustomHonorific] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [errors,        setErrors]        = useState({});
   const [isSubmitting,  setIsSubmitting]  = useState(false);
   const [downloadProgress, setDownloadProgress] = useState('');
@@ -192,6 +196,9 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
 
   const handleOpenModal = (projectId) => {
     setFormData({ owner_lastname: '', position: '' });
+    setSelectedHonorific('');
+    setCustomHonorific('');
+    setShowCustomInput(false);
     setErrors({});
     setDownloadProgress('');
     setSelected(projectId);
@@ -202,6 +209,9 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
     setShowModal(false);
     setSelected(null);
     setFormData({ owner_lastname: '', position: '' });
+    setSelectedHonorific('');
+    setCustomHonorific('');
+    setShowCustomInput(false);
     setErrors({});
     setDownloadProgress('');
   };
@@ -212,6 +222,16 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
     else if (formData.owner_lastname.length > 255) newErrors.owner_lastname = 'Owner last name is too long';
     if (!formData.position.trim())                 newErrors.position = 'Position is required';
     else if (formData.position.length > 255)       newErrors.position = 'Position is too long';
+    
+    // Validate honorific
+    if (!selectedHonorific) {
+      newErrors.honorific = 'Honorific is required';
+    } else if (selectedHonorific === 'Others' && !customHonorific.trim()) {
+      newErrors.honorific = 'Please specify honorific';
+    } else if (selectedHonorific === 'Others' && customHonorific.length > 50) {
+      newErrors.honorific = 'Honorific is too long';
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -229,10 +249,19 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
           ?.split('=')[1] ?? ''
       );
 
+      // Get the final honorific value
+      const finalHonorific = selectedHonorific === 'Others' ? customHonorific.trim() : selectedHonorific;
+      
+      // Combine honorific with last name
+      const fullOwnerName = `${finalHonorific} ${formData.owner_lastname.trim()}`;
+
       const generateResponse = await fetch(route('approvals.generate', { project_id: selected }), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': xsrfToken },
-        body: JSON.stringify({ owner_lastname: formData.owner_lastname, position: formData.position }),
+        body: JSON.stringify({ 
+          owner_lastname: fullOwnerName, 
+          position: formData.position 
+        }),
       });
 
       if (!generateResponse.ok) {
@@ -532,10 +561,10 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
           onClick={handleCloseModal}
         >
           <div
-            className="bg-white rounded-lg md:rounded-xl shadow-xl max-w-md w-full"
+            className="bg-white rounded-lg md:rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-4 md:px-6 py-3 md:py-4 border-b border-gray-200">
+            <div className="px-4 md:px-6 py-3 md:py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
               <h2 className="text-base md:text-xl font-semibold text-gray-900">Download Document</h2>
               <p className="text-xs md:text-sm text-gray-600 mt-0.5">Provide required information</p>
             </div>
@@ -547,9 +576,60 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
                 </div>
               )}
 
+              {/* Honorific Dropdown */}
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
-                  Owner Last Name <span className="text-red-500">*</span>
+                  Honorific <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedHonorific}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedHonorific(value);
+                    setShowCustomInput(value === 'Others');
+                    if (value !== 'Others') {
+                      setCustomHonorific('');
+                    }
+                    if (errors.honorific) setErrors(prev => ({ ...prev, honorific: '' }));
+                  }}
+                  className={`w-full px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                    errors.honorific ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                  }`}
+                  disabled={isSubmitting}
+                >
+                  <option value="">Select honorific</option>
+                  {HONORIFICS.map(honorific => (
+                    <option key={honorific} value={honorific}>{honorific}</option>
+                  ))}
+                </select>
+                {errors.honorific && <p className="mt-1 text-xs text-red-600">{errors.honorific}</p>}
+              </div>
+
+              {/* Custom Honorific Input (shown when "Others" is selected) */}
+              {showCustomInput && (
+                <div>
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
+                    Specify Honorific <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customHonorific}
+                    onChange={(e) => {
+                      setCustomHonorific(e.target.value);
+                      if (errors.honorific) setErrors(prev => ({ ...prev, honorific: '' }));
+                    }}
+                    placeholder="e.g., Prof., Capt., etc."
+                    className="w-full px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isSubmitting}
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              {/* Last Name */}
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
+                  Last Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -563,11 +643,11 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
                     errors.owner_lastname ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
                   }`}
                   disabled={isSubmitting}
-                  autoFocus
                 />
                 {errors.owner_lastname && <p className="mt-1 text-xs text-red-600">{errors.owner_lastname}</p>}
               </div>
 
+              {/* Position */}
               <div>
                 <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
                   Position <span className="text-red-500">*</span>
@@ -588,6 +668,15 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
                 {errors.position && <p className="mt-1 text-xs text-red-600">{errors.position}</p>}
               </div>
 
+              {/* Preview of combined name */}
+              {selectedHonorific && formData.owner_lastname && (
+                <div className="p-2 md:p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs md:text-sm text-blue-800">
+                    <span className="font-semibold">Preview:</span> {selectedHonorific === 'Others' && customHonorific ? customHonorific : selectedHonorific} {formData.owner_lastname}
+                  </p>
+                </div>
+              )}
+
               {downloadProgress && (
                 <div className="flex items-center gap-2 p-2 md:p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <svg className="animate-spin h-3 w-3 md:h-4 md:w-4 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24">
@@ -598,7 +687,7 @@ export default function ApprovedProjects({ projects, offices, filters, statusCou
                 </div>
               )}
 
-              <div className="flex flex-col sm:flex-row gap-2 md:gap-3 pt-2 md:pt-4">
+              <div className="flex flex-col sm:flex-row gap-2 md:gap-3 pt-2 md:pt-4 sticky bottom-0 bg-white">
                 <button
                   type="button"
                   onClick={handleCloseModal}
