@@ -22,6 +22,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectMapController;
 use App\Http\Controllers\ProponentController;
 use App\Http\Controllers\RDDashboardController;
+use App\Http\Controllers\RDUnifiedDashboardController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\ReportController;
@@ -153,6 +154,13 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::get('/rd/dashboard', [RDDashboardController::class, 'index'])->name('rd-dashboard.index');
         Route::post('/rd/dashboard/{projectId}/update-status', [RDDashboardController::class, 'updateStatus'])->name('rd-dashboard.update-status');
         Route::get('/rd/dashboard/{projectId}', [RDDashboardController::class, 'show'])->name('rd-dashboard.show');
+    });
+
+    // RD Unified Dashboard
+    Route::prefix('rd-dashboard')->middleware(['auth', 'role:rd'])->group(function () {
+        Route::get('/', [RDUnifiedDashboardController::class, 'index'])->name('rd.unified.dashboard');
+        Route::post('/compliance/{projectId}/status', [RDUnifiedDashboardController::class, 'updateComplianceStatus'])->name('rd.compliance.update-status');
+        Route::post('/restructure/{restructId}/status', [RDUnifiedDashboardController::class, 'updateRestructureStatus'])->name('rd.restructure.update-status');
     });
 
     // IMPLEMENTATION

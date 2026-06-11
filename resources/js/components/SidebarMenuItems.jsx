@@ -73,7 +73,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
       )}
 
     {/* Implementation - Staff/RPMO/RD */}
-    {(role === 'staff' || role === 'rpmo' || role === 'rd' || role === 'au') && (
+    {(role === 'staff' || role === 'rpmo' || role === 'au') && (
       <Dropdown
         title="Implementation"
         icon={<PencilRuler size={18} />}
@@ -94,7 +94,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
               ]
             : []),
 
-          ...(role === 'rpmo' || role === 'rd'
+          ...(role === 'rpmo'
             ? [
                 { label: 'Verify Restructure', href: '/verify-restructure', icon: <Stamp size={16} /> },
               ]
@@ -142,7 +142,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
       />
 
       {/* Maps - Staff/RPMO */}
-      {(role === 'staff' || role === 'rpmo') && (
+      {(role === 'staff' || role === 'rpmo' || role === 'rd') && (
         <Dropdown
           title="Project Map"
           icon={<Map size={18} />}

@@ -32,7 +32,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const getHomePage = () => {
     if (role === 'user') return '/dashboard';
-    if (['irtec', 'ertec', 'rd'].includes(role)) return '/rd/dashboard';
+    if (role === 'rd') return route('rd.unified.dashboard'); // Changed from '/rd/dashboard'
     return '/home';
   };
 
