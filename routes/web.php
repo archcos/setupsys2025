@@ -98,9 +98,9 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::get('/proponents/export', [ProponentController::class, 'export'])->middleware('role:rpmo,staff')->name('proponents.export');
         Route::get('/projects/export', [ProjectController::class, 'export'])->middleware('role:rpmo,staff')->name('projects.export');
         Route::resource('proponents', ProponentController::class)->except(['show'])->middleware('role:user,staff,rpmo');
-        Route::resource('projects', ProjectController::class)->middleware('role:head,staff,rpmo')->except(['destroy', 'show']);
+        Route::resource('projects', ProjectController::class)->middleware('role:staff,rpmo')->except(['destroy', 'show']);
         Route::delete('/projects/{id}', [ProjectController::class, 'destroy'])->middleware('role:rpmo')->name('projects.destroy');
-        Route::resource('activities', ActivityController::class)->middleware('role:head,staff,rpmo');
+        Route::resource('activities', ActivityController::class)->middleware('role:staff,rpmo');
         Route::post('/projects/{id}/update-status', [ProjectController::class, 'updateStatus'])->name('projects.updateStatus')->middleware('role:rpmo');
         Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly')->middleware('role:user');
         Route::get('/activity-list', [ActivityController::class, 'readonly'])->name('activities.readonly')->middleware('role:user');
@@ -113,7 +113,7 @@ Route::middleware(['log-suspicious'])->group(function () {
     });
 
     // MOA
-    Route::middleware(['auth', 'role:head,staff,rpmo'])->group(function () {
+    Route::middleware(['auth', 'role:staff,rpmo'])->group(function () {
         Route::get('/draft-moa', [MOAController::class, 'showForm'])->name('docx.form');
         Route::post('/moa/generate-docx', [MOAController::class, 'generateDocx'])->name('moa.generateDocx');
 

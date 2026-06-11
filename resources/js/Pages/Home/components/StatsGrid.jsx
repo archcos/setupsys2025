@@ -1,6 +1,6 @@
 // resources/js/Pages/Home/components/StatsGrid.jsx
 
-import { Briefcase, CheckCircle, Activity, Ban, XCircle, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
+import { Briefcase, CheckCircle, Activity, Ban, XCircle, DollarSign, TrendingUp, TrendingDown, PhilippinePeso } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export default function StatsGrid({ projectDetails, analytics }) {
@@ -220,7 +220,7 @@ export default function StatsGrid({ projectDetails, analytics }) {
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-3">
             <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-              <DollarSign className="w-5 h-5 text-white" />
+              <PhilippinePeso className="w-5 h-5 text-white" />
             </div>
             <div className="px-2 py-0.5 bg-white/20 rounded-full">
               <span className="text-xs font-medium text-white">PHP</span>

@@ -2,10 +2,8 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\ProponentModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -21,7 +19,6 @@ class HandleInertiaRequests extends Middleware
     {
         $user = Auth::user();
 
-  
         return array_merge(parent::share($request), [
             'auth' => [
                 'user' => $user,
@@ -31,7 +28,7 @@ class HandleInertiaRequests extends Middleware
                 'error' => session('error'),
                 'warning' => $request->session()->pull('warning'),
             ],
-            'errors' => $request->session()->get('errors') 
+            'errors' => $request->session()->get('errors')
                 ? $request->session()->get('errors')->getBag('default')->getMessages()
                 : [],
         ]);
