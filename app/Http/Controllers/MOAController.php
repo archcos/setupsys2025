@@ -535,7 +535,7 @@ class MOAController extends Controller
         $office = $proponent->office;
 
         // Load template
-        $templatePath = storage_path('../public/templates/template.docx');
+        $templatePath = storage_path('../public/templates/moa_template.docx');
         $templateProcessor = new TemplateProcessor($templatePath);
 
         $companyAddress = collect([
@@ -553,6 +553,27 @@ class MOAController extends Controller
         $phaseOne = "$releaseInitial - $releaseEnd";
         $phaseTwo = "$refundInitial - $refundEnd";
 
+        $regionalDirector = DirectorModel::find(1);
+        $honorific = 'Dir.';
+        $regionalDirectorName = 'N/A';
+
+        if ($regionalDirector) {
+            $honorific = $regionalDirector->honorific ?? $regionalDirector->title ?? 'Dir.';
+
+            // Build full name
+            $firstName = $regionalDirector->first_name ?? '';
+            $middleName = $regionalDirector->middle_name ?? '';
+            $lastName = $regionalDirector->last_name ?? '';
+
+            $middleInitial = $middleName ? strtoupper(substr($middleName, 0, 1)).'.' : '';
+
+            $regionalDirectorName = trim("{$firstName} {$middleInitial} {$lastName}");
+
+            if (empty($regionalDirectorName) || $regionalDirectorName === ' . ') {
+                $regionalDirectorName = 'N/A';
+            }
+        }
+
         // Fill text placeholders
         $templateProcessor->setValue('OWNER_NAME', $moa->owner_name);
         $templateProcessor->setValue('position', $moa->owner_position);
@@ -567,6 +588,8 @@ class MOAController extends Controller
         $templateProcessor->setValue('amount', $moa->amount_words);
         $templateProcessor->setValue('pd_name', $moa->pd_name ?? 'N/A');
         $templateProcessor->setValue('pd_title', $moa->pd_title ?? 'N/A');
+        $templateProcessor->setValue('HONORIFIC', $honorific);
+        $templateProcessor->setValue('REGIONAL_DIRECTOR', $regionalDirectorName);
 
         // Create items table
         $phpWord = new PhpWord();
