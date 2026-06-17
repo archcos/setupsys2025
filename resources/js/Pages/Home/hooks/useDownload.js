@@ -234,9 +234,7 @@ export function useDownload(filteredProjects, analytics, selectedYear) {
           }
           .header { 
             text-align: center; 
-            margin-bottom: 24px; 
-            border-bottom: 2px solid #8b5cf6; 
-            padding-bottom: 16px;
+            margin-bottom: 20px; 
           }
           h1 { 
             color: #6d28d9; 
@@ -370,12 +368,9 @@ export function useDownload(filteredProjects, analytics, selectedYear) {
             font-weight: 700;
           }
           .footer { 
-            margin-top: 20px; 
             text-align: center; 
             font-size: 10px; 
             color: #9ca3af;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 12px;
           }
           .empty-state {
             text-align: center;
