@@ -163,157 +163,132 @@ export default function VerifyOtp() {
   const seconds = timeLeft % 60;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-200 via-white to-indigo-300 flex items-center justify-center px-4 py-8">
-      <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
-        <Head title="Verify OTP" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-200 via-white to-indigo-300 flex items-center justify-center p-4">
+      <Head title="Verify OTP" />
+      
+      <div className="w-full max-w-sm bg-white rounded-xl shadow-lg border border-blue-100 p-6">
         {/* Header */}
-        <div className="flex justify-center mb-6">
-          <div className="bg-blue-100 p-3 rounded-full">
-            <Mail size={32} className="text-blue-600" />
+        <div className="text-center mb-5">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-50 mb-3">
+            <Mail size={22} className="text-blue-600" />
           </div>
+          <h1 className="text-xl font-semibold text-gray-900">Verify your email</h1>
+          <p className="text-sm text-gray-500 mt-1.5">
+            Enter the code sent to{' '}
+            <span className="font-medium text-blue-600">{maskedEmail}</span>
+          </p>
         </div>
 
-        <h2 className="text-2xl font-bold mb-2 text-center text-gray-900">
-          Verify Your Email
-        </h2>
-        <p className="text-gray-600 mb-6 text-center">
-          We've sent a <strong>6-digit code</strong> to <br />
-          <strong className="text-gray-800">{maskedEmail}</strong>
-        </p>
+        {/* Timer & Attempts */}
+        <div className="flex items-center justify-between mb-4 text-sm">
+          <div className="flex items-center gap-1.5">
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  i < attemptsLeft ? 'bg-blue-500' : 'bg-gray-200'
+                }`}
+              />
+            ))}
+            <span className={`ml-1 font-mono text-xs ${
+              attemptsLeft <= 1 ? 'text-red-500' : 'text-gray-500'
+            }`}>
+              {attemptsLeft} left
+            </span>
+          </div>
+          
+          {!isExpired && (
+            <span className={`font-mono tabular-nums ${
+              timeLeft <= 60 ? 'text-orange-500' : 'text-gray-500'
+            }`}>
+              {minutes}:{seconds.toString().padStart(2, '0')}
+            </span>
+          )}
+        </div>
 
         {/* OTP Input */}
         <div className="mb-4">
-          <label htmlFor="otp-input" className="sr-only">OTP Code</label>
           <input
             id="otp-input"
             type="text"
             inputMode="numeric"
             maxLength="6"
-            className={`border-2 rounded-lg p-4 w-full text-center text-4xl tracking-widest font-bold transition-colors ${
-              otp.length === 6
-                ? 'border-green-500 focus:ring-2 focus:ring-green-200'
-                : 'border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
-            } ${verifying || isExpired ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`w-full px-4 py-3 text-center text-lg font-mono tracking-[0.3em] rounded-lg border-2 bg-white transition-all outline-none ${
+              isExpired 
+                ? 'border-red-200 bg-red-50/50 cursor-not-allowed' 
+                : otp.length === 6
+                ? 'border-blue-400 ring-2 ring-blue-100'
+                : 'border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100'
+            }`}
             placeholder="000000"
             value={otp}
             onChange={handleOtpChange}
             onKeyDown={handleKeyDown}
             disabled={verifying || isExpired}
-            aria-label="OTP Code"
             autoComplete="one-time-code"
             spellCheck="false"
           />
-          <p className="text-xs text-gray-500 mt-2 text-center">{otp.length}/6 digits</p>
-        </div>
-
-        {/* Attempts Left Indicator */}
-        <div className="flex items-center justify-center gap-3 mb-6 p-3 bg-gray-50 rounded-lg">
-          <span className="text-sm text-gray-600 font-medium">Attempts:</span>
-          <div className="flex gap-1">
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className={`w-3 h-3 rounded-full transition-all ${
-                  i < attemptsLeft ? 'bg-green-500 scale-100' : 'bg-gray-300 scale-75'
-                }`}
-                aria-hidden="true"
-              />
-            ))}
-          </div>
-          <span className={`text-sm font-bold ${
-            attemptsLeft === 0
-              ? 'text-red-600'
-              : attemptsLeft === 1
-              ? 'text-orange-600'
-              : 'text-gray-700'
-          }`}>
-            {attemptsLeft}/3
-          </span>
         </div>
 
         {/* Verify Button */}
         <button
           onClick={handleVerify}
           disabled={verifying || otp.length !== 6 || attemptsLeft === 0 || isExpired}
-          type="button"
-          className={`w-full py-3 rounded-lg text-white font-semibold transition-all ${
+          className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all ${
             verifying || otp.length !== 6 || attemptsLeft === 0 || isExpired
-              ? 'bg-blue-300 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
+              ? 'bg-blue-200 text-blue-400 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98] shadow-sm'
           }`}
-          aria-busy={verifying}
         >
           {verifying ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+            <span className="inline-flex items-center gap-2">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
               Verifying...
             </span>
           ) : (
-            'Verify OTP'
+            'Verify'
           )}
         </button>
 
-        {/* Timer */}
-        {!isExpired && timeLeft > 0 ? (
-          <p className="text-sm text-gray-500 mt-4 text-center">
-            Code expires in{' '}
-            <strong className={timeLeft <= 60 ? 'text-orange-500' : ''}>
-              {minutes}:{seconds.toString().padStart(2, '0')}
-            </strong>
-          </p>
-        ) : (
-          <p className="text-red-600 mt-4 text-center font-semibold">
-            ⏰ OTP expired. Please request a new one.
+        {/* Messages */}
+        {isExpired && (
+          <p className="text-xs text-red-500 text-center mt-3 font-medium">
+            Code expired. Request a new one below.
           </p>
         )}
 
-        {/* Resend Button */}
-        <button
-          onClick={resendOtp}
-          disabled={resending || resendCooldown > 0 || initialWait > 0 || verifying}
-          type="button"
-          className="text-blue-600 text-sm mt-4 underline block mx-auto disabled:text-gray-400 disabled:no-underline font-medium hover:text-blue-700 transition"
-        >
-          {resending
-            ? 'Resending...'
-            : initialWait > 0
-            ? `Wait ${initialWait}s before resending`
-            : resendCooldown > 0
-            ? `Resend (${resendCooldown}s)`
-            : 'Resend OTP'}
-        </button>
-
-        {/* Success Message */}
         {message && (
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">
-            <CheckCircle size={20} className="text-green-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-            <p className="text-green-800 text-sm">{message}</p>
+          <div className="mt-3 p-2.5 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2">
+            <CheckCircle size={16} className="text-blue-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-700">{message}</p>
           </div>
         )}
 
-        {/* Error Message */}
         {error && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-            <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-            <p className="text-red-800 text-sm">{error}</p>
+          <div className="mt-3 p-2.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+            <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-red-700">{error}</p>
           </div>
         )}
 
-        {/* Back to Login */}
-        <div className="text-center mt-6 pt-6 border-t border-gray-200">
-          <p className="text-sm text-gray-600">
-            Didn't receive the code?{' '}
-            <button
-              onClick={() => router.get('/')}
-              type="button"
-              className="text-blue-600 hover:text-blue-700 font-semibold"
-            >
-              Back to Login
-            </button>
-          </p>
+        {/* Resend */}
+        <div className="mt-5 pt-4 border-t border-gray-100">
+          <button
+            onClick={resendOtp}
+            disabled={resending || resendCooldown > 0 || initialWait > 0 || verifying}
+            className="w-full text-center text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400 transition-colors font-medium"
+          >
+            {resending
+              ? 'Sending...'
+              : initialWait > 0
+              ? `Resend available in ${initialWait}s`
+              : resendCooldown > 0
+              ? `Resend in ${resendCooldown}s`
+              : 'Resend code'}
+          </button>
         </div>
       </div>
     </div>
