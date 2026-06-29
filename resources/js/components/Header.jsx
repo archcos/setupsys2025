@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Menu, X, Sun, Moon } from "lucide-react";
 import { usePage } from "@inertiajs/react";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -12,11 +12,15 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [notifOpen, setNotifOpen] = useState(false);
     const [screenSize, setScreenSize] = useState("mobile");
+    
+    // Use refs to track intervals and current text
+    const typingIntervalRef = useRef(null);
+    const isTypingRef = useRef(false);
 
-    const fullText =
-        "  Small Enterprise Technology Upgrading Program Information Management System";
-    const mediumText = "  SETUP Information Management System";
-    const shortText = "  SIMS";
+    // Removed leading spaces
+    const fullText = "Small Enterprise Technology Upgrading Program Information Management System";
+    const mediumText = "SETUP Information Management System";
+    const shortText = "SIMS";
 
     const { auth } = usePage().props;
 
@@ -24,43 +28,68 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
         ? `${auth.user.first_name} ${auth.user.last_name}`
         : "User";
 
+    // Get text based on screen size
+    const getTextForScreenSize = (size) => {
+        if (size === "desktop") return fullText;
+        if (size === "tablet") return mediumText;
+        return shortText;
+    };
+
     // Handle window resize to detect screen size
     useEffect(() => {
         const handleResize = () => {
             const width = window.innerWidth;
+            let newSize;
             if (width < 640) {
-                setScreenSize("mobile");
+                newSize = "mobile";
             } else if (width < 1500) {
-                setScreenSize("tablet");
+                newSize = "tablet";
             } else {
-                setScreenSize("desktop");
+                newSize = "desktop";
+            }
+            
+            // Only update if size actually changed
+            if (newSize !== screenSize) {
+                setScreenSize(newSize);
             }
         };
 
         handleResize();
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
-    }, []);
+    }, [screenSize]);
 
-    // Typing animation
+    // Typing animation - properly cleanup on screen size change
     useEffect(() => {
-        let textToUse = shortText;
-        if (screenSize === "desktop") {
-            textToUse = fullText;
-        } else if (screenSize === "tablet") {
-            textToUse = mediumText;
+        // Clear any existing typing interval
+        if (typingIntervalRef.current) {
+            clearInterval(typingIntervalRef.current);
         }
 
-        let i = 0;
+        const textToUse = getTextForScreenSize(screenSize);
+        
+        // Reset display text immediately when screen size changes
         setDisplayText("");
+        isTypingRef.current = true;
+        let i = 0;
 
-        const typingInterval = setInterval(() => {
-            setDisplayText((prev) => prev + textToUse.charAt(i));
-            i++;
-            if (i === textToUse.length) clearInterval(typingInterval);
+        typingIntervalRef.current = setInterval(() => {
+            if (i <= textToUse.length) {
+                setDisplayText(textToUse.substring(0, i));
+                i++;
+                if (i > textToUse.length) {
+                    clearInterval(typingIntervalRef.current);
+                    isTypingRef.current = false;
+                }
+            }
         }, 25);
 
-        return () => clearInterval(typingInterval);
+        return () => {
+            if (typingIntervalRef.current) {
+                clearInterval(typingIntervalRef.current);
+            }
+            isTypingRef.current = false;
+        };
     }, [screenSize]);
 
     // Cursor blink
@@ -105,8 +134,8 @@ export default function Header({ sidebarOpen, toggleSidebar }) {
                         darkMode ? "text-slate-100" : "text-gray-800"
                     }`}
                 >
-                    {displayText}
-                    {showCursor && <span className="animate-pulse">|</span>}
+                    <span>{displayText}</span>
+                    {showCursor && <span className="animate-pulse ml-0.5">|</span>}
                 </h1>
             </div>
 
