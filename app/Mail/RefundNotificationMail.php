@@ -176,7 +176,7 @@ class RefundNotificationMail extends Mailable
 
                 <!-- CTA Button -->
                 <div style='text-align:center;margin:0 0 24px;'>
-                    <a href='http://192.168.0.7:8096/'
+                    <a href='http://172.16.0.2:8096/'
                        style='display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:11px 28px;border-radius:6px;font-size:13px;font-weight:500;'>
                         View in SIMS Portal
                     </a>
