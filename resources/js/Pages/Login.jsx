@@ -9,6 +9,10 @@ import {
     Shield,
     CheckCircle,
     AlertTriangle,
+    X,
+    Megaphone,
+    ChevronRight,
+    Calendar,
 } from "lucide-react";
 import logo from "../../assets/logo.webp";
 import setupLogo from "../../assets/SETUP_logo.webp";
@@ -17,7 +21,8 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [isAuthenticating, setIsAuthenticating] = useState(false);
     const [authSuccess, setAuthSuccess] = useState(false);
-    const [announcementsOpen, setAnnouncementsOpen] = useState(false);
+    const [announcementsOpen, setAnnouncementsOpen] = useState(true); // Open by default
+    const [announcementsMinimized, setAnnouncementsMinimized] = useState(false);
     const [showSessionWarning, setShowSessionWarning] = useState(false);
     const [pendingCredentials, setPendingCredentials] = useState(null);
     const { props } = usePage();
@@ -29,6 +34,14 @@ export default function LoginPage() {
         password: "",
         force_login: "false",
     });
+
+    // Auto-open announcements if there are any
+    useEffect(() => {
+        if (announcements.length > 0) {
+            setAnnouncementsOpen(true);
+            setAnnouncementsMinimized(false);
+        }
+    }, [announcements]);
 
     // Check for session warning in flash data
     useEffect(() => {
@@ -42,7 +55,6 @@ export default function LoginPage() {
     const handleSubmit = (e) => {
         e.preventDefault();
         
-        // Store credentials for potential retry
         setPendingCredentials({
             login: data.login,
             password: data.password
@@ -58,7 +70,6 @@ export default function LoginPage() {
                 force_login: "false",
             },
             onSuccess: (page) => {
-                // Check if the response contains session warning
                 if (page.props?.flash?.active_session_warning) {
                     setShowSessionWarning(true);
                     setIsAuthenticating(false);
@@ -66,23 +77,18 @@ export default function LoginPage() {
                     return;
                 }
                 
-                // If no warning, login was successful
                 setAuthSuccess(true);
                 setShowSessionWarning(false);
-                // Don't set isAuthenticating to false here, 
-                // let the success overlay handle it
             },
             onError: (errors) => {
                 setIsAuthenticating(false);
                 setAuthSuccess(false);
                 
-                // Check if the error is about an active session
                 if (errors.active_session) {
                     setShowSessionWarning(true);
                     return;
                 }
                 
-                // Check if error message contains session-related text
                 if (errors.message && (
                     errors.message.includes('already logged in') ||
                     errors.message.includes('another device')
@@ -91,14 +97,12 @@ export default function LoginPage() {
                     return;
                 }
                 
-                // Handle CSRF token expiration
                 if (errors.message?.includes('419')) {
                     router.reload({
                         only: [],
                         preserveState: true,
                         preserveScroll: true,
                         onSuccess: () => {
-                            // Retry login after CSRF token refresh
                             handleSubmit(new Event('submit'));
                         },
                     });
@@ -113,14 +117,12 @@ export default function LoginPage() {
         setShowSessionWarning(false);
         setAuthSuccess(false);
         
-        // Use the stored credentials with force_login flag
         router.post("/signin", {
             login: pendingCredentials?.login || data.login,
             password: pendingCredentials?.password || data.password,
             force_login: "true",
         }, {
             onSuccess: (page) => {
-                // Check if the response contains session warning
                 if (page.props?.flash?.active_session_warning) {
                     setShowSessionWarning(true);
                     setIsAuthenticating(false);
@@ -128,7 +130,6 @@ export default function LoginPage() {
                     return;
                 }
                 
-                // If no warning, login was successful
                 setAuthSuccess(true);
                 setShowSessionWarning(false);
             },
@@ -146,6 +147,15 @@ export default function LoginPage() {
         setIsAuthenticating(false);
         setAuthSuccess(false);
         reset('force_login');
+    };
+
+    const toggleAnnouncements = () => {
+        if (announcementsMinimized) {
+            setAnnouncementsMinimized(false);
+            setAnnouncementsOpen(true);
+        } else {
+            setAnnouncementsOpen(!announcementsOpen);
+        }
     };
 
     return (
@@ -186,6 +196,14 @@ export default function LoginPage() {
                     from { opacity: 0; transform: scale(0.95) translateY(-10px); }
                     to   { opacity: 1; transform: scale(1) translateY(0); }
                 }
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to   { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to   { opacity: 1; }
+                }
                 .fill-bar { animation: fillBar 5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
                 .fill-bar-complete { animation: fillBarComplete 0.35s ease-in forwards; }
                 .step-item { opacity: 0; animation: stepFadeIn 0.4s ease forwards; }
@@ -193,6 +211,8 @@ export default function LoginPage() {
                 .success-fade { animation: successFadeIn 0.4s ease 0.25s both; }
                 .shield-fly { animation: shieldFly 0.8s cubic-bezier(0.4, 0, 1, 1) forwards; }
                 .modal-slide { animation: modalSlideIn 0.3s ease-out forwards; }
+                .slide-in-right { animation: slideInRight 0.3s ease-out forwards; }
+                .fade-in { animation: fadeIn 0.3s ease-out forwards; }
             `}</style>
 
             {/* Session Active Warning Modal */}
@@ -240,16 +260,12 @@ export default function LoginPage() {
             {isAuthenticating && !showSessionWarning && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
                     <div className="bg-white rounded-2xl shadow-2xl p-7 max-w-xs w-full mx-4 relative overflow-hidden">
-                        {/* AUTHENTICATING STATE */}
                         {!authSuccess && (
                             <div className="flex flex-col items-center gap-5">
                                 <div className="relative w-16 h-16 flex items-center justify-center">
                                     <div className="absolute inset-0 rounded-full bg-blue-50" />
                                     <div className="relative z-10 flex items-center justify-center">
-                                        <Shield
-                                            size={52}
-                                            className="text-blue-600"
-                                        />
+                                        <Shield size={52} className="text-blue-600" />
                                         <img
                                             src={logo}
                                             alt="DOST Logo"
@@ -257,8 +273,7 @@ export default function LoginPage() {
                                             style={{
                                                 top: "50%",
                                                 left: "50%",
-                                                transform:
-                                                    "translate(-50%, -58%)",
+                                                transform: "translate(-50%, -58%)",
                                             }}
                                         />
                                     </div>
@@ -278,9 +293,7 @@ export default function LoginPage() {
                                             <div
                                                 key={i}
                                                 className="step-item flex items-center gap-2 text-xs text-gray-600"
-                                                style={{
-                                                    animationDelay: `${i * 0.8}s`,
-                                                }}
+                                                style={{ animationDelay: `${i * 0.8}s` }}
                                             >
                                                 <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
                                                     {i + 1}
@@ -294,22 +307,17 @@ export default function LoginPage() {
                                         <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 fill-bar" />
                                     </div>
                                     <p className="text-[11px] text-gray-400 mt-2 text-center">
-                                        Please wait while we authenticate your
-                                        account
+                                        Please wait while we authenticate your account
                                     </p>
                                 </div>
                             </div>
                         )}
 
-                        {/* SUCCESS STATE */}
                         {authSuccess && (
                             <div className="flex flex-col items-center gap-4 py-2">
                                 <div className="relative w-20 h-20 flex items-center justify-center">
                                     <div className="shield-fly absolute flex items-center justify-center">
-                                        <Shield
-                                            size={30}
-                                            className="text-blue-500"
-                                        />
+                                        <Shield size={30} className="text-blue-500" />
                                         <img
                                             src={logo}
                                             alt="DOST Logo"
@@ -317,16 +325,12 @@ export default function LoginPage() {
                                             style={{
                                                 top: "50%",
                                                 left: "50%",
-                                                transform:
-                                                    "translate(-50%, -58%)",
+                                                transform: "translate(-50%, -58%)",
                                             }}
                                         />
                                     </div>
                                     <div className="success-pop">
-                                        <CheckCircle
-                                            size={56}
-                                            className="text-green-500"
-                                        />
+                                        <CheckCircle size={56} className="text-green-500" />
                                     </div>
                                 </div>
 
@@ -348,188 +352,158 @@ export default function LoginPage() {
                 </div>
             )}
 
-            {/* ── Announcements Side Bookmark ── */}
+            {/* ── Enhanced Announcements Panel ── */}
             {announcements.length > 0 && (
                 <>
-                    {announcementsOpen && (
+                    {/* Backdrop when panel is open on mobile */}
+                    {announcementsOpen && !announcementsMinimized && (
                         <div
-                            className="fixed inset-0 z-40"
+                            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden fade-in"
                             onClick={() => setAnnouncementsOpen(false)}
                         />
                     )}
-                    <div className="fixed top-0 right-0 h-full z-50 flex items-center pointer-events-none">
-                        <div className="flex items-center pointer-events-auto">
-                            <button
-                                onClick={() =>
-                                    setAnnouncementsOpen(!announcementsOpen)
-                                }
-                                className="select-none focus:outline-none flex flex-col items-center gap-1 py-5 px-2.5 text-white bg-blue-700 hover:bg-blue-800 active:bg-blue-900 transition-colors duration-150 rounded-l-xl shadow-xl"
-                            >
-                                <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 16 16"
-                                    fill="none"
-                                    className="flex-shrink-0 mb-1"
-                                >
-                                    <path
-                                        d="M2 2h12v12l-6-3-6 3V2z"
-                                        stroke="white"
-                                        strokeWidth="1.8"
-                                        strokeLinejoin="round"
-                                    />
-                                </svg>
-                                {"ANNOUNCEMENTS".split("").map((char, i) => (
-                                    <span
-                                        key={i}
-                                        className="text-[11px] font-bold leading-none uppercase"
-                                    >
-                                        {char}
-                                    </span>
-                                ))}
-                                <span className="mt-1.5 flex-shrink-0 bg-yellow-400 text-yellow-900 text-[10px] font-extrabold w-[18px] h-[18px] rounded-full flex items-center justify-center leading-none">
+
+                    {/* Toggle Button */}
+                    <button
+                        onClick={toggleAnnouncements}
+                        className={`fixed top-1/2 -translate-y-1/2 z-50 transition-all duration-300 ${
+                            announcementsOpen && !announcementsMinimized
+                                ? "right-[380px] lg:right-[420px]"
+                                : "right-0"
+                        }`}
+                    >
+                        <div className="bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-l-2xl shadow-2xl p-4 flex flex-col items-center gap-2 transition-all duration-200 group">
+                            <Megaphone size={20} className="group-hover:scale-110 transition-transform" />
+                            <div className="flex flex-col items-center gap-0.5">
+                                <span className="text-[10px] font-bold uppercase tracking-wider">News</span>
+                                <span className="bg-yellow-400 text-yellow-900 text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center">
                                     {announcements.length}
                                 </span>
-                            </button>
-
-                            <div
-                                className={`flex flex-col bg-white shadow-2xl border-l border-slate-200 overflow-hidden transition-all duration-300 ease-in-out ${
-                                    announcementsOpen
-                                        ? "w-80 opacity-100 rounded-l-2xl"
-                                        : "w-0 opacity-0 pointer-events-none"
+                            </div>
+                            <ChevronRight 
+                                size={14} 
+                                className={`transition-transform duration-300 ${
+                                    announcementsOpen && !announcementsMinimized ? 'rotate-180' : ''
                                 }`}
-                                style={{ maxHeight: "min(580px, 85vh)" }}
-                            >
-                                <div className="flex-shrink-0 bg-blue-700 px-5 py-4 flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <svg
-                                            width="15"
-                                            height="15"
-                                            viewBox="0 0 16 16"
-                                            fill="none"
-                                            className="flex-shrink-0"
-                                        >
-                                            <path
-                                                d="M2 2h12v12l-6-3-6 3V2z"
-                                                stroke="white"
-                                                strokeWidth="1.6"
-                                                strokeLinejoin="round"
-                                            />
-                                        </svg>
-                                        <span className="text-white text-sm font-semibold tracking-wide whitespace-nowrap">
-                                            Announcements
-                                        </span>
-                                        <span className="bg-white/25 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
-                                            {announcements.length} new
-                                        </span>
+                            />
+                        </div>
+                    </button>
+
+                    {/* Sliding Panel */}
+                    <div
+                        className={`fixed top-0 right-0 h-full z-40 transition-all duration-300 ease-in-out ${
+                            announcementsOpen && !announcementsMinimized
+                                ? "translate-x-0 opacity-100"
+                                : "translate-x-full opacity-0"
+                        }`}
+                    >
+                        <div className="h-full w-[380px] lg:w-[420px] bg-white shadow-2xl border-l border-gray-200 flex flex-col">
+                            {/* Panel Header */}
+                            <div className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-blue-700 p-6">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                            <Megaphone size={20} className="text-white" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-white font-bold text-lg">Announcements</h2>
+                                            <p className="text-blue-200 text-xs">Stay updated with the latest news</p>
+                                        </div>
                                     </div>
                                     <button
-                                        onClick={() =>
-                                            setAnnouncementsOpen(false)
-                                        }
-                                        className="flex-shrink-0 w-7 h-7 rounded-lg bg-white/20 hover:bg-white/35 text-white text-sm flex items-center justify-center transition-colors focus:outline-none"
+                                        onClick={() => setAnnouncementsOpen(false)}
+                                        className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
                                         aria-label="Close announcements"
                                     >
-                                        ✕
+                                        <X size={16} />
                                     </button>
                                 </div>
+                                <div className="flex items-center gap-2 mt-3">
+                                    <span className="bg-white/20 text-white text-xs font-medium px-3 py-1 rounded-full backdrop-blur-sm">
+                                        {announcements.length} {announcements.length === 1 ? 'Announcement' : 'Announcements'}
+                                    </span>
+                                    <span className="text-blue-200 text-xs">
+                                        • Updated recently
+                                    </span>
+                                </div>
+                            </div>
 
-                                <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-2 min-w-[320px]">
-                                    {announcements.map((a) => (
-                                        <button
-                                            key={a.announce_id}
-                                            onClick={() =>
-                                                router.visit(
-                                                    "/announcements/view",
-                                                )
-                                            }
-                                            className="w-full text-left group bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-xl px-4 py-3 transition-all duration-150 shadow-sm hover:shadow-md"
+                            {/* Panel Content */}
+                            <div className="flex-1 overflow-y-auto overscroll-contain">
+                                <div className="p-4 space-y-3">
+                                    {announcements.map((announcement, index) => (
+                                        <div
+                                            key={announcement.announce_id}
+                                            className="slide-in-right group cursor-pointer"
+                                            style={{ animationDelay: `${index * 0.1}s` }}
+                                            onClick={() => router.visit("/announcements/view")}
                                         >
-                                            {a.office?.office_name && (
-                                                <p className="text-[10px] font-extrabold uppercase tracking-widest text-blue-500 group-hover:text-blue-700 mb-1 transition-colors">
-                                                    {a.office.office_name}
-                                                </p>
-                                            )}
-                                            <p className="text-[13px] font-semibold text-slate-800 leading-snug mb-1.5">
-                                                {a.title}
-                                            </p>
-                                            {a.details && (
-                                                <p className="text-[12px] text-slate-500 leading-relaxed line-clamp-2 mb-2.5">
-                                                    {a.details}
-                                                </p>
-                                            )}
-                                            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                                {a.created_at && (
-                                                    <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                                                        <svg
-                                                            width="10"
-                                                            height="10"
-                                                            viewBox="0 0 16 16"
-                                                            fill="none"
-                                                        >
-                                                            <rect
-                                                                x="2"
-                                                                y="3"
-                                                                width="12"
-                                                                height="11"
-                                                                rx="2"
-                                                                stroke="currentColor"
-                                                                strokeWidth="1.5"
-                                                            />
-                                                            <path
-                                                                d="M5 2v2M11 2v2M2 7h12"
-                                                                stroke="currentColor"
-                                                                strokeWidth="1.5"
-                                                                strokeLinecap="round"
-                                                            />
-                                                        </svg>
-                                                        {new Date(
-                                                            a.created_at,
-                                                        ).toLocaleString(
-                                                            "en-PH",
-                                                            {
-                                                                month: "short",
-                                                                day: "numeric",
-                                                                year: "numeric",
-                                                                hour: "numeric",
-                                                                minute: "2-digit",
-                                                                hour12: true,
-                                                            },
-                                                        )}
-                                                    </span>
+                                            <div className="bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 border border-gray-200 hover:border-blue-300 rounded-2xl p-5 transition-all duration-200 hover:shadow-lg">
+                                                {/* Office Badge */}
+                                                {announcement.office?.office_name && (
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-[11px] font-semibold uppercase tracking-wider">
+                                                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                                                            {announcement.office.office_name}
+                                                        </span>
+                                                    </div>
                                                 )}
-                                                <span className="text-[11px] font-semibold text-blue-500 group-hover:text-blue-700 transition-colors ml-auto flex items-center gap-0.5">
-                                                    Read more
-                                                    <svg
-                                                        width="10"
-                                                        height="10"
-                                                        viewBox="0 0 16 16"
-                                                        fill="none"
-                                                    >
-                                                        <path
-                                                            d="M3 8h10M9 4l4 4-4 4"
-                                                            stroke="currentColor"
-                                                            strokeWidth="1.6"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                        />
-                                                    </svg>
-                                                </span>
+
+                                                {/* Title */}
+                                                <h3 className="text-[15px] font-bold text-gray-900 mb-2 group-hover:text-blue-700 transition-colors leading-snug">
+                                                    {announcement.title}
+                                                </h3>
+
+                                                {/* Details */}
+                                                {announcement.details && (
+                                                    <p className="text-[13px] text-gray-600 leading-relaxed mb-4 line-clamp-2">
+                                                        {announcement.details}
+                                                    </p>
+                                                )}
+
+                                                {/* Footer */}
+                                                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                                                    {announcement.created_at && (
+                                                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                                                            <Calendar size={12} />
+                                                            <span>
+                                                                {new Date(announcement.created_at).toLocaleString("en-PH", {
+                                                                    month: "short",
+                                                                    day: "numeric",
+                                                                    year: "numeric",
+                                                                    hour: "numeric",
+                                                                    minute: "2-digit",
+                                                                    hour12: true,
+                                                                })}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-blue-600 group-hover:text-blue-700 transition-colors">
+                                                        Read more
+                                                        <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                                                    </span>
+                                                </div>
                                             </div>
-                                        </button>
+                                        </div>
                                     ))}
                                 </div>
+                            </div>
 
-                                <div className="flex-shrink-0 border-t border-slate-200 bg-slate-50 px-5 py-3">
-                                    <button
-                                        onClick={() =>
-                                            router.visit("/announcements/view")
-                                        }
-                                        className="w-full text-[12px] font-semibold text-blue-600 hover:text-blue-800 transition-colors text-center"
-                                    >
-                                        View all announcements →
-                                    </button>
-                                </div>
+                            {/* Panel Footer */}
+                            <div className="flex-shrink-0 border-t border-gray-200 bg-gray-50 p-4">
+                                <button
+                                    onClick={() => router.visit("/announcements/view")}
+                                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold text-sm py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                                >
+                                    View All Announcements
+                                    <ChevronRight size={16} />
+                                </button>
+                                <button
+                                    onClick={() => setAnnouncementsOpen(false)}
+                                    className="w-full mt-2 text-sm text-gray-500 hover:text-gray-700 py-2 transition-colors"
+                                >
+                                    Close Panel
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -575,10 +549,7 @@ export default function LoginPage() {
                         {/* Flash Messages */}
                         {(flash.success || flash.message) && !showSessionWarning && (
                             <div className="bg-green-50 border border-green-200 text-green-800 px-3 py-2.5 rounded-xl mb-4 flex items-center gap-2 text-sm">
-                                <CheckCircle
-                                    size={16}
-                                    className="text-green-600 flex-shrink-0"
-                                />
+                                <CheckCircle size={16} className="text-green-600 flex-shrink-0" />
                                 <span>{flash.success || flash.message}</span>
                             </div>
                         )}
@@ -586,38 +557,25 @@ export default function LoginPage() {
                         {/* Error Messages */}
                         {errors.message && !showSessionWarning && !errors.active_session && (
                             <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2.5 rounded-xl mb-4 flex items-center gap-2 text-sm">
-                                <AlertCircle
-                                    size={16}
-                                    className="text-red-600 flex-shrink-0"
-                                />
+                                <AlertCircle size={16} className="text-red-600 flex-shrink-0" />
                                 <span>{errors.message}</span>
                             </div>
                         )}
 
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label
-                                    htmlFor="login"
-                                    className="block text-xs font-medium text-gray-700 mb-1"
-                                >
+                                <label htmlFor="login" className="block text-xs font-medium text-gray-700 mb-1">
                                     Username or Email
                                 </label>
                                 <div className="relative">
-                                    <User
-                                        size={15}
-                                        className="absolute left-3 top-3 text-gray-400"
-                                    />
+                                    <User size={15} className="absolute left-3 top-3 text-gray-400" />
                                     <input
                                         id="login"
                                         type="text"
                                         value={data.login}
-                                        onChange={(e) =>
-                                            setData("login", e.target.value)
-                                        }
+                                        onChange={(e) => setData("login", e.target.value)}
                                         placeholder="Enter your username or email"
-                                        disabled={
-                                            processing || isAuthenticating
-                                        }
+                                        disabled={processing || isAuthenticating}
                                         autoComplete="username"
                                         className={`w-full border pl-9 pr-4 py-2.5 rounded-xl text-sm transition-colors ${
                                             errors.login
@@ -636,30 +594,18 @@ export default function LoginPage() {
                             </div>
 
                             <div>
-                                <label
-                                    htmlFor="password"
-                                    className="block text-xs font-medium text-gray-700 mb-1"
-                                >
+                                <label htmlFor="password" className="block text-xs font-medium text-gray-700 mb-1">
                                     Password
                                 </label>
                                 <div className="relative">
-                                    <Lock
-                                        size={15}
-                                        className="absolute left-3 top-3 text-gray-400"
-                                    />
+                                    <Lock size={15} className="absolute left-3 top-3 text-gray-400" />
                                     <input
                                         id="password"
-                                        type={
-                                            showPassword ? "text" : "password"
-                                        }
+                                        type={showPassword ? "text" : "password"}
                                         value={data.password}
-                                        onChange={(e) =>
-                                            setData("password", e.target.value)
-                                        }
+                                        onChange={(e) => setData("password", e.target.value)}
                                         placeholder="Enter your password"
-                                        disabled={
-                                            processing || isAuthenticating
-                                        }
+                                        disabled={processing || isAuthenticating}
                                         autoComplete="current-password"
                                         className={`w-full border pl-9 pr-10 py-2.5 rounded-xl text-sm transition-colors ${
                                             errors.password
@@ -670,24 +616,12 @@ export default function LoginPage() {
                                     />
                                     <button
                                         type="button"
-                                        onClick={() =>
-                                            setShowPassword(!showPassword)
-                                        }
-                                        disabled={
-                                            processing || isAuthenticating
-                                        }
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        disabled={processing || isAuthenticating}
                                         className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none disabled:cursor-not-allowed"
-                                        aria-label={
-                                            showPassword
-                                                ? "Hide password"
-                                                : "Show password"
-                                        }
+                                        aria-label={showPassword ? "Hide password" : "Show password"}
                                     >
-                                        {showPassword ? (
-                                            <EyeOff size={16} />
-                                        ) : (
-                                            <Eye size={16} />
-                                        )}
+                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                     </button>
                                 </div>
                                 {errors.password && (
@@ -718,24 +652,9 @@ export default function LoginPage() {
                             >
                                 {processing || isAuthenticating ? (
                                     <span className="flex items-center justify-center gap-2">
-                                        <svg
-                                            className="animate-spin h-4 w-4"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <circle
-                                                className="opacity-25"
-                                                cx="12"
-                                                cy="12"
-                                                r="10"
-                                                stroke="currentColor"
-                                                strokeWidth="4"
-                                                fill="none"
-                                            />
-                                            <path
-                                                className="opacity-75"
-                                                fill="currentColor"
-                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                            />
+                                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                         </svg>
                                         Signing In...
                                     </span>
