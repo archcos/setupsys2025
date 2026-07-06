@@ -134,7 +134,7 @@ class HomeController extends Controller
                     'province' => $provinceMapping[$officeId] ?? 'Unknown',
                 ];
             }),
-            'selectedYear' => $year,
+            'selectedYear' => $year === 'all' ? 'all' : (int) $year,
             'availableYears' => $availableYears,
             'userOfficeId' => $user->office_id ?? null,
             'userOfficeName' => optional(OfficeModel::find($user->office_id))->office_name ?? '',
