@@ -94,10 +94,14 @@ class HomeController extends Controller
         $disapprovedProjectCost = $projects->filter(fn ($p) => $p->progress === 'Disapproved')->sum('project_cost');
 
         // Get all available years from the database
-        $availableYears = ProjectModel::selectRaw('YEAR(year_obligated) as year')
+        $availableYears = ProjectModel::select('year_obligated')
             ->distinct()
-            ->orderByDesc('year')
-            ->pluck('year')
+            ->whereNotNull('year_obligated')
+            ->orderByDesc('year_obligated')
+            ->pluck('year_obligated')
+            ->map(function ($year) {
+                return (int) $year; // Convert to integer since YEAR type returns string
+            })
             ->toArray();
 
         $currentYear = (int) date('Y');
