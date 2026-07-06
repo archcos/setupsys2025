@@ -94,10 +94,7 @@ export default function Map({ offices, years, progressList }) {
     const [showNames, setShowNames] = useState(true);
     const [tileKey,   setTileKey]   = useState('street');
 
-    // Derive unique progress options from fetched projects
-    const progressOptions = [...new Set(projects.map(p => progressInfo(p.progress).label))];
-
-    // Fetch ALL projects once on mount (no progress filter sent to server)
+    // Fetch ALL projects once on mount
     useEffect(() => {
         const params = new URLSearchParams();
         if (filters.office_id)      params.append('office_id',      filters.office_id);
@@ -108,29 +105,29 @@ export default function Map({ offices, years, progressList }) {
             .then(data => setProjects(data));
     }, [filters.office_id, filters.year_obligated]);
 
-// Init map once
-useEffect(() => {
-    if (mapInstance.current) return;
+    // Init map once
+    useEffect(() => {
+        if (mapInstance.current) return;
 
-    const mindanaoBounds = L.latLngBounds(
-        L.latLng(5.5, 121.8),   // southwest corner
-        L.latLng(10.5, 127.5),  // northeast corner
-    );
+        const mindanaoBounds = L.latLngBounds(
+            L.latLng(5.5, 121.8),
+            L.latLng(10.5, 127.5),
+        );
 
-    mapInstance.current = L.map(mapRef.current, {
-        center: [8.4542, 124.6319],  // Northern Mindanao (Cagayan de Oro)
-        zoom: 9,
-        minZoom: 7,
-        maxBounds: mindanaoBounds,
-        maxBoundsViscosity: 1.0,
-    });
+        mapInstance.current = L.map(mapRef.current, {
+            center: [8.4542, 124.6319],
+            zoom: 9,
+            minZoom: 7,
+            maxBounds: mindanaoBounds,
+            maxBoundsViscosity: 1.0,
+        });
 
-    const tile = TILE_LAYERS.street;
-    tileLayerRef.current = L.tileLayer(tile.url, {
-        attribution: tile.attribution,
-        maxZoom: 18,
-    }).addTo(mapInstance.current);
-}, []);
+        const tile = TILE_LAYERS.street;
+        tileLayerRef.current = L.tileLayer(tile.url, {
+            attribution: tile.attribution,
+            maxZoom: 18,
+        }).addTo(mapInstance.current);
+    }, []);
 
     // Swap tile layer when tileKey changes
     useEffect(() => {
@@ -158,7 +155,6 @@ useEffect(() => {
 
         const seenOffices = {};
 
-        // Filter by progress label client-side
         const filtered = filters.progress
             ? projects.filter(p => p.progress === filters.progress)
             : projects;
@@ -212,13 +208,13 @@ useEffect(() => {
     };
 
     return (
-<main className="flex-1 p-3 md:p-6">
+        <>
             <Head title="Project Map" />
 
-            <div className="py-4 px-4 max-w-full mx-auto">
-
+            {/* Map container with lower z-index so sidebar stays on top */}
+            <div className="relative z-0">
                 {/* Filters + controls row */}
-                <div className="flex flex-wrap items-center gap-3 mb-4">
+                <div className="flex flex-wrap items-center gap-3 mb-4 relative z-10">
 
                     {/* Office filter */}
                     <select
@@ -244,7 +240,7 @@ useEffect(() => {
                         ))}
                     </select>
 
-                    {/* Progress filter — derived from actual project data */}
+                    {/* Progress filter */}
                     <select
                         className="rounded-md border-gray-300 shadow-sm text-sm focus:ring focus:ring-indigo-200"
                         value={filters.progress}
@@ -288,9 +284,9 @@ useEffect(() => {
                         Show names
                     </label>
 
-                     {/* Project count */}
-                    <p className="mt-3 text-sm justify-right">
-                        Showing <span className="font-medium justify-right">
+                    {/* Project count */}
+                    <p className="text-sm">
+                        Showing <span className="font-medium">
                             {filters.progress
                                 ? projects.filter(p => p.progress === filters.progress).length
                                 : projects.length}
@@ -298,7 +294,7 @@ useEffect(() => {
                     </p>
                 </div>
 
-                {/* Map — taller, full width */}
+                {/* Map — will go behind sidebar on small screens */}
                 <div
                     className="relative rounded-xl overflow-hidden border border-gray-200 shadow-sm"
                     style={{ height: 'calc(100vh - 220px)' }}
@@ -312,9 +308,7 @@ useEffect(() => {
                         style={{ maxHeight: '160px', overflowY: 'auto' }}
                     />
                 </div>
-
-               
             </div>
-        </main>
+        </>
     );
 }

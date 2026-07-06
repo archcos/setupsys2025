@@ -30,14 +30,28 @@ export default function LoginPage() {
     const handleSubmit = (e) => {
         e.preventDefault();
         setIsAuthenticating(true);
-        post("/signin", {
-            onSuccess: () => setAuthSuccess(true),
-            onError: () => {
-                setIsAuthenticating(false);
-                setAuthSuccess(false);
-            },
-            onFinish: () => setIsAuthenticating(false), // always runs
-        });
+        
+        const attemptLogin = (isRetry = false) => {
+            post("/signin", {
+                onSuccess: () => setAuthSuccess(true),
+                onError: (errors) => {
+                    // Only refresh on CSRF-specific errors
+                    if (!isRetry && errors.message?.includes('419')) {
+                        router.reload({
+                            only: [],
+                            preserveState: true,
+                            preserveScroll: true,
+                            onSuccess: () => attemptLogin(true),
+                        });
+                        return;
+                    }
+                    setIsAuthenticating(false);
+                    setAuthSuccess(false);
+                },
+            });
+        };
+        
+        attemptLogin();
     };
 
     return (

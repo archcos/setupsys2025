@@ -22,7 +22,7 @@ class ProjectMapController extends Controller
             ->orderBy('progress')
             ->pluck('progress');
 
-        return Inertia::render('Projects/Map', [
+        return Inertia::render('Map/Index', [
             'offices'      => $offices,
             'years'        => $years,
             'progressList' => $progressList,
