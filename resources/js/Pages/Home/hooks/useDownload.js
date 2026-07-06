@@ -224,7 +224,13 @@ export function useDownload(filteredProjects, analytics, selectedYear) {
       <html>
       <head>
         <title>Analytics Report - ${selectedYear}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
+          @page {
+            margin: 15mm;
+            size: auto;
+          }
+
           body { 
             font-family: Arial, sans-serif; 
             padding: 30px; 
@@ -382,8 +388,14 @@ export function useDownload(filteredProjects, analytics, selectedYear) {
             page-break-before: always;
           }
           @media print {
-            body { padding: 15px; }
-            @page { margin: 15mm; }
+            body { 
+              padding: 15px;
+              margin: 15mm;
+            }
+            @page { 
+              margin: 0;
+              size: auto;
+            }
             .page-break {
               page-break-before: always;
             }
