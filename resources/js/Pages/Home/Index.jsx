@@ -1,6 +1,4 @@
-// resources/js/Pages/Home.jsx
-
-import { usePage, Head } from '@inertiajs/react';
+import { usePage, Head, router } from '@inertiajs/react';
 import { TrendingUp, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { useState, useRef } from 'react';
 
@@ -79,13 +77,13 @@ export default function Home() {
     generateReportWithOffices
   } = useDownload(filteredProjects, analytics, selectedYear);
 
-  // Handle year change
+  // Handle year change using Inertia router
   const handleYearChange = (e) => {
     const year = e.target.value;
     if (year === 'all') {
-      window.location.href = '?year=all';
+      router.get('/', { year: 'all' }, { preserveState: false, preserveScroll: false });
     } else {
-      window.location.href = `?year=${year}`;
+      router.get('/', { year: year }, { preserveState: false, preserveScroll: false });
     }
   };
 
@@ -201,6 +199,7 @@ export default function Home() {
           </button>
         )}
 
+        {/* Rest of your component remains the same */}
         {/* Project List Section */}
         <div ref={projectsListRef} className="bg-white rounded-lg shadow-md p-3 md:p-5 border border-gray-100">
           

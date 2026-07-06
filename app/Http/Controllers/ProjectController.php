@@ -690,6 +690,10 @@ class ProjectController extends Controller
 
     public function syncProjectsFromCSV()
     {
+
+        set_time_limit(0);
+        ini_set('memory_limit', '512M');
+
         $user = Auth::user();
 
         if (!$user || $user->role !== 'rpmo') {
