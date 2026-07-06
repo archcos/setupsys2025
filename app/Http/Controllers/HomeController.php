@@ -30,9 +30,9 @@ class HomeController extends Controller
                 $q->where('office_id', '!=', 1);
             });
 
-        // Only filter by year if not 'all'
+                // Only filter by year if not 'all'
         if ($year !== 'all') {
-            $query->whereYear('year_obligated', $year);
+            $query->where('year_obligated', (int)$year);
         }
 
         // Filter projects based on user role
