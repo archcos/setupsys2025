@@ -153,17 +153,34 @@ class AuthController extends Controller
             return back()->withErrors(['message' => 'Your account does not have a valid role assigned.']);
         }
 
-        // 10. Enforce single active session per account
+        // 10. Check for existing active session and handle session override
         $hasActiveSession = DB::table('sessions')
             ->where('user_id', $user->user_id)
-            ->where('id', '!=', $request->session()->getId()) // exclude current session
+            ->where('id', '!=', $request->session()->getId())
             ->where('last_activity', '>=', now()->subMinutes(config('session.lifetime'))->timestamp)
             ->exists();
 
         if ($hasActiveSession) {
-            return back()->withErrors([
-                'message' => 'This account is already logged in on another device. Please sign out there first.',
-            ]);
+            // If a session override is requested via a flag
+            if ($request->input('force_login') === 'true') {
+                // Delete all existing sessions for this user except current
+                DB::table('sessions')
+                    ->where('user_id', $user->user_id)
+                    ->where('id', '!=', $request->session()->getId())
+                    ->delete();
+                    
+                Log::info('Existing sessions terminated for new login', [
+                    'user_id' => $user->user_id,
+                    'ip' => $ip
+                ]);
+                // Continue with the rest of the login process
+            } else {
+                // Return a special response indicating an active session exists
+                return back()->withErrors([
+                    'active_session' => true,
+                    'message' => 'This account is already logged in on another device. Do you want to log out the other session and continue?'
+                ]);
+            }
         }
 
         // 11. Generate device fingerprint
@@ -746,6 +763,13 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        // Delete all sessions for this user
+        if (Auth::check()) {
+            DB::table('sessions')
+                ->where('user_id', Auth::id())
+                ->delete();
+        }
+        
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

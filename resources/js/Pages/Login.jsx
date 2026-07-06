@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, Link, Head, usePage, router } from "@inertiajs/react";
 import {
     Eye,
@@ -6,9 +6,9 @@ import {
     User,
     Lock,
     AlertCircle,
-    Mail,
     Shield,
     CheckCircle,
+    AlertTriangle,
 } from "lucide-react";
 import logo from "../../assets/logo.webp";
 import setupLogo from "../../assets/SETUP_logo.webp";
@@ -18,40 +18,134 @@ export default function LoginPage() {
     const [isAuthenticating, setIsAuthenticating] = useState(false);
     const [authSuccess, setAuthSuccess] = useState(false);
     const [announcementsOpen, setAnnouncementsOpen] = useState(false);
+    const [showSessionWarning, setShowSessionWarning] = useState(false);
+    const [pendingCredentials, setPendingCredentials] = useState(null);
     const { props } = usePage();
     const announcements = props.announcements || [];
     const flash = props.flash || {};
 
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, processing, errors, reset } = useForm({
         login: "",
         password: "",
+        force_login: "false",
     });
+
+    // Check for session warning in flash data
+    useEffect(() => {
+        if (flash?.active_session_warning) {
+            setShowSessionWarning(true);
+            setIsAuthenticating(false);
+            setAuthSuccess(false);
+        }
+    }, [flash]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        setIsAuthenticating(true);
         
-        const attemptLogin = (isRetry = false) => {
-            post("/signin", {
-                onSuccess: () => setAuthSuccess(true),
-                onError: (errors) => {
-                    // Only refresh on CSRF-specific errors
-                    if (!isRetry && errors.message?.includes('419')) {
-                        router.reload({
-                            only: [],
-                            preserveState: true,
-                            preserveScroll: true,
-                            onSuccess: () => attemptLogin(true),
-                        });
-                        return;
-                    }
+        // Store credentials for potential retry
+        setPendingCredentials({
+            login: data.login,
+            password: data.password
+        });
+        
+        setIsAuthenticating(true);
+        setAuthSuccess(false);
+        
+        post("/signin", {
+            data: {
+                login: data.login,
+                password: data.password,
+                force_login: "false",
+            },
+            onSuccess: (page) => {
+                // Check if the response contains session warning
+                if (page.props?.flash?.active_session_warning) {
+                    setShowSessionWarning(true);
                     setIsAuthenticating(false);
                     setAuthSuccess(false);
-                },
-            });
-        };
+                    return;
+                }
+                
+                // If no warning, login was successful
+                setAuthSuccess(true);
+                setShowSessionWarning(false);
+                // Don't set isAuthenticating to false here, 
+                // let the success overlay handle it
+            },
+            onError: (errors) => {
+                setIsAuthenticating(false);
+                setAuthSuccess(false);
+                
+                // Check if the error is about an active session
+                if (errors.active_session) {
+                    setShowSessionWarning(true);
+                    return;
+                }
+                
+                // Check if error message contains session-related text
+                if (errors.message && (
+                    errors.message.includes('already logged in') ||
+                    errors.message.includes('another device')
+                )) {
+                    setShowSessionWarning(true);
+                    return;
+                }
+                
+                // Handle CSRF token expiration
+                if (errors.message?.includes('419')) {
+                    router.reload({
+                        only: [],
+                        preserveState: true,
+                        preserveScroll: true,
+                        onSuccess: () => {
+                            // Retry login after CSRF token refresh
+                            handleSubmit(new Event('submit'));
+                        },
+                    });
+                    return;
+                }
+            },
+        });
+    };
+
+    const handleForceLogin = () => {
+        setIsAuthenticating(true);
+        setShowSessionWarning(false);
+        setAuthSuccess(false);
         
-        attemptLogin();
+        // Use the stored credentials with force_login flag
+        router.post("/signin", {
+            login: pendingCredentials?.login || data.login,
+            password: pendingCredentials?.password || data.password,
+            force_login: "true",
+        }, {
+            onSuccess: (page) => {
+                // Check if the response contains session warning
+                if (page.props?.flash?.active_session_warning) {
+                    setShowSessionWarning(true);
+                    setIsAuthenticating(false);
+                    setAuthSuccess(false);
+                    return;
+                }
+                
+                // If no warning, login was successful
+                setAuthSuccess(true);
+                setShowSessionWarning(false);
+            },
+            onError: (errors) => {
+                setIsAuthenticating(false);
+                setAuthSuccess(false);
+                setShowSessionWarning(false);
+            },
+        });
+    };
+
+    const handleCancelForceLogin = () => {
+        setShowSessionWarning(false);
+        setPendingCredentials(null);
+        setIsAuthenticating(false);
+        setAuthSuccess(false);
+        reset('force_login');
     };
 
     return (
@@ -88,16 +182,62 @@ export default function LoginPage() {
                     60%  { transform: translate(50px, -40px) scale(0.8); opacity: 0.7; }
                     100% { transform: translate(100px, -80px) scale(0.3); opacity: 0; }
                 }
+                @keyframes modalSlideIn {
+                    from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+                    to   { opacity: 1; transform: scale(1) translateY(0); }
+                }
                 .fill-bar { animation: fillBar 5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
                 .fill-bar-complete { animation: fillBarComplete 0.35s ease-in forwards; }
                 .step-item { opacity: 0; animation: stepFadeIn 0.4s ease forwards; }
                 .success-pop { animation: successPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
                 .success-fade { animation: successFadeIn 0.4s ease 0.25s both; }
                 .shield-fly { animation: shieldFly 0.8s cubic-bezier(0.4, 0, 1, 1) forwards; }
+                .modal-slide { animation: modalSlideIn 0.3s ease-out forwards; }
             `}</style>
 
+            {/* Session Active Warning Modal */}
+            {showSessionWarning && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="modal-slide bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                        <div className="flex items-start gap-4 mb-4">
+                            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                                <AlertTriangle size={24} className="text-amber-600" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                    Active Session Detected
+                                </h3>
+                                <p className="text-sm text-gray-600 leading-relaxed">
+                                    This account is currently logged in on another device. 
+                                    Continuing will log out the other session. Do you want to proceed?
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row gap-3 justify-end">
+                            <button
+                                onClick={handleCancelForceLogin}
+                                className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleForceLogin}
+                                className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-lg hover:shadow-xl"
+                            >
+                                Continue & Log Out Other Session
+                            </button>
+                        </div>
+                        
+                        <p className="text-xs text-gray-400 mt-3 text-center">
+                            For security, you may want to change your password if this wasn't you.
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* ── Loading / Success Overlay ── */}
-            {(isAuthenticating || authSuccess) && (
+            {isAuthenticating && !showSessionWarning && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
                     <div className="bg-white rounded-2xl shadow-2xl p-7 max-w-xs w-full mx-4 relative overflow-hidden">
                         {/* AUTHENTICATING STATE */}
@@ -132,8 +272,8 @@ export default function LoginPage() {
                                     <div className="space-y-2 mb-4">
                                         {[
                                             "Verifying credentials",
-                                            "Generating OTP code",
-                                            "Sending email",
+                                            "Checking active sessions",
+                                            "Preparing dashboard",
                                         ].map((label, i) => (
                                             <div
                                                 key={i}
@@ -432,7 +572,8 @@ export default function LoginPage() {
                             </p>
                         </div>
 
-                        {(flash.success || flash.message) && (
+                        {/* Flash Messages */}
+                        {(flash.success || flash.message) && !showSessionWarning && (
                             <div className="bg-green-50 border border-green-200 text-green-800 px-3 py-2.5 rounded-xl mb-4 flex items-center gap-2 text-sm">
                                 <CheckCircle
                                     size={16}
@@ -442,7 +583,8 @@ export default function LoginPage() {
                             </div>
                         )}
 
-                        {errors.message && (
+                        {/* Error Messages */}
+                        {errors.message && !showSessionWarning && !errors.active_session && (
                             <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2.5 rounded-xl mb-4 flex items-center gap-2 text-sm">
                                 <AlertCircle
                                     size={16}
