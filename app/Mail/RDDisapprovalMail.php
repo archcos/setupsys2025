@@ -35,7 +35,7 @@ class RDDisapprovalMail extends Mailable
         ]);
 
         $projectTitle = $this->project->project_title ?? 'N/A';
-        $companyName = $this->project->company->company_name ?? 'N/A';
+        $companyName = $this->project->proponent->company_name ?? 'N/A';
         $disapprovedByName = $this->disapprovedBy->name ?? 'Unknown User';
         $disapprovalDate = now()->format('F d, Y \a\t h:i A');
         $projectId = $this->project->project_id ?? 'N/A';

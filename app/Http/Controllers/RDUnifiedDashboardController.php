@@ -4,6 +4,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\RDApprovalMail;
+use App\Mail\RDDisapprovalMail;
 use App\Mail\RestructureApprovedMail;
 use App\Mail\RestructureDeniedMail;
 use App\Models\ApplyRestructModel;
@@ -178,7 +180,9 @@ class RDUnifiedDashboardController extends Controller
                 return redirect()->back()->withErrors(['error' => 'Only recommended restructuring requests can be approved or denied.']);
             }
 
-            $oldStatus = $restructure->status;
+            // Get the current user BEFORE any operations
+            $currentUser = Auth::user();
+
             $restructure->update([
                 'status' => $validated['status'],
                 'remarks' => $validated['remarks'],
@@ -191,16 +195,18 @@ class RDUnifiedDashboardController extends Controller
                     $restructure->project->update(['refund_end' => $restructure->new_refund_end]);
                 }
 
-                $this->sendRestructureApprovalEmail($restructure, $validated['remarks']);
+                // Pass the current user to the email method
+                $this->sendRestructureApprovalEmail($restructure, $validated['remarks'], $currentUser);
             } elseif ($validated['status'] === 'pending') {
-                $this->sendRestructureDenialEmail($restructure, $validated['remarks']);
+                // Pass the current user to the email method
+                $this->sendRestructureDenialEmail($restructure, $validated['remarks'], $currentUser);
             }
 
             $statusMessage = $validated['status'] === 'approved' ? 'approved' : 'denied';
 
             return redirect()->back()->with('success', "Restructuring request has been {$statusMessage} successfully.");
         } catch (\Exception $e) {
-            Log::error('Restructure status update error:', ['message' => $e->getMessage()]);
+            Log::error('Restructure status update error:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
 
             return redirect()->back()->withErrors(['error' => 'Failed to update status: '.$e->getMessage()]);
         }
@@ -233,88 +239,199 @@ class RDUnifiedDashboardController extends Controller
 
     private function sendComplianceApprovalEmail($project, $user)
     {
-        // Your existing approval email logic
         try {
             $recipients = [];
-            // Add proponent, staff, RPMO users...
-            // (Same as your RDDashboardController sendApprovalEmail method)
+            $sentEmails = [];
+
+            // Add proponent email if it exists
+            if ($project->proponent->email && filter_var($project->proponent->email, FILTER_VALIDATE_EMAIL)) {
+                $recipients[] = (object)[
+                    'email' => $project->proponent->email,
+                    'name' => $project->proponent->company_name
+                ];
+                $sentEmails[] = $project->proponent->email;
+            }
+
+            // Add staff users with same office_id as proponent
+            $staffUsers = UserModel::where('role', 'staff')
+                ->where('office_id', $project->proponent->office_id)
+                ->whereNotNull('email')
+                ->get();
+
+            foreach ($staffUsers as $staffUser) {
+                if (!in_array($staffUser->email, $sentEmails)) {
+                    $recipients[] = $staffUser;
+                    $sentEmails[] = $staffUser->email;
+                }
+            }
+
+            // Add RPMO users
+            $rpmoUsers = UserModel::where('role', 'rpmo')
+                ->whereNotNull('email')
+                ->get();
+
+            foreach ($rpmoUsers as $rpmoUser) {
+                if (!in_array($rpmoUser->email, $sentEmails)) {
+                    $recipients[] = $rpmoUser;
+                    $sentEmails[] = $rpmoUser->email;
+                }
+            }
+
+            // Send emails to all recipients
+            if (count($recipients) > 0) {
+                foreach ($recipients as $recipient) {
+                    Mail::to($recipient->email)->send(new RDApprovalMail($project, $user));
+                    Log::info("Compliance approval email sent to: {$recipient->email}");
+                }
+            } else {
+                Log::warning("No recipients found for compliance approval email. Project ID: {$project->project_id}");
+            }
         } catch (\Exception $e) {
-            Log::error('Error sending approval email: '.$e->getMessage());
+            Log::error('Error sending compliance approval email: '.$e->getMessage());
         }
     }
 
     private function sendComplianceDisapprovalEmail($project, $user, $remark)
     {
-        // Your existing disapproval email logic
         try {
-            // (Same as your RDDashboardController sendDisapprovalEmail method)
+            $recipients = [];
+            $sentEmails = [];
+
+            // Add proponent email if it exists
+            if ($project->proponent->email && filter_var($project->proponent->email, FILTER_VALIDATE_EMAIL)) {
+                $recipients[] = (object)[
+                    'email' => $project->proponent->email,
+                    'name' => $project->proponent->company_name
+                ];
+                $sentEmails[] = $project->proponent->email;
+            }
+
+            // Add staff users with same office_id as proponent
+            $staffUsers = UserModel::where('role', 'staff')
+                ->where('office_id', $project->proponent->office_id)
+                ->whereNotNull('email')
+                ->get();
+
+            foreach ($staffUsers as $staffUser) {
+                if (!in_array($staffUser->email, $sentEmails)) {
+                    $recipients[] = $staffUser;
+                    $sentEmails[] = $staffUser->email;
+                }
+            }
+
+            // Add RPMO users
+            $rpmoUsers = UserModel::where('role', 'rpmo')
+                ->whereNotNull('email')
+                ->get();
+
+            foreach ($rpmoUsers as $rpmoUser) {
+                if (!in_array($rpmoUser->email, $sentEmails)) {
+                    $recipients[] = $rpmoUser;
+                    $sentEmails[] = $rpmoUser->email;
+                }
+            }
+
+            // Send emails to all recipients
+            if (count($recipients) > 0) {
+                foreach ($recipients as $recipient) {
+                    Mail::to($recipient->email)->send(new RDDisapprovalMail($project, $user, $remark));
+                    Log::info("Compliance disapproval email sent to: {$recipient->email}");
+                }
+            } else {
+                Log::warning("No recipients found for compliance disapproval email. Project ID: {$project->project_id}");
+            }
         } catch (\Exception $e) {
-            Log::error('Error sending disapproval email: '.$e->getMessage());
+            Log::error('Error sending compliance disapproval email: '.$e->getMessage());
         }
     }
 
-    private function sendRestructureApprovalEmail($restructure, $remarks)
+    private function sendRestructureApprovalEmail($restructure, $remarks, $currentUser = null)
     {
         try {
+            // Use passed user or fallback to Auth
+            $user = $currentUser ?? Auth::user();
+            
             $projectOfficeId = $restructure->project->proponent->office_id;
             $proponentEmail = $restructure->project->proponent->email;
             $rpmoUsers = UserModel::where('role', 'rpmo')->whereNotNull('email')->get();
             $staffUsers = UserModel::where('role', 'staff')->where('office_id', $projectOfficeId)->whereNotNull('email')->get();
+            $sentEmails = [];
 
-            foreach ($rpmoUsers as $user) {
-                Mail::to($user->email)->send(new RestructureApprovedMail(
-                    $restructure,
-                    $restructure->project->proponent->company_name,
-                    Auth::user()->name,
-                    $remarks
-                ));
+            foreach ($rpmoUsers as $rpmoUser) {
+                if (!in_array($rpmoUser->email, $sentEmails)) {
+                    Mail::to($rpmoUser->email)->send(new RestructureApprovedMail(
+                        $restructure,
+                        $rpmoUser->name,
+                        $user->name,
+                        $remarks
+                    ));
+                    $sentEmails[] = $rpmoUser->email;
+                    Log::info("Restructure approval email sent to RPMO: {$rpmoUser->email}");
+                }
             }
 
-            foreach ($staffUsers as $user) {
-                Mail::to($user->email)->send(new RestructureApprovedMail(
-                    $restructure,
-                    $user->name,
-                    Auth::user()->name,
-                    $remarks
-                ));
+            foreach ($staffUsers as $staffUser) {
+                if (!in_array($staffUser->email, $sentEmails)) {
+                    Mail::to($staffUser->email)->send(new RestructureApprovedMail(
+                        $restructure,
+                        $staffUser->name,
+                        $user->name,
+                        $remarks
+                    ));
+                    $sentEmails[] = $staffUser->email;
+                    Log::info("Restructure approval email sent to Staff: {$staffUser->email}");
+                }
             }
 
-            if ($proponentEmail) {
+            if ($proponentEmail && !in_array($proponentEmail, $sentEmails)) {
                 Mail::to($proponentEmail)->send(new RestructureApprovedMail(
                     $restructure,
                     $restructure->project->proponent->company_name,
-                    Auth::user()->name,
+                    $user->name,
                     $remarks
                 ));
+                Log::info("Restructure approval email sent to Proponent: {$proponentEmail}");
             }
         } catch (\Exception $e) {
             Log::error('Error sending restructure approval email: '.$e->getMessage());
         }
     }
 
-    private function sendRestructureDenialEmail($restructure, $remarks)
+    private function sendRestructureDenialEmail($restructure, $remarks, $currentUser = null)
     {
         try {
+            // Use passed user or fallback to Auth
+            $user = $currentUser ?? Auth::user();
+            
             $projectOfficeId = $restructure->project->proponent->office_id;
             $rpmoUsers = UserModel::where('role', 'rpmo')->whereNotNull('email')->get();
             $staffUsers = UserModel::where('role', 'staff')->where('office_id', $projectOfficeId)->whereNotNull('email')->get();
+            $sentEmails = [];
 
-            foreach ($rpmoUsers as $user) {
-                Mail::to($user->email)->send(new RestructureDeniedMail(
-                    $restructure,
-                    $user->name,
-                    Auth::user()->name,
-                    $remarks
-                ));
+            foreach ($rpmoUsers as $rpmoUser) {
+                if (!in_array($rpmoUser->email, $sentEmails)) {
+                    Mail::to($rpmoUser->email)->send(new RestructureDeniedMail(
+                        $restructure,
+                        $rpmoUser->name,
+                        $user->name,
+                        $remarks
+                    ));
+                    $sentEmails[] = $rpmoUser->email;
+                    Log::info("Restructure denial email sent to RPMO: {$rpmoUser->email}");
+                }
             }
 
-            foreach ($staffUsers as $user) {
-                Mail::to($user->email)->send(new RestructureDeniedMail(
-                    $restructure,
-                    $user->name,
-                    Auth::user()->name,
-                    $remarks
-                ));
+            foreach ($staffUsers as $staffUser) {
+                if (!in_array($staffUser->email, $sentEmails)) {
+                    Mail::to($staffUser->email)->send(new RestructureDeniedMail(
+                        $restructure,
+                        $staffUser->name,
+                        $user->name,
+                        $remarks
+                    ));
+                    $sentEmails[] = $staffUser->email;
+                    Log::info("Restructure denial email sent to Staff: {$staffUser->email}");
+                }
             }
         } catch (\Exception $e) {
             Log::error('Error sending restructure denial email: '.$e->getMessage());

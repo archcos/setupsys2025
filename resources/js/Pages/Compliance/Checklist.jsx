@@ -238,7 +238,7 @@ export default function ComplianceChecklist({ project, compliance, errors, userR
                           onChange={(e) => handleLinkChange(key, e.target.value)}
                           placeholder={`Paste ${label} link (Google Drive or OneDrive)`}
                           disabled={userRole === 'rpmo' || isAlreadyApproved}
-                          className={`w-full border-2 rounded-lg px-3 md:px-4 py-2 md:py-3 focus:outline-none transition-all duration-200 text-xs md:text-sm ${
+                          className={`w-full border-2 rounded-lg px-3 md:px-4 py-2 md:py-3 focus:outline-none transition-all duration-200 text-xs text-black md:text-sm ${
                             userRole === 'rpmo' || isAlreadyApproved
                               ? 'bg-gray-50 cursor-not-allowed text-gray-600 border-gray-200'
                               : hasError
