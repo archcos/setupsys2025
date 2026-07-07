@@ -168,6 +168,21 @@ class ReportController extends Controller
         return (float) collect($payments)->sum('amount');
     }
 
+    private function docxSafe($value): string
+    {
+    	if ($value === null) {
+            return '';
+    	}
+
+    	$value = (string) $value;
+
+    	// Remove invalid XML control characters
+    	$value = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/u', '', $value);
+
+    	// Escape XML special characters: &, <, >, ", '
+    	return htmlspecialchars($value, ENT_QUOTES | ENT_XML1, 'UTF-8');
+    }
+
     private function generateReportFile($report_id)
     {
         // ── Load report with ALL needed relations upfront ─────────────────────────
@@ -265,27 +280,26 @@ class ReportController extends Controller
 
         $templateProcessor = new TemplateProcessor($templatePath);
 
-        // Fill placeholders
-        $templateProcessor->setValue('project_title', $project->project_title);
-        $templateProcessor->setValue('owner_name', $ownerName);
-        $templateProcessor->setValue('phase_one', $phaseOne);
-        $templateProcessor->setValue('release_initial', $releaseInitial);
-        $templateProcessor->setValue('phase_two', $phaseTwo);
-        $templateProcessor->setValue('project_cost', number_format($project->project_cost, 2));
-        $templateProcessor->setValue('util_remarks', $report->util_remarks);
-        $templateProcessor->setValue('problems', $report->problems);
-        $templateProcessor->setValue('actions', $report->actions);
-        $templateProcessor->setValue('promotional', $report->promotional);
-        $templateProcessor->setValue('sum_cost', number_format($sum_cost, 2));
+        // Fill placeholder
+        $templateProcessor->setValue('project_title', $this->docxSafe($project->project_title));
+	$templateProcessor->setValue('owner_name', $this->docxSafe($ownerName));
+	$templateProcessor->setValue('phase_one', $this->docxSafe($phaseOne));
+	$templateProcessor->setValue('release_initial', $this->docxSafe($releaseInitial));
+	$templateProcessor->setValue('phase_two', $this->docxSafe($phaseTwo));
+	$templateProcessor->setValue('project_cost', $this->docxSafe(number_format($project->project_cost, 2)));
+	$templateProcessor->setValue('util_remarks', $this->docxSafe($report->util_remarks));
+	$templateProcessor->setValue('problems', $this->docxSafe($report->problems));
+	$templateProcessor->setValue('actions', $this->docxSafe($report->actions));
+	$templateProcessor->setValue('promotional', $this->docxSafe($report->promotional));
+	$templateProcessor->setValue('sum_cost', $this->docxSafe(number_format($sum_cost, 2)));
 
-        // Simplified refund placeholders
-        $templateProcessor->setValue('total_amount_release', number_format($totalAmountRelease, 2));
-        $templateProcessor->setValue('total_amount_refunded', number_format($totalAmountRefunded, 2));
-        $templateProcessor->setValue('total_unsettled', number_format($totalUnsettled, 2));
+	$templateProcessor->setValue('total_amount_release', $this->docxSafe(number_format($totalAmountRelease, 2)));
+	$templateProcessor->setValue('total_amount_refunded', $this->docxSafe(number_format($totalAmountRefunded, 2)));
+	$templateProcessor->setValue('total_unsettled', $this->docxSafe(number_format($totalUnsettled, 2)));
 
-        $templateProcessor->setValue('current_date', $currentDate);
-        $templateProcessor->setValue('total_unpaid', number_format($totalUnpaid, 2));
-        $templateProcessor->setValue('old_unpaid', $oldUnpaid);
+	$templateProcessor->setValue('current_date', $this->docxSafe($currentDate));
+	$templateProcessor->setValue('total_unpaid', $this->docxSafe(number_format($totalUnpaid, 2)));
+	$templateProcessor->setValue('old_unpaid', $this->docxSafe($oldUnpaid));
 
         $fontStyle = ['color' => '000000', 'size' => 11];
         $paraCenter = ['alignment' => Jc::CENTER];
@@ -577,6 +591,10 @@ class ReportController extends Controller
 
         // ── Find LibreOffice ──────────────────────────────────────────────────────
         $libreOfficePaths = [
+            '/usr/bin/soffice',
+            '/usr/bin/libreoffice',
+            '/usr/local/bin/soffice',
+            '/usr/local/bin/libreoffice',
             'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
             'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
             'C:\\Program Files\\LibreOffice\\program\\soffice.com',
@@ -598,9 +616,13 @@ class ReportController extends Controller
         }
 
         // ── Convert DOCX → PDF via LibreOffice ───────────────────────────────────
+        $loProfile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'lo_profile_' . uniqid();
+        mkdir($loProfile, 0777, true);
+
         $command = sprintf(
-            '"%s" --headless --convert-to pdf:writer_pdf_Export --outdir "%s" "%s"',
+            'HOME=/tmp "%s" -env:UserInstallation=file://%s --headless --nologo --nofirststartwizard --convert-to pdf:writer_pdf_Export --outdir "%s" "%s"',
             $libreOfficePath,
+            $loProfile,
             $tempDir,
             $tempDocx
         );
@@ -610,6 +632,11 @@ class ReportController extends Controller
         $output = [];
         $returnCode = null;
         exec($command.' 2>&1', $output, $returnCode);
+        Log::info('LibreOffice conversion finished', [
+            'return_code' => $returnCode,
+            'output' => $output,
+            'temp_dir_contents_after_conversion' => is_dir($tempDir) ? scandir($tempDir) : [],
+        ]);
 
         sleep(2);
 
@@ -617,10 +644,25 @@ class ReportController extends Controller
         $tempPdf = $tempDir.DIRECTORY_SEPARATOR.$pdfFilename;
 
         if (!file_exists($tempPdf)) {
+            $debugDocx = '/tmp/debug_report_'.$report->report_id.'.docx';
+
+            if (file_exists($tempDocx)) {
+                @copy($tempDocx, $debugDocx);
+                @chmod($debugDocx, 0777);
+            }
+
             Log::error('PDF file was not created', [
                 'expected_path' => $tempPdf,
+                'temp_docx' => $tempDocx,
+                'debug_docx' => $debugDocx,
+                'docx_exists' => file_exists($tempDocx),
+                'docx_readable' => is_readable($tempDocx),
+                'docx_size' => file_exists($tempDocx) ? filesize($tempDocx) : null,
+                'debug_docx_exists' => file_exists($debugDocx),
+                'debug_docx_size' => file_exists($debugDocx) ? filesize($debugDocx) : null,
                 'temp_dir_contents' => is_dir($tempDir) ? scandir($tempDir) : [],
             ]);
+
             $this->cleanupTempDirectory($tempDir);
             throw new \Exception('PDF file was not created by LibreOffice.');
         }
