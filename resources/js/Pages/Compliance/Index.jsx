@@ -133,6 +133,7 @@ export default function Index({ projects, filters, years, statusCounts, offices 
   const [sortOrder,     setSortOrder]     = useState(filters?.sortOrder     || 'desc');
   const [statusFilter,  setStatusFilter]  = useState(filters?.statusFilter  || 'all');
   const [perPage,       setPerPage]       = useState(filters?.perPage       || 10);
+  const [showAll,       setShowAll]       = useState(filters?.showAll       || false); // New state
   const isFirstRender = useRef(true);
 
   const { flash } = usePage().props;
@@ -141,8 +142,8 @@ export default function Index({ projects, filters, years, statusCounts, offices 
     router.get(
       route('compliance.index'),
       cleanParams(
-        { search, year, officeFilter, sortBy, sortOrder, statusFilter, perPage, ...overrides },
-        { sortBy: 'project_id', sortOrder: 'desc', statusFilter: 'all', perPage: 10 }
+        { search, year, officeFilter, sortBy, sortOrder, statusFilter, perPage, showAll, ...overrides },
+        { sortBy: 'project_id', sortOrder: 'desc', statusFilter: 'all', perPage: 10, showAll: false }
       ),
       { preserveState: true, preserveScroll: true, replace: true }
     );
@@ -181,12 +182,19 @@ export default function Index({ projects, filters, years, statusCounts, offices 
     pushRouter({ officeFilter: val, page: 1 });
   };
 
+  const handleShowAllToggle = () => {
+    const newShowAll = !showAll;
+    setShowAll(newShowAll);
+    pushRouter({ showAll: newShowAll, page: 1 });
+  };
+
   const handleClear = () => {
     setSearch('');
     setYear('');
     setOfficeFilter('');
     setStatusFilter('all');
     setPerPage(10);
+    setShowAll(false);
     router.get(route('compliance.index'), {}, { preserveState: true });
   };
 
@@ -300,6 +308,18 @@ export default function Index({ projects, filters, years, statusCounts, offices 
                 </select>
               </div>
 
+              {/* Show All Projects checkbox - add this in your filters section */}
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showAll}
+                  onChange={handleShowAllToggle}
+                  className="w-3.5 h-3.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                />
+                <span className={`text-xs font-medium ${showAll ? 'text-purple-700' : 'text-gray-600'}`}>
+                  Show all projects
+                </span>
+              </label>
               {hasFilters && (
                 <button
                   onClick={handleClear}

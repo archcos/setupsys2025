@@ -17,135 +17,147 @@ use Inertia\Inertia;
 
 class ComplianceController extends Controller
 {
-    public function index(Request $request)
-    {
-        $search = $request->input('search', '');
-        $year = $request->input('year', '');
-        $officeFilter = $request->input('officeFilter', '');
-        $sortBy = $request->input('sortBy', 'project_id');
-        $sortOrder = $request->input('sortOrder', 'desc');
-        $statusFilter = $request->input('statusFilter', 'all');
-        $perPage = $request->input('perPage', 10);
+public function index(Request $request)
+{
+    $search = $request->input('search', '');
+    $year = $request->input('year', '');
+    $officeFilter = $request->input('officeFilter', '');
+    $sortBy = $request->input('sortBy', 'project_id');
+    $sortOrder = $request->input('sortOrder', 'desc');
+    $statusFilter = $request->input('statusFilter', 'all');
+    $perPage = $request->input('perPage', 10);
+    $showAll = $request->input('showAll', false); // New parameter
 
-        // Valid sort columns
-        $validSortColumns = ['project_id', 'project_title', 'proponent_id', 'year_obligated', 'created_at', 'progress'];
-        if (!in_array($sortBy, $validSortColumns)) {
-            $sortBy = 'project_id';
-        }
-
-        $sortOrder = strtoupper($sortOrder) === 'DESC' ? 'desc' : 'asc';
-
-        $user = Auth::user();
-
-        // ── Base query ────────────────────────────────────────────────────────
-        $baseQuery = ProjectModel::with(['compliance', 'proponent'])
-            ->select('project_id', 'project_title', 'proponent_id', 'year_obligated', 'progress', 'created_at');
-
-        // Role-based scope
-        if ($user) {
-            if ($user->role === 'staff' && $user->office_id) {
-                $baseQuery->whereHas('proponent', function ($q) use ($user) {
-                    $q->where('office_id', $user->office_id);
-                });
-            } elseif ($user->role !== 'rpmo') {
-                $baseQuery->whereRaw('1 = 0');
-            }
-        }
-
-        // Search
-        if ($search) {
-            $baseQuery->where(function ($q) use ($search) {
-                $q->where('project_title', 'like', "%{$search}%")
-                    ->orWhere('project_id', 'like', "%{$search}%")
-                    ->orWhereHas('proponent', function ($q) use ($search) {
-                        $q->where('company_name', 'like', "%{$search}%");
-                    });
-            });
-        }
-
-        // Year
-        if ($year) {
-            $baseQuery->where('year_obligated', $year);
-        }
-
-        // Office filter (rpmo only — staff is already scoped to their office)
-        if (!empty($officeFilter) && $user && $user->role === 'rpmo') {
-            $baseQuery->whereHas('proponent', function ($q) use ($officeFilter) {
-                $q->where('office_id', $officeFilter);
-            });
-        }
-
-        // ── Compute status counts BEFORE applying status filter ───────────────
-        $statusCounts = [
-            'all' => (clone $baseQuery)->count(),
-            'pending' => (clone $baseQuery)->where(function ($q) {
-                $q->whereDoesntHave('compliance')
-                  ->orWhereHas('compliance', fn ($q) => $q->where('status', 'pending'));
-            })->count(),
-            'recommended' => (clone $baseQuery)->whereHas('compliance', fn ($q) => $q->where('status', 'recommended'))->count(),
-            'approved' => (clone $baseQuery)->whereHas('compliance', fn ($q) => $q->where('status', 'approved'))->count(),
-        ];
-
-        // ── Apply status filter ───────────────────────────────────────────────
-        $query = clone $baseQuery;
-
-        if ($statusFilter === 'pending') {
-            $query->where(function ($q) {
-                $q->whereDoesntHave('compliance')
-                  ->orWhereHas('compliance', fn ($q) => $q->where('status', 'pending'));
-            });
-        } elseif (in_array($statusFilter, ['recommended', 'approved'])) {
-            $query->whereHas('compliance', fn ($q) => $q->where('status', $statusFilter));
-        }
-        // 'all' → no additional filter
-
-        // ── Sorting ───────────────────────────────────────────────────────────
-        if ($sortBy === 'proponent_id') {
-            $query->join('tbl_proponents', 'tbl_projects.proponent_id', '=', 'tbl_proponents.proponent_id')
-                  ->select('tbl_projects.*', 'tbl_proponents.company_name')
-                  ->orderBy('tbl_proponents.company_name', $sortOrder);
-        } else {
-            $query->orderBy($sortBy, $sortOrder);
-        }
-
-        // ── Paginate ──────────────────────────────────────────────────────────
-        $projects = $query->paginate($perPage)->withQueryString();
-
-        // ── Year dropdown ─────────────────────────────────────────────────────
-        $yearsQuery = ProjectModel::distinct()->whereNotNull('year_obligated');
-
-        if ($user) {
-            if ($user->role === 'staff' && $user->office_id) {
-                $yearsQuery->whereHas('proponent', fn ($q) => $q->where('office_id', $user->office_id));
-            } elseif ($user->role !== 'rpmo') {
-                $yearsQuery->whereRaw('1 = 0');
-            }
-        }
-
-        $years = $yearsQuery->orderBy('year_obligated', 'desc')->pluck('year_obligated')->toArray();
-
-        // ── Offices dropdown (rpmo only) ──────────────────────────────────────
-        $offices = [];
-        if ($user && $user->role === 'rpmo') {
-            $offices = OfficeModel::orderBy('office_name')->get();
-        }
-
-        return Inertia::render('Compliance/Index', [
-            'projects' => $projects,
-            'years' => $years,
-            'offices' => $offices,
-            'statusCounts' => $statusCounts,
-            'filters' => [
-                'search' => $search,
-                'year' => $year,
-                'officeFilter' => $officeFilter,
-                'sortBy' => $sortBy,
-                'sortOrder' => $sortOrder,
-                'statusFilter' => $statusFilter,
-                'perPage' => $perPage,
-            ],
-        ]);
+    // Valid sort columns
+    $validSortColumns = ['project_id', 'project_title', 'proponent_id', 'year_obligated', 'created_at', 'progress'];
+    if (!in_array($sortBy, $validSortColumns)) {
+        $sortBy = 'project_id';
     }
+
+    $sortOrder = strtoupper($sortOrder) === 'DESC' ? 'desc' : 'asc';
+
+    $user = Auth::user();
+
+    // ── Base query ────────────────────────────────────────────────────────
+    $baseQuery = ProjectModel::with(['compliance', 'proponent'])
+        ->select('project_id', 'project_title', 'proponent_id', 'year_obligated', 'progress', 'created_at');
+
+    // Exclude terminated, completed, and withdrawn projects (unless showAll is true)
+    if (!$showAll) {
+        $baseQuery->whereNotIn('progress', ['Terminated', 'Completed', 'Withdrawn']);
+    }
+
+    // Role-based scope
+    if ($user) {
+        if ($user->role === 'staff' && $user->office_id) {
+            $baseQuery->whereHas('proponent', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
+            });
+        } elseif ($user->role !== 'rpmo') {
+            $baseQuery->whereRaw('1 = 0');
+        }
+    }
+
+    // Search
+    if ($search) {
+        $baseQuery->where(function ($q) use ($search) {
+            $q->where('project_title', 'like', "%{$search}%")
+                ->orWhere('project_id', 'like', "%{$search}%")
+                ->orWhereHas('proponent', function ($q) use ($search) {
+                    $q->where('company_name', 'like', "%{$search}%");
+                });
+        });
+    }
+
+    // Year
+    if ($year) {
+        $baseQuery->where('year_obligated', $year);
+    }
+
+    // Office filter (rpmo only — staff is already scoped to their office)
+    if (!empty($officeFilter) && $user && $user->role === 'rpmo') {
+        $baseQuery->whereHas('proponent', function ($q) use ($officeFilter) {
+            $q->where('office_id', $officeFilter);
+        });
+    }
+
+    // ── Compute status counts BEFORE applying status filter ───────────────
+    $statusCounts = [
+        'all' => (clone $baseQuery)->count(),
+        'pending' => (clone $baseQuery)->where(function ($q) {
+            $q->whereDoesntHave('compliance')
+              ->orWhereHas('compliance', fn ($q) => $q->where('status', 'pending'));
+        })->count(),
+        'recommended' => (clone $baseQuery)->whereHas('compliance', fn ($q) => $q->where('status', 'recommended'))->count(),
+        'approved' => (clone $baseQuery)->whereHas('compliance', fn ($q) => $q->where('status', 'approved'))->count(),
+    ];
+
+    // ── Apply status filter ───────────────────────────────────────────────
+    $query = clone $baseQuery;
+
+    if ($statusFilter === 'pending') {
+        $query->where(function ($q) {
+            $q->whereDoesntHave('compliance')
+              ->orWhereHas('compliance', fn ($q) => $q->where('status', 'pending'));
+        });
+    } elseif (in_array($statusFilter, ['recommended', 'approved'])) {
+        $query->whereHas('compliance', fn ($q) => $q->where('status', $statusFilter));
+    }
+    // 'all' → no additional filter
+
+    // ── Sorting ───────────────────────────────────────────────────────────
+    if ($sortBy === 'proponent_id') {
+        $query->join('tbl_proponents', 'tbl_projects.proponent_id', '=', 'tbl_proponents.proponent_id')
+              ->select('tbl_projects.*', 'tbl_proponents.company_name')
+              ->orderBy('tbl_proponents.company_name', $sortOrder);
+    } else {
+        $query->orderBy($sortBy, $sortOrder);
+    }
+
+    // ── Paginate ──────────────────────────────────────────────────────────
+    $projects = $query->paginate($perPage)->withQueryString();
+
+    // ── Year dropdown ─────────────────────────────────────────────────────
+    $yearsQuery = ProjectModel::distinct()->whereNotNull('year_obligated');
+    
+    // Apply the same progress filter to years query
+    if (!$showAll) {
+        $yearsQuery->whereNotIn('progress', ['Terminated', 'Completed', 'Withdrawn']);
+    }
+
+    if ($user) {
+        if ($user->role === 'staff' && $user->office_id) {
+            $yearsQuery->whereHas('proponent', fn ($q) => $q->where('office_id', $user->office_id));
+        } elseif ($user->role !== 'rpmo') {
+            $yearsQuery->whereRaw('1 = 0');
+        }
+    }
+
+    $years = $yearsQuery->orderBy('year_obligated', 'desc')->pluck('year_obligated')->toArray();
+
+    // ── Offices dropdown (rpmo only) ──────────────────────────────────────
+    $offices = [];
+    if ($user && $user->role === 'rpmo') {
+        $offices = OfficeModel::orderBy('office_name')->get();
+    }
+
+    return Inertia::render('Compliance/Index', [
+        'projects' => $projects,
+        'years' => $years,
+        'offices' => $offices,
+        'statusCounts' => $statusCounts,
+        'filters' => [
+            'search' => $search,
+            'year' => $year,
+            'officeFilter' => $officeFilter,
+            'sortBy' => $sortBy,
+            'sortOrder' => $sortOrder,
+            'statusFilter' => $statusFilter,
+            'perPage' => $perPage,
+            'showAll' => $showAll, // Pass to frontend
+        ],
+    ]);
+}
 
     public function show($projectId)
     {
