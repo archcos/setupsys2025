@@ -224,13 +224,14 @@ class RefundController extends Controller
         $fullAddress = implode(', ', $addressParts);
 
         // Equipment cost — sum of items where type = 'equipment' (adjust if needed)
-        $equipmentCost = $project->items
+        $equipmentCost = $project->items() 
             ->where('type', 'equipment')
             ->sum('item_cost');
 
         // If your type column uses a different label, fall back to all items
         if ($equipmentCost == 0) {
-            $equipmentCost = $project->items->sum('item_cost');
+            $equipmentCost = $project->items() 
+                ->sum('item_cost');
         }
 
         // ── Restructure groupings ─────────────────────────────────────────────
@@ -1478,7 +1479,7 @@ public function bulkUpdate()
                             ++$inserted;
                         } catch (\Exception $e) {
                             $errors[] = "Row $rowIndex failed: ".$e->getMessage();
-                            \Log::error("CSV Sync error row $rowIndex", [
+                            Log::error("CSV Sync error row $rowIndex", [
                                 'sheet' => $csvLabel,
                                 'error' => $e->getMessage(),
                                 'trace' => $e->getTraceAsString()
@@ -1496,7 +1497,7 @@ public function bulkUpdate()
                     );
                 } catch (\Exception $e) {
                     $allErrors[] = "{$csvLabel} failed entirely: ".$e->getMessage();
-                    \Log::error("CSV Sync sheet error", [
+                    Log::error("CSV Sync sheet error", [
                         'sheet' => $csvLabel,
                         'url' => $csvUrl,
                         'error' => $e->getMessage(),
