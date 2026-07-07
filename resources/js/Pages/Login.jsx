@@ -97,17 +97,11 @@ export default function LoginPage() {
                     return;
                 }
                 
-                if (errors.message?.includes('419')) {
-                    router.reload({
-                        only: [],
-                        preserveState: true,
-                        preserveScroll: true,
-                        onSuccess: () => {
-                            handleSubmit(new Event('submit'));
-                        },
-                    });
-                    return;
-                }
+                // REMOVE THIS ENTIRE BLOCK - it's causing the CSRF token mismatch
+                // if (errors.message?.includes('419')) {
+                //     router.reload({...});
+                //     return;
+                // }
             },
         });
     };
