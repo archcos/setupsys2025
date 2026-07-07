@@ -644,22 +644,12 @@ class ReportController extends Controller
         $tempPdf = $tempDir.DIRECTORY_SEPARATOR.$pdfFilename;
 
         if (!file_exists($tempPdf)) {
-            $debugDocx = '/tmp/debug_report_'.$report->report_id.'.docx';
-
-            if (file_exists($tempDocx)) {
-                @copy($tempDocx, $debugDocx);
-                @chmod($debugDocx, 0777);
-            }
-
             Log::error('PDF file was not created', [
                 'expected_path' => $tempPdf,
                 'temp_docx' => $tempDocx,
-                'debug_docx' => $debugDocx,
                 'docx_exists' => file_exists($tempDocx),
                 'docx_readable' => is_readable($tempDocx),
                 'docx_size' => file_exists($tempDocx) ? filesize($tempDocx) : null,
-                'debug_docx_exists' => file_exists($debugDocx),
-                'debug_docx_size' => file_exists($debugDocx) ? filesize($debugDocx) : null,
                 'temp_dir_contents' => is_dir($tempDir) ? scandir($tempDir) : [],
             ]);
 
