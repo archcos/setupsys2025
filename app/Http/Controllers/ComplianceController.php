@@ -317,7 +317,7 @@ public function store(Request $request)
                 // Add timestamp to filename for Supabase to avoid duplicates
                 $fileInfo = pathinfo($fileName);
                 $supabaseFileName = $fileInfo['filename'] . '_' . time() . '.' . $fileInfo['extension'];
-                $supabasePath = "backup/compliance/{$currentYear}/{$projectId}/{$config['folder']}/{$supabaseFileName}";
+                $supabasePath = "backup/{$currentYear}/{$projectId}/{$config['folder']}/{$supabaseFileName}";
                 
                 $supabaseUpload = new SupabaseUpload();
                 $uploaded = $supabaseUpload->upload($supabasePath, $fileContent);
