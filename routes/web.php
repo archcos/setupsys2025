@@ -143,10 +143,13 @@ Route::middleware(['log-suspicious'])->group(function () {
     // COMPLIANCE
     Route::middleware(['auth', 'role:staff,rpmo,rd'])->group(function () {
         Route::get('/compliance', [ComplianceController::class, 'index'])->name('compliance.index');
-        Route::get('/compliance/{id}', [ComplianceController::class, 'show'])->name('compliance.show');
+        Route::get('/compliance/{project_id}', [ComplianceController::class, 'show'])->name('compliance.show');
         Route::post('/compliance/store', [ComplianceController::class, 'store'])->name('compliance.store');
+        Route::post('/compliance/send-notification', [ComplianceController::class, 'sendNotification'])->name('compliance.send-notification');
         Route::post('/compliance/approve', [ComplianceController::class, 'approve'])->name('compliance.approve');
         Route::post('/compliance/deny', [ComplianceController::class, 'deny'])->name('compliance.deny');
+        Route::get('/compliance/{project_id}/view/{type}', [ComplianceController::class, 'viewFile'])->name('compliance.view-file');
+        Route::get('/compliance/{project_id}/download/{type}', [ComplianceController::class, 'downloadFile'])->name('compliance.download-file');
     });
 
     // RD-DASHBOARD

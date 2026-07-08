@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use App\Models\ProjectModel;
+use Illuminate\Support\Facades\Log;
 
 class ComplianceCompletedMail extends Mailable
 {
@@ -16,7 +17,7 @@ class ComplianceCompletedMail extends Mailable
 
     public function __construct($projectId, $submittedBy)
     {
-        $this->project     = ProjectModel::find($projectId);
+        $this->project     = ProjectModel::with('compliance', 'proponent')->find($projectId);
         $this->submittedBy = $submittedBy;
     }
 
@@ -27,7 +28,7 @@ class ComplianceCompletedMail extends Mailable
         }
 
         $projectTitle    = $this->project->project_title ?? 'N/A';
-        $companyName     = $this->project->company->company_name ?? 'N/A';
+        $companyName     = $this->project->proponent->company_name ?? 'N/A';
         $projectId       = $this->project->project_id;
         $submittedByName = $this->submittedBy->name ?? 'Unknown User';
         $submittedDate   = now()->format('F d, Y \a\t h:i A');
@@ -36,6 +37,30 @@ class ComplianceCompletedMail extends Mailable
         $compliance = $this->project->compliance;
         $ppLink     = $compliance->pp_link ?? null;
         $fsLink     = $compliance->fs_link ?? null;
+
+        // Attach local files to email
+        $attachedPP = false;
+        $attachedFS = false;
+
+        if ($ppLink && file_exists($ppLink)) {
+            $this->attach($ppLink, [
+                'as'   => basename($ppLink),
+                'mime' => 'application/pdf',
+            ]);
+            $attachedPP = true;
+        } else {
+            Log::warning('PP file not found for email attachment', ['path' => $ppLink]);
+        }
+
+        if ($fsLink && file_exists($fsLink)) {
+            $this->attach($fsLink, [
+                'as'   => basename($fsLink),
+                'mime' => 'application/pdf',
+            ]);
+            $attachedFS = true;
+        } else {
+            Log::warning('FS file not found for email attachment', ['path' => $fsLink]);
+        }
 
         // Attach logos
         $this->attach(resource_path('assets/SETUP_logo.png'), [
@@ -48,25 +73,37 @@ class ComplianceCompletedMail extends Mailable
             'mime' => 'image/png',
         ]);
 
-        // Build document rows
+        // Build document rows showing attachment status
         $documents = [
-            'Project Proposal'  => $ppLink,
-            'Financial Statement' => $fsLink,
+            'Project Proposal'  => [
+                'attached' => $attachedPP, 
+                'name' => $ppLink ? basename($ppLink) : null
+            ],
+            'Financial Statement' => [
+                'attached' => $attachedFS, 
+                'name' => $fsLink ? basename($fsLink) : null
+            ],
         ];
 
         $docRowsHtml = '';
-        foreach ($documents as $label => $url) {
-            $linkHtml = $url
-                ? "<a href='{$url}' target='_blank'
-                      style='font-size:13px;color:#111827;font-weight:500;text-decoration:underline;'>
-                      View →
-                   </a>"
-                : "<span style='font-size:13px;color:#9ca3af;'>Not provided</span>";
+        foreach ($documents as $label => $doc) {
+            if ($doc['attached']) {
+                $linkHtml = "<span style='font-size:13px;color:#16a34a;font-weight:500;'>
+                              📎 Attached
+                           </span>";
+                $nameHtml = "<span style='font-size:11px;color:#6b7280;display:block;margin-top:2px;'>{$doc['name']}</span>";
+            } else {
+                $linkHtml = "<span style='font-size:13px;color:#ef4444;'>Not attached</span>";
+                $nameHtml = '';
+            }
 
             $docRowsHtml .= "
                 <tr style='border-bottom:1px solid #f9fafb;'>
                     <td style='padding:12px 18px;font-size:13px;color:#9ca3af;width:40%;'>{$label}</td>
-                    <td style='padding:12px 18px;text-align:right;'>{$linkHtml}</td>
+                    <td style='padding:12px 18px;text-align:right;'>
+                        {$linkHtml}
+                        {$nameHtml}
+                    </td>
                 </tr>";
         }
 
@@ -107,7 +144,7 @@ class ComplianceCompletedMail extends Mailable
                             </td>
                             <td style='padding:16px 18px;width:50%;'>
                                 <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Status</p>
-                                <p style='margin:0;font-size:14px;font-weight:600;color:#16a34a;'>Complete (2/2 Links)</p>
+                                <p style='margin:0;font-size:14px;font-weight:600;color:#16a34a;'>Complete (2/2 Files)</p>
                             </td>
                         </tr>
                     </table>
@@ -135,7 +172,7 @@ class ComplianceCompletedMail extends Mailable
 
                     <!-- Documents Label -->
                     <div style='background:#fafafa;border-bottom:1px solid #f3f4f6;padding:12px 18px;'>
-                        <p style='margin:0;font-size:12px;color:#9ca3af;font-weight:500;'>Submitted documents</p>
+                        <p style='margin:0;font-size:12px;color:#9ca3af;font-weight:500;'>Attached documents</p>
                     </div>
 
                     <!-- Document Rows -->

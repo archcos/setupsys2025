@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { router, usePage, Head } from '@inertiajs/react';
-import { Search, FileText, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, Eye, ClipboardCheck, Building2, Hand, TrendingUpDown, TrendingUp, Hash, ClipboardList, Building } from 'lucide-react';
+import { Search, FileText, Calendar, ArrowUpDown, X, AlertCircle, CheckCircle, Eye, ClipboardCheck, Building2, Hand, TrendingUpDown, TrendingUp, Hash, ClipboardList, Building, ArrowUp, ArrowDown } from 'lucide-react';
 import { cleanParams } from '@/utils/cleanParams';
 import PaginationLinks from '@/components/PaginationLinks';
 
@@ -77,7 +77,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function SortButton({ field, label, sortBy, onSort }) {
+function SortButton({ field, label, sortBy, sortOrder, onSort }) {
   const isActive = sortBy === field;
   return (
     <button
@@ -85,9 +85,11 @@ function SortButton({ field, label, sortBy, onSort }) {
       className="flex items-center gap-1 hover:text-blue-600 transition-colors group"
     >
       {label}
-      <ArrowUpDown className={`w-3 h-3 transition-colors ${
-        isActive ? '' : 'text-gray-400 group-hover:text-blue-400'
-      }`} />
+      {isActive ? (
+        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+      ) : (
+        <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-400" />
+      )}
     </button>
   );
 }
@@ -123,17 +125,73 @@ function EmptyState({ statusFilter, hasFilters, onClear, mobile = false }) {
   );
 }
 
+// ─── File Status Indicator Component ──────────────────────────────────────────
+
+function FileStatusIndicator({ filledLinks, total = 2, showPriority = false }) {
+  const allSubmitted = filledLinks === total;
+  const someSubmitted = filledLinks > 0 && filledLinks < total;
+  const noneSubmitted = filledLinks === 0;
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Visual progress dots */}
+      <div className="flex gap-1">
+        {[...Array(total)].map((_, index) => (
+          <div
+            key={index}
+            className={`w-2 h-2 rounded-full transition-all ${
+              index < filledLinks
+                ? 'bg-green-500 shadow-sm'
+                : 'bg-gray-300'
+            }`}
+          />
+        ))}
+      </div>
+      
+      {/* Color-coded fraction */}
+      <span className={`font-semibold ${
+        allSubmitted ? 'text-green-600' : 
+        someSubmitted ? 'text-amber-600' : 
+        'text-red-600'
+      }`}>
+        {filledLinks}/{total}
+      </span>
+      
+      {/* Status badge */}
+      {allSubmitted && (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-50 text-green-700 text-xs rounded-full font-medium">
+          <CheckCircle className="w-3 h-3" />
+          Complete
+        </span>
+      )}
+      {someSubmitted && (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-700 text-xs rounded-full font-medium">
+          <AlertCircle className="w-3 h-3" />
+          Partial
+        </span>
+      )}
+      {noneSubmitted && (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-50 text-red-700 text-xs rounded-full font-medium">
+          <X className="w-3 h-3" />
+          Missing
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Index({ projects, filters, years, statusCounts, offices }) {
   const [search,        setSearch]        = useState(filters?.search        || '');
   const [year,          setYear]          = useState(filters?.year          || '');
   const [officeFilter,  setOfficeFilter]  = useState(filters?.officeFilter  || '');
-  const [sortBy,        setSortBy]        = useState(filters?.sortBy        || 'project_id');
+  const [sortBy,        setSortBy]        = useState(filters?.sortBy        || 'completion');
   const [sortOrder,     setSortOrder]     = useState(filters?.sortOrder     || 'desc');
   const [statusFilter,  setStatusFilter]  = useState(filters?.statusFilter  || 'all');
   const [perPage,       setPerPage]       = useState(filters?.perPage       || 10);
-  const [showAll,       setShowAll]       = useState(filters?.showAll       || false); // New state
+  const [showAll,       setShowAll]       = useState(filters?.showAll       || false);
+  const [completionFilter, setCompletionFilter] = useState(filters?.completionFilter || 'all');
   const isFirstRender = useRef(true);
 
   const { flash } = usePage().props;
@@ -142,8 +200,8 @@ export default function Index({ projects, filters, years, statusCounts, offices 
     router.get(
       route('compliance.index'),
       cleanParams(
-        { search, year, officeFilter, sortBy, sortOrder, statusFilter, perPage, showAll, ...overrides },
-        { sortBy: 'project_id', sortOrder: 'desc', statusFilter: 'all', perPage: 10, showAll: false }
+        { search, year, officeFilter, sortBy, sortOrder, statusFilter, perPage, showAll, completionFilter, ...overrides },
+        { sortBy: 'completion', sortOrder: 'desc', statusFilter: 'all', perPage: 10, showAll: false, completionFilter: 'all' }
       ),
       { preserveState: true, preserveScroll: true, replace: true }
     );
@@ -168,6 +226,11 @@ export default function Index({ projects, filters, years, statusCounts, offices 
   const handleStatusFilter = (val) => {
     setStatusFilter(val);
     pushRouter({ statusFilter: val, page: 1 });
+  };
+
+  const handleCompletionFilter = (val) => {
+    setCompletionFilter(val);
+    pushRouter({ completionFilter: val, page: 1 });
   };
 
   const handlePerPage = (e) => {
@@ -195,6 +258,7 @@ export default function Index({ projects, filters, years, statusCounts, offices 
     setStatusFilter('all');
     setPerPage(10);
     setShowAll(false);
+    setCompletionFilter('all');
     router.get(route('compliance.index'), {}, { preserveState: true });
   };
 
@@ -203,7 +267,7 @@ export default function Index({ projects, filters, years, statusCounts, offices 
     router.visit(link.url, { preserveState: true, preserveScroll: false, replace: true });
   };
 
-  const hasFilters = !!(search || year || officeFilter || statusFilter !== 'all');
+  const hasFilters = !!(search || year || officeFilter || statusFilter !== 'all' || completionFilter !== 'all');
   const data       = projects?.data || [];
   const pagination = projects?.data ? projects : null;
 
@@ -247,6 +311,34 @@ export default function Index({ projects, filters, years, statusCounts, offices 
 
             {/* Status Tabs */}
             <StatusTabs statusFilter={statusFilter} statusCounts={statusCounts} onChange={handleStatusFilter} />
+
+            {/* Completion Quick Filters */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {['all', 'complete', 'partial', 'missing'].map((key) => {
+                const isActive = completionFilter === key;
+                const configs = {
+                  all: { label: 'All Files', icon: FileText, activeClass: 'bg-gray-700 text-white', inactiveClass: 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300' },
+                  complete: { label: 'Complete (2/2)', icon: CheckCircle, activeClass: 'bg-green-500 text-white', inactiveClass: 'bg-white text-green-600 border border-green-200 hover:bg-green-50' },
+                  partial: { label: 'Partial (1/2)', icon: AlertCircle, activeClass: 'bg-amber-500 text-white', inactiveClass: 'bg-white text-amber-600 border border-amber-200 hover:bg-amber-50' },
+                  missing: { label: 'Missing (0/2)', icon: X, activeClass: 'bg-red-500 text-white', inactiveClass: 'bg-white text-red-600 border border-red-200 hover:bg-red-50' },
+                };
+                const cfg = configs[key];
+                const Icon = cfg.icon;
+                
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleCompletionFilter(key)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+                      isActive ? `${cfg.activeClass} shadow-sm` : cfg.inactiveClass
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {cfg.label}
+                  </button>
+                );
+              })}
+            </div>
 
             {/* Search + Per Page */}
             <div className="flex flex-col md:flex-row gap-2 md:gap-4">
@@ -308,7 +400,7 @@ export default function Index({ projects, filters, years, statusCounts, offices 
                 </select>
               </div>
 
-              {/* Show All Projects checkbox - add this in your filters section */}
+              {/* Show All Projects checkbox */}
               <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -345,6 +437,7 @@ export default function Index({ projects, filters, years, statusCounts, offices 
                         field="project_id"
                         label={<span className="flex items-center gap-2 whitespace-nowrap"><Hash className="w-4 h-4" />PROJECT CODE</span>}
                         sortBy={sortBy}
+                        sortOrder={sortOrder}
                         onSort={handleSort}
                       />
                     </th>
@@ -353,6 +446,7 @@ export default function Index({ projects, filters, years, statusCounts, offices 
                         field="project_title"
                         label={<span className="flex items-center gap-2"><ClipboardList className="w-4 h-4" />PROJECT</span>}
                         sortBy={sortBy}
+                        sortOrder={sortOrder}
                         onSort={handleSort}
                       />
                     </th>
@@ -363,7 +457,13 @@ export default function Index({ projects, filters, years, statusCounts, offices 
                       <div className="flex items-center gap-2"><Calendar className="w-4 h-4" />Year</div>
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      <div className="flex items-center gap-2"><FileText className="w-4 h-4" />Files  </div>
+                      <SortButton
+                        field="completion"
+                        label={<span className="flex items-center gap-2"><FileText className="w-4 h-4" />FILES</span>}
+                        sortBy={sortBy}
+                        sortOrder={sortOrder}
+                        onSort={handleSort}
+                      />
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4" />Status</div>
@@ -381,15 +481,14 @@ export default function Index({ projects, filters, years, statusCounts, offices 
 
                     return (
                       <tr key={project.project_id} className="hover:bg-blue-50/30 transition-colors">
-                    <   td className="px-6 py-4 text-sm justify-center text-gray-900 text-center">{project.project_id}</td>
-
+                        <td className="px-6 py-4 text-sm justify-center text-gray-900 text-center">{project.project_id}</td>
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">
                           <span className="whitespace-normal break-words">{project.project_title}</span>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">{project.proponent?.company_name || '—'}</td>
                         <td className="px-6 py-4 text-sm text-gray-600">{project.year_obligated || '—'}</td>
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                          {filledLinks}<span className="text-gray-400">/2</span>
+                        <td className="px-6 py-4">
+                          <FileStatusIndicator filledLinks={filledLinks} />
                         </td>
                         <td className="px-6 py-4">
                           <StatusBadge status={status} />
@@ -443,8 +542,10 @@ export default function Index({ projects, filters, years, statusCounts, offices 
                         <p className="font-medium text-gray-900 mt-0.5">{project.year_obligated || '—'}</p>
                       </div>
                       <div className="bg-gray-50 rounded p-2">
-                        <span className="text-gray-500 block font-medium">Links</span>
-                        <p className="font-medium text-gray-900 mt-0.5">{filledLinks}<span className="text-gray-400">/2</span></p>
+                        <span className="text-gray-500 block font-medium">Files Status</span>
+                        <div className="mt-1">
+                          <FileStatusIndicator filledLinks={filledLinks} />
+                        </div>
                       </div>
                     </div>
 

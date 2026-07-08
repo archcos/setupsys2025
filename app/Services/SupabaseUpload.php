@@ -55,4 +55,15 @@ class SupabaseUpload
             return false;
         }
     }
+    
+    /**
+     * Get public URL for a file in Supabase
+     */
+    public function getPublicUrl($filePath)
+    {
+        if (!$filePath) return null;
+        
+        return "{$this->projectUrl}/storage/v1/object/public/{$this->bucket}/{$filePath}";
+    }
+    
 }
