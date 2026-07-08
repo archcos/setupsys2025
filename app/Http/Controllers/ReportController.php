@@ -801,11 +801,6 @@ class ReportController extends Controller
 
             $reportId = $report->report_id;
 
-            Log::debug('Report row inserted', [
-                'report_id' => $reportId,
-                'project_id' => $validated['project_id'],
-            ]);
-
             // Save objectives
             if (!empty($validated['actual_accom'])) {
                 foreach ($validated['actual_accom'] as $index => $accom) {

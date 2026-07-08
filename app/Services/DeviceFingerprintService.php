@@ -37,14 +37,6 @@ class DeviceFingerprintService
         $fingerprint = hash('sha256', $fingerprintString);
         $fingerprintRelaxed = hash('sha256', $relaxedString);
 
-        // DEBUG: Log the actual fingerprint components
-        Log::debug('🔍 FINGERPRINT GENERATION', [
-            'fingerprint_string' => $fingerprintString,
-            'fingerprint_hash' => $fingerprint,
-            'fingerprint_relaxed' => $fingerprintRelaxed,
-            'components' => $normalizedComponents,
-        ]);
-
         return [
             'fingerprint' => $fingerprint,
             'fingerprint_relaxed' => $fingerprintRelaxed,
