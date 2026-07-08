@@ -258,7 +258,6 @@ class ApprovalController extends Controller
                 throw new \Exception('Failed to save approval document locally');
             }
 
-            Log::info('Approval document stored locally', ['project_id' => $project_id, 'path' => $fullPath]);
 
             try {
                 $fileContent = file_get_contents($fullPath);
@@ -267,7 +266,6 @@ class ApprovalController extends Controller
                 $uploaded = $supabaseUpload->upload($supabasePath, $fileContent);
 
                 if ($uploaded) {
-                    Log::info('Approval document uploaded to Supabase', ['project_id' => $project_id]);
                 } else {
                     Log::warning('Supabase upload failed, continuing anyway', ['project_id' => $project_id]);
                 }

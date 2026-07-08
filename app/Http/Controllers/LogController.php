@@ -16,7 +16,6 @@ class LogController extends Controller
     public function index(Request $request)
     {
         try {
-            Log::info('LogController.index called');
 
             // Get filter inputs
             $filters = $request->only(['ip_address', 'user_id', 'project_id', 'action', 'model_type', 'days']);
@@ -77,14 +76,6 @@ class LogController extends Controller
                 ->values()
                 ->toArray();
 
-            Log::info('Logs retrieved', [
-                'count' => count($logs),
-                'total_count' => $totalCount,
-                'actions' => count($allActions),
-                'models' => count($allModelTypes),
-                'days' => $days,
-            ]);
-
             return Inertia::render('Admin/LogManagement', [
                 'logs' => $logs,
                 'filters' => (object) $filters,
@@ -121,8 +112,6 @@ class LogController extends Controller
     public function export(Request $request)
     {
         try {
-            Log::info('LogController.export called', $request->all());
-
             // Get filter inputs from query string
             $ipAddress = $request->query('ip_address');
             $userId = $request->query('user_id');
@@ -164,16 +153,6 @@ class LogController extends Controller
             // Get all logs (no pagination for export)
             $logs = $query->latest('created_at')->get();
 
-            Log::info('Export query results', [
-                'count' => count($logs),
-                'ip_address' => $ipAddress,
-                'user_id' => $userId,
-                'project_id' => $projectId,
-                'action' => $action,
-                'model_type' => $modelType,
-                'days' => $days,
-            ]);
-
             // Prepare data for CSV
             $data = [];
             $data[] = ['ID', 'IP Address', 'User', 'Project', 'Action', 'Model Type', 'Description', 'Created At'];
@@ -202,8 +181,6 @@ class LogController extends Controller
             rewind($handle);
             $csv = stream_get_contents($handle);
             fclose($handle);
-
-            Log::info('Logs exported successfully', ['count' => count($logs), 'filename' => $filename]);
 
             return response($csv, 200)
                 ->header('Content-Type', 'text/csv; charset=utf-8')

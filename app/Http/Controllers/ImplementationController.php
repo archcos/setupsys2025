@@ -266,12 +266,6 @@ class ImplementationController extends Controller
             $currentYear = now()->year;
             $projectId = $implementation->project_id;
 
-            // 1. Store locally
-            Log::info("Uploading {$field} file", [
-                'implement_id' => $implementation->implement_id,
-                'file_name' => $fileName,
-                'file_size' => $file->getSize(),
-            ]);
 
             $localFolderPath = "{$currentYear}/{$projectId}/implementation";
             $path = $file->storeAs($localFolderPath, $fileName, 'private');
@@ -279,11 +273,6 @@ class ImplementationController extends Controller
             if (!$path) {
                 throw new \Exception('Failed to store file locally');
             }
-
-            Log::info("File stored locally for {$field}", [
-                'implement_id' => $implementation->implement_id,
-                'local_path' => $path,
-            ]);
 
             // 2. Upload to Supabase
             try {
@@ -299,22 +288,12 @@ class ImplementationController extends Controller
                     throw new \Exception('Failed to read local file content');
                 }
 
-                Log::info("Local file found, attempting Supabase upload for {$field}", [
-                    'implement_id' => $implementation->implement_id,
-                    'local_path' => $localFilePath,
-                    'file_size' => strlen($fileContent),
-                ]);
-
                 $supabasePath = "backup/{$currentYear}/{$projectId}/{$fileName}";
                 $supabaseUpload = new SupabaseUpload();
                 $uploaded = $supabaseUpload->upload($supabasePath, $fileContent);
 
                 if ($uploaded) {
-                    Log::info("✓ File successfully uploaded to Supabase for {$field}", [
-                        'implement_id' => $implementation->implement_id,
-                        'project_id' => $projectId,
-                        'supabase_path' => $supabasePath,
-                    ]);
+                   
                 } else {
                     Log::warning("Supabase upload failed for {$field}, continuing anyway", [
                         'implement_id' => $implementation->implement_id,
@@ -442,14 +421,6 @@ class ImplementationController extends Controller
                 }
             }
 
-            Log::info('Liquidation notification emails sent', [
-                'implement_id' => $implementation->implement_id,
-                'director_email' => $directorEmail,
-                'staff_count' => $officeStaffUsers->count(),
-                'cc_emails' => $hardcodedCc,
-                'office' => $officeName,
-                'uploaded_by' => $uploaderName,
-            ]);
         } catch (\Exception $e) {
             Log::error('Failed to send liquidation notification emails', [
                 'implement_id' => $implementation->implement_id,

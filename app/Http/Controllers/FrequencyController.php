@@ -127,19 +127,6 @@ class FrequencyController extends Controller
             return $b['count'] - $a['count'];
         });
 
-        Log::info('Login Frequency Data', [
-            'total_records' => $records->count(),
-            'chart_data_count' => count($chartData),
-            'office_chart_count' => count($officeChartData),
-            'filter' => $filter,
-            'year' => $selectedYear,
-            'date_range' => [
-                'start' => $dateRange['start']->format('Y-m-d'),
-                'end' => $dateRange['end']->format('Y-m-d'),
-            ],
-            'selected_office' => $selectedOffice,
-        ]);
-
         return Inertia::render('Admin/LoginFrequency', [
             'records' => $records->toArray(),
             'chartData' => $chartData,

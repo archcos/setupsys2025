@@ -168,7 +168,6 @@ class ApplyRestructController extends Controller
                 'added_by'   => $user->user_id,
             ]);
 
-            Log::info('ApplyRestruct record created (empty)', ['apply_id' => $applyRestruct->apply_id]);
 
             // Redirect straight to the edit/upload page so the user can upload files
             return redirect()->route('apply_restruct.edit', $applyRestruct->apply_id)
@@ -256,11 +255,6 @@ class ApplyRestructController extends Controller
                 throw new \Exception('Failed to store file locally.');
             }
 
-            Log::info("ApplyRestruct file stored [{$field}]", [
-                'apply_id'   => $applyId,
-                'local_path' => $path,
-            ]);
-
             // 2. Upload to Supabase (best-effort)
             try {
                 $absolutePath = storage_path("app/private/{$path}");
@@ -269,7 +263,6 @@ class ApplyRestructController extends Controller
 
                 $uploader = new SupabaseUpload();
                 if ($uploader->upload($supabasePath, $fileContent)) {
-                    Log::info("Supabase upload OK [{$field}]", ['path' => $supabasePath]);
                 } else {
                     Log::warning("Supabase upload failed [{$field}], continuing anyway.");
                 }
@@ -320,8 +313,6 @@ class ApplyRestructController extends Controller
             }
 
             $applyRestruct->update([$field => null]);
-
-            Log::info("ApplyRestruct file deleted [{$field}]", ['apply_id' => $applyRestruct->apply_id]);
 
             return back()->with('success', ucfirst($field) . ' deleted successfully.');
 
@@ -394,8 +385,6 @@ class ApplyRestructController extends Controller
 
             $applyRestruct->update(['project_id' => $request->project_id]);
 
-            Log::info('ApplyRestruct updated', ['apply_id' => $apply_id]);
-
             // Final submit: send emails and go back to index
             if ($request->boolean('submit')) {
                 $fresh = $applyRestruct->fresh();
@@ -439,7 +428,6 @@ class ApplyRestructController extends Controller
 
             $applyRestruct->delete();
 
-            Log::info('ApplyRestruct deleted', ['apply_id' => $apply_id]);
             return back()->with('success', 'Application deleted successfully.');
 
         } catch (\Exception $e) {
@@ -458,7 +446,6 @@ class ApplyRestructController extends Controller
         foreach ($recipients as $email) {
             try {
                 Mail::to($email)->send(new ApplyRestructureMail($applyRestruct));
-                Log::info('ApplyRestruct email sent', ['to' => $email, 'apply_id' => $applyRestruct->apply_id]);
             } catch (\Exception $e) {
                 Log::error('ApplyRestruct email failed', ['to' => $email, 'error' => $e->getMessage()]);
             }

@@ -186,7 +186,6 @@ class RestructureController extends Controller
 
     public function store(Request $request)
     {
-        Log::info('Restructure Store Request:', $request->all());
 
         try {
             $validated = $request->validate([
@@ -287,7 +286,6 @@ class RestructureController extends Controller
                 }
             }
 
-            Log::info('Restructure created successfully:', ['id' => $restructure->restruct_id]);
 
             if (in_array($request->status, ['recommended', 'pending'])) {
                 try {
@@ -312,7 +310,6 @@ class RestructureController extends Controller
 
     public function update(Request $request, $restruct_id)
     {
-        Log::info('Restructure Update Request:', ['restruct_id' => $restruct_id, 'data' => $request->all()]);
 
         try {
             $validated = $request->validate([
@@ -413,8 +410,6 @@ class RestructureController extends Controller
                 }
             }
 
-            Log::info('Restructure updated successfully:', $restructure->toArray());
-
             if (in_array($request->status, ['recommended', 'pending'])) {
                 try {
                     $restructure = RestructureModel::with(['project.proponent', 'addedBy'])->findOrFail($restructure->restruct_id);
@@ -443,7 +438,6 @@ class RestructureController extends Controller
             RestructureUpdateModel::where('restruct_id', $restruct_id)->delete();
             $restructure->delete();
 
-            Log::info('Restructure deleted:', ['restruct_id' => $restruct_id]);
             return redirect()->back()->with('success', 'Restructuring deleted successfully.');
 
         } catch (\Exception $e) {
@@ -455,7 +449,6 @@ class RestructureController extends Controller
     public function updateStatus(Request $request, $restruct_id)
     {
         try {
-            Log::info('=== STATUS UPDATE STARTED ===', ['restruct_id' => $restruct_id, 'user_role' => Auth::user()->role ?? 'unknown']);
 
             $validated = $request->validate([
                 'status'  => 'required|in:recommended,pending,approved',
@@ -490,7 +483,6 @@ class RestructureController extends Controller
 
             if ($validated['status'] === 'approved' && $restructure->new_refund_end) {
                 $restructure->project->update(['refund_end' => $restructure->new_refund_end]);
-                Log::info('Project refund_end updated', ['project_id' => $restructure->project_id, 'new_refund_end' => $restructure->new_refund_end]);
             }
 
             try {
@@ -530,7 +522,6 @@ class RestructureController extends Controller
             try {
                 $recipientName = $director->honorific . ' ' . $director->last_name;
                 Mail::to($director->email)->send(new RestructureRecommendedMail($restructure, $recipientName, $remarks));
-                Log::info('✓ Recommended email sent', ['to' => $director->email]);
             } catch (\Exception $e) {
                 Log::error('✗ Failed to send recommended email', ['to' => $director->email, 'error' => $e->getMessage()]);
             }
@@ -548,7 +539,6 @@ class RestructureController extends Controller
         foreach ($rpmoUsers as $user) {
             try {
                 Mail::to($user->email)->send(new RestructureApprovedMail($restructure, $restructure->project->proponent->company_name, Auth::user()->name, $remarks));
-                Log::info('✓ Approved email sent to RPMO', ['to' => $user->email]);
             } catch (\Exception $e) {
                 Log::error('✗ Failed approved email to RPMO', ['to' => $user->email, 'error' => $e->getMessage()]);
             }
@@ -557,7 +547,6 @@ class RestructureController extends Controller
         foreach ($staffUsers as $user) {
             try {
                 Mail::to($user->email)->send(new RestructureApprovedMail($restructure, $user->name, Auth::user()->name, $remarks));
-                Log::info('✓ Approved email sent to staff', ['to' => $user->email]);
             } catch (\Exception $e) {
                 Log::error('✗ Failed approved email to staff', ['to' => $user->email, 'error' => $e->getMessage()]);
             }
@@ -566,7 +555,6 @@ class RestructureController extends Controller
         if ($proponentEmail) {
             try {
                 Mail::to($proponentEmail)->send(new RestructureApprovedMail($restructure, $restructure->project->proponent->company_name, Auth::user()->name, $remarks));
-                Log::info('✓ Approved email sent to proponent', ['to' => $proponentEmail]);
             } catch (\Exception $e) {
                 Log::error('✗ Failed approved email to proponent', ['to' => $proponentEmail, 'error' => $e->getMessage()]);
             }
@@ -583,7 +571,6 @@ class RestructureController extends Controller
         foreach ($rpmoUsers as $user) {
             try {
                 Mail::to($user->email)->send(new RestructureDeniedMail($restructure, $user->name, Auth::user()->name, $remarks));
-                Log::info('✓ Denied email sent to RPMO', ['to' => $user->email]);
             } catch (\Exception $e) {
                 Log::error('✗ Failed denied email to RPMO', ['to' => $user->email, 'error' => $e->getMessage()]);
             }
@@ -592,7 +579,6 @@ class RestructureController extends Controller
         foreach ($staffUsers as $user) {
             try {
                 Mail::to($user->email)->send(new RestructureDeniedMail($restructure, $user->name, Auth::user()->name, $remarks));
-                Log::info('✓ Denied email sent to staff', ['to' => $user->email]);
             } catch (\Exception $e) {
                 Log::error('✗ Failed denied email to staff', ['to' => $user->email, 'error' => $e->getMessage()]);
             }
@@ -626,8 +612,6 @@ class RestructureController extends Controller
 
                 $currentDate->addMonth();
             }
-
-            Log::info('Restructured refund entries completed', ['project_id' => $restructure->project_id]);
 
         } catch (\Exception $e) {
             Log::error('Error creating restructured refund entries:', ['message' => $e->getMessage()]);

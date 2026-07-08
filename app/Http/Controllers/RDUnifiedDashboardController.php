@@ -230,7 +230,6 @@ class RDUnifiedDashboardController extends Controller
                     'pdc_by' => null,
                     'liquidation_by' => null,
                 ]);
-                Log::info("Implementation record created for project ID: $projectId");
             }
         } catch (\Exception $e) {
             Log::error('Error creating implementation record: '.$e->getMessage());
@@ -281,7 +280,6 @@ class RDUnifiedDashboardController extends Controller
             if (count($recipients) > 0) {
                 foreach ($recipients as $recipient) {
                     Mail::to($recipient->email)->send(new RDApprovalMail($project, $user));
-                    Log::info("Compliance approval email sent to: {$recipient->email}");
                 }
             } else {
                 Log::warning("No recipients found for compliance approval email. Project ID: {$project->project_id}");
@@ -335,7 +333,6 @@ class RDUnifiedDashboardController extends Controller
             if (count($recipients) > 0) {
                 foreach ($recipients as $recipient) {
                     Mail::to($recipient->email)->send(new RDDisapprovalMail($project, $user, $remark));
-                    Log::info("Compliance disapproval email sent to: {$recipient->email}");
                 }
             } else {
                 Log::warning("No recipients found for compliance disapproval email. Project ID: {$project->project_id}");
@@ -366,7 +363,6 @@ class RDUnifiedDashboardController extends Controller
                         $remarks
                     ));
                     $sentEmails[] = $rpmoUser->email;
-                    Log::info("Restructure approval email sent to RPMO: {$rpmoUser->email}");
                 }
             }
 
@@ -379,7 +375,6 @@ class RDUnifiedDashboardController extends Controller
                         $remarks
                     ));
                     $sentEmails[] = $staffUser->email;
-                    Log::info("Restructure approval email sent to Staff: {$staffUser->email}");
                 }
             }
 
@@ -390,7 +385,6 @@ class RDUnifiedDashboardController extends Controller
                     $user->name,
                     $remarks
                 ));
-                Log::info("Restructure approval email sent to Proponent: {$proponentEmail}");
             }
         } catch (\Exception $e) {
             Log::error('Error sending restructure approval email: '.$e->getMessage());
@@ -417,7 +411,6 @@ class RDUnifiedDashboardController extends Controller
                         $remarks
                     ));
                     $sentEmails[] = $rpmoUser->email;
-                    Log::info("Restructure denial email sent to RPMO: {$rpmoUser->email}");
                 }
             }
 
@@ -430,7 +423,6 @@ class RDUnifiedDashboardController extends Controller
                         $remarks
                     ));
                     $sentEmails[] = $staffUser->email;
-                    Log::info("Restructure denial email sent to Staff: {$staffUser->email}");
                 }
             }
         } catch (\Exception $e) {

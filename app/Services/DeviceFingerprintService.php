@@ -233,13 +233,7 @@ class DeviceFingerprintService
         array $currentFingerprint,
         string $currentIp
     ): array {
-        Log::info('🔐 VERIFY DEVICE START', [
-            'user_id' => $userId,
-            'current_fp_strict' => substr($currentFingerprint['fingerprint'], 0, 16).'...',
-            'current_fp_relaxed' => substr($currentFingerprint['fingerprint_relaxed'], 0, 16).'...',
-            'ip' => $currentIp,
-            'entropy' => $currentFingerprint['entropy_score'],
-        ]);
+
 
         // Try strict match first
         $device = SavedDeviceModel::where('user_id', $userId)
@@ -247,10 +241,7 @@ class DeviceFingerprintService
             ->first();
 
         if ($device) {
-            Log::info('✅ STRICT MATCH FOUND', [
-                'device_id' => $device->id,
-                'saved_at' => $device->created_at,
-            ]);
+          
         } else {
             Log::warning('❌ NO STRICT MATCH', [
                 'looking_for' => substr($currentFingerprint['fingerprint'], 0, 16).'...',
@@ -262,9 +253,7 @@ class DeviceFingerprintService
                 ->first();
 
             if ($device) {
-                Log::info('✅ RELAXED MATCH FOUND (browser update)', [
-                    'device_id' => $device->id,
-                ]);
+ 
             }
         }
 
@@ -300,11 +289,7 @@ class DeviceFingerprintService
         }
 
         // Device recognized and trusted - update last usage
-        Log::info('✅ DEVICE VERIFIED - SKIPPING MFA', [
-            'device_id' => $device->id,
-            'device_name' => $device->device_name,
-        ]);
-
+     
         $device->update([
             'last_used_at' => now(),
             'last_ip' => $currentIp,
@@ -326,12 +311,7 @@ class DeviceFingerprintService
         string $ip,
         ?string $deviceName = null
     ): SavedDeviceModel {
-        Log::info('💾 REGISTERING DEVICE', [
-            'user_id' => $userId,
-            'fingerprint' => substr($fingerprint['fingerprint'], 0, 16).'...',
-            'device_name' => $deviceName,
-        ]);
-
+      
         SavedDeviceModel::where('user_id', $userId)
             ->where('device_fingerprint', $fingerprint['fingerprint'])
             ->delete();
@@ -349,10 +329,6 @@ class DeviceFingerprintService
             'fingerprint_version' => $fingerprint['version'],
         ]);
 
-        Log::info('✅ DEVICE REGISTERED', [
-            'device_id' => $device->id,
-            'expires' => $device->trust_expires_at,
-        ]);
 
         return $device;
     }

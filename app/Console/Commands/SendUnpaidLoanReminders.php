@@ -175,7 +175,6 @@ class SendUnpaidLoanReminders extends Command
         foreach ($projects as $project) {
             $proponentEmail = $project->proponent->email;
             if (!$proponentEmail) {
-                Log::info("Skipping project {$project->project_id} - no email");
                 continue;
             }
 
@@ -196,7 +195,6 @@ class SendUnpaidLoanReminders extends Command
                     )
                 );
 
-                Log::info("Reminder sent to {$proponentEmail} for project {$project->project_id} (Amount: ₱{$refundAmount})");
                 $this->info("✓ Sent reminder to {$proponentEmail} (₱" . number_format($refundAmount, 2) . ")");
             } catch (\Exception $e) {
                 Log::error("Failed to send email to {$proponentEmail}: " . $e->getMessage());

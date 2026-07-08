@@ -33,10 +33,6 @@ class SupabaseUpload
             ])->withBody($fileContent, 'application/octet-stream')->post($url);
             
             if ($response->successful()) {
-                Log::info('✓ Uploaded to Supabase', [
-                    'path' => $filePath,
-                    'size' => strlen($fileContent),
-                ]);
                 return true;
             }
             

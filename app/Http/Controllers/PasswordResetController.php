@@ -55,12 +55,6 @@ class PasswordResetController extends Controller
             ->orWhere('username', $validated['login'])
             ->first();
 
-        Log::info('Password reset requested', [
-            'login'      => $validated['login'],
-            'user_found' => (bool) $user,
-            'ip'         => $ip,
-        ]);
-
         // Always return the same response — prevents user enumeration
         if (!$user) {
             return back()->with('message', 'If an account exists with that email or username, you will receive a password reset OTP shortly.');
@@ -274,11 +268,6 @@ class PasswordResetController extends Controller
 
                 // Correct code — mark as used, leave the row (deleted on reset)
                 $record->markAsUsed($ip);
-                Log::info('OTP verified successfully', [
-                    'email'    => $email,
-                    'otp_type' => $otpType,
-                    'ip'       => $ip,
-                ]);
                 return true;
             });
         } catch (\Throwable $e) {
@@ -417,13 +406,6 @@ class PasswordResetController extends Controller
             Session::forget(['reset_pending_user_id', 'reset_email', 'reset_otp_type', 'reset_otp_verified']);
             RateLimiter::clear('password_reset_request:ip:' . $ip);
 
-            Log::info('Password reset completed — all OTP rows deleted', [
-                'user_id' => $user->user_id,
-                'email'   => $email,
-                'otp_type' => $otpType,
-                'ip'      => $ip,
-            ]);
-
             return redirect()->route('login')
                 ->with('message', 'Password reset successfully! Please log in with your new password.');
 
@@ -530,13 +512,6 @@ class PasswordResetController extends Controller
         // Hit IP limiter only after confirmed successful send
         RateLimiter::hit($ipKey, 60);
 
-        Log::info('OTP resent successfully', [
-            'email'        => $email,
-            'otp_type'     => $otpType,
-            'resend_count' => $otpRecord->resend_count,
-            'ip'           => $ip,
-        ]);
-
         return response()->json([
             'message'   => 'OTP resent successfully! Check your email.',
             'expiresAt' => $otpRecord->expires_at->toIso8601String(),
@@ -597,12 +572,6 @@ class PasswordResetController extends Controller
             Mail::to($email)->send(
                 new \App\Mail\PasswordResetOtpMail($otp, $userName, $otpRecord->expires_at)
             );
-            Log::info('OTP issued', [
-                'email'        => $email,
-                'otp_type'     => OtpModel::TYPE_RESET,
-                'resend_count' => $otpRecord->resend_count,
-                'ip'           => $ip,
-            ]);
             return true;
         } catch (Exception $e) {
             Log::error('Failed to send OTP email', [

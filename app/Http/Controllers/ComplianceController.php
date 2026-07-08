@@ -299,7 +299,6 @@ public function store(Request $request)
             $existingFilePath = $compliance->{$config['db_field']} ?? null;
             if ($existingFilePath && file_exists($existingFilePath)) {
                 unlink($existingFilePath);
-                Log::info('Old local file removed', ['path' => $existingFilePath]);
             }
             
             // Store file locally (replaces if same name)
@@ -324,11 +323,7 @@ public function store(Request $request)
                 $uploaded = $supabaseUpload->upload($supabasePath, $fileContent);
                 
                 if ($uploaded) {
-                    Log::info('Supabase upload successful', [
-                        'project_id' => $projectId,
-                        'file' => $fileName,
-                        'supabase_path' => $supabasePath
-                    ]);
+                    
                 }
             } catch (\Exception $e) {
                 Log::error('Supabase upload error', [
@@ -347,23 +342,12 @@ public function store(Request $request)
     if (!empty($compliance->pp_link)) $currentFilledCount++;
     if (!empty($compliance->fs_link)) $currentFilledCount++;
 
-    Log::info('Compliance file check', [
-        'project_id' => $projectId,
-        'user_role' => $user->role,
-        'currentFilledCount' => $currentFilledCount,
-        'pp_link' => $compliance->pp_link ?? 'empty',
-        'fs_link' => $compliance->fs_link ?? 'empty'
-    ]);
-
     // Show prompt if user is staff and both files are present (regardless of whether files were just uploaded)
     if ($user->role === 'staff' && $currentFilledCount === 2) {
         $project->progress = 'Project Review';
         $project->save();
         
-        Log::info('Showing email prompt', [
-            'project_id' => $projectId,
-            'currentCount' => $currentFilledCount
-        ]);
+
 
         return redirect()->back()->with([
             'success' => 'Compliance files updated successfully.',

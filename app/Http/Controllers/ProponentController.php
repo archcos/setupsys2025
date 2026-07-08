@@ -115,8 +115,6 @@ class ProponentController extends Controller
 
         $proponent->update(['added_by' => $request->added_by]);
 
-        Log::info("proponent '{$proponent->company_name}' added_by changed from {$oldUser} to {$newUser}");
-
         return back()->with('success', "Added By updated from {$oldUser} to {$newUser}.");
     }
 
@@ -326,8 +324,6 @@ class ProponentController extends Controller
                 }
             }
 
-            Log::info('CSV Headers loaded: '.count($header).' columns');
-
             $newRecords = 0;
             $updatedRecords = 0;
             $rowIndex = 1;
@@ -408,12 +404,9 @@ class ProponentController extends Controller
 
                     if ($proponent->wasRecentlyCreated) {
                         ++$newRecords;
-                        Log::info("Row $rowIndex: Inserted '$normalizedName' (office_id={$officeId})");
                     } elseif ($isUpdated) {
                         ++$updatedRecords;
-                        Log::info("Row $rowIndex: Updated '$normalizedName' from CSV entry '$company_name'");
                     } else {
-                        Log::info("Row $rowIndex: Skipped '$normalizedName' — no suffix, already exists");
                     }
                 } catch (\Exception $e) {
                     Log::error("Row $rowIndex failed: ".$e->getMessage(), ['row' => $data]);
@@ -429,8 +422,6 @@ class ProponentController extends Controller
                 'Synced',
                 "Synced {$newRecords} new and {$updatedRecords} updated proponents from CSV."
             );
-
-            Log::info("Proponent CSV sync complete. New: $newRecords, Updated: $updatedRecords");
 
             return back()->with('success', "{$newRecords} proponents synced, {$updatedRecords} updated.");
         } catch (\Exception $e) {

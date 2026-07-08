@@ -51,13 +51,6 @@ class DeviceController extends Controller
 
         $device->revoke();
 
-        Log::info('Device trust revoked by user', [
-            'user_id' => $user->user_id,
-            'device_id' => $deviceId,
-            'device_name' => $device->device_name,
-            'ip' => $request->ip(),
-        ]);
-
         return back()->with('success', 'Device trust revoked. You will need to verify with OTP on next login from this device.');
     }
 
@@ -70,12 +63,6 @@ class DeviceController extends Controller
 
         foreach ($expired as $device) {
             $device->revoke();
-
-            Log::info('Expired device auto-revoked', [
-                'user_id' => $device->user_id,
-                'device_id' => $device->id,
-                'expired_at' => $device->trust_expires_at,
-            ]);
         }
 
         return response()->json([

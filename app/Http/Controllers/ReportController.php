@@ -575,7 +575,6 @@ class ReportController extends Controller
         $docxFilename = 'report_'.$project->project_id.'_'.$report->report_id.'_'.time().'.docx';
         $tempDocx = $tempDir.DIRECTORY_SEPARATOR.$docxFilename;
 
-        Log::info('Saving DOCX file', ['path' => $tempDocx]);
         $templateProcessor->saveAs($tempDocx);
 
         if (!file_exists($tempDocx)) {
@@ -584,10 +583,6 @@ class ReportController extends Controller
             throw new \Exception('Failed to create DOCX file');
         }
 
-        Log::info('DOCX file created successfully', [
-            'path' => $tempDocx,
-            'size' => filesize($tempDocx),
-        ]);
 
         // ── Find LibreOffice ──────────────────────────────────────────────────────
         $libreOfficePaths = [
@@ -627,16 +622,10 @@ class ReportController extends Controller
             $tempDocx
         );
 
-        Log::info('Executing conversion command', ['command' => $command]);
 
         $output = [];
         $returnCode = null;
         exec($command.' 2>&1', $output, $returnCode);
-        Log::info('LibreOffice conversion finished', [
-            'return_code' => $returnCode,
-            'output' => $output,
-            'temp_dir_contents_after_conversion' => is_dir($tempDir) ? scandir($tempDir) : [],
-        ]);
 
         sleep(2);
 
@@ -657,10 +646,6 @@ class ReportController extends Controller
             throw new \Exception('PDF file was not created by LibreOffice.');
         }
 
-        Log::info('PDF file created successfully', [
-            'path' => $tempPdf,
-            'size' => filesize($tempPdf),
-        ]);
 
         // ── Store PDF locally ─────────────────────────────────────────────────────
         $currentYear = now()->year;
@@ -681,7 +666,6 @@ class ReportController extends Controller
             throw new \Exception('Failed to store PDF in private storage');
         }
 
-        Log::info('PDF stored locally', ['storage_path' => $storagePath]);
 
         // ── Upload to Supabase Storage (backup) ───────────────────────────────────
         try {
@@ -691,11 +675,7 @@ class ReportController extends Controller
             $uploaded = $supabaseUpload->upload($supabasePath, $pdfContent);
 
             if ($uploaded) {
-                Log::info('✓ Report PDF successfully uploaded to Supabase', [
-                    'report_id' => $report_id,
-                    'project_id' => $projectId,
-                    'supabase_path' => $supabasePath,
-                ]);
+
             } else {
                 Log::warning('Supabase upload failed for report PDF, continuing anyway', [
                     'report_id' => $report_id,
@@ -730,7 +710,6 @@ class ReportController extends Controller
                 }
             }
             @rmdir($dir);
-            Log::info('Cleaned up temp directory', ['dir' => $dir]);
         } catch (\Exception $e) {
             Log::warning('Failed to cleanup temp directory', [
                 'dir' => $dir,
@@ -800,7 +779,6 @@ class ReportController extends Controller
             'nonequipments_actual.*.remarks' => 'nullable|string',
         ]);
 
-        Log::info('Creating new report - validated data received', ['validated' => $validated]);
 
         DB::beginTransaction();
 
@@ -937,10 +915,7 @@ class ReportController extends Controller
                 $report->file_path = $filePath;
                 $report->save();
 
-                Log::info('Report PDF generated and saved', [
-                    'report_id' => $reportId,
-                    'file_path' => $filePath,
-                ]);
+              
             } catch (\Exception $e) {
                 Log::error('Failed to generate PDF', [
                     'report_id' => $reportId,

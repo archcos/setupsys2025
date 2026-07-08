@@ -169,10 +169,7 @@ class AuthController extends Controller
                     ->where('id', '!=', $request->session()->getId())
                     ->delete();
                     
-                Log::info('Existing sessions terminated for new login', [
-                    'user_id' => $user->user_id,
-                    'ip' => $ip
-                ]);
+
                 // Continue with the rest of the login process
             } else {
                 // Return a special response indicating an active session exists
@@ -199,11 +196,7 @@ class AuthController extends Controller
         );
 
         if (!$verification['require_mfa']) {
-            Log::info('Login via recognized device - skipping MFA', [
-                'user_id' => $user->user_id,
-                'ip' => $ip,
-                'reason' => $verification['reason'],
-            ]);
+          
 
             $this->completeLogin($user, $request);
             RateLimiter::clear($key);
@@ -263,11 +256,7 @@ class AuthController extends Controller
             $frequency->save();
         }
 
-        Log::info('User logged in successfully', [
-            'user_id' => $user->user_id,
-            'role' => $user->role,
-            'ip' => $request->ip(),
-        ]);
+
     }
 
     /**
@@ -352,14 +341,7 @@ class AuthController extends Controller
             try {
                 Mail::to($email)->send(new \App\Mail\OtpVerificationMail($otp, $userName, $expiresAt));
 
-                Log::info('OTP sent successfully', [
-                    'email' => $email,
-                    'otp_type' => $otpType,
-                    'otp_id' => $otpRecord->id,
-                    'otp_lifetime' => $otpLifetime,
-                    'expires_at' => $expiresAt,
-                    'ip' => request()->ip(),
-                ]);
+    
 
                 return true;
             } catch (\Exception $e) {
@@ -517,13 +499,7 @@ class AuthController extends Controller
 
                 $otpRecord->update(['used_at' => now(), 'used_ip' => $ip]);
 
-                Log::info('OTP verified successfully', [
-                    'email' => $email,
-                    'otp_type' => $otpType,
-                    'ip' => $ip,
-                    'otp_id' => $otpRecord->id,
-                ]);
-
+          
                 return true;
             });
         } catch (\Throwable $e) {
@@ -594,11 +570,6 @@ class AuthController extends Controller
                 $deviceName
             );
 
-            Log::info('Device registered successfully after OTP', [
-                'user_id' => $user->user_id,
-                'otp_type' => $otpType,
-                'ip' => $ip,
-            ]);
         } catch (\Exception $e) {
             Log::error('Failed to save device after OTP', [
                 'user_id' => $user->user_id,
@@ -613,13 +584,7 @@ class AuthController extends Controller
         RateLimiter::clear($ipKey);
         RateLimiter::clear($userKey);
 
-        Log::info('OTP verified and login completed', [
-            'user_id' => $user->user_id,
-            'email' => $email,
-            'otp_type' => $otpType,
-            'ip' => $ip,
-            'role' => $user->role,
-        ]);
+      
 
         return $user->role === 'user'
             ? redirect()->route('user.dashboard')
@@ -689,13 +654,7 @@ class AuthController extends Controller
             return back()->withErrors(['message' => 'OTP was sent but could not retrieve expiration time.']);
         }
 
-        Log::info('OTP resent successfully', [
-            'email' => $email,
-            'otp_type' => $otpType,
-            'otp_id' => $otpRecord->id,
-            'expires_at' => $otpRecord->expires_at,
-            'ip' => $ip,
-        ]);
+      
 
         return back()->with([
             'message' => 'OTP resent successfully! Check your email.',
@@ -851,12 +810,10 @@ class AuthController extends Controller
         if (!empty($validated['password'])) {
             // Current password is already verified via validation
             $user->password = Hash::make($validated['password']);
-            Log::info('User password changed', ['user_id' => $user->user_id, 'ip' => $request->ip()]);
         }
 
         $user->save();
 
-        Log::info('User settings updated', ['user_id' => $user->user_id, 'updated_by' => Auth::id()]);
 
         return back()->with('success', 'Settings updated successfully!');
     }

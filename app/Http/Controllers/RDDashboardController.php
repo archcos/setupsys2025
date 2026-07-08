@@ -114,9 +114,7 @@ class RDDashboardController extends Controller
                 'liquidation_by' => null,
             ]);
 
-                Log::info("Implementation record created for project ID: $projectId");
             } else {
-                Log::info("Implementation record already exists for project ID: $projectId");
             }
         } catch (\Exception $e) {
             Log::error('Error creating implementation record: ' . $e->getMessage());

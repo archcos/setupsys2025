@@ -193,12 +193,6 @@ class ProjectController extends Controller
             }
         }
 
-        Log::info('Project status updated', [
-            'project_id' => $project->project_id,
-            'old_status' => $oldProgress,
-            'new_status' => $validated['progress'],
-            'updated_by' => Auth::id(),
-        ]);
 
         return back()->with('success', 'Project status updated successfully.');
     }
@@ -376,7 +370,6 @@ class ProjectController extends Controller
         foreach ($officeUsers as $officeUser) {
             try {
                 Mail::to($officeUser->email)->send(new ProjectCreatedMail($project, $proponent, $user));
-                Log::info("Project creation email sent to {$officeUser->email}");
             } catch (\Exception $e) {
                 Log::error("Failed to send project creation email to {$officeUser->email}: ".$e->getMessage());
             }
@@ -575,7 +568,6 @@ class ProjectController extends Controller
     {
         $project = ProjectModel::findOrFail($id);
 
-        Log::info("Updating project: {$project->project_id}");
 
         $validated = $request->validate([
             'project_title' => 'required|string|max:255',
@@ -645,7 +637,6 @@ class ProjectController extends Controller
             'refund_end' => $validated['refund_end'],
         ]);
 
-        Log::info('Project updated successfully.');
 
         $project->items()->where('report', 'approved')->delete();
         if (!empty($validated['items'])) {
@@ -783,7 +774,6 @@ class ProjectController extends Controller
                     }
 
                     if (ProjectModel::where('project_id', $projectId)->exists()) {
-                        Log::info("CSV Sync - Row $rowIndex skipped: Project ID $projectId already exists (proponent: '$proponentName').");
                         continue;
                     }
 
@@ -1022,7 +1012,6 @@ class ProjectController extends Controller
                         ->exists();
 
                     if ($alreadyExists) {
-                        Log::info("Items CSV Sync - Row $rowIndex skipped: duplicate item '$itemName' for project_id=$projectId.");
                         continue;
                     }
 
