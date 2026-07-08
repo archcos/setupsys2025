@@ -237,41 +237,99 @@ class ReportController extends Controller
         $phaseTwo = "$refundInitial - $refundEnd";
 
         // ── SIMPLIFIED: Refund calculations ──────────────────────────────────────
-        // Total Amount Release = Project Cost
-        $totalAmountRelease = $project->project_cost;
 
-        // Total Amount Refunded = sum of all payment amounts from refund records
-        $totalAmountRefunded = $refunds->sum(function ($refund) {
-            return $this->sumPayments(is_array($refund->payments) ? $refund->payments : []);
-        });
+        // Helper to calculate expected monthly amount
+$calculateExpectedMonthlyAmount = function($project, $refundStart, $refundEnd) {
+    if (!$refundStart || !$refundEnd) {
+        return 0;
+    }
+    
+    $totalMonths = $refundStart->diffInMonths($refundEnd) + 1;
+    return $totalMonths > 0 ? $project->project_cost / $totalMonths : 0;
+};
 
-        // Total Unsettled = Total Amount Release - Total Amount Refunded
-        $totalUnsettled = $totalAmountRelease - $totalAmountRefunded;
+  // ── REFUND CALCULATIONS ──────────────────────────────────────────────────
 
-        // For display - finding oldest unpaid/partial month
-        $oldestUnpaid = $refunds
-            ->whereIn('status', ['unpaid', 'partial'])
-            ->sortBy('month_paid')
-            ->first();
+// Helper to calculate expected monthly amount
+$calculateExpectedMonthlyAmount = function($project, $refundStart, $refundEnd) {
+    if (!$refundStart || !$refundEnd) {
+        return 0;
+    }
+    
+    $totalMonths = $refundStart->diffInMonths($refundEnd) + 1;
+    return $totalMonths > 0 ? $project->project_cost / $totalMonths : 0;
+};
 
-        $oldUnpaid = $oldestUnpaid
-            ? Carbon::parse($oldestUnpaid->month_paid)->format('F Y')
-            : 'N/A';
+// 1. Total Amount Refunded = sum of all payment amounts from refund records
+$totalAmountRefunded = $refunds->sum(function ($refund) {
+    return $this->sumPayments(is_array($refund->payments) ? $refund->payments : []);
+});
 
-        // Total unpaid for current month (for display purposes)
-        $totalUnpaid = $refunds
-            ->whereIn('status', ['unpaid', 'partial'])
-            ->where('month_paid', Carbon::now()->format('Y-m-01'))
-            ->sum(function ($refund) {
-                $paid = $this->sumPayments(is_array($refund->payments) ? $refund->payments : []);
+// 2. Total amount to be refunded = Project Cost - Total Paid (including partials)
+$toRefunded = $project->project_cost - $totalAmountRefunded;
 
-                return max(0, ($refund->amount_due ?? 0) - $paid);
+// 3. Total amount refunded (same as above, for template)
+$totalRefund = $totalAmountRefunded;
+
+// 4. Total amount already due (as of current date)
+$totalAlreadyDue = 0;  // Monetary amount
+$unsettledRefund = 0;  // Count of unpaid months
+$currentDate = now()->startOfMonth();
+
+if ($project->refund_initial) {
+    $refundStart = Carbon::parse($project->refund_initial)->startOfMonth();
+    $refundEnd = $project->refund_end 
+        ? Carbon::parse($project->refund_end)->startOfMonth() 
+        : null;
+    
+    // Count ALL unpaid months (future months too for unsettled count)
+    if ($refundEnd) {
+        $checkDate = $refundStart->copy();
+        while ($checkDate->lte($refundEnd)) {
+            $monthKey = $checkDate->format('Y-m-d');
+            
+            // Find refund record for this month
+            $monthRefund = $refunds->first(function ($refund) use ($monthKey) {
+                return Carbon::parse($refund->month_paid)->format('Y-m-d') === $monthKey;
             });
+            
+            // Check if unpaid or partial
+            if (!$monthRefund || in_array($monthRefund->status, ['unpaid', 'partial'])) {
+                $unsettledRefund++; // Count this as unsettled month
+                
+                // Only add to already due if month is before or equal to current date
+                if ($checkDate->lte($currentDate)) {
+                    if ($monthRefund) {
+                        $paidAmount = $this->sumPayments(is_array($monthRefund->payments) ? $monthRefund->payments : []);
+                        $totalAlreadyDue += max(0, ($monthRefund->amount_due ?? 0) - $paidAmount);
+                    } else {
+                        // If no refund record exists, calculate expected amount
+                        $expectedMonthlyAmount = $calculateExpectedMonthlyAmount($project, $refundStart, $refundEnd);
+                        $totalAlreadyDue += $expectedMonthlyAmount;
+                    }
+                }
+            }
+            
+            $checkDate->addMonth();
+        }
+    }
+}
 
-        $currentDate = Carbon::parse($report->created_at)->format('F, Y');
+// 5. Oldest unpaid month (for "Refund delayed since")
+$oldestUnpaid = $refunds
+    ->whereIn('status', ['unpaid', 'partial'])
+    ->sortBy('month_paid')
+    ->first();
+
+$oldUnpaid = $oldestUnpaid
+    ? Carbon::parse($oldestUnpaid->month_paid)->format('F Y')
+    : 'N/A';
+
+// Format current date for template
+$currentDateFormatted = Carbon::parse($report->created_at)->format('F, Y');
 
         // ── Load Template ─────────────────────────────────────────────────────────
-        $templatePath = storage_path('../public/templates/form.docx');
+        $templatePath = storage_path('../public/templates/quarterly_report_form.docx');
 
         if (!file_exists($templatePath)) {
             Log::error('Template file not found', ['path' => $templatePath]);
@@ -293,13 +351,13 @@ class ReportController extends Controller
 	$templateProcessor->setValue('promotional', $this->docxSafe($report->promotional));
 	$templateProcessor->setValue('sum_cost', $this->docxSafe(number_format($sum_cost, 2)));
 
-	$templateProcessor->setValue('total_amount_release', $this->docxSafe(number_format($totalAmountRelease, 2)));
-	$templateProcessor->setValue('total_amount_refunded', $this->docxSafe(number_format($totalAmountRefunded, 2)));
-	$templateProcessor->setValue('total_unsettled', $this->docxSafe(number_format($totalUnsettled, 2)));
-
-	$templateProcessor->setValue('current_date', $this->docxSafe($currentDate));
-	$templateProcessor->setValue('total_unpaid', $this->docxSafe(number_format($totalUnpaid, 2)));
-	$templateProcessor->setValue('old_unpaid', $this->docxSafe($oldUnpaid));
+        // Update these setValue calls to match template placeholders
+    $templateProcessor->setValue('to_refunded', $this->docxSafe(number_format($toRefunded, 2)));
+    $templateProcessor->setValue('total_refund', $this->docxSafe(number_format($totalRefund, 2)));
+    $templateProcessor->setValue('total_already_due', $this->docxSafe(number_format($totalAlreadyDue, 2)));
+    $templateProcessor->setValue('unset_refund', $this->docxSafe($unsettledRefund)); // Number of months
+    $templateProcessor->setValue('old_unpaid', $this->docxSafe($oldUnpaid));
+    $templateProcessor->setValue('current_date', $this->docxSafe($currentDateFormatted));
 
         $fontStyle = ['color' => '000000', 'size' => 11];
         $paraCenter = ['alignment' => Jc::CENTER];
