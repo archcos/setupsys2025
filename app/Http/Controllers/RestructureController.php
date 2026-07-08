@@ -97,6 +97,7 @@ class RestructureController extends Controller
         $applyRestructs = $query->paginate($perPage)
             ->through(function ($item) {
                 $item->computed_status = $item->restructure?->status ?? 'pending';
+                $item->is_locked = in_array(strtolower($item->computed_status), ['approved', 'recommended']);
                 return $item;
             })
             ->withQueryString();
@@ -117,7 +118,7 @@ class RestructureController extends Controller
 
         $offices = OfficeModel::orderBy('office_name')->get();
 
-        return Inertia::render('Restructures/Index', [
+        return Inertia::render('Restructures/Verify/Index', [
             'applyRestructs' => $applyRestructs,
             'offices'        => $offices,
             'years'          => $years,
@@ -154,7 +155,12 @@ class RestructureController extends Controller
 
         $restructures = $restructuresQuery->latest()->get();
 
-        return Inertia::render('Restructures/Checklist', [
+        // Add is_locked flag to each restructure
+        $restructures->each(function ($restructure) {
+            $restructure->is_locked = strtolower($restructure->status) === 'approved';
+        });
+
+        return Inertia::render('Restructures/Verify/Checklist', [
             'applyRestruct' => $applyRestruct,
             'project'       => $project,
             'restructures'  => $restructures,
@@ -312,6 +318,13 @@ class RestructureController extends Controller
     {
 
         try {
+            $restructure   = RestructureModel::findOrFail($restruct_id);
+
+            // ── LOCK: Prevent updating approved restructures ──
+            if (strtolower($restructure->status) === 'approved') {
+                return redirect()->back()->withErrors(['error' => 'This restructuring has been approved and cannot be edited.']);
+            }
+
             $validated = $request->validate([
                 'apply_id'                    => 'required|exists:tbl_apply_restruct,apply_id',
                 'type'                        => 'required|string|max:50',
@@ -326,7 +339,6 @@ class RestructureController extends Controller
                 'updates.*.update_amount'     => 'required_with:updates|numeric|min:0',
             ]);
 
-            $restructure   = RestructureModel::findOrFail($restruct_id);
             $project       = ProjectModel::findOrFail($restructure->project_id);
             $restructStart = $request->restruct_start . '-01';
             $restructEnd   = $request->restruct_end   . '-01';
@@ -435,6 +447,12 @@ class RestructureController extends Controller
     {
         try {
             $restructure = RestructureModel::findOrFail($restruct_id);
+
+            // ── LOCK: Prevent deleting approved restructures ──
+            if (strtolower($restructure->status) === 'approved') {
+                return redirect()->back()->withErrors(['error' => 'This restructuring has been approved and cannot be deleted.']);
+            }
+
             RestructureUpdateModel::where('restruct_id', $restruct_id)->delete();
             $restructure->delete();
 
@@ -457,6 +475,11 @@ class RestructureController extends Controller
 
             $restructure = RestructureModel::findOrFail($restruct_id);
             $userRole    = Auth::user()->role;
+
+            // ── LOCK: Prevent status changes on approved restructures ──
+            if (strtolower($restructure->status) === 'approved') {
+                return redirect()->back()->withErrors(['error' => 'This restructuring has already been approved and cannot be modified.']);
+            }
 
             if ($userRole === 'rpmo') {
                 if (!in_array($validated['status'], ['recommended', 'pending'])) {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import {
   Eye, Plus, Edit3, Trash2, X, AlertCircle, FileText,
-  CheckCircle, XCircle, ChevronLeft, Download,
+  CheckCircle, XCircle, ChevronLeft, Download, Lock,
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -113,11 +113,13 @@ function DocButtons({ applyRestruct, onPreview }) {
 // ─── Restructure Card ─────────────────────────────────────────────────────────
 
 function RestructureCard({ item, userRole, onEdit, onDelete, onStatusAction }) {
+  const isApproved = item.status === 'approved';
+
   return (
-    <div className="border border-slate-200 rounded-lg overflow-hidden">
+    <div className={`border rounded-lg overflow-hidden ${isApproved ? 'border-green-200' : 'border-slate-200'}`}>
 
       {/* Main row: data columns + action buttons side by side */}
-      <div className="bg-slate-50 p-3 md:p-4">
+      <div className={`p-3 md:p-4 ${isApproved ? 'bg-green-50/30' : 'bg-slate-50'}`}>
         <div className="flex gap-3 md:gap-4">
 
           {/* Data columns */}
@@ -126,9 +128,12 @@ function RestructureCard({ item, userRole, onEdit, onDelete, onStatusAction }) {
             {/* Mobile */}
             <div className="md:hidden space-y-2">
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase">Type</p>
-                  <p className="font-medium text-slate-900 text-sm">{item.type}</p>
+                <div className="flex items-center gap-2">
+                  {isApproved && <Lock className="w-4 h-4 text-green-600" />}
+                  <div>
+                    <p className="text-xs text-slate-500 font-semibold uppercase">Type</p>
+                    <p className="font-medium text-slate-900 text-sm">{item.type}</p>
+                  </div>
                 </div>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusCls(item.status)}`}>
                   {statusLabel(item.status)}
@@ -154,17 +159,25 @@ function RestructureCard({ item, userRole, onEdit, onDelete, onStatusAction }) {
 
             {/* Desktop */}
             <div className="hidden md:grid md:grid-cols-6 md:gap-4 md:text-sm">
-              {[
-                ['Type',       item.type],
-                ['Start',      formatDate(item.restruct_start)],
-                ['End',        formatDate(item.restruct_end)],
-                ['Refund End', item.new_refund_end ? formatDate(item.new_refund_end) : '-'],
-              ].map(([label, val]) => (
-                <div key={label}>
-                  <p className="text-xs text-slate-500 font-semibold uppercase">{label}</p>
-                  <p className="font-medium text-slate-900 mt-1">{val}</p>
-                </div>
-              ))}
+              <div>
+                <p className="text-xs text-slate-500 font-semibold uppercase">Type</p>
+                <p className="font-medium text-slate-900 mt-1 flex items-center gap-2">
+                  {isApproved && <Lock className="w-3.5 h-3.5 text-green-600" />}
+                  {item.type}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-semibold uppercase">Start</p>
+                <p className="font-medium text-slate-900 mt-1">{formatDate(item.restruct_start)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-semibold uppercase">End</p>
+                <p className="font-medium text-slate-900 mt-1">{formatDate(item.restruct_end)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-semibold uppercase">Refund End</p>
+                <p className="font-medium text-slate-900 mt-1">{item.new_refund_end ? formatDate(item.new_refund_end) : '-'}</p>
+              </div>
               <div>
                 <p className="text-xs text-slate-500 font-semibold uppercase">Status</p>
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${statusCls(item.status)}`}>
@@ -182,56 +195,47 @@ function RestructureCard({ item, userRole, onEdit, onDelete, onStatusAction }) {
           {(userRole === 'rpmo' || userRole === 'rd') && (
             <div className="flex flex-col items-end gap-1.5 flex-shrink-0 justify-start">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</p>
-              <div className="flex items-center gap-1.5">
-                {userRole === 'rpmo' && (
-                  <>
-                    <button onClick={() => onEdit(item)} disabled={item.status === 'approved'}
-                      title="Edit"
-                      className={`p-1.5 rounded transition-all ${
-                        item.status === 'approved'
-                          ? 'text-gray-300 cursor-not-allowed'
-                          : 'text-blue-600 hover:bg-blue-50'
-                      }`}>
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => onDelete(item)} disabled={item.status === 'approved'}
-                      title="Delete"
-                      className={`p-1.5 rounded transition-all ${
-                        item.status === 'approved'
-                          ? 'text-gray-300 cursor-not-allowed'
-                          : 'text-red-500 hover:bg-red-50'
-                      }`}>
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
-                {userRole === 'rd' && (
-                  <>
-                    <button onClick={() => onStatusAction(item, 'approve')}
-                      disabled={item.status === 'approved' || item.status === 'pending'}
-                      title="Approve"
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all whitespace-nowrap ${
-                        item.status === 'approved' || item.status === 'pending'
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-green-600 text-white hover:bg-green-700'
-                      }`}>
-                      <CheckCircle className="w-3 h-3" />
-                      <span className="hidden md:inline">Approve</span>
-                    </button>
-                    <button onClick={() => onStatusAction(item, 'deny')}
-                      disabled={item.status === 'approved' || item.status === 'pending'}
-                      title="Deny"
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all whitespace-nowrap ${
-                        item.status === 'approved' || item.status === 'pending'
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-red-600 text-white hover:bg-red-700'
-                      }`}>
-                      <XCircle className="w-3 h-3" />
-                      <span className="hidden md:inline">Deny</span>
-                    </button>
-                  </>
-                )}
-              </div>
+              {isApproved ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-green-700 bg-green-100 border border-green-200 rounded-lg">
+                  <Lock className="w-3 h-3" /> Approved
+                </span>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  {userRole === 'rpmo' && (
+                    <>
+                      <button onClick={() => onEdit(item)}
+                        title="Edit"
+                        className="p-1.5 rounded transition-all text-blue-600 hover:bg-blue-50">
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => onDelete(item)}
+                        title="Delete"
+                        className="p-1.5 rounded transition-all text-red-500 hover:bg-red-50">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                  {userRole === 'rd' && item.status === 'recommended' && (
+                    <>
+                      <button onClick={() => onStatusAction(item, 'approve')}
+                        title="Approve"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all whitespace-nowrap bg-green-600 text-white hover:bg-green-700">
+                        <CheckCircle className="w-3 h-3" />
+                        <span className="hidden md:inline">Approve</span>
+                      </button>
+                      <button onClick={() => onStatusAction(item, 'deny')}
+                        title="Deny"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all whitespace-nowrap bg-red-600 text-white hover:bg-red-700">
+                        <XCircle className="w-3 h-3" />
+                        <span className="hidden md:inline">Deny</span>
+                      </button>
+                    </>
+                  )}
+                  {userRole === 'rd' && item.status === 'pending' && (
+                    <span className="text-xs text-slate-400 italic">Awaiting recommendation</span>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -350,6 +354,11 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
   };
 
   const handleEdit = (item) => {
+    // Prevent editing approved items
+    if (item.status === 'approved') {
+      alert('This restructuring has been approved and cannot be edited.');
+      return;
+    }
     setEditingItem(item);
     const isCustom = !typeOptions.slice(0, 3).includes(item.type);
     setData({
@@ -402,7 +411,13 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
       : router.post(route('restructure.store'), submitData, { onSuccess: onDone, onError: onFail });
   };
 
-  const handleDeleteClick  = (item) => { setItemToDelete(item); setShowDeleteModal(true); };
+  const handleDeleteClick  = (item) => {
+    if (item.status === 'approved') {
+      alert('This restructuring has been approved and cannot be deleted.');
+      return;
+    }
+    setItemToDelete(item); setShowDeleteModal(true);
+  };
   const cancelDelete       = () => { setShowDeleteModal(false); setItemToDelete(null); };
   const confirmDelete      = () => {
     if (!itemToDelete) return;
@@ -412,7 +427,13 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
     });
   };
 
-  const handleStatusAction = (item, action) => { setItemToUpdate(item); setStatusAction(action); resetStatus(); setShowStatusModal(true); };
+  const handleStatusAction = (item, action) => {
+    if (item.status === 'approved') {
+      alert('This restructuring has already been approved.');
+      return;
+    }
+    setItemToUpdate(item); setStatusAction(action); resetStatus(); setShowStatusModal(true);
+  };
   const cancelStatusAction = () => { setShowStatusModal(false); setItemToUpdate(null); setStatusAction(null); setIsStatusSubmitting(false); resetStatus(); };
   const handleStatusSubmit = () => {
     if (!statusData.remarks?.trim()) { alert('Please provide remarks for this action'); return; }
@@ -498,36 +519,41 @@ export default function VerifyRestructure({ applyRestruct, project, restructures
           </div>
         </div>
 
-        {/* Restructuring Details */}
-        <div className="bg-white rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-slate-200/60 overflow-hidden">
-          <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-4 md:px-6 py-3 md:py-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-            <h2 className="text-lg md:text-xl font-semibold text-slate-900">Restructuring Details</h2>
-            {userRole === 'rpmo' && (
-              <button onClick={openAddForm}
-                className="inline-flex items-center gap-2 px-3 md:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium text-xs md:text-sm rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all w-fit">
-                <Plus className="w-4 h-4" />Add
-              </button>
-            )}
-          </div>
-          <div className="p-3 md:p-6">
-            <div className="space-y-3">
-              {restructures.length ? restructures.map((item) => (
-                <RestructureCard
-                  key={item.restruct_id}
-                  item={item}
-                  userRole={userRole}
-                  onEdit={handleEdit}
-                  onDelete={handleDeleteClick}
-                  onStatusAction={handleStatusAction}
-                />
-              )) : (
-                <div className="text-center py-6 md:py-8 text-xs md:text-sm text-slate-500">
-                  No restructuring entries yet. Click "Add" to get started.
-                </div>
-              )}
-            </div>
-          </div>
+{/* Restructuring Details */}
+<div className="bg-white rounded-xl md:rounded-2xl shadow-md md:shadow-xl border border-slate-200/60 overflow-hidden">
+  <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-4 md:px-6 py-3 md:py-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+    <h2 className="text-lg md:text-xl font-semibold text-slate-900">Restructuring Details</h2>
+    {userRole === 'rpmo' && !restructures.some(r => r.status === 'approved') && (
+      <button onClick={openAddForm}
+        className="inline-flex items-center gap-2 px-3 md:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium text-xs md:text-sm rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all w-fit">
+        <Plus className="w-4 h-4" />Add
+      </button>
+    )}
+    {userRole === 'rpmo' && restructures.some(r => r.status === 'approved') && (
+      <span className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg">
+        <Lock className="w-3.5 h-3.5" /> Approved - No new entries allowed
+      </span>
+    )}
+  </div>
+  <div className="p-3 md:p-6">
+    <div className="space-y-3">
+      {restructures.length ? restructures.map((item) => (
+        <RestructureCard
+          key={item.restruct_id}
+          item={item}
+          userRole={userRole}
+          onEdit={handleEdit}
+          onDelete={handleDeleteClick}
+          onStatusAction={handleStatusAction}
+        />
+      )) : (
+        <div className="text-center py-6 md:py-8 text-xs md:text-sm text-slate-500">
+          No restructuring entries yet. Click "Add" to get started.
         </div>
+      )}
+    </div>
+  </div>
+</div>
       </div>
 
       {/* ── Add/Edit Modal ── */}

@@ -39,12 +39,20 @@ class RestructureModel extends Model
     }
 
     public function updates()
-{
-    return $this->hasMany(RestructureUpdateModel::class, 'restruct_id', 'restruct_id');
-}
+    {
+        return $this->hasMany(RestructureUpdateModel::class, 'restruct_id', 'restruct_id');
+    }
 
-public function applyRestruct()
-{
-    return $this->belongsTo(ApplyRestructModel::class, 'apply_id', 'apply_id');
-}
+    public function applyRestruct()
+    {
+        return $this->belongsTo(ApplyRestructModel::class, 'apply_id', 'apply_id');
+    }
+
+    /**
+     * Check if the restructure is approved (locked)
+     */
+    public function isApproved()
+    {
+        return strtolower($this->status) === 'approved';
+    }
 }

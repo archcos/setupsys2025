@@ -5,6 +5,7 @@ namespace App\Mail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Storage;
 
 class ApplyRestructureMail extends Mailable
 {
@@ -37,22 +38,32 @@ class ApplyRestructureMail extends Mailable
             'mime' => 'image/png',
         ]);
 
-        // Build document rows
+        // Build document rows and attach files
         $documents = [
-            'Proponent Letter' => $this->applyRestruct->proponent ?? null,
-            'PSTO Letter'      => $this->applyRestruct->psto      ?? null,
-            'Annex C'          => $this->applyRestruct->annexc    ?? null,
-            'Annex D'          => $this->applyRestruct->annexd    ?? null,
+            'Proponent Letter' => $this->applyRestruct->proponent,
+            'PSTO Letter'      => $this->applyRestruct->psto,
+            'Annex C'          => $this->applyRestruct->annexc,
+            'Annex D'          => $this->applyRestruct->annexd,
         ];
 
         $docRowsHtml = '';
-        foreach ($documents as $label => $url) {
-            $linkHtml = $url
-                ? "<a href='{$url}' target='_blank'
-                      style='font-size:13px;color:#111827;font-weight:500;text-decoration:underline;'>
-                      View →
-                   </a>"
-                : "<span style='font-size:13px;color:#9ca3af;'>Not provided</span>";
+        foreach ($documents as $label => $path) {
+            if ($path && Storage::disk('private')->exists($path)) {
+                // Get the file from private storage
+                $filePath = Storage::disk('private')->path($path);
+                
+                // Attach the actual file to email
+                $this->attach($filePath, [
+                    'as'   => basename($path),
+                    'mime' => mime_content_type($filePath),
+                ]);
+                
+                $linkHtml = "<span style='font-size:13px;color:#059669;font-weight:500;'>
+                              📎 Attached
+                             </span>";
+            } else {
+                $linkHtml = "<span style='font-size:13px;color:#9ca3af;'>Not provided</span>";
+            }
 
             $docRowsHtml .= "
                 <tr style='border-bottom:1px solid #f9fafb;'>

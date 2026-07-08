@@ -71,4 +71,37 @@ class ApplyRestructModel extends Model
         $latestRestructure = $this->restructure()->first();
         return $latestRestructure ? $latestRestructure->status : 'pending';
     }
+
+    /**
+     * Check if the application is approved
+     */
+    public function isLocked()
+    {
+        if ($this->relationLoaded('restructures')) {
+            $latestRestructure = $this->restructures->first();
+        } else {
+            $latestRestructure = $this->restructures()->latest()->first();
+        }
+        
+        if (!$latestRestructure) {
+            return false;
+        }
+        
+        $lockedStatuses = ['recommended', 'approved'];
+        return in_array(strtolower($latestRestructure->status), $lockedStatuses);
+    }
+
+    /**
+     * Get the latest status
+     */
+    public function getLatestStatusAttribute()
+    {
+        if ($this->relationLoaded('restructures')) {
+            $latestRestructure = $this->restructures->first();
+        } else {
+            $latestRestructure = $this->restructures()->latest()->first();
+        }
+        
+        return $latestRestructure ? $latestRestructure->status : 'pending';
+    }
 }

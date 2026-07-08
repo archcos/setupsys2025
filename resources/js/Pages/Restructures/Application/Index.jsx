@@ -9,6 +9,7 @@ import {
   Calendar,
   Hash,
   TrendingUp,
+  Lock,
 } from 'lucide-react';
 import PaginationLinks from '@/components/PaginationLinks';
 
@@ -47,6 +48,9 @@ const STATUS_CONFIG = {
 };
 
 const STATUS_KEYS = ['all', 'pending', 'recommended', 'approved'];
+
+// Statuses that should be locked (not editable/deletable)
+const LOCKED_STATUSES = ['recommended', 'approved'];
 
 // ─── Status Tabs ──────────────────────────────────────────────────────────────
 
@@ -93,6 +97,20 @@ function StatusPill({ status }) {
   );
 }
 
+// ─── Locked Status Badge ──────────────────────────────────────────────────────
+
+function LockedBadge({ status }) {
+  const cfg = STATUS_CONFIG[status?.toLowerCase()] ?? STATUS_CONFIG.approved;
+  const Icon = cfg.icon;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border ${cfg.pillStyle}`}>
+      <Lock className="w-3 h-3" />
+      <Icon className="w-3 h-3" />
+      {cfg.label}
+    </span>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function ApplyRestructIndex({ applyRestructs, filters }) {
@@ -109,6 +127,9 @@ export default function ApplyRestructIndex({ applyRestructs, filters }) {
   const [preview,     setPreview]     = useState({ show: false, url: null, type: null, label: null, raw: null });
 
   const debounceRef = useRef(null);
+
+  /* ── Helper: check if item is locked ── */
+  const isLocked = (item) => LOCKED_STATUSES.includes(item.status?.toLowerCase());
 
   /* ── debounced router push ── */
   useEffect(() => {
@@ -366,81 +387,99 @@ export default function ApplyRestructIndex({ applyRestructs, filters }) {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
-                    {items.map((item) => (
-                      <tr key={item.apply_id} className="hover:bg-blue-50/30 transition-all duration-150">
-                        <td className="px-6 py-4 text-sm justify-center text-gray-900 text-center">{item.project?.project_id}</td>
-                        <td className="px-5 py-4 text-sm font-medium text-gray-900 max-w-[220px]">
-                          <div className="line-clamp-2">{item.project?.project_title || '-'}</div>
-                        </td>
-                        <td className="px-5 py-4"><StatusPill status={item.status} /></td>
-                        <td className="px-5 py-4">{docButtons(item)}</td>
-                        <td className="px-5 py-4 text-sm text-gray-600">{item.added_by?.name || '-'}</td>
-                        <td className="px-5 py-4 text-sm text-gray-600">
-                          {item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) : '-'}
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <Link href={route('apply_restruct.edit', item.apply_id)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit / Upload">
-                              <Edit3 className="w-4 h-4" />
-                            </Link>
-                            <button onClick={() => setDeleteModal({ show: true, item })}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {items.map((item) => {
+                      const locked = isLocked(item);
+                      return (
+                        <tr key={item.apply_id} className="hover:bg-blue-50/30 transition-all duration-150">
+                          <td className="px-6 py-4 text-sm justify-center text-gray-900 text-center">{item.project?.project_id}</td>
+                          <td className="px-5 py-4 text-sm font-medium text-gray-900 max-w-[220px]">
+                            <div className="line-clamp-2">{item.project?.project_title || '-'}</div>
+                          </td>
+                          <td className="px-5 py-4"><StatusPill status={item.status} /></td>
+                          <td className="px-5 py-4">{docButtons(item)}</td>
+                          <td className="px-5 py-4 text-sm text-gray-600">{item.added_by?.name || '-'}</td>
+                          <td className="px-5 py-4 text-sm text-gray-600">
+                            {item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) : '-'}
+                          </td>
+                          <td className="px-5 py-4">
+                            {locked ? (
+                              <div className="flex items-center justify-center">
+                                <LockedBadge status={item.status} />
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-2">
+                                <Link href={route('apply_restruct.edit', item.apply_id)}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit / Upload">
+                                  <Edit3 className="w-4 h-4" />
+                                </Link>
+                                <button onClick={() => setDeleteModal({ show: true, item })}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
               {/* ── Mobile cards ── */}
               <div className="md:hidden divide-y divide-gray-100">
-                {items.map((item) => (
-                  <div key={item.apply_id} className="p-3 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <span className="text-xs font-mono font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
-                          {item.project_id}
-                        </span>
-                        <h3 className="text-sm font-semibold text-gray-900 mt-1 line-clamp-2">
-                          {item.project?.project_title || '-'}
-                        </h3>
+                {items.map((item) => {
+                  const locked = isLocked(item);
+                  return (
+                    <div key={item.apply_id} className="p-3 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <span className="text-xs font-mono font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                            {item.project_id}
+                          </span>
+                          <h3 className="text-sm font-semibold text-gray-900 mt-1 line-clamp-2">
+                            {item.project?.project_title || '-'}
+                          </h3>
+                        </div>
+                        <StatusPill status={item.status} />
                       </div>
-                      <StatusPill status={item.status} />
-                    </div>
 
-                    <div className="bg-gray-50 rounded-lg p-2.5 space-y-2 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Added By</span>
-                        <span className="font-medium text-gray-900">{item.added_by?.name || '-'}</span>
+                      <div className="bg-gray-50 rounded-lg p-2.5 space-y-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Added By</span>
+                          <span className="font-medium text-gray-900">{item.added_by?.name || '-'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Created</span>
+                          <span className="font-medium text-gray-900">
+                            {item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '-'}
+                          </span>
+                        </div>
+                        <div className="pt-1 border-t border-gray-200">
+                          <p className="text-gray-500 mb-1.5">Documents</p>
+                          {docButtons(item)}
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Created</span>
-                        <span className="font-medium text-gray-900">
-                          {item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '-'}
-                        </span>
-                      </div>
-                      <div className="pt-1 border-t border-gray-200">
-                        <p className="text-gray-500 mb-1.5">Documents</p>
-                        {docButtons(item)}
-                      </div>
-                    </div>
 
-                    <div className="flex gap-2">
-                      <Link href={route('apply_restruct.edit', item.apply_id)}
-                        className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all">
-                        <Edit3 className="w-3.5 h-3.5" /> Edit
-                      </Link>
-                      <button onClick={() => setDeleteModal({ show: true, item })}
-                        className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-all">
-                        <Trash2 className="w-3.5 h-3.5" /> Delete
-                      </button>
+                      {locked ? (
+                        <div className="flex">
+                          <LockedBadge status={item.status} />
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Link href={route('apply_restruct.edit', item.apply_id)}
+                            className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all">
+                            <Edit3 className="w-3.5 h-3.5" /> Edit
+                          </Link>
+                          <button onClick={() => setDeleteModal({ show: true, item })}
+                            className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-all">
+                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}

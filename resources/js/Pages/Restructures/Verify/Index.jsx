@@ -3,7 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import {
   CheckCircle, Eye, FileText, Calendar, User, Search, X,
   Building2, Clock, ArrowUp, ArrowDown, Stamp, Download,
-  Hash,
+  Hash, Lock,
 } from 'lucide-react';
 import PaginationLinks from '@/components/PaginationLinks';
 import { cleanParams } from '@/utils/cleanParams';
@@ -361,126 +361,148 @@ export default function Index({ applyRestructs, auth, offices, years, filters: i
             </div>
           </div>
 
-          {/* Desktop Table */}
-          <div className="hidden md:block overflow-x-auto">
-            {data.length === 0 ? (
-              <EmptyState hasActiveFilters={hasActiveFilters} statusFilter={statusFilter} onClear={handleClearFilters} />
-            ) : (
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-center">
-                      <span className="flex items-center gap-1 whitespace-nowrap">
-                        <Hash className="w-4 h-4" />
-                        Project Code
-                      </span>
-                    </th>
-                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      <div className="flex items-center gap-2"><FileText className="w-4 h-4" />Project</div>
-                    </th>
-                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      <div className="flex items-center gap-2"><Building2 className="w-4 h-4" />Office</div>
-                    </th>
-                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      <div className="flex items-center gap-2 whitespace-nowrap"><User className="w-4 h-4" />Added By</div>
-                    </th>
-                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      <div className="flex items-center gap-2 whitespace-nowrap"><Calendar className="w-4 h-4" />Date Submitted</div>
-                    </th>
-                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                    <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Documents</th>
-                    <th className="px-4 md:px-6 py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-100">
-                  {data.map((item, index) => (
-                    <tr key={item.apply_id} className="hover:bg-blue-50/30 transition-all duration-200">
-                      <td className="px-4 md:px-6 py-3 md:py-4">
-                        <span className="px-6 py-4 text-sm justify-center text-gray-900 text-center">
-                          {item.project_id}
-                        </span>
-                      </td>
-                      <td className="px-4 md:px-6 py-3 md:py-4">
-                        <div className="text-xs md:text-sm font-semibold text-gray-900 line-clamp-1">{item.project?.project_title || '-'}</div>
-                        <div className="text-xs text-gray-500">{item.project?.proponent?.company_name || 'No proponent'}</div>
-                      </td>
-                      <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-600">
-                        {item.project?.proponent?.office?.office_name || '-'}
-                      </td>
-                      <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-600">
-                        {item.added_by?.name || '-'}
-                      </td>
-                      <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-gray-600">
-                        {item.created_at ? new Date(item.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
-                      </td>
-                      <td className="px-4 md:px-6 py-3 md:py-4">
-                        <StatusPill status={item.computed_status || 'pending'} />
-                      </td>
-                      <td className="px-4 md:px-6 py-3 md:py-4">
-                        <DocButtons item={item} onPreview={openPreview} />
-                      </td>
-                      <td className="px-4 md:px-6 py-3 md:py-4 text-center">
-                        {(userRole === 'rpmo' || userRole === 'rd') ? (
-                          <Link href={`/verify-restructure/${item.apply_id}`}
-                            className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-gradient-to-r from-blue-600 to-blue-600 text-white text-xs md:text-sm font-medium rounded-lg hover:from-blue-700 hover:to-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:shadow-xl hover:shadow-blue-500/40">
-                            <CheckCircle className="w-3 h-3 md:w-4 md:h-4" />Verify
-                          </Link>
-                        ) : (
-                          <span className="inline-flex items-center px-2 md:px-3 py-1 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg">RPMU/RD</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+{/* Desktop Table */}
+<div className="hidden md:block overflow-x-auto">
+  {data.length === 0 ? (
+    <EmptyState hasActiveFilters={hasActiveFilters} statusFilter={statusFilter} onClear={handleClearFilters} />
+  ) : (
+    <table className="w-full">
+      <thead>
+        <tr className="bg-gray-50 border-b border-gray-200">
+          <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider text-center">
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              <Hash className="w-4 h-4" />
+              Project Code
+            </span>
+          </th>
+          <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider max-w-[200px]">
+            <div className="flex items-center gap-2"><FileText className="w-4 h-4" />Project</div>
+          </th>
+          <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <div className="flex items-center gap-2"><Building2 className="w-4 h-4" />Office</div>
+          </th>
+          <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <div className="flex items-center gap-2 whitespace-nowrap"><User className="w-4 h-4" />Added By</div>
+          </th>
+          <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <div className="flex items-center gap-2 whitespace-nowrap"><Calendar className="w-4 h-4" />Date</div>
+          </th>
+          <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+          <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Documents</th>
+          <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-100">
+        {data.map((item, index) => {
+          const isLocked = item.computed_status === 'approved';
+          return (
+            <tr key={item.apply_id} className="hover:bg-blue-50/30 transition-all duration-200">
+              <td className="px-3 py-3">
+                <span className="text-sm text-gray-900 text-center block">
+                  {item.project_id}
+                </span>
+              </td>
+              <td className="px-3 py-3 max-w-[200px]">
+                <div className="text-xs md:text-sm font-semibold text-gray-900 truncate" title={item.project?.project_title}>{item.project?.project_title || '-'}</div>
+                <div className="text-xs text-gray-500 truncate">{item.project?.proponent?.company_name || 'No proponent'}</div>
+              </td>
+              <td className="px-3 py-3 text-xs md:text-sm text-gray-600 whitespace-nowrap">
+                {item.project?.proponent?.office?.office_name || '-'}
+              </td>
+              <td className="px-3 py-3 text-xs md:text-sm text-gray-600 whitespace-nowrap">
+                {item.added_by?.name || '-'}
+              </td>
+              <td className="px-3 py-3 text-xs md:text-sm text-gray-600 whitespace-nowrap">
+                {item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+              </td>
+              <td className="px-3 py-3">
+                <StatusPill status={item.computed_status || 'pending'} />
+              </td>
+              <td className="px-3 py-3">
+                <DocButtons item={item} onPreview={openPreview} />
+              </td>
+              <td className="px-3 py-3 text-center">
+                {(userRole === 'rpmo' || userRole === 'rd') ? (
+                  <Link href={`/verify-restructure/${item.apply_id}`}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-white text-xs font-medium rounded-lg transition-all whitespace-nowrap ${
+                      isLocked
+                        ? 'bg-gray-500 hover:bg-gray-600'
+                        : 'bg-blue-600 hover:bg-blue-700'
+                    }`}>
+                    {isLocked ? (
+                      <><Eye className="w-3.5 h-3.5" />View</>
+                    ) : (
+                      <><CheckCircle className="w-3.5 h-3.5" />Verify</>
+                    )}
+                  </Link>
+                ) : (
+                  <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg">RPMU/RD</span>
+                )}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  )}
+</div>
 
           {/* Mobile Cards */}
           <div className="md:hidden divide-y divide-gray-100">
             {data.length === 0 ? (
               <EmptyState hasActiveFilters={hasActiveFilters} statusFilter={statusFilter} onClear={handleClearFilters} mobile />
             ) : (
-              data.map((item, index) => (
-                <div key={item.apply_id} className="p-3 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-semibold text-black px-1.5 py-0.5 rounded w-fit">{item.project_id}</div>
-                      <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{item.project?.project_title || '-'}</h3>
-                      <p className="text-xs text-gray-600 mt-0.5">{item.project?.proponent?.company_name || 'No proponent'}</p>
+              data.map((item, index) => {
+                const isLocked = item.computed_status === 'approved';
+                return (
+                  <div key={item.apply_id} className="p-3 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-semibold text-black px-1.5 py-0.5 rounded w-fit">{item.project_id}</div>
+                        <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{item.project?.project_title || '-'}</h3>
+                        <p className="text-xs text-gray-600 mt-0.5">{item.project?.proponent?.company_name || 'No proponent'}</p>
+                      </div>
+                      <StatusPill status={item.computed_status || 'pending'} />
                     </div>
-                    <StatusPill status={item.computed_status || 'pending'} />
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-gray-50 rounded p-2">
+                        <span className="text-gray-500">Office</span>
+                        <p className="font-medium text-gray-900 truncate mt-0.5">{item.project?.proponent?.office?.office_name || '-'}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded p-2">
+                        <span className="text-gray-500">Added By</span>
+                        <p className="font-medium text-gray-900 truncate mt-0.5">{item.added_by?.name || '-'}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded p-2 col-span-2">
+                        <span className="text-gray-500">Date Submitted</span>
+                        <p className="font-medium text-gray-900 mt-0.5">
+                          {item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <DocButtons item={item} onPreview={openPreview} small />
+
+                    {(userRole === 'rpmo' || userRole === 'rd') ? (
+                      <Link href={`/verify-restructure/${item.apply_id}`}
+                        className={`w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-white text-xs font-medium rounded-lg transition-all ${
+                          isLocked
+                            ? 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800'
+                            : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                        }`}>
+                        {isLocked ? (
+                          <><Eye className="w-4 h-4" />View Application</>
+                        ) : (
+                          <><CheckCircle className="w-4 h-4" />Verify Application</>
+                        )}
+                      </Link>
+                    ) : (
+                      <div className="w-full inline-flex items-center justify-center px-3 py-2 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg">RPMO/RD Only</div>
+                    )}
                   </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-gray-50 rounded p-2">
-                      <span className="text-gray-500">Office</span>
-                      <p className="font-medium text-gray-900 truncate mt-0.5">{item.project?.proponent?.office?.office_name || '-'}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded p-2">
-                      <span className="text-gray-500">Added By</span>
-                      <p className="font-medium text-gray-900 truncate mt-0.5">{item.added_by?.name || '-'}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded p-2 col-span-2">
-                      <span className="text-gray-500">Date Submitted</span>
-                      <p className="font-medium text-gray-900 mt-0.5">
-                        {item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <DocButtons item={item} onPreview={openPreview} small />
-
-                  {(userRole === 'rpmo' || userRole === 'rd') ? (
-                    <Link href={`/verify-restructure/${item.apply_id}`}
-                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all">
-                      <CheckCircle className="w-4 h-4" />Verify Application
-                    </Link>
-                  ) : (
-                    <div className="w-full inline-flex items-center justify-center px-3 py-2 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg">RPMO/RD Only</div>
-                  )}
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 

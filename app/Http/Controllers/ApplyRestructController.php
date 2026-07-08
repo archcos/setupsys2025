@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use App\Mail\ApplyRestructureMail;
+use App\Models\UserModel;
 use App\Services\SupabaseUpload;
 
 class ApplyRestructController extends Controller
@@ -187,10 +188,16 @@ class ApplyRestructController extends Controller
     public function edit($apply_id)
     {
         $user          = Auth::user();
-        $applyRestruct = ApplyRestructModel::with('project.proponent')->findOrFail($apply_id);
+        $applyRestruct = ApplyRestructModel::with(['project.proponent', 'restructures' => fn($q) => $q->orderBy('created_at', 'desc')])->findOrFail($apply_id);
 
         if ($applyRestruct->project->proponent->office_id !== $user->office_id) {
             abort(403, 'Unauthorized');
+        }
+
+        // Check if approved - redirect back if approved
+        if ($applyRestruct->isLocked()) {
+            return redirect()->route('apply_restruct.index')
+                ->with('error', 'This application has been approved and cannot be edited.');
         }
 
         $projects = ProjectModel::select('project_id', 'project_title')
@@ -228,8 +235,13 @@ class ApplyRestructController extends Controller
         }
 
         $file          = $request->file($field);
-        $applyRestruct = ApplyRestructModel::with('project.proponent')->findOrFail($request->apply_id);
+        $applyRestruct = ApplyRestructModel::with(['project.proponent', 'restructures' => fn($q) => $q->orderBy('created_at', 'desc')])->findOrFail($request->apply_id);
         $user          = Auth::user();
+
+        // Check if approved
+        if ($applyRestruct->isLocked()) {
+            return back()->withErrors(['upload' => 'This application has been approved and cannot be modified.']);
+        }
 
         // Auth check
         if ($applyRestruct->project->proponent->office_id !== $user->office_id) {
@@ -295,8 +307,13 @@ class ApplyRestructController extends Controller
             'apply_id' => 'required|exists:tbl_apply_restruct,apply_id',
         ]);
 
-        $applyRestruct = ApplyRestructModel::with('project.proponent')->findOrFail($request->apply_id);
+        $applyRestruct = ApplyRestructModel::with(['project.proponent', 'restructures' => fn($q) => $q->orderBy('created_at', 'desc')])->findOrFail($request->apply_id);
         $user          = Auth::user();
+
+        // Check if approved
+        if ($applyRestruct->isLocked()) {
+            return back()->withErrors(['delete' => 'This application has been approved and cannot be modified.']);
+        }
 
         if ($applyRestruct->project->proponent->office_id !== $user->office_id) {
             abort(403, 'Unauthorized');
@@ -368,15 +385,20 @@ class ApplyRestructController extends Controller
         try {
             $user = Auth::user();
 
-            $request->validate([
-                'project_id' => 'required|exists:tbl_projects,project_id',
-            ]);
+            $applyRestruct = ApplyRestructModel::with(['project.proponent', 'restructures' => fn($q) => $q->orderBy('created_at', 'desc')])->findOrFail($apply_id);
 
-            $applyRestruct = ApplyRestructModel::with('project.proponent')->findOrFail($apply_id);
+            // Check if approved
+            if ($applyRestruct->isLocked()) {
+                return back()->with('error', 'This application has been approved and cannot be edited.');
+            }
 
             if ($applyRestruct->project->proponent->office_id !== $user->office_id) {
                 return back()->with('error', 'You do not have permission to update this application.');
             }
+
+            $request->validate([
+                'project_id' => 'required|exists:tbl_projects,project_id',
+            ]);
 
             $newProject = ProjectModel::with('proponent')->findOrFail($request->project_id);
             if ($newProject->proponent->office_id !== $user->office_id) {
@@ -413,7 +435,12 @@ class ApplyRestructController extends Controller
     {
         try {
             $user          = Auth::user();
-            $applyRestruct = ApplyRestructModel::with('project.proponent')->findOrFail($apply_id);
+            $applyRestruct = ApplyRestructModel::with(['project.proponent', 'restructures' => fn($q) => $q->orderBy('created_at', 'desc')])->findOrFail($apply_id);
+
+            // Check if approved
+            if ($applyRestruct->isLocked()) {
+                return back()->with('error', 'This application has been approved and cannot be deleted.');
+            }
 
             if ($applyRestruct->project->proponent->office_id !== $user->office_id) {
                 return back()->with('error', 'You do not have permission to delete this application.');
@@ -441,7 +468,17 @@ class ApplyRestructController extends Controller
      ══════════════════════════════════════════ */
     private function sendNotificationEmails(ApplyRestructModel $applyRestruct): void
     {
-        $recipients = ['arjay.charcos25@gmail.com', 'rain.shigatsu@gmail.com'];
+        // Get all users with 'rpmo' role (using role column, not roles relationship)
+        $rpmoUsers = UserModel::where('role', 'rpmo')
+            ->whereNotNull('email')
+            ->pluck('email')
+            ->toArray();
+        
+        // Specific recipients
+        $specificRecipients = ['setup@region10.dost.gov.ph'];
+        
+        // Merge both arrays and remove duplicates
+        $recipients = array_unique(array_merge($rpmoUsers, $specificRecipients));
 
         foreach ($recipients as $email) {
             try {
