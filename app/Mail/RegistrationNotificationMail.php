@@ -94,7 +94,6 @@ class RegistrationNotificationMail extends Mailable
                             <td style='padding:14px 18px;'>
                                 <p style='margin:0 0 5px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;'>Support contact</p>
                                 <p style='margin:0 0 2px;font-size:13px;color:#111827;'>setup@region10.dost.gov.ph</p>
-                                <p style='margin:0;font-size:13px;color:#111827;'>+63935-654-5974</p>
                             </td>
                         </tr>
                     </table>
