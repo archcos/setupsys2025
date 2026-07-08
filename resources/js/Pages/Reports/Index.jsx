@@ -109,7 +109,8 @@ export default function Index({ projects, filters, offices, years }) {
   const [year,       setYear]       = useState(filters?.year       || "");
   const [sortBy,     setSortBy]     = useState(filters?.sortBy     || "project_id");
   const [sortOrder,  setSortOrder]  = useState(filters?.sortOrder  || "desc");
-  const [page,       setPage]       = useState(parseInt(filters?.page || 1)); // CRITICAL: Add page state
+  const [page,       setPage]       = useState(parseInt(filters?.page || 1));
+  const [showAll,    setShowAll]    = useState(filters?.showAll    || false); // NEW: showAll state
   const [openDropdown, setOpenDropdown] = useState(null);
   const [showModal,    setShowModal]    = useState(false);
   const [modalUrl,     setModalUrl]     = useState(null);
@@ -126,36 +127,37 @@ export default function Index({ projects, filters, offices, years }) {
     router.get(
       route("reports.index"),
       cleanParams(
-        { search, perPage, office, year, sortBy, sortOrder, page, ...overrides },
-        { sortBy: 'project_id', sortOrder: 'desc', perPage: 10 }
+        { search, perPage, office, year, sortBy, sortOrder, page, showAll, ...overrides },
+        { sortBy: 'project_id', sortOrder: 'desc', perPage: 10, showAll: false }
       ),
       { preserveState: true, preserveScroll: true, replace: true }
     );
   };
 
 
-useEffect(() => {
-  const timer = setTimeout(() => { isMountedRef.current = true; }, 0);
-  return () => clearTimeout(timer);
-}, []);
+  useEffect(() => {
+    const timer = setTimeout(() => { isMountedRef.current = true; }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
-// Debounced search
-useEffect(() => {
-  if (!isMountedRef.current) return;
-  if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
-  filterTimeoutRef.current = setTimeout(() => {
+  // Debounced search
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
+    filterTimeoutRef.current = setTimeout(() => {
+      setPage(1);
+      pushRouter({ page: 1 });
+    }, 400);
+    return () => { if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current); };
+  }, [search]);
+
+  // Immediate filters (office, year, perPage) - resets to page 1
+  useEffect(() => {
+    if (!isMountedRef.current) return;
     setPage(1);
     pushRouter({ page: 1 });
-  }, 400);
-  return () => { if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current); };
-}, [search]);
+  }, [perPage, office, year]);
 
-// Immediate filters (office, year, perPage) - resets to page 1
-useEffect(() => {
-  if (!isMountedRef.current) return;
-  setPage(1);
-  pushRouter({ page: 1 });
-}, [perPage, office, year]);
   // Escape key
   useEffect(() => {
     const handleEsc = (e) => {
@@ -176,6 +178,12 @@ useEffect(() => {
     pushRouter({ sortBy: column, sortOrder: newOrder, page: 1 });
   };
 
+  const handleShowAllToggle = () => {
+    const newShowAll = !showAll;
+    setShowAll(newShowAll);
+    pushRouter({ showAll: newShowAll, page: 1 });
+  };
+
   const handleClear = () => {
     setSearch('');
     setOffice('');
@@ -184,6 +192,7 @@ useEffect(() => {
     setSortBy('project_id');
     setSortOrder('desc');
     setPage(1);
+    setShowAll(false); // NEW: Reset showAll on clear
     router.get(route("reports.index"), {}, { preserveState: true });
   };
 
@@ -205,7 +214,7 @@ useEffect(() => {
     setReportToDelete(null); 
   };
 
-  const hasFilters = !!(search || office || year || perPage !== 10);
+  const hasFilters = !!(search || office || year || perPage !== 10 || showAll);
   const data       = projects?.data || [];
   const pagination = projects;
 
@@ -262,7 +271,7 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* Row 2: Office + Year + Clear */}
+            {/* Row 2: Office + Year + Show All + Clear */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Office filter */}
               <div className="flex items-center gap-2 bg-white rounded-lg md:rounded-xl px-3 border border-gray-300 shadow-sm">
@@ -291,6 +300,41 @@ useEffect(() => {
                   {years && years.map((y) => <option key={y} value={y}>{y}</option>)}
                 </select>
               </div>
+
+{/* NEW: Show All Projects checkbox with hint */}
+<label className="flex items-center gap-1.5 cursor-pointer select-none group relative">
+    <input
+        type="checkbox"
+        checked={showAll}
+        onChange={handleShowAllToggle}
+        className="w-3.5 h-3.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+    />
+    <span className={`text-xs font-medium ${showAll ? 'text-purple-700' : 'text-gray-600'}`}>
+        Show all projects
+    </span>
+    
+    {/* Hint icon with tooltip */}
+    <span className="relative flex items-center">
+        <svg 
+            className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 transition-colors cursor-help" 
+            fill="currentColor" 
+            viewBox="0 0 20 20"
+        >
+            <path 
+                fillRule="evenodd" 
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" 
+                clipRule="evenodd" 
+            />
+        </svg>
+        
+        {/* Tooltip */}
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+            Includes Completed, Withdrawn & Terminated projects
+            {/* Arrow */}
+            <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></span>
+        </span>
+    </span>
+</label>
 
               {/* Clear filters */}
               {hasFilters && (

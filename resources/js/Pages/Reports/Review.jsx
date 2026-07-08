@@ -240,6 +240,23 @@ export default function Review({ reports, filters, statusCounts, offices = [], a
     return date.toLocaleDateString("en-US", options);
   };
 
+  // Determine if actions should be shown based on role and status
+  const shouldShowActions = (report) => {
+    if (!canTakeAction) return false;
+    
+    // Staff can only act on 'submitted' reports
+    if (isStaff && report.status === 'submitted') {
+      return true;
+    }
+    
+    // RPMO can only act on 'recommended' reports
+    if (isRpmo && report.status?.startsWith('recommended')) {
+      return true;
+    }
+    
+    return false;
+  };
+
   const hasFilters = !!(search || statusFilter !== 'all' || officeFilter || yearFilter);
   const data = reports?.data || [];
   const pagination = reports?.data ? reports : null;
@@ -370,19 +387,20 @@ export default function Review({ reports, filters, statusCounts, offices = [], a
                 <tbody className="bg-white divide-y divide-gray-100">
                   {data.map((report) => {
                     const isDenied = report.status?.startsWith('denied:');
+                    const showActions = shouldShowActions(report);
                     
                     return (
                       <tr key={report.report_id} className="hover:bg-blue-50/30 transition-colors">
-                         <td className="px-6 py-4 text-sm justify-center text-gray-900 text-center">
-                              {report.project?.project_id}
-                          </td>
+                        <td className="px-6 py-4 text-sm text-gray-900 text-center">
+                          {report.project?.project_id}
+                        </td>
                         <td className="px-6 py-4">
-                          <span className="text-gray-900 text-sm font-normal">{report.project.project_title}</span>
+                          <span className="text-gray-900 text-sm font-normal">{report.project?.project_title || "—"}</span>
                         </td>
 
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2 text-sm text-gray-700">
-                            <span className="truncate">{report.project.proponent?.company_name || "—"}</span>
+                            <span className="truncate">{report.project?.proponent?.company_name || "—"}</span>
                           </div>
                         </td>
 
@@ -392,6 +410,11 @@ export default function Review({ reports, filters, statusCounts, offices = [], a
 
                         <td className="px-6 py-4">
                           <StatusBadge status={report.status} />
+                          {isDenied && (
+                            <p className="text-xs text-red-600 mt-1 max-w-xs truncate" title={report.status.replace('denied: ', '')}>
+                              Reason: {report.status.replace('denied: ', '')}
+                            </p>
+                          )}
                         </td>
 
                         <td className="px-6 py-4 text-center">
@@ -408,7 +431,8 @@ export default function Review({ reports, filters, statusCounts, offices = [], a
                               <span className="hidden sm:inline">View</span>
                             </button>
 
-                            {canTakeAction && report.status === 'submitted' && (
+                            {/* Staff actions - only on submitted reports */}
+                            {isStaff && report.status === 'submitted' && (
                               <>
                                 <button
                                   onClick={() => handleWarningClick('recommend', report.report_id)}
@@ -428,7 +452,8 @@ export default function Review({ reports, filters, statusCounts, offices = [], a
                               </>
                             )}
 
-                            {canTakeAction && report.status?.startsWith('recommended') && (
+                            {/* RPMO actions - only on recommended reports */}
+                            {isRpmo && report.status?.startsWith('recommended') && (
                               <>
                                 <button
                                   onClick={() => handleWarningClick('reviewed', report.report_id)}
@@ -464,6 +489,7 @@ export default function Review({ reports, filters, statusCounts, offices = [], a
             ) : (
               data.map((report) => {
                 const isDenied = report.status?.startsWith('denied:');
+                const showActions = shouldShowActions(report);
 
                 return (
                   <div key={report.report_id} className="p-4 space-y-3">
@@ -476,17 +502,26 @@ export default function Review({ reports, filters, statusCounts, offices = [], a
 
                     {/* Project Title */}
                     <div>
-                      <p className="text-sm text-gray-900 font-normal">{report.project.project_title}</p>
+                      <p className="text-sm text-gray-900 font-normal">{report.project?.project_title || "—"}</p>
                     </div>
 
                     {/* Proponent & Status Row */}
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs text-gray-600 flex items-center gap-1 flex-1 min-w-0">
                         <Building2 className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{report.project.proponent?.company_name || "Unknown"}</span>
+                        <span className="truncate">{report.project?.proponent?.company_name || "Unknown"}</span>
                       </p>
                       <StatusBadge status={report.status} />
                     </div>
+
+                    {/* Denial Reason */}
+                    {isDenied && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+                        <p className="text-xs text-red-700">
+                          <span className="font-semibold">Denial Reason:</span> {report.status.replace('denied: ', '')}
+                        </p>
+                      </div>
+                    )}
 
                     {/* Submission Date */}
                     <div className="text-xs text-gray-600">
@@ -506,8 +541,8 @@ export default function Review({ reports, filters, statusCounts, offices = [], a
                       View Report
                     </button>
 
-                    {/* Action Buttons */}
-                    {canTakeAction && report.status === 'submitted' && (
+                    {/* Action Buttons - Staff */}
+                    {isStaff && report.status === 'submitted' && (
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => handleWarningClick('recommend', report.report_id)}
@@ -527,7 +562,8 @@ export default function Review({ reports, filters, statusCounts, offices = [], a
                       </div>
                     )}
 
-                    {canTakeAction && report.status?.startsWith('recommended') && (
+                    {/* Action Buttons - RPMO */}
+                    {isRpmo && report.status?.startsWith('recommended') && (
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => handleWarningClick('reviewed', report.report_id)}

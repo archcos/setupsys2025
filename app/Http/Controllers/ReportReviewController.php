@@ -32,17 +32,14 @@ class ReportReviewController extends Controller
 
         // Role-based filtering
         if ($user->role === 'staff') {
-            // Staff sees submitted reports for recommend action
-            $query->where('status', 'submitted');
-            // Staff only sees reports from their office
+            // Staff sees all reports from their office (all statuses)
             if ($user->office_id) {
                 $query->whereHas('project.proponent', function ($q) use ($user) {
                     $q->where('office_id', $user->office_id);
                 });
             }
         } elseif ($user->role === 'rpmo') {
-            // RPMO sees recommended reports for review
-            $query->where('status', 'like', 'recommended%');
+            // RPMO sees all reports (all statuses) - no initial status filter
         }
 
         // Search functionality (project_id, project_title, company_name)
@@ -76,6 +73,8 @@ class ReportReviewController extends Controller
         if ($statusFilter !== 'all') {
             if ($statusFilter === 'denied') {
                 $query->where('status', 'like', 'denied:%');
+            } elseif ($statusFilter === 'recommended') {
+                $query->where('status', 'like', 'recommended%');
             } else {
                 $query->where('status', $statusFilter);
             }
@@ -94,15 +93,13 @@ class ReportReviewController extends Controller
         ])->select('report_id', 'project_id', 'created_at', 'file_path', 'status');
 
         if ($user->role === 'staff') {
-            $baseQuery->where('status', 'submitted');
             if ($user->office_id) {
                 $baseQuery->whereHas('project.proponent', function ($q) use ($user) {
                     $q->where('office_id', $user->office_id);
                 });
             }
-        } elseif ($user->role === 'rpmo') {
-            $baseQuery->where('status', 'like', 'recommended%');
         }
+        // RPMO sees all - no role-based filter for base query
 
         if (!empty($search)) {
             $baseQuery->where(function ($q) use ($search) {
@@ -226,6 +223,11 @@ class ReportReviewController extends Controller
 
         if (!in_array(Auth::user()->role, ['staff', 'rpmo'])) {
             abort(403);
+        }
+
+        // Only allow denying submitted or recommended reports
+        if (!in_array($report->status, ['submitted', 'recommended'])) {
+            return redirect()->back()->with('error', 'Can only deny submitted or recommended reports.');
         }
 
         // Status format: denied: reason text here

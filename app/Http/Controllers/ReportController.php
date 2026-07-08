@@ -29,89 +29,99 @@ class ReportController extends Controller
 {
     use AuthorizesRequests;
 
-    public function index(Request $request)
-    {
-        $userId = Auth::id();
-        $user = UserModel::where('user_id', $userId)->firstOrFail();
+public function index(Request $request)
+{
+    $userId = Auth::id();
+    $user = UserModel::where('user_id', $userId)->firstOrFail();
 
-        $search = $request->input('search');
-        $perPage = $request->input('perPage', 10);
-        $office = $request->input('office');
-        $year = $request->input('year');
-        $sortBy = $request->input('sortBy', 'project_id');
-        $sortOrder = $request->input('sortOrder', 'desc');
+    $search = $request->input('search');
+    $perPage = $request->input('perPage', 10);
+    $office = $request->input('office');
+    $year = $request->input('year');
+    $sortBy = $request->input('sortBy', 'project_id');
+    $sortOrder = $request->input('sortOrder', 'desc');
+    $showAll = $request->input('showAll', false); // NEW
 
-        // ── Base query ────────────────────────────────────────────────────────────
-        $query = ProjectModel::with([
-            'proponent:proponent_id,company_name,office_id,added_by',
-            'proponent.office:office_id,office_name',
-            'reports' => function ($q) {
-                $q->select('report_id', 'project_id', 'created_at', 'file_path', 'status')
-                ->orderBy('created_at', 'desc');
-            },
-        ])->select('project_id', 'project_title', 'proponent_id', 'year_obligated');
+    // ── Base query ────────────────────────────────────────────────────────────
+    $query = ProjectModel::with([
+        'proponent:proponent_id,company_name,office_id,added_by',
+        'proponent.office:office_id,office_name',
+        'reports' => function ($q) {
+            $q->select('report_id', 'project_id', 'created_at', 'file_path', 'status')
+            ->orderBy('created_at', 'desc');
+        },
+    ])->select('project_id', 'project_title', 'proponent_id', 'year_obligated');
 
-        // ── Role-based filtering ──────────────────────────────────────────────────
-        if ($user->role === 'user') {
-            $proponentIds = proponentModel::where('added_by', $user->user_id)->pluck('proponent_id');
-            $query->whereIn('proponent_id', $proponentIds);
-        } elseif ($user->role === 'staff') {
-            $query->whereHas('proponent', fn ($q) => $q->where('office_id', $user->office_id));
-        }
-        // 'head' → no restrictions
+    // ── NEW: Filter by project progress ──────────────────────────────────────
+    if (!$showAll) {
+        $query->whereNotIn('progress', ['Terminated', 'Completed', 'Withdrawn']);
+    }
 
-        // ── Search ────────────────────────────────────────────────────────────────
-        if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
-                $q->where('project_title', 'like', "%{$search}%")
-                ->orWhere('project_id', 'like', "%{$search}%")
-                ->orWhereHas('proponent', fn ($q) => $q->where('company_name', 'like', "%{$search}%"));
-            });
-        }
+    // ── Role-based filtering ──────────────────────────────────────────────────
+    if ($user->role === 'user') {
+        $proponentIds = proponentModel::where('added_by', $user->user_id)->pluck('proponent_id');
+        $query->whereIn('proponent_id', $proponentIds);
+    } elseif ($user->role === 'staff') {
+        $query->whereHas('proponent', fn ($q) => $q->where('office_id', $user->office_id));
+    }
+    // 'head' → no restrictions
 
-        // ── Office filter ─────────────────────────────────────────────────────────
-        if (!empty($office)) {
-            $query->whereHas('proponent', fn ($q) => $q->where('office_id', $office));
-        }
+    // ── Search ────────────────────────────────────────────────────────────────
+    if (!empty($search)) {
+        $query->where(function ($q) use ($search) {
+            $q->where('project_title', 'like', "%{$search}%")
+            ->orWhere('project_id', 'like', "%{$search}%")
+            ->orWhereHas('proponent', fn ($q) => $q->where('company_name', 'like', "%{$search}%"));
+        });
+    }
 
-        // ── Year filter ───────────────────────────────────────────────────────────
-        if (!empty($year)) {
-            $query->where('year_obligated', $year);
-        }
+    // ── Office filter ─────────────────────────────────────────────────────────
+    if (!empty($office)) {
+        $query->whereHas('proponent', fn ($q) => $q->where('office_id', $office));
+    }
 
-        // ── Sorting ───────────────────────────────────────────────────────────────
-        $allowedSorts = ['project_id', 'project_title', 'company_name', 'year_obligated'];
-        $sortBy = in_array($sortBy, $allowedSorts) ? $sortBy : 'project_title';
-        $sortOrder = in_array($sortOrder, ['asc', 'desc']) ? $sortOrder : 'asc';
+    // ── Year filter ───────────────────────────────────────────────────────────
+    if (!empty($year)) {
+        $query->where('year_obligated', $year);
+    }
 
-        if ($sortBy === 'company_name') {
-            $query->join('tbl_proponents', 'tbl_projects.proponent_id', '=', 'tbl_proponents.proponent_id')
-                ->orderBy('tbl_proponents.company_name', $sortOrder)
-                ->select('tbl_projects.*');
-        } else {
-            $query->orderBy($sortBy, $sortOrder);
-        }
+    // ── Sorting ───────────────────────────────────────────────────────────────
+    $allowedSorts = ['project_id', 'project_title', 'company_name', 'year_obligated'];
+    $sortBy = in_array($sortBy, $allowedSorts) ? $sortBy : 'project_title';
+    $sortOrder = in_array($sortOrder, ['asc', 'desc']) ? $sortOrder : 'asc';
 
-        $projects = $query->paginate($perPage)->withQueryString();
+    if ($sortBy === 'company_name') {
+        $query->join('tbl_proponents', 'tbl_projects.proponent_id', '=', 'tbl_proponents.proponent_id')
+            ->orderBy('tbl_proponents.company_name', $sortOrder)
+            ->select('tbl_projects.*');
+    } else {
+        $query->orderBy($sortBy, $sortOrder);
+    }
 
-        // ── Offices list ──────────────────────────────────────────────────────────
-        $offices = \App\Models\OfficeModel::select('office_id', 'office_name')
-                        ->orderBy('office_name')
-                        ->get();
+    $projects = $query->paginate($perPage)->withQueryString();
 
-        // ── Years list ────────────────────────────────────────────────────────────
-        $years = ProjectModel::whereNotNull('year_obligated')
-                    ->distinct()
+    // ── Offices list ──────────────────────────────────────────────────────────
+    $offices = \App\Models\OfficeModel::select('office_id', 'office_name')
+                    ->orderBy('office_name')
+                    ->get();
+
+    // ── Years list ────────────────────────────────────────────────────────────
+    // NEW: Apply the same showAll filter to years list
+    $yearsQuery = ProjectModel::whereNotNull('year_obligated');
+    if (!$showAll) {
+        $yearsQuery->whereNotIn('progress', ['Terminated', 'Completed', 'Withdrawn']);
+    }
+    $years = $yearsQuery->distinct()
                     ->orderBy('year_obligated', 'desc')
                     ->pluck('year_obligated');
 
-        return Inertia::render('Reports/Index', [
-            'projects' => $projects,
-            'offices' => $offices,
-            'years' => $years,
-            'filters' => $request->only('search', 'perPage', 'office', 'year', 'sortBy', 'sortOrder'),
-        ]);
-    }
+    return Inertia::render('Reports/Index', [
+        'projects' => $projects,
+        'offices' => $offices,
+        'years' => $years,
+        'filters' => $request->only('search', 'perPage', 'office', 'year', 'sortBy', 'sortOrder', 'showAll'),
+    ]);
+}
 
     public function destroy($id)
     {
@@ -643,114 +653,254 @@ $currentDateFormatted = Carbon::parse($report->created_at)->format('F, Y');
 
 
         // ── Find LibreOffice ──────────────────────────────────────────────────────
-        $libreOfficePaths = [
-            '/usr/bin/soffice',
-            '/usr/bin/libreoffice',
-            '/usr/local/bin/soffice',
-            '/usr/local/bin/libreoffice',
-            'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
-            'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
-            'C:\\Program Files\\LibreOffice\\program\\soffice.com',
-            'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.com',
-        ];
+// ── Find LibreOffice ──────────────────────────────────────────────────────
+$libreOfficePath = null;
+$isPortable = false;
 
-        $libreOfficePath = null;
-        foreach ($libreOfficePaths as $path) {
-            if (file_exists($path)) {
-                $libreOfficePath = $path;
-                break;
-            }
+// Check platform-specific paths
+if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+    // Windows paths
+    $possiblePaths = [
+        // Portable version paths
+        'C:\\Users\\aacharcos\\Downloads\\LibreOfficePortable\\App\\libreoffice\\program\\soffice.exe',
+        'C:\\Users\\aacharcos\\Downloads\\LibreOfficePortable\\App\\libreoffice\\program\\soffice.com',
+        'C:\\Users\\aacharcos\\Downloads\\LibreOfficePortable\\LibreOffice\\program\\soffice.exe',
+        // Regular installation paths
+        'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+        'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+        'C:\\Program Files\\LibreOffice\\program\\soffice.com',
+        'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.com',
+    ];
+} else {
+    // Linux paths
+    $possiblePaths = [
+        '/usr/bin/soffice',
+        '/usr/bin/libreoffice',
+        '/usr/local/bin/soffice',
+        '/usr/local/bin/libreoffice',
+        '/opt/libreoffice/program/soffice',
+        '/snap/bin/libreoffice',
+    ];
+}
+
+foreach ($possiblePaths as $path) {
+    if (file_exists($path)) {
+        $libreOfficePath = $path;
+        // Check if it's portable version
+        if (strpos($path, 'LibreOfficePortable') !== false) {
+            $isPortable = true;
         }
+        Log::info('Found LibreOffice', ['path' => $path, 'portable' => $isPortable]);
+        break;
+    }
+}
 
-        if (!$libreOfficePath) {
-            Log::error('LibreOffice not found');
-            $this->cleanupTempDirectory($tempDir);
-            throw new \Exception('LibreOffice not found. Please install LibreOffice.');
-        }
+if (!$libreOfficePath) {
+    Log::error('LibreOffice not found', ['checked_paths' => $possiblePaths]);
+    $this->cleanupTempDirectory($tempDir);
+    throw new \Exception('LibreOffice not found. Please install LibreOffice.');
+}
 
-        // ── Convert DOCX → PDF via LibreOffice ───────────────────────────────────
-        $loProfile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'lo_profile_' . uniqid();
-        mkdir($loProfile, 0777, true);
+// ── Convert DOCX → PDF via LibreOffice ───────────────────────────────────
+$loProfile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'lo_profile_' . uniqid();
 
+// Clean up any existing profile
+if (file_exists($loProfile)) {
+    $this->deleteDirectory($loProfile);
+}
+mkdir($loProfile, 0777, true);
+
+if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+    // ── Windows Conversion ────────────────────────────────────────────────
+    if ($isPortable) {
+        // Portable LibreOffice on Windows
+        $appDir = dirname(dirname($libreOfficePath)); // Go up to App\libreoffice directory
+        
+        // Convert backslashes to forward slashes for the profile URL
+        $loProfileUrl = str_replace('\\', '/', $loProfile);
+        
         $command = sprintf(
-            'HOME=/tmp "%s" -env:UserInstallation=file://%s --headless --nologo --nofirststartwizard --convert-to pdf:writer_pdf_Export --outdir "%s" "%s"',
+            'cd /d "%s" && "%s" --headless --nologo --nofirststartwizard --convert-to pdf --outdir "%s" "%s"',
+            $appDir,
             $libreOfficePath,
-            $loProfile,
             $tempDir,
             $tempDocx
         );
-
-
-        $output = [];
-        $returnCode = null;
-        exec($command.' 2>&1', $output, $returnCode);
-
-        sleep(2);
-
-        $pdfFilename = str_replace('.docx', '.pdf', $docxFilename);
-        $tempPdf = $tempDir.DIRECTORY_SEPARATOR.$pdfFilename;
-
-        if (!file_exists($tempPdf)) {
-            Log::error('PDF file was not created', [
-                'expected_path' => $tempPdf,
-                'temp_docx' => $tempDocx,
-                'docx_exists' => file_exists($tempDocx),
-                'docx_readable' => is_readable($tempDocx),
-                'docx_size' => file_exists($tempDocx) ? filesize($tempDocx) : null,
-                'temp_dir_contents' => is_dir($tempDir) ? scandir($tempDir) : [],
+        
+        Log::info('Executing Portable LibreOffice command', [
+            'command' => $command,
+            'working_dir' => $appDir
+        ]);
+        
+        $descriptorspec = [
+            0 => ['pipe', 'r'],  // stdin
+            1 => ['pipe', 'w'],  // stdout
+            2 => ['pipe', 'w']   // stderr
+        ];
+        
+        $process = proc_open($command, $descriptorspec, $pipes, $appDir);
+        
+        if (is_resource($process)) {
+            $stdout = stream_get_contents($pipes[1]);
+            $stderr = stream_get_contents($pipes[2]);
+            
+            fclose($pipes[0]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            
+            $returnCode = proc_close($process);
+            
+            Log::info('LibreOffice conversion result', [
+                'returnCode' => $returnCode,
+                'stdout' => $stdout,
+                'stderr' => $stderr
             ]);
-
-            $this->cleanupTempDirectory($tempDir);
-            throw new \Exception('PDF file was not created by LibreOffice.');
-        }
-
-
-        // ── Store PDF locally ─────────────────────────────────────────────────────
-        $currentYear = now()->year;
-        $projectId = $project->project_id;
-        $storagePath = "{$currentYear}/{$projectId}/reports/{$pdfFilename}";
-
-        $reportsDir = storage_path("app/private/{$currentYear}/{$projectId}/reports");
-        if (!is_dir($reportsDir)) {
-            mkdir($reportsDir, 0777, true);
-        }
-
-        $pdfContent = file_get_contents($tempPdf);
-        $stored = Storage::disk('private')->put($storagePath, $pdfContent);
-
-        if (!$stored) {
-            Log::error('Failed to store PDF');
-            $this->cleanupTempDirectory($tempDir);
-            throw new \Exception('Failed to store PDF in private storage');
-        }
-
-
-        // ── Upload to Supabase Storage (backup) ───────────────────────────────────
-        try {
-            $supabasePath = "backup/{$currentYear}/{$projectId}/reports/{$pdfFilename}";
-
-            $supabaseUpload = new SupabaseUpload();
-            $uploaded = $supabaseUpload->upload($supabasePath, $pdfContent);
-
-            if ($uploaded) {
-
-            } else {
-                Log::warning('Supabase upload failed for report PDF, continuing anyway', [
-                    'report_id' => $report_id,
-                ]);
-            }
-        } catch (\Exception $e) {
-            Log::error('Supabase upload error for report PDF', [
-                'report_id' => $report_id,
-                'error' => $e->getMessage(),
+        } else {
+            Log::error('Failed to start LibreOffice process');
+            
+            // Fallback: try simple exec
+            $command2 = sprintf(
+                '"%s" --headless --nologo --nofirststartwizard --convert-to pdf --outdir "%s" "%s"',
+                $libreOfficePath,
+                $tempDir,
+                $tempDocx
+            );
+            
+            exec($command2 . ' 2>&1', $output2, $returnCode2);
+            Log::info('Fallback conversion result', [
+                'output' => $output2,
+                'returnCode' => $returnCode2
             ]);
-            // Non-fatal — continue without backup
         }
-
-        $this->cleanupTempDirectory($tempDir);
-
-        return $storagePath;
+    } else {
+        // Regular Windows installation
+        $command = sprintf(
+            '"%s" --headless --nologo --nofirststartwizard --convert-to pdf:writer_pdf_Export --outdir "%s" "%s"',
+            $libreOfficePath,
+            $tempDir,
+            $tempDocx
+        );
+        
+        exec($command . ' 2>&1', $output, $returnCode);
+        
+        Log::info('Windows LibreOffice conversion', [
+            'command' => $command,
+            'output' => $output,
+            'returnCode' => $returnCode
+        ]);
     }
+    
+} else {
+    // ── Linux Conversion ──────────────────────────────────────────────────
+    $command = sprintf(
+        'HOME=/tmp "%s" -env:UserInstallation=file://%s --headless --nologo --nofirststartwizard --convert-to pdf:writer_pdf_Export --outdir "%s" "%s"',
+        $libreOfficePath,
+        $loProfile,
+        $tempDir,
+        $tempDocx
+    );
+    
+    exec($command . ' 2>&1', $output, $returnCode);
+    
+    Log::info('Linux LibreOffice conversion', [
+        'command' => $command,
+        'output' => $output,
+        'returnCode' => $returnCode
+    ]);
+}
+
+// Wait for conversion to complete
+sleep(3);
+
+// Check if PDF was created
+$pdfFilename = str_replace('.docx', '.pdf', $docxFilename);
+$tempPdf = $tempDir . DIRECTORY_SEPARATOR . $pdfFilename;
+
+if (!file_exists($tempPdf)) {
+    Log::error('PDF file was not created', [
+        'expected_path' => $tempPdf,
+        'temp_docx' => $tempDocx,
+        'docx_exists' => file_exists($tempDocx),
+        'docx_readable' => is_readable($tempDocx),
+        'docx_size' => file_exists($tempDocx) ? filesize($tempDocx) : null,
+        'temp_dir_contents' => is_dir($tempDir) ? scandir($tempDir) : [],
+        'libreoffice_path' => $libreOfficePath,
+        'is_portable' => $isPortable,
+        'platform' => PHP_OS
+    ]);
+
+    $this->cleanupTempDirectory($tempDir);
+    throw new \Exception('PDF file was not created by LibreOffice.');
+}
+
+// Clean up LibreOffice profile
+if (file_exists($loProfile)) {
+    $this->deleteDirectory($loProfile);
+}
+
+// Continue with the rest of your code...
+// ── Store PDF locally ─────────────────────────────────────────────────────
+$currentYear = now()->year;
+$projectId = $project->project_id;
+$storagePath = "{$currentYear}/{$projectId}/reports/{$pdfFilename}";
+
+$reportsDir = storage_path("app/private/{$currentYear}/{$projectId}/reports");
+if (!is_dir($reportsDir)) {
+    mkdir($reportsDir, 0777, true);
+}
+
+$pdfContent = file_get_contents($tempPdf);
+$stored = Storage::disk('private')->put($storagePath, $pdfContent);
+
+if (!$stored) {
+    Log::error('Failed to store PDF');
+    $this->cleanupTempDirectory($tempDir);
+    throw new \Exception('Failed to store PDF in private storage');
+}
+
+// ── Upload to Supabase Storage (backup) ───────────────────────────────────
+try {
+    $supabasePath = "backup/{$currentYear}/{$projectId}/reports/{$pdfFilename}";
+    
+    $supabaseUpload = new SupabaseUpload();
+    $uploaded = $supabaseUpload->upload($supabasePath, $pdfContent);
+    
+    if ($uploaded) {
+        Log::info('Successfully uploaded backup to Supabase');
+    } else {
+        Log::warning('Supabase upload failed for report PDF, continuing anyway', [
+            'report_id' => $report_id,
+        ]);
+    }
+} catch (\Exception $e) {
+    Log::error('Supabase upload error for report PDF', [
+        'report_id' => $report_id,
+        'error' => $e->getMessage(),
+    ]);
+    // Non-fatal — continue without backup
+}
+
+$this->cleanupTempDirectory($tempDir);
+
+return $storagePath;
+    }
+
+    /**
+ * Recursively delete a directory
+ */
+private function deleteDirectory($dir) {
+    if (!is_dir($dir)) {
+        return;
+    }
+    
+    $files = array_diff(scandir($dir), ['.', '..']);
+    foreach ($files as $file) {
+        $path = $dir . DIRECTORY_SEPARATOR . $file;
+        is_dir($path) ? $this->deleteDirectory($path) : unlink($path);
+    }
+    
+    return rmdir($dir);
+}
 
     private function cleanupTempDirectory($dir)
     {
