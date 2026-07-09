@@ -127,6 +127,7 @@ public function index()
             }
         },
     ])
+    ->orderBy('project_id', 'desc')
     ->when(!$includeAll, fn ($q) => $q
         ->whereDate('refund_initial', '<=', $selectedDate)
         ->whereDate('refund_end', '>=', $selectedDate)
