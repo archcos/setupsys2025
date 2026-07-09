@@ -165,6 +165,8 @@ class ProjectController extends Controller
         // ✅ SECURITY FIX: Only RPMO can update project status
         if ($user->role !== 'rpmo') {
             return back()->with('error', 'Unauthorized: Only RPMO can update project status.');
+        } elseif ($user->role === 'au') {
+            abort(403, 'You do not have permission to create proponents.');
         }
 
         $validated = $request->validate([
@@ -207,7 +209,10 @@ class ProjectController extends Controller
             $proponents->where('office_id', $user->office_id);
         } elseif ($user->role === 'user') {
             $proponents->where('added_by', $user->user_id);
+        } elseif ($user->role === 'au') {
+            abort(403, 'You do not have permission to create proponents.');
         }
+
 
         $nextProjectCode = $this->generateNextProjectCode();
 
@@ -242,6 +247,11 @@ class ProjectController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
+
+        
+        if ($user->role === 'au') {
+            abort(403, 'You do not have permission to create proponents.');
+        }
 
         if ($request->has('release_initial')) {
             $request->merge(['release_initial' => $request->input('release_initial').'-01']);
@@ -550,6 +560,12 @@ class ProjectController extends Controller
 
     public function edit($id)
     {
+        $user = Auth::user();
+    
+        if ($user->role === 'au') {
+            abort(403, 'You do not have permission to create proponents.');
+        }
+
         $project = ProjectModel::with([
             'items' => fn ($q) => $q->where('report', 'approved'),
             'objectives' => fn ($q) => $q->where('report', 'approved'),
@@ -566,6 +582,11 @@ class ProjectController extends Controller
 
     public function update(Request $request, $id)
     {
+        $user = Auth::user();
+        
+        if ($user->role === 'au') {
+            abort(403, 'You do not have permission to create proponents.');
+        }
         $project = ProjectModel::findOrFail($id);
 
 
@@ -1324,6 +1345,8 @@ class ProjectController extends Controller
         // ✅ SECURITY FIX: Only RPMO can delete projects
         if ($user->role !== 'rpmo') {
             return back()->with('error', 'Unauthorized: Only RPMO can delete projects.');
+        } elseif ($user->role === 'au') {
+            abort(403, 'You do not have permission to create proponents.');
         }
 
         ProjectModel::findOrFail($id)->delete();

@@ -98,10 +98,10 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/proponents/{id}/update-added-by', [ProponentController::class, 'updateAddedBy'])->middleware('role:rpmo')->name('proponents.update-added-by');
         Route::get('/proponents/export', [ProponentController::class, 'export'])->middleware('role:rpmo,staff')->name('proponents.export');
         Route::get('/projects/export', [ProjectController::class, 'export'])->middleware('role:rpmo,staff')->name('projects.export');
-        Route::resource('proponents', ProponentController::class)->except(['show'])->middleware('role:user,staff,rpmo');
-        Route::resource('projects', ProjectController::class)->middleware('role:staff,rpmo')->except(['destroy', 'show']);
+        Route::resource('proponents', ProponentController::class)->except(['show'])->middleware('role:user,staff,rpmo,au');
+        Route::resource('projects', ProjectController::class)->middleware('role:staff,rpmo,au')->except(['destroy', 'show']);
         Route::delete('/projects/{id}', [ProjectController::class, 'destroy'])->middleware('role:rpmo')->name('projects.destroy');
-        Route::resource('activities', ActivityController::class)->middleware('role:staff,rpmo');
+        Route::resource('activities', ActivityController::class)->middleware('role:staff,rpmo,au');
         Route::post('/projects/{id}/update-status', [ProjectController::class, 'updateStatus'])->name('projects.updateStatus')->middleware('role:rpmo');
         Route::get('/project-list', [ProjectController::class, 'readonly'])->name('projects.readonly')->middleware('role:user');
         Route::get('/activity-list', [ActivityController::class, 'readonly'])->name('activities.readonly')->middleware('role:user');

@@ -110,6 +110,8 @@ class ActivityController extends Controller
             $query->whereHas('proponent', function ($q) use ($user) {
                 $q->where('office_id', $user->office_id);
             });
+        } elseif ($user->role === 'au') {
+            abort(403, 'You do not have permission to create proponents.');
         }
         // 'rpmo' role sees all projects, no filtering needed
 
@@ -151,22 +153,29 @@ class ActivityController extends Controller
 
     public function edit($id)
     {
+        $user = Auth::user();
+
+        if ($user->role === 'au') {
+            abort(403, 'You do not have permission to edit activities.');
+        }
+        
         $activity = ActivityModel::with('project.proponent')->findOrFail($id);
 
         $projectActivities = ActivityModel::where('project_id', $activity->project_id)
-        ->orderBy('start_date', 'asc')
-        ->get();
+            ->orderBy('start_date', 'asc')
+            ->get();
+        
         // Authorization check for staff users
-        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $activity->project->proponent->office_id) {
+        if ($user->role === 'staff' && $user->office_id !== $activity->project->proponent->office_id) {
             abort(403, 'Unauthorized to edit this activity.');
         }
 
         $query = ProjectModel::with('proponent');
 
         // Staff users only see projects in their office
-        if (Auth::user()->role === 'staff') {
-            $query->whereHas('proponent', function ($q) {
-                $q->where('office_id', Auth::user()->office_id);
+        if ($user->role === 'staff') {
+            $query->whereHas('proponent', function ($q) use ($user) {
+                $q->where('office_id', $user->office_id);
             });
         }
 
@@ -179,10 +188,16 @@ class ActivityController extends Controller
 
     public function update(Request $request, $id)
     {
+        $user = Auth::user();
+        
+        if ($user->role === 'au') {
+            abort(403, 'You do not have permission to update activities.');
+        }
+        
         $activity = ActivityModel::with('project.proponent')->findOrFail($id);
 
         // Authorization check for staff users
-        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $activity->project->proponent->office_id) {
+        if ($user->role === 'staff' && $user->office_id !== $activity->project->proponent->office_id) {
             abort(403, 'Unauthorized to update this activity.');
         }
 
@@ -195,19 +210,21 @@ class ActivityController extends Controller
 
         $activity->update($validated);
 
-        $project = ProjectModel::with('proponent.office')->findOrFail($validated['project_id']);
-        $office = $project->proponent->office;
-
-
         return redirect('/activities')->with('success', 'Activity updated!');
     }
 
     public function destroy($id)
     {
+        $user = Auth::user();
+
+        if ($user->role === 'au') {
+            abort(403, 'You do not have permission to delete activities.');
+        }
+        
         $activity = ActivityModel::with('project.proponent')->findOrFail($id);
 
         // Authorization check for staff users
-        if (Auth::user()->role === 'staff' && Auth::user()->office_id !== $activity->project->proponent->office_id) {
+        if ($user->role === 'staff' && $user->office_id !== $activity->project->proponent->office_id) {
             abort(403, 'Unauthorized to delete this activity.');
         }
 

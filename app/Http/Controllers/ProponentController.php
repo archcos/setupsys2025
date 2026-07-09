@@ -118,45 +118,6 @@ class ProponentController extends Controller
         return back()->with('success', "Added By updated from {$oldUser} to {$newUser}.");
     }
 
-    public function create()
-    {
-        return Inertia::render('Proponents/Create');
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'company_name' => 'nullable|string|max:254',
-            'owner_name' => 'nullable|string|max:254',
-            'email' => 'nullable|email|max:100',
-            'street' => 'nullable|string|max:100',
-            'barangay' => 'nullable|string|max:50',
-            'municipality' => 'nullable|string|max:50',
-            'province' => 'nullable|string|max:30',
-            'district' => 'nullable|string|max:45',
-            'sex' => 'nullable|in:Male,Female',
-            'products' => 'nullable|string',
-            'setup_industry' => 'nullable|string|max:150',
-            'industry_type' => 'nullable|string|max:10',
-            'contact_number' => 'nullable|digits_between:11,11|regex:/^09[0-9]{9}$/',
-            // 'current_market'   => 'nullable|string|max:100',
-        ]);
-
-        $user = Auth::user();
-        $validated['added_by'] = $user->user_id;
-        $validated['office_id'] = $user->office_id;
-
-        if ($user->role === 'user') {
-            $count = ProponentModel::where('added_by', $user->user_id)->count();
-            if ($count >= 5) {
-                return back()->with('error', 'You have reached the maximum limit of 5 proponents.');
-            }
-        }
-
-        ProponentModel::create($validated);
-
-        return redirect()->route('proponents.index')->with('success', 'proponent added successfully.');
-    }
 
     public function export(Request $request)
     {
@@ -435,50 +396,117 @@ class ProponentController extends Controller
         }
     }
 
-    public function edit($id)
-    {
-        $proponent = ProponentModel::findOrFail($id);
-
-        return Inertia::render('Proponents/Edit', [
-            'proponent' => $proponent,
-        ]);
+public function create()
+{
+    $user = Auth::user();
+    
+    if ($user->role === 'au') {
+        abort(403, 'You do not have permission to create proponents.');
     }
+    
+    return Inertia::render('Proponents/Create');
+}
 
-    public function update(Request $request, $id)
-    {
-        $validated = $request->validate([
-            'company_name' => 'nullable|string|max:254',
-            'owner_name' => 'nullable|string|max:254',
-            'email' => 'nullable|email|max:100',
-            'street' => 'nullable|string|max:100',
-            'barangay' => 'nullable|string|max:50',
-            'municipality' => 'nullable|string|max:50',
-            'province' => 'nullable|string|max:30',
-            'district' => 'nullable|string|max:45',
-            'sex' => 'nullable|in:Male,Female',
-            'products' => 'nullable|string',
-            'setup_industry' => 'nullable|string|max:150',
-            'industry_type' => 'nullable|string|max:10',
-            'contact_number' => 'nullable|digits_between:11,11|regex:/^09[0-9]{9}$/',
-            // 'current_market'   => 'nullable|string|max:100',
-        ]);
-
-        $proponent = ProponentModel::findOrFail($id);
-        $proponent->update($validated);
-
-        return redirect()->route('proponents.index')->with('success', 'proponent updated successfully.');
+public function store(Request $request)
+{
+    $user = Auth::user();
+    
+    if ($user->role === 'au') {
+        abort(403, 'You do not have permission to create proponents.');
     }
+    
+    $validated = $request->validate([
+        'company_name' => 'nullable|string|max:254',
+        'owner_name' => 'nullable|string|max:254',
+        'email' => 'nullable|email|max:100',
+        'street' => 'nullable|string|max:100',
+        'barangay' => 'nullable|string|max:50',
+        'municipality' => 'nullable|string|max:50',
+        'province' => 'nullable|string|max:30',
+        'district' => 'nullable|string|max:45',
+        'sex' => 'nullable|in:Male,Female',
+        'products' => 'nullable|string',
+        'setup_industry' => 'nullable|string|max:150',
+        'industry_type' => 'nullable|string|max:10',
+        'contact_number' => 'nullable|digits_between:11,11|regex:/^09[0-9]{9}$/',
+    ]);
 
-    public function destroy($id)
-    {
-        $proponent = ProponentModel::withCount('projects')->findOrFail($id);
+    $validated['added_by'] = $user->user_id;
+    $validated['office_id'] = $user->office_id;
 
-        if ($proponent->projects_count > 0) {
-            return back()->with('error', 'Cannot delete this proponent because it has associated projects.');
+    if ($user->role === 'user') {
+        $count = ProponentModel::where('added_by', $user->user_id)->count();
+        if ($count >= 5) {
+            return back()->with('error', 'You have reached the maximum limit of 5 proponents.');
         }
-
-        $proponent->delete();
-
-        return redirect()->route('proponents.index')->with('success', 'proponent deleted successfully.');
     }
+
+    ProponentModel::create($validated);
+
+    return redirect()->route('proponents.index')->with('success', 'proponent added successfully.');
+}
+
+public function edit($id)
+{
+    $user = Auth::user();
+    
+    if ($user->role === 'au') {
+        abort(403, 'You do not have permission to edit proponents.');
+    }
+
+    $proponent = ProponentModel::findOrFail($id);
+
+    return Inertia::render('Proponents/Edit', [
+        'proponent' => $proponent,
+    ]);
+}
+
+public function update(Request $request, $id)
+{
+    $user = Auth::user();
+    
+    if ($user->role === 'au') {
+        abort(403, 'You do not have permission to update proponents.');
+    }
+    
+    $validated = $request->validate([
+        'company_name' => 'nullable|string|max:254',
+        'owner_name' => 'nullable|string|max:254',
+        'email' => 'nullable|email|max:100',
+        'street' => 'nullable|string|max:100',
+        'barangay' => 'nullable|string|max:50',
+        'municipality' => 'nullable|string|max:50',
+        'province' => 'nullable|string|max:30',
+        'district' => 'nullable|string|max:45',
+        'sex' => 'nullable|in:Male,Female',
+        'products' => 'nullable|string',
+        'setup_industry' => 'nullable|string|max:150',
+        'industry_type' => 'nullable|string|max:10',
+        'contact_number' => 'nullable|digits_between:11,11|regex:/^09[0-9]{9}$/',
+    ]);
+
+    $proponent = ProponentModel::findOrFail($id);
+    $proponent->update($validated);
+
+    return redirect()->route('proponents.index')->with('success', 'proponent updated successfully.');
+}
+
+public function destroy($id)
+{
+    $user = Auth::user();
+    
+    if ($user->role === 'au') {
+        abort(403, 'You do not have permission to delete proponents.');
+    }
+    
+    $proponent = ProponentModel::withCount('projects')->findOrFail($id);
+
+    if ($proponent->projects_count > 0) {
+        return back()->with('error', 'Cannot delete this proponent because it has associated projects.');
+    }
+
+    $proponent->delete();
+
+    return redirect()->route('proponents.index')->with('success', 'proponent deleted successfully.');
+}
 }

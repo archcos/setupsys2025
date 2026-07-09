@@ -40,7 +40,7 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
       )}
 
       {/* Development - RPMO/Staff */}
-      {(role === 'rpmo' || role === 'staff') && (
+      {(role === 'rpmo' || role === 'staff' || role === 'au') && (
         <Dropdown
           title="Development"
           icon={<Zap size={18} />}
