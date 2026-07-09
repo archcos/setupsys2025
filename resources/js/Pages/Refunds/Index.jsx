@@ -23,6 +23,7 @@ import {
     TicketSlash,
     UserCircle,
     Clock,
+    Download,
 } from "lucide-react";
 import { MONTHS, REFUND_STATUS } from "./constants/refundConstants";
 import FilterSection from "./components/FilterSection";
@@ -30,6 +31,7 @@ import RefundTableRow from "./components/RefundTableRow";
 import RefundMobileCard from "./components/RefundMobileCard";
 import RefundPagination from "./components/RefundPagination";
 import UnpaidMonthsWarningModal from "./components/UnpaidMonthsWarningModal";
+import ExportCsvModal from "./components/ExportCsvModal";
 import { useRefundData } from "./hooks/useRefundData";
 import AllProjectsRow from "./components/AllProjectsRow";
 import AllProjectsMobileCard from "./components/AllProjectsMobileCard";
@@ -47,12 +49,13 @@ export default function Index({
     availableYears,
     offices,
     csvSheets,
-    staffOfficeId, // ADDED
-    staffOfficeName, // ADDED
+    staffOfficeId,
+    staffOfficeName,
+    allProjects,
 }) {
     const { flash, userRole } = usePage().props;
     const isRPMO = ["rpmo", "au"].includes(userRole);
-    const isStaff = userRole === 'staff'; // ADDED
+    const isStaff = userRole === 'staff';
     
     const [perPage, setPerPage] = useState(10);
     const [officeFilter, setOfficeFilter] = useState(selectedOffice || "");
@@ -102,6 +105,7 @@ export default function Index({
     const isFirstRun = useRef(true);
     const [showSyncModal, setShowSyncModal] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false); // ADDED
     
     // Edit payment state
     const [editingPayment, setEditingPayment] = useState(null);
@@ -637,37 +641,59 @@ export default function Index({
             <Head title="Refund Management" />
             <div className="max-w-8xl mx-auto">
                 <div className="bg-white rounded-lg md:rounded-2xl shadow-md md:shadow-xl border border-gray-100 overflow-hidden">
-                    {/* Header */}
-                    <div className="bg-gray-50 p-4 md:p-6 border-b border-gray-100">
-                        <div className="flex items-center gap-2 md:gap-3">
-                            <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                                <HandCoins className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-                            </div>
-                            
-                            
-                            {isRPMO && (
-                                <button
-                                    onClick={() => setShowSyncModal(true)}
-                                    className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all shadow-md font-medium text-sm"
-                                    title="Sync refunds from CSV"
-                                >
-                                    <HandCoins className="w-4 h-4" />
-                                    <span className="hidden sm:inline">
-                                        Sync CSV
-                                    </span>
-                                    <span className="sm:hidden">Sync</span>
-                                </button>
-                            )}
-                            <div className="min-w-0 flex-1">
-                                <h2 className="text-lg md:text-xl font-semibold text-gray-900">
-                                    Refund Management
-                                </h2>
-                                <p className="text-xs md:text-sm text-gray-600 mt-0.5 md:mt-1">
-                                    Manage project refund amounts
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+{/* Header */}
+<div className="bg-gray-50 p-4 md:p-6 border-b border-gray-100">
+    <div className="flex items-center gap-2 md:gap-3">
+        {/* Left side - Title */}
+        <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
+            <HandCoins className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+        </div>
+        <div className="min-w-0 flex-1">
+            <h2 className="text-lg md:text-xl font-semibold text-gray-900">
+                Refund Management
+            </h2>
+            <p className="text-xs md:text-sm text-gray-600 mt-0.5 md:mt-1">
+                Manage project refund amounts
+            </p>
+        </div>
+
+        {/* Right side - Action Buttons */}
+        <div className="flex items-center gap-2">
+            
+            {/* Export CSV Button */}
+            <button
+                onClick={() => setShowExportModal(true)}
+                className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-3 md:px-4 py-2 rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-md font-medium text-sm"
+                title="Export refunds to CSV"
+            >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
+            </button>
+            
+            {/* Sync CSV Button - RPMO only */}
+            {isRPMO && (
+                <button
+                    onClick={() => setShowSyncModal(true)}
+                    className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all shadow-md font-medium text-sm"
+                    title="Sync refunds from CSV"
+                >
+                    <HandCoins className="w-4 h-4" />
+                    <span className="hidden sm:inline">Sync CSV</span>
+                    <span className="sm:hidden">Sync</span>
+                </button>
+            )}
+        </div>
+    </div>
+    
+    {/* Staff Office Badge - Mobile (below header) */}
+    {isStaff && staffOfficeName && (
+        <div className="flex sm:hidden items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium mt-3">
+            <Building2 className="w-4 h-4" />
+            <span>{staffOfficeName}</span>
+        </div>
+    )}
+</div>
 
                     {/* Unpaid Months Warning Modal */}
                     <UnpaidMonthsWarningModal
@@ -702,7 +728,7 @@ export default function Index({
                         onStatusChange={handleStatusFilterChange}
                         onPerPageChange={handlePerPageChange}
                         isRPMO={isRPMO}
-                        isStaff={isStaff} // ADDED
+                        isStaff={isStaff}
                         offices={offices}
                         officeFilter={officeFilter}
                         onOfficeChange={handleOfficeChange}
@@ -712,7 +738,8 @@ export default function Index({
                         onTerminatedToggle={handleTerminatedToggle}
                         withAll={withAll}
                         onAllToggle={handleAllToggle}
-                        staffOfficeName={staffOfficeName} // ADDED
+                        staffOfficeName={staffOfficeName}
+                        allProjects={allProjects}
                     />
 
                     {/* Desktop Table */}
@@ -953,6 +980,25 @@ export default function Index({
                     )}
                 </div>
             </div>
+
+            {/* ADDED: Export CSV Modal */}
+            {showExportModal && (
+                <ExportCsvModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    selectedMonth={selectedMonth}
+                    selectedYear={selectedYear}
+                    availableYears={availableYears}
+                    statusFilter={statusFilter}
+                    includeAll={withAll}
+                    includeWithdrawn={withWithdrawn}
+                    includeTerminated={withTerminated}
+                    officeFilter={officeFilter}
+                    offices={offices}
+                    isRPMO={isRPMO}
+                    allProjects={allProjects}  
+                />
+            )}
 
             {/* Sync Modal */}
             {showSyncModal && (

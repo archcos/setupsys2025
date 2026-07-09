@@ -222,6 +222,7 @@ Route::middleware(['log-suspicious'])->group(function () {
             ->name('refunds.project.details');
         Route::post('/refunds/remove-payment', [RefundController::class, 'removePayment']);
         Route::post('/refunds/update-payment', [RefundController::class, 'updatePayment'])->name('refunds.update-payment');
+        Route::get('/refunds/export-csv', [RefundController::class, 'exportCsv'])->name('refunds.export-csv');
     });
 
     //  RPMO ONLY (Save + Bulk Update)

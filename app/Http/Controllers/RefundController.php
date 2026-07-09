@@ -12,6 +12,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Font;
 
 class RefundController extends Controller
 {
@@ -192,26 +198,439 @@ public function index()
     })
     ->withQueryString();
 
-    return Inertia::render('Refunds/Index', [
-        'projects' => $projects,
-        'selectedMonth' => (int) $selectedMonth,
-        'selectedYear' => (int) $selectedYear,
-        'search' => $search,
-        'selectedStatus' => $status,
-        'selectedOffice' => $office,
-        'includeWithdrawn' => (bool) $includeWithdrawn,
-        'includeTerminated' => (bool) $includeTerminated,
-        'includeAll' => (bool) $includeAll,
-        'availableYears' => $availableYears,
-        'offices' => $offices,
-        'csvSheets' => $csvSheets,
-        'userRole' => $user->role,
-        'perPage' => $perPage,
-        // ADDED: Pass staff office info to frontend
-        'staffOfficeId' => $isStaff ? ($user->office_id ?? null) : null,
-        'staffOfficeName' => $isStaff ? ($user->office->office_name ?? 'Your Office') : null,
-    ]);
+ // Get all projects for export selection - respect office restrictions
+$allProjectsQuery = ProjectModel::with(['proponent' => function($q) {
+    $q->select('proponent_id', 'company_name', 'office_id');
+}])
+->select('project_id', 'project_title', 'proponent_id')
+->orderBy('project_id', 'desc');
+
+// Staff can only see their office's projects
+if ($isStaff) {
+    $staffOfficeId = $user->office_id;
+    if ($staffOfficeId) {
+        $allProjectsQuery->whereHas('proponent', function ($q) use ($staffOfficeId) {
+            $q->where('office_id', $staffOfficeId);
+        });
+    }
 }
+
+// RPMO filtering by office if selected
+if ($isRPMO && $office) {
+    $allProjectsQuery->whereHas('proponent', function ($q) use ($office) {
+        $q->where('office_id', $office);
+    });
+}
+
+$allProjects = $allProjectsQuery->get()->map(function ($project) {
+    return [
+        'project_id' => $project->project_id,
+        'project_title' => $project->project_title,
+        'company_name' => $project->proponent->company_name ?? 'N/A',
+    ];
+});
+
+return Inertia::render('Refunds/Index', [
+    'projects' => $projects,
+    'selectedMonth' => (int) $selectedMonth,
+    'selectedYear' => (int) $selectedYear,
+    'search' => $search,
+    'selectedStatus' => $status,
+    'selectedOffice' => $office,
+    'includeWithdrawn' => (bool) $includeWithdrawn,
+    'includeTerminated' => (bool) $includeTerminated,
+    'includeAll' => (bool) $includeAll,
+    'availableYears' => $availableYears,
+    'offices' => $offices,
+    'csvSheets' => $csvSheets,
+    'userRole' => $user->role,
+    'perPage' => $perPage,
+    'staffOfficeId' => $isStaff ? ($user->office_id ?? null) : null,
+    'staffOfficeName' => $isStaff ? ($user->office->office_name ?? 'Your Office') : null,
+    // ADD THIS - Get all projects for export selection
+    'allProjects' => $allProjects,
+
+]);
+}
+
+public function exportCsv()
+{
+    $user = Auth::user();
+    
+    $selectedMonth = request('month');
+    $selectedYear = request('year');
+    $years = request('years');
+    $status = request('status');
+    $includeAll = request('include_all', false);
+    $includeWithdrawn = request('include_withdrawn', false);
+    $includeTerminated = request('include_terminated', false);
+    $office = request('office');
+    $projectIds = request('project_ids');
+    
+    $isRPMO = in_array($user->role, ['rpmo', 'au']);
+    $isStaff = $user->role === 'staff';
+    
+    // Build query
+    $query = ProjectModel::with(['proponent.office']);
+    
+    // Filter by specific projects
+    if ($projectIds) {
+        $projectIdArray = explode(',', $projectIds);
+        $query->whereIn('project_id', $projectIdArray);
+    }
+    
+    // Date filtering
+    if ($selectedMonth && $selectedYear) {
+        $selectedDate = Carbon::create($selectedYear, $selectedMonth, 1);
+        if (!$includeAll) {
+            $query->whereDate('refund_initial', '<=', $selectedDate)
+                  ->whereDate('refund_end', '>=', $selectedDate);
+        }
+    } elseif ($years) {
+        $yearArray = explode(',', $years);
+        if (!$includeAll && !empty($yearArray)) {
+            $query->where(function ($q) use ($yearArray) {
+                foreach ($yearArray as $year) {
+                    $year = (int) trim($year);
+                    $q->orWhere(function ($subQ) use ($year) {
+                        $subQ->whereYear('refund_initial', '<=', $year)
+                             ->whereYear('refund_end', '>=', $year);
+                    });
+                }
+            });
+        }
+    }
+    
+    // Progress filtering
+    if (!$includeAll) {
+        $conditions = [];
+        if (!$includeWithdrawn) $conditions[] = 'Withdrawn';
+        if (!$includeTerminated) $conditions[] = 'Terminated';
+        
+        if (!empty($conditions)) {
+            $query->where(function ($q) use ($conditions) {
+                $q->whereNotIn('progress', $conditions)
+                  ->orWhereNull('progress');
+            });
+        }
+    }
+    
+    // Office filter
+    if ($isRPMO && $office) {
+        $query->whereHas('proponent', fn ($q) => $q->where('office_id', $office));
+    } elseif ($isStaff) {
+        $staffOfficeId = $user->office_id;
+        if ($staffOfficeId) {
+            $query->whereHas('proponent', fn ($q) => $q->where('office_id', $staffOfficeId));
+        }
+    }
+    
+    $projects = $query->get();
+    
+    // Load all refunds for these projects
+    $projects->load(['refunds' => function ($q) use ($status) {
+        $q->with('editor')->latest();
+        if ($status && $status !== 'unpaid') {
+            $q->where('status', $status);
+        }
+    }]);
+    
+    // Determine which years to create sheets for
+    $sheetYears = [];
+    
+    if ($selectedMonth && $selectedYear) {
+        $sheetYears = [(int) $selectedYear];
+    } elseif ($years) {
+        $sheetYears = array_map('intval', explode(',', $years));
+        sort($sheetYears);
+    } else {
+        // Collect all years from refunds
+        foreach ($projects as $project) {
+            foreach ($project->refunds as $refund) {
+                if ($refund->month_paid) {
+                    $year = $refund->month_paid instanceof \Carbon\Carbon 
+                        ? $refund->month_paid->year 
+                        : date('Y', strtotime($refund->month_paid));
+                    if (!in_array($year, $sheetYears)) {
+                        $sheetYears[] = $year;
+                    }
+                }
+            }
+        }
+        sort($sheetYears);
+        
+        // If no refund years found, use current year
+        if (empty($sheetYears)) {
+            $sheetYears = [(int) date('Y')];
+        }
+    }
+    
+    // Create spreadsheet
+    $spreadsheet = new Spreadsheet();
+    
+    // Remove default sheet
+    $spreadsheet->removeSheetByIndex(0);
+    
+    // Style definitions
+    $headerStyle = [
+        'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2563EB']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+    ];
+    
+    $dataStyle = [
+        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+        'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+    ];
+    
+    $amountStyle = [
+        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT, 'vertical' => Alignment::VERTICAL_CENTER],
+        'numberFormat' => ['formatCode' => '#,##0.00'],
+    ];
+    
+    // Helper function to safely format dates
+    $formatDate = function ($date) {
+        if (empty($date)) return 'N/A';
+        if ($date instanceof \Carbon\Carbon || $date instanceof \DateTime) {
+            return $date->format('Y-m-d');
+        }
+        if (is_string($date)) {
+            $timestamp = strtotime($date);
+            return $timestamp ? date('Y-m-d', $timestamp) : 'N/A';
+        }
+        return 'N/A';
+    };
+    
+    $formatDateTime = function ($date) {
+        if (empty($date)) return 'N/A';
+        if ($date instanceof \Carbon\Carbon || $date instanceof \DateTime) {
+            return $date->format('Y-m-d H:i:s');
+        }
+        if (is_string($date)) {
+            $timestamp = strtotime($date);
+            return $timestamp ? date('Y-m-d H:i:s', $timestamp) : 'N/A';
+        }
+        return 'N/A';
+    };
+    
+    // CSV Headers
+    $headers = [
+        'Project ID',
+        'Project Title',
+        'Proponent Name',
+        'Office',
+        'Project Status',
+        'Refund Initial',
+        'Refund End',
+        'Year Obligated',
+        'Month Paid',
+        'Refund Status',
+        'Amount Due',
+        'Total Paid',
+        'Remaining Balance',
+        'Payment Number',
+        'Payment Amount',
+        'Bank Name',
+        'Check Number',
+        'Check Date',
+        'Receipt Number',
+        'Receipt Date',
+        'Last Updated By',
+        'Last Updated At',
+    ];
+    
+    // Create a sheet for each year
+    foreach ($sheetYears as $year) {
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle((string) $year);
+        
+        // Add headers
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . '1', $header);
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+            $col++;
+        }
+        
+        // Style headers
+        $sheet->getStyle('A1:' . chr(64 + count($headers)) . '1')->applyFromArray($headerStyle);
+        $sheet->getRowDimension(1)->setRowHeight(25);
+        
+        // Freeze header row
+        $sheet->freezePane('A2');
+        
+        $row = 2;
+        
+        foreach ($projects as $project) {
+            $refunds = $project->refunds ?? collect();
+            
+            // Filter refunds for this year
+            $yearRefunds = $refunds->filter(function ($refund) use ($year, $selectedMonth, $selectedYear) {
+                if (empty($refund->month_paid)) return false;
+                
+                $refundYear = $refund->month_paid instanceof \Carbon\Carbon 
+                    ? $refund->month_paid->year 
+                    : (int) date('Y', strtotime($refund->month_paid));
+                
+                // If specific month/year is selected, filter by that
+                if ($selectedMonth && $selectedYear) {
+                    $refundMonth = $refund->month_paid instanceof \Carbon\Carbon 
+                        ? $refund->month_paid->month 
+                        : (int) date('m', strtotime($refund->month_paid));
+                    return $refundYear == $selectedYear && $refundMonth == $selectedMonth;
+                }
+                
+                return $refundYear == $year;
+            });
+            
+            // If no refunds for this year but project spans this year, show as unpaid
+            if ($yearRefunds->isEmpty()) {
+                // Check if project's refund period covers this year
+                $refundInitial = $project->refund_initial;
+                $refundEnd = $project->refund_end;
+                
+                $initialYear = null;
+                $endYear = null;
+                
+                if ($refundInitial) {
+                    $initialYear = $refundInitial instanceof \Carbon\Carbon 
+                        ? $refundInitial->year 
+                        : (int) date('Y', strtotime($refundInitial));
+                }
+                if ($refundEnd) {
+                    $endYear = $refundEnd instanceof \Carbon\Carbon 
+                        ? $refundEnd->year 
+                        : (int) date('Y', strtotime($refundEnd));
+                }
+                
+                // Only include if project period covers this year and no specific month filter
+                if ($initialYear && $endYear && $initialYear <= $year && $endYear >= $year && !$selectedMonth) {
+                    $sheet->setCellValue('A' . $row, $project->project_id ?? '');
+                    $sheet->setCellValue('B' . $row, $project->project_title ?? '');
+                    $sheet->setCellValue('C' . $row, $project->proponent->company_name ?? 'N/A');
+                    $sheet->setCellValue('D' . $row, $project->proponent->office->office_name ?? 'N/A');
+                    $sheet->setCellValue('E' . $row, $project->progress ?? 'N/A');
+                    $sheet->setCellValue('F' . $row, $formatDate($project->refund_initial));
+                    $sheet->setCellValue('G' . $row, $formatDate($project->refund_end));
+                    $sheet->setCellValue('H' . $row, $project->year_obligated ?? 'N/A');
+                    $sheet->setCellValue('I' . $row, 'N/A');
+                    $sheet->setCellValue('J' . $row, 'unpaid');
+                    $sheet->setCellValue('K' . $row, '0.00');
+                    $sheet->setCellValue('L' . $row, '0.00');
+                    $sheet->setCellValue('M' . $row, '0.00');
+                    $sheet->setCellValue('N' . $row, '');
+                    $sheet->setCellValue('O' . $row, '');
+                    $sheet->setCellValue('P' . $row, '');
+                    $sheet->setCellValue('Q' . $row, '');
+                    $sheet->setCellValue('R' . $row, '');
+                    $sheet->setCellValue('S' . $row, '');
+                    $sheet->setCellValue('T' . $row, '');
+                    $sheet->setCellValue('U' . $row, 'N/A');
+                    $sheet->setCellValue('V' . $row, 'N/A');
+                    
+                    // Apply styles
+                    $sheet->getStyle('A' . $row . ':V' . $row)->applyFromArray($dataStyle);
+                    $sheet->getStyle('K' . $row . ':M' . $row)->applyFromArray($amountStyle);
+                    $sheet->getStyle('O' . $row)->applyFromArray($amountStyle);
+                    
+                    $row++;
+                }
+            } else {
+                foreach ($yearRefunds as $refund) {
+                    $payments = $refund->payments ?? [];
+                    
+                    if (empty($payments)) {
+                        // Refund without payments
+                        $sheet->setCellValue('A' . $row, $project->project_id ?? '');
+                        $sheet->setCellValue('B' . $row, $project->project_title ?? '');
+                        $sheet->setCellValue('C' . $row, $project->proponent->company_name ?? 'N/A');
+                        $sheet->setCellValue('D' . $row, $project->proponent->office->office_name ?? 'N/A');
+                        $sheet->setCellValue('E' . $row, $project->progress ?? 'N/A');
+                        $sheet->setCellValue('F' . $row, $formatDate($project->refund_initial));
+                        $sheet->setCellValue('G' . $row, $formatDate($project->refund_end));
+                        $sheet->setCellValue('H' . $row, $project->year_obligated ?? 'N/A');
+                        $sheet->setCellValue('I' . $row, $formatDate($refund->month_paid));
+                        $sheet->setCellValue('J' . $row, $refund->status ?? 'N/A');
+                        $sheet->setCellValue('K' . $row, $refund->amount_due ?? 0);
+                        $sheet->setCellValue('L' . $row, 0);
+                        $sheet->setCellValue('M' . $row, $refund->amount_due ?? 0);
+                        $sheet->setCellValue('N' . $row, '');
+                        $sheet->setCellValue('O' . $row, '');
+                        $sheet->setCellValue('P' . $row, '');
+                        $sheet->setCellValue('Q' . $row, '');
+                        $sheet->setCellValue('R' . $row, '');
+                        $sheet->setCellValue('S' . $row, '');
+                        $sheet->setCellValue('T' . $row, '');
+                        $sheet->setCellValue('U' . $row, $refund->editor->name ?? 'N/A');
+                        $sheet->setCellValue('V' . $row, $formatDateTime($refund->updated_at));
+                        
+                        // Apply styles
+                        $sheet->getStyle('A' . $row . ':V' . $row)->applyFromArray($dataStyle);
+                        $sheet->getStyle('K' . $row . ':M' . $row)->applyFromArray($amountStyle);
+                        
+                        $row++;
+                    } else {
+                        $totalPaid = collect($payments)->sum('amount');
+                        $remainingBalance = ($refund->amount_due ?? 0) - $totalPaid;
+                        
+                        foreach ($payments as $index => $payment) {
+                            $sheet->setCellValue('A' . $row, $project->project_id ?? '');
+                            $sheet->setCellValue('B' . $row, $project->project_title ?? '');
+                            $sheet->setCellValue('C' . $row, $project->proponent->company_name ?? 'N/A');
+                            $sheet->setCellValue('D' . $row, $project->proponent->office->office_name ?? 'N/A');
+                            $sheet->setCellValue('E' . $row, $project->progress ?? 'N/A');
+                            $sheet->setCellValue('F' . $row, $formatDate($project->refund_initial));
+                            $sheet->setCellValue('G' . $row, $formatDate($project->refund_end));
+                            $sheet->setCellValue('H' . $row, $project->year_obligated ?? 'N/A');
+                            $sheet->setCellValue('I' . $row, $formatDate($refund->month_paid));
+                            $sheet->setCellValue('J' . $row, $refund->status ?? 'N/A');
+                            $sheet->setCellValue('K' . $row, $refund->amount_due ?? 0);
+                            $sheet->setCellValue('L' . $row, $totalPaid);
+                            $sheet->setCellValue('M' . $row, $remainingBalance);
+                            $sheet->setCellValue('N' . $row, $index + 1);
+                            $sheet->setCellValue('O' . $row, $payment['amount'] ?? 0);
+                            $sheet->setCellValue('P' . $row, $payment['bank_name'] ?? 'N/A');
+                            $sheet->setCellValue('Q' . $row, $payment['check_num'] ?? 'N/A');
+                            $sheet->setCellValue('R' . $row, $payment['check_date'] ?? 'N/A');
+                            $sheet->setCellValue('S' . $row, $payment['receipt_num'] ?? 'N/A');
+                            $sheet->setCellValue('T' . $row, $payment['receipt_date'] ?? 'N/A');
+                            $sheet->setCellValue('U' . $row, $refund->editor->name ?? 'N/A');
+                            $sheet->setCellValue('V' . $row, $formatDateTime($refund->updated_at));
+                            
+                            // Apply styles
+                            $sheet->getStyle('A' . $row . ':V' . $row)->applyFromArray($dataStyle);
+                            $sheet->getStyle('K' . $row . ':M' . $row)->applyFromArray($amountStyle);
+                            $sheet->getStyle('O' . $row)->applyFromArray($amountStyle);
+                            
+                            $row++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Auto-size columns
+        foreach (range('A', 'V') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+    }
+    
+    // Generate filename
+    $filename = 'refunds_export_' . now()->format('Y-m-d_His') . '.xlsx';
+    
+    // Save to temp file
+    $tempFile = tempnam(sys_get_temp_dir(), 'refund_export_');
+    $writer = new Xlsx($spreadsheet);
+    $writer->save($tempFile);
+    
+    // Return download response
+    return response()->download($tempFile, $filename, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ])->deleteFileAfterSend(true);
+}
+
 
     public function downloadProjectRefunds($projectId)
     {
