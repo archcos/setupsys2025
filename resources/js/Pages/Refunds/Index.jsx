@@ -47,9 +47,13 @@ export default function Index({
     availableYears,
     offices,
     csvSheets,
+    staffOfficeId, // ADDED
+    staffOfficeName, // ADDED
 }) {
     const { flash, userRole } = usePage().props;
     const isRPMO = ["rpmo", "au"].includes(userRole);
+    const isStaff = userRole === 'staff'; // ADDED
+    
     const [perPage, setPerPage] = useState(10);
     const [officeFilter, setOfficeFilter] = useState(selectedOffice || "");
     const [withWithdrawn, setWithWithdrawn] = useState(
@@ -100,7 +104,7 @@ export default function Index({
     const [isSyncing, setIsSyncing] = useState(false);
     
     // Edit payment state
-    const [editingPayment, setEditingPayment] = useState(null); // Changed to editingPayment
+    const [editingPayment, setEditingPayment] = useState(null);
     const [editFormData, setEditFormData] = useState({
         amount: '',
         bank_name: '',
@@ -219,7 +223,7 @@ export default function Index({
         }
     }, [flash]);
 
-    // Edit payment handlers - FIXED to use editingPayment consistently
+    // Edit payment handlers
     const handleEditPayment = (projectId, monthPaid, paymentIndex, payment) => {
         setEditingPayment({
             project_id: projectId,
@@ -332,6 +336,9 @@ export default function Index({
 
     const handleOfficeChange = useCallback(
         (office) => {
+            // ADDED: Staff cannot change office filter
+            if (isStaff) return;
+            
             setOfficeFilter(office);
             officeFilterRef.current = office;
             handleFilterChange(
@@ -343,7 +350,7 @@ export default function Index({
                 office,
             );
         },
-        [selectedMonth, selectedYear, handleFilterChange],
+        [selectedMonth, selectedYear, handleFilterChange, isStaff],
     );
 
     const handleWithdrawnToggle = useCallback(
@@ -636,6 +643,8 @@ export default function Index({
                             <div className="p-1.5 md:p-2 bg-blue-100 rounded-lg flex-shrink-0">
                                 <HandCoins className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                             </div>
+                            
+                            
                             {isRPMO && (
                                 <button
                                     onClick={() => setShowSyncModal(true)}
@@ -693,6 +702,7 @@ export default function Index({
                         onStatusChange={handleStatusFilterChange}
                         onPerPageChange={handlePerPageChange}
                         isRPMO={isRPMO}
+                        isStaff={isStaff} // ADDED
                         offices={offices}
                         officeFilter={officeFilter}
                         onOfficeChange={handleOfficeChange}
@@ -702,6 +712,7 @@ export default function Index({
                         onTerminatedToggle={handleTerminatedToggle}
                         withAll={withAll}
                         onAllToggle={handleAllToggle}
+                        staffOfficeName={staffOfficeName} // ADDED
                     />
 
                     {/* Desktop Table */}
@@ -810,7 +821,6 @@ export default function Index({
                                                 renderUpdatedBy={renderUpdatedBy}
                                                 selectedMonth={selectedMonth}
                                                 selectedYear={selectedYear}
-                                                // Edit functionality props - FIXED to use editingPayment
                                                 onEditPayment={handleEditPayment}
                                                 editingPayment={editingPayment}
                                                 editFormData={editFormData}
@@ -863,7 +873,7 @@ export default function Index({
                         </table>
                     </div>
 
-                    {/* Mobile Card View - You'll need to update RefundMobileCard similarly */}
+                    {/* Mobile Card View */}
                     <div className="md:hidden divide-y divide-gray-100">
                         {projects.data.length > 0 ? (
                             projects.data.map((p) =>
@@ -890,7 +900,6 @@ export default function Index({
                                     renderUpdatedBy={renderUpdatedBy}
                                     selectedMonth={selectedMonth}
                                     selectedYear={selectedYear}
-                                    // Edit functionality props
                                     onEditPayment={handleEditPayment}
                                     editingPayment={editingPayment}
                                     editFormData={editFormData}

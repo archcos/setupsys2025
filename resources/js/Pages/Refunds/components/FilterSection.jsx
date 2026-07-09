@@ -1,4 +1,3 @@
-// components/FilterSection.jsx
 import React from "react";
 import {
     Search,
@@ -29,6 +28,7 @@ const FilterSection = React.memo(
         onPerPageChange,
         // new props
         isRPMO,
+        isStaff, // ADDED
         offices,
         officeFilter,
         onOfficeChange,
@@ -39,6 +39,7 @@ const FilterSection = React.memo(
         // all projects
         withAll,
         onAllToggle,
+        staffOfficeName, // ADDED
     }) => {
         return (
             <div className="p-3 md:p-6 bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100 space-y-3">
@@ -156,6 +157,16 @@ const FilterSection = React.memo(
                                     </option>
                                 ))}
                             </select>
+                        </div>
+                    )}
+
+                    {/* ADDED: Staff office display - readonly badge */}
+                    {isStaff && staffOfficeName && (
+                        <div className="flex items-center gap-2 bg-blue-50 rounded-lg md:rounded-xl px-3 border border-blue-200">
+                            <Building2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                            <span className="text-xs md:text-sm font-medium text-blue-700 py-2 md:py-2.5">
+                                {staffOfficeName}
+                            </span>
                         </div>
                     )}
                 </div>

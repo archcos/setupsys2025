@@ -155,7 +155,7 @@ export default function UserManagement({ users, offices, filters, stats }) {
                 cls: "bg-amber-50 text-amber-700 ring-amber-200",
             },
             staff: {
-                label: "Staff",
+                label: "PSTO",
                 cls: "bg-emerald-50 text-emerald-700 ring-emerald-200",
             },
             user: {
@@ -304,7 +304,7 @@ export default function UserManagement({ users, offices, filters, stats }) {
                                         ["rd", "Regional Director"],
                                         ["head", "Head"],
                                         ["au", "Accounting"],
-                                        ["staff", "Staff"],
+                                        ["staff", "PSTO"],
                                         ["user", "User"],
                                     ],
                                 },

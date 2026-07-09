@@ -6,7 +6,6 @@ import {
     User,
     Mail,
     Lock,
-    Building2,
     Eye,
     EyeOff,
     CheckCircle,
@@ -18,7 +17,7 @@ import {
     XCircle,
 } from "lucide-react";
 
-export default function SettingsPage({ user, offices }) {
+export default function SettingsPage({ user }) {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -39,7 +38,6 @@ export default function SettingsPage({ user, offices }) {
             current_password: "",
             password: "",
             password_confirmation: "",
-            office_id: user.office_id || "",
         });
 
     // Auto-reset save status after 3 seconds
@@ -274,47 +272,6 @@ export default function SettingsPage({ user, offices }) {
                                     </div>
                                     <InputError error={errors.email} />
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* Office Information */}
-                        <div className="px-6 py-5">
-                            <div className="flex items-center gap-2 mb-4">
-                                <Building2 className="w-4 h-4 text-blue-600" />
-                                <h2 className="text-base font-semibold text-gray-900">
-                                    Office Information
-                                </h2>
-                            </div>
-                            <div className="max-w-sm">
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                    Office
-                                </label>
-                                <div className="relative">
-                                    <Building2
-                                        size={15}
-                                        className="absolute left-3 top-2.5 text-gray-400 z-10"
-                                    />
-                                    <select
-                                        value={data.office_id}
-                                        onChange={(e) =>
-                                            setData("office_id", e.target.value)
-                                        }
-                                        className="w-full border border-gray-300 pl-9 pr-8 py-2.5 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none bg-white"
-                                    >
-                                        <option value="">
-                                            Select your office
-                                        </option>
-                                        {offices.map((office) => (
-                                            <option
-                                                key={office.office_id}
-                                                value={office.office_id}
-                                            >
-                                                {office.office_name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <InputError error={errors.office_id} />
                             </div>
                         </div>
 

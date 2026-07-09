@@ -747,74 +747,64 @@ class AuthController extends Controller
         ]);
     }
 
-    public function update(Request $request, string $id)
-    {
-        $user = UserModel::findOrFail($id);
+public function update(Request $request, string $id)
+{
+    $user = UserModel::findOrFail($id);
 
-        try {
-            $validated = $request->validate([
-                'first_name' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
-                'middle_name' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
-                'last_name' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
-                'username' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9_]+$/', Rule::unique('tbl_users', 'username')->ignore($id, 'user_id')],
-                'email' => ['required', 'email', 'max:255', Rule::unique('tbl_users', 'email')->ignore($id, 'user_id')],
-                'current_password' => [
-                    'nullable',
-                    'string',
-                    'required_with:password',
-                    function ($attribute, $value, $fail) use ($user) {
-                        if (!empty($value) && !Hash::check($value, $user->password)) {
-                            $fail('The current password is incorrect.');
-                        }
-                    },
-                ],
-                'password' => [
-                    'nullable', 'string', 'min:12', 'max:72',
-                    'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,72}$/',
-                    'confirmed',
-                ],
-                'office_id' => ['required', 'exists:tbl_offices,office_id'],
-                'website' => ['nullable', 'string', 'max:255'],
-            ], [
-                'current_password.required_with' => 'Current password is required to set a new password.',
-                'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
-                'password.confirmed' => 'Password confirmation does not match.',
-                'first_name.regex' => 'First Name must contain letters, spaces, or hyphens only.',
-                'middle_name.regex' => 'Middle Name must contain letters, spaces, or hyphens only.',
-                'last_name.regex' => 'Last Name must contain letters, spaces, or hyphens only.',
-                'username.regex' => 'Username must contain only letters, numbers, and underscores.',
-                'username.unique' => 'This username is already taken.',
-                'email.unique' => 'This email is already registered.',
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return back()
-                ->withErrors($e->errors())
-                ->withInput($request->except('password', 'password_confirmation', 'current_password'));
-        }
-
-        if (!empty($validated['website'])) {
-            Log::warning('HP triggered in user update', ['ip' => $request->ip(), 'user_id' => Auth::id()]);
-
-            return back()->with('success', 'Settings updated successfully!');
-        }
-
-        $user->fill([
-            'first_name' => $validated['first_name'],
-            'middle_name' => $validated['middle_name'] ?? null,
-            'last_name' => $validated['last_name'],
-            'username' => $validated['username'],
-            'email' => $validated['email'],
-            'office_id' => $validated['office_id'],
+    try {
+        $validated = $request->validate([
+            'first_name' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
+            'middle_name' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
+            'last_name' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z\s-]+$/'],
+            'username' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9_]+$/', Rule::unique('tbl_users', 'username')->ignore($id, 'user_id')],
+            'email' => ['required', 'email', 'max:255', Rule::unique('tbl_users', 'email')->ignore($id, 'user_id')],
+            'current_password' => [
+                'nullable',
+                'string',
+                'required_with:password',
+                function ($attribute, $value, $fail) use ($user) {
+                    if (!empty($value) && !Hash::check($value, $user->password)) {
+                        $fail('The current password is incorrect.');
+                    }
+                },
+            ],
+            'password' => [
+                'nullable', 'string', 'min:12', 'max:72',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,72}$/',
+                'confirmed',
+            ],
+        ], [
+            'current_password.required_with' => 'Current password is required to set a new password.',
+            'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
+            'password.confirmed' => 'Password confirmation does not match.',
+            'first_name.regex' => 'First Name must contain letters, spaces, or hyphens only.',
+            'middle_name.regex' => 'Middle Name must contain letters, spaces, or hyphens only.',
+            'last_name.regex' => 'Last Name must contain letters, spaces, or hyphens only.',
+            'username.regex' => 'Username must contain only letters, numbers, and underscores.',
+            'username.unique' => 'This username is already taken.',
+            'email.unique' => 'This email is already registered.',
         ]);
-
-        if (!empty($validated['password'])) {
-            // Current password is already verified via validation
-            $user->password = Hash::make($validated['password']);
-        }
-
-        $user->save();
-
-
-        return back()->with('success', 'Settings updated successfully!');
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return back()
+            ->withErrors($e->errors())
+            ->withInput($request->except('password', 'password_confirmation', 'current_password'));
     }
+
+    $user->fill([
+        'first_name' => $validated['first_name'],
+        'middle_name' => $validated['middle_name'] ?? null,
+        'last_name' => $validated['last_name'],
+        'username' => $validated['username'],
+        'email' => $validated['email'],
+    ]);
+
+    if (!empty($validated['password'])) {
+        // Current password is already verified via validation
+        $user->password = Hash::make($validated['password']);
+    }
+
+    $user->save();
+
+    return back()->with('success', 'Settings updated successfully!');
+}
 }

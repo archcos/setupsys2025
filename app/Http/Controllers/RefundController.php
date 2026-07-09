@@ -73,131 +73,145 @@ class RefundController extends Controller
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    public function index()
-    {
-        $user = Auth::user();
+public function index()
+{
+    $user = Auth::user();
 
-        $selectedMonth = request('month', now()->month);
-        $selectedYear = request('year', now()->year);
-        $search = request('search');
-        $status = request('status');
-        $office = request('office');
-        $includeWithdrawn = request('include_withdrawn', false);
-        $includeTerminated = request('include_terminated', false);
-        $includeAll = request('include_all', false);
-        $perPage = (int) request('perPage', 10);
+    $selectedMonth = request('month', now()->month);
+    $selectedYear = request('year', now()->year);
+    $search = request('search');
+    $status = request('status');
+    $office = request('office');
+    $includeWithdrawn = request('include_withdrawn', false);
+    $includeTerminated = request('include_terminated', false);
+    $includeAll = request('include_all', false);
+    $perPage = (int) request('perPage', 10);
 
-        $perPage = in_array($perPage, [10, 20, 50, 100]) ? $perPage : 10;
+    $perPage = in_array($perPage, [10, 20, 50, 100]) ? $perPage : 10;
 
-        $isRPMO = in_array($user->role, ['rpmo', 'au']);
+    $isRPMO = in_array($user->role, ['rpmo', 'au']);
+    $isStaff = $user->role === 'staff'; // ADDED: Check if user is staff
 
-        $selectedDate = Carbon::create($selectedYear, $selectedMonth, 1);
+    $selectedDate = Carbon::create($selectedYear, $selectedMonth, 1);
 
-        $availableYears = ProjectModel::query()
-            ->whereNotNull('year_obligated')
-            ->distinct()
-            ->orderByDesc('year_obligated')
-            ->pluck('year_obligated');
+    $availableYears = ProjectModel::query()
+        ->whereNotNull('year_obligated')
+        ->distinct()
+        ->orderByDesc('year_obligated')
+        ->pluck('year_obligated');
 
-        $offices = $isRPMO
-            ? \App\Models\OfficeModel::orderBy('office_name')->get(['office_id', 'office_name'])
-            : collect();
+    $offices = $isRPMO
+        ? \App\Models\OfficeModel::orderBy('office_name')->get(['office_id', 'office_name'])
+        : collect();
 
-        $csvSheets = collect(self::SHEET_NAMES)
-            ->filter(fn ($name, $i) => !empty(env("REFUND_CSV_{$i}")))
-            ->toArray();
+    $csvSheets = collect(self::SHEET_NAMES)
+        ->filter(fn ($name, $i) => !empty(env("REFUND_CSV_{$i}")))
+        ->toArray();
 
-        $projects = ProjectModel::with([
-            'proponent.office',
-            'refunds' => function ($q) use ($selectedDate, $status) {
-                $q->with('editor')
-                    ->whereMonth('month_paid', $selectedDate->month)
-                    ->whereYear('month_paid', $selectedDate->year)
-                    ->latest();
+    $projects = ProjectModel::with([
+        'proponent.office',
+        'refunds' => function ($q) use ($selectedDate, $status) {
+            $q->with('editor')
+                ->whereMonth('month_paid', $selectedDate->month)
+                ->whereYear('month_paid', $selectedDate->year)
+                ->latest();
 
-                if ($status && $status !== 'unpaid') {
-                    $q->where('status', $status);
-                }
-            },
-        ])
-        ->when(!$includeAll, fn ($q) => $q
-            ->whereDate('refund_initial', '<=', $selectedDate)
-            ->whereDate('refund_end', '>=', $selectedDate)
-        )
-        // FIX: More robust progress filtering
-        ->when(!$includeAll, function ($q) use ($includeWithdrawn, $includeTerminated) {
-            if ($includeWithdrawn && $includeTerminated) {
-                // Show all (including withdrawn and terminated)
-                return;
-            } elseif ($includeWithdrawn && !$includeTerminated) {
-                $q->where(function ($q) {
-                    $q->where('progress', '!=', 'Terminated')
-                    ->orWhereNull('progress');
-                });
-            } elseif (!$includeWithdrawn && $includeTerminated) {
-                $q->where(function ($q) {
-                    $q->where('progress', '!=', 'Withdrawn')
-                    ->orWhereNull('progress');
-                });
-            } else {
-                // Neither withdrawn nor terminated
-                $q->whereNotIn('progress', ['Withdrawn', 'Terminated'])
-                ->orWhereNull('progress');
+            if ($status && $status !== 'unpaid') {
+                $q->where('status', $status);
             }
-        })
-        ->when($isRPMO && $office, fn ($q) => $q->whereHas('proponent', fn ($q) => $q->where('office_id', $office)))
-        ->when($search, function ($query, $search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('project_title', 'like', "%{$search}%")
-                    ->orWhere('project_id', 'like', "%{$search}%")
-                    ->orWhereHas('proponent', fn ($q) => $q->where('company_name', 'like', "%{$search}%"));
+        },
+    ])
+    ->when(!$includeAll, fn ($q) => $q
+        ->whereDate('refund_initial', '<=', $selectedDate)
+        ->whereDate('refund_end', '>=', $selectedDate)
+    )
+    // Progress filtering
+    ->when(!$includeAll, function ($q) use ($includeWithdrawn, $includeTerminated) {
+        $conditions = [];
+        
+        if (!$includeWithdrawn) {
+            $conditions[] = 'Withdrawn';
+        }
+        if (!$includeTerminated) {
+            $conditions[] = 'Terminated';
+        }
+        
+        if (!empty($conditions)) {
+            $q->where(function ($q) use ($conditions) {
+                $q->whereNotIn('progress', $conditions)
+                  ->orWhereNull('progress');
             });
-        })
-        ->when($status && !$includeAll, function ($query) use ($selectedDate, $status) {
-            if ($status === 'unpaid') {
-                $query->where(function ($q) use ($selectedDate) {
-                    $q->whereDoesntHave('refunds', function ($subQ) use ($selectedDate) {
-                        $subQ->whereMonth('month_paid', $selectedDate->month)
-                            ->whereYear('month_paid', $selectedDate->year);
-                    })
-                    ->orWhereHas('refunds', function ($subQ) use ($selectedDate) {
-                        $subQ->whereMonth('month_paid', $selectedDate->month)
-                            ->whereYear('month_paid', $selectedDate->year)
-                            ->where('status', 'unpaid');
-                    });
+        }
+    })
+    // FIX: Office filter logic - RPMO can filter by office, staff are restricted to their office
+    ->when($isRPMO && $office, fn ($q) => $q->whereHas('proponent', fn ($q) => $q->where('office_id', $office)))
+    ->when($isStaff, function ($q) use ($user) {
+        // ADDED: Staff can only see projects from their assigned office
+        $staffOfficeId = $user->office_id; // Adjust this based on your User model
+        
+        if ($staffOfficeId) {
+            $q->whereHas('proponent', function ($q) use ($staffOfficeId) {
+                $q->where('office_id', $staffOfficeId);
+            });
+        }
+    })
+    // Search filter
+    ->when($search, function ($query, $search) {
+        $query->where(function ($q) use ($search) {
+            $q->where('project_title', 'like', "%{$search}%")
+                ->orWhere('project_id', 'like', "%{$search}%")
+                ->orWhereHas('proponent', fn ($q) => $q->where('company_name', 'like', "%{$search}%"));
+        });
+    })
+    // Status filter
+    ->when($status && !$includeAll, function ($query) use ($selectedDate, $status) {
+        if ($status === 'unpaid') {
+            $query->where(function ($q) use ($selectedDate) {
+                $q->whereDoesntHave('refunds', function ($subQ) use ($selectedDate) {
+                    $subQ->whereMonth('month_paid', $selectedDate->month)
+                        ->whereYear('month_paid', $selectedDate->year);
+                })
+                ->orWhereHas('refunds', function ($subQ) use ($selectedDate) {
+                    $subQ->whereMonth('month_paid', $selectedDate->month)
+                        ->whereYear('month_paid', $selectedDate->year)
+                        ->where('status', 'unpaid');
                 });
-            } else {
-                $query->whereHas('refunds', function ($q) use ($selectedDate, $status) {
-                    $q->whereMonth('month_paid', $selectedDate->month)
-                    ->whereYear('month_paid', $selectedDate->year)
-                    ->where('status', $status);
-                });
-            }
-        })
-        ->paginate($perPage)
-        ->through(function ($project) use ($selectedDate) {
-            $project->refund_amount = $this->getRefundAmountForMonth($project, $selectedDate);
-            return $project;
-        })
-        ->withQueryString();
+            });
+        } else {
+            $query->whereHas('refunds', function ($q) use ($selectedDate, $status) {
+                $q->whereMonth('month_paid', $selectedDate->month)
+                  ->whereYear('month_paid', $selectedDate->year)
+                  ->where('status', $status);
+            });
+        }
+    })
+    ->paginate($perPage)
+    ->through(function ($project) use ($selectedDate) {
+        $project->refund_amount = $this->getRefundAmountForMonth($project, $selectedDate);
+        return $project;
+    })
+    ->withQueryString();
 
-        return Inertia::render('Refunds/Index', [
-            'projects' => $projects,
-            'selectedMonth' => (int) $selectedMonth,
-            'selectedYear' => (int) $selectedYear,
-            'search' => $search,
-            'selectedStatus' => $status,
-            'selectedOffice' => $office,
-            'includeWithdrawn' => (bool) $includeWithdrawn,
-            'includeTerminated' => (bool) $includeTerminated,
-            'includeAll' => (bool) $includeAll,
-            'availableYears' => $availableYears,
-            'offices' => $offices,
-            'csvSheets' => $csvSheets,
-            'userRole' => $user->role,
-            'perPage' => $perPage, // ADDED: pass perPage to frontend
-        ]);
-    }
+    return Inertia::render('Refunds/Index', [
+        'projects' => $projects,
+        'selectedMonth' => (int) $selectedMonth,
+        'selectedYear' => (int) $selectedYear,
+        'search' => $search,
+        'selectedStatus' => $status,
+        'selectedOffice' => $office,
+        'includeWithdrawn' => (bool) $includeWithdrawn,
+        'includeTerminated' => (bool) $includeTerminated,
+        'includeAll' => (bool) $includeAll,
+        'availableYears' => $availableYears,
+        'offices' => $offices,
+        'csvSheets' => $csvSheets,
+        'userRole' => $user->role,
+        'perPage' => $perPage,
+        // ADDED: Pass staff office info to frontend
+        'staffOfficeId' => $isStaff ? ($user->office_id ?? null) : null,
+        'staffOfficeName' => $isStaff ? ($user->office->office_name ?? 'Your Office') : null,
+    ]);
+}
 
     public function downloadProjectRefunds($projectId)
     {
