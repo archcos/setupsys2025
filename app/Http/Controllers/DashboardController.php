@@ -2,13 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ActivityModel;
-use App\Models\LogModel;
-use App\Models\MoaModel;
 use App\Models\ProjectModel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -21,6 +17,7 @@ class DashboardController extends Controller
             'proponent',
             'implementation.tags',
             'refunds',
+            'moa',
         ])
         ->when($user->role === 'user', function ($q) use ($user) {
             $q->whereHas('proponent', function ($sub) use ($user) {
@@ -32,175 +29,267 @@ class DashboardController extends Controller
                 $sub->where('office_id', $user->office_id);
             });
         })
+        ->orderBy('created_at', 'desc')
         ->get();
 
-        $projectIds = $projects->pluck('project_id')->all();
-
-        $lastActivities = ActivityModel::select('project_id', DB::raw('MAX(created_at) as last_activity_date'))
-            ->whereIn('project_id', $projectIds)
-            ->groupBy('project_id')
-            ->pluck('last_activity_date', 'project_id');
-
-        $moas = MoaModel::whereIn('project_id', $projectIds)
-            ->get()
-            ->keyBy('project_id');
-
-        // Fetch progress logs for all projects - only where project_id is not null
-        $progressLogs = LogModel::whereIn('project_id', $projectIds)
-            ->whereNotNull('project_id')
-            ->get()
-            ->groupBy('project_id');
-
         return Inertia::render('Dashboard/Index', [
-            'projectDetails' => $projects->map(function ($project) use ($lastActivities, $moas, $progressLogs) {
+            'projectDetails' => $projects->map(function ($project) {
                 $projectCost = $project->project_cost ?? 0;
                 $implementation = $project->implementation;
                 $tags = $implementation?->tags ?? collect();
+                $moa = $project->moa;
+                $isWithdrawn = $project->progress === 'Withdrawn';
+                $isTerminated = $project->progress === 'Terminated';
+
+                // Calculate tag amounts
                 $totalTagAmount = $tags->sum('tag_amount');
+                $tagPercentage = $projectCost > 0 ? ($totalTagAmount / $projectCost) * 100 : 0;
+                $isFullyUntagged = $tagPercentage >= 100;
 
-                $lastTagDate = $tags->max('created_at');
-                $moa = $moas->get($project->project_id);
+                // Get 100% untagging date
+                $finalUntagDate = null;
+                $runningTotal = 0;
+                foreach ($tags->sortBy('created_at') as $tag) {
+                    $runningTotal += $tag->tag_amount;
+                    if (!$finalUntagDate && $runningTotal >= $projectCost) {
+                        $finalUntagDate = $tag->created_at;
+                        break;
+                    }
+                }
 
+                // Refund calculations
                 $refundInitial = $project->refund_initial ? Carbon::parse($project->refund_initial) : null;
                 $refundEnd = $project->refund_end ? Carbon::parse($project->refund_end) : null;
-
-                $isRefundCompleted = false;
-                $isRefundOngoing = false;
-
+                
+                $refundData = null;
+                $refundCompleted = false;
+                $lastRefundDate = null;
+                
                 if ($refundInitial && $refundEnd) {
+                    $paidRefunds = $project->refunds->filter(fn($r) => strtolower($r->status) === 'paid');
+                    $allPaid = $paidRefunds->count() === $project->refunds->count() && $project->refunds->isNotEmpty();
+                    $lastPaidRefund = $paidRefunds->sortByDesc('updated_at')->first();
+                    
                     $expectedMonths = [];
                     $cursor = $refundInitial->copy();
                     while ($cursor->lte($refundEnd)) {
                         $expectedMonths[] = $cursor->format('Y-m');
                         $cursor->addMonth();
                     }
-
-                    $refundsByMonth = $project->refunds
-                        ->keyBy(fn ($refund) => Carbon::parse($refund->month_paid)->format('Y-m'));
-
-                    $allPaid = true;
-                    $isRefundOngoing = false;
-                    $currentMonth = Carbon::now()->format('Y-m');
-
-                    foreach ($expectedMonths as $month) {
-                        $refund = $refundsByMonth->get($month);
-
-                        if (!$refund || strtolower($refund->status) !== 'paid') {
-                            $allPaid = false;
-                        }
-
-                        if ($month === $currentMonth && $refund && strtolower($refund->status) !== 'paid') {
-                            $isRefundOngoing = true;
-                        }
-                    }
-
-                    if ($allPaid) {
-                        $isRefundCompleted = true;
-                        if ($project->progress !== 'Refund' && $project->progress !== 'Completed') {
-                            $project->progress = 'Refund';
-                            $project->save();
-                        }
-                    }
+                    
+                    $refundCompleted = $allPaid;
+                    $lastRefundDate = $lastPaidRefund?->updated_at;
+                    
+                    $refundData = [
+                        'initial' => $refundInitial->format('F Y'),
+                        'end' => $refundEnd->format('F Y'),
+                        'total_months' => count($expectedMonths),
+                        'paid_months' => $paidRefunds->count(),
+                        'completed' => $refundCompleted,
+                        'last_paid_date' => $lastRefundDate,
+                        'progress' => count($expectedMonths) > 0 
+                            ? round(($paidRefunds->count() / count($expectedMonths)) * 100) 
+                            : 0,
+                    ];
                 }
 
-                // Get timestamps for progress transitions
-                $projectLogs = $progressLogs->get($project->project_id, collect());
+                // Build milestones based on actual data
+                $milestones = [];
+                $completedCount = 0;
+                $totalMilestones = 0;
 
-                $projectReviewDate = $this->getProgressTransitionDate($projectLogs, 'Project Review');
-                $awaitingApprovalDate = $this->getProgressTransitionDate($projectLogs, 'Awaiting Approval');
-                $approvedDate = $this->getProgressTransitionDate($projectLogs, 'Approved');
-                $completedDate = $this->getProgressTransitionDate($projectLogs, 'Completed');
+                // 1. Company Profile
+                $hasProponent = $project->proponent !== null;
+                $milestones[] = [
+                    'id' => 'company_profile',
+                    'label' => 'Company Profile',
+                    'description' => 'Proponent registration',
+                    'completed' => $hasProponent,
+                    'date' => $project->proponent?->created_at,
+                    'icon' => 'Building',
+                ];
+                if ($hasProponent) $completedCount++;
+                $totalMilestones++;
+
+                // 2. Project Created
+                $projectCreated = $project->created_at !== null;
+                $milestones[] = [
+                    'id' => 'project_created',
+                    'label' => 'Project Created',
+                    'description' => 'Project proposal submitted',
+                    'completed' => $projectCreated,
+                    'date' => $project->created_at,
+                    'icon' => 'FileText',
+                ];
+                if ($projectCreated) $completedCount++;
+                $totalMilestones++;
+
+                // 3. Project Approved
+                $projectApproved = $implementation !== null;
+                $approvedDate = null;
+                if ($projectApproved && $project->year_obligated && $project->year_obligated <= 2026) {
+                    $approvedDate = Carbon::createFromDate($project->year_obligated, 1, 1)->format('Y-m-d');
+                }
+                $milestones[] = [
+                    'id' => 'project_approved',
+                    'label' => 'Project Approved',
+                    'description' => 'Project approved for implementation',
+                    'completed' => $projectApproved,
+                    'date' => $approvedDate ?? $implementation?->created_at,
+                    'icon' => 'CheckBadge',
+                ];
+                if ($projectApproved) $completedCount++;
+                $totalMilestones++;
+
+                // 4. MOA Uploaded
+                $moaUploaded = $moa && $moa->hasApprovedFile();
+                $milestones[] = [
+                    'id' => 'moa_uploaded',
+                    'label' => 'MOA Uploaded',
+                    'description' => 'Approved MOA file uploaded',
+                    'completed' => $moaUploaded,
+                    'date' => $moa?->approved_file_uploaded_at,
+                    'icon' => 'FileCheck',
+                ];
+                if ($moaUploaded) $completedCount++;
+                $totalMilestones++;
+
+                // 5. Implementation (with sub-items)
+                $implementationStarted = $implementation !== null;
+                $implementationCompleted = $implementation && $implementation->liquidation_upload && $isFullyUntagged;
+                
+                $implementationSubItems = [];
+                if ($implementation) {
+                    $implementationSubItems = [
+                        [
+                            'label' => 'Implementation Started',
+                            'completed' => true,
+                            'date' => $implementation->created_at,
+                        ],
+                        [
+                            'label' => 'Tarpaulin Uploaded',
+                            'completed' => (bool)($implementation->tarp_upload),
+                            'date' => $implementation->tarp_upload,
+                        ],
+                        [
+                            'label' => 'PDC Uploaded',
+                            'completed' => (bool)($implementation->pdc_upload),
+                            'date' => $implementation->pdc_upload,
+                        ],
+                        [
+                            'label' => 'Final Untagging (100%)',
+                            'completed' => $isFullyUntagged,
+                            'date' => $finalUntagDate,
+                        ],
+                        [
+                            'label' => 'Liquidation Submitted',
+                            'completed' => (bool)($implementation->liquidation_upload),
+                            'date' => $implementation->liquidation_upload,
+                        ],
+                    ];
+                }
+
+                $milestones[] = [
+                    'id' => 'implementation',
+                    'label' => 'Implementation',
+                    'description' => 'Project execution & untagging',
+                    'completed' => $implementationCompleted,
+                    'date' => $implementation?->liquidation_upload ?? $finalUntagDate ?? $implementation?->created_at,
+                    'icon' => 'Wrench',
+                    'subItems' => $implementationSubItems,
+                ];
+                if ($implementationStarted) $completedCount++;
+                $totalMilestones++;
+
+                // 6. Refund
+                $hasRefunds = !empty($refundData);
+                $milestones[] = [
+                    'id' => 'refund',
+                    'label' => 'Refund',
+                    'description' => 'Payment refund processing',
+                    'completed' => $refundCompleted,
+                    'date' => $lastRefundDate,
+                    'icon' => 'Wallet',
+                ];
+                if ($hasRefunds) {
+                    if ($refundCompleted) $completedCount++;
+                    $totalMilestones++;
+                }
+
+                // 7. Completed
+                $projectCompleted = $refundCompleted || $project->progress === 'Completed';
+                $completedDate = null;
+                if ($refundCompleted && $lastRefundDate) {
+                    $completedDate = $lastRefundDate;
+                } elseif ($project->progress === 'Completed') {
+                    $completedDate = $project->updated_at;
+                }
+                
+                $milestones[] = [
+                    'id' => 'completed',
+                    'label' => 'Completed',
+                    'description' => 'Project successfully finished',
+                    'completed' => $projectCompleted,
+                    'date' => $completedDate,
+                    'icon' => 'Trophy',
+                ];
+                if ($projectCompleted) $completedCount++;
+                $totalMilestones++;
+
+                // Determine overall status
+                $status = $project->progress ?? 'Draft';
+                if ($isWithdrawn) $status = 'Withdrawn';
+                if ($isTerminated) $status = 'Terminated';
+                
+                // Calculate progress percentage
+                $overallProgress = $totalMilestones > 0 ? round(($completedCount / $totalMilestones) * 100) : 0;
+                
+                // Override for special statuses
+                if ($isWithdrawn || $isTerminated) {
+                    $overallProgress = 100; // Or keep actual progress
+                }
 
                 return [
                     'project_id' => $project->project_id,
                     'project_title' => $project->project_title,
-                    'progress' => $project->progress ?? '',
                     'project_cost' => $projectCost,
+                    'progress_status' => $status,
+                    'overall_progress' => $overallProgress,
+                    'is_withdrawn' => $isWithdrawn,
+                    'is_terminated' => $isTerminated,
                     'created_at' => $project->created_at,
                     'proponent' => [
-                        'created_at' => $project->proponent->created_at ?? null,
+                        'company_name' => $project->proponent?->company_name ?? 'N/A',
+                        'owner_name' => $project->proponent?->owner_name ?? null,
+                        'created_at' => $project->proponent?->created_at,
                     ],
-                    'last_activity_date' => $lastActivities->get($project->project_id) ?? null,
-                    'moa' => [
-                        'updated_at' => $moa->updated_at ?? null,
-                        'acknowledge_date' => (
-                            in_array(strtolower($project->progress), ['draft moa', 'complete details'])
-                                ? null
-                                : ($moa->acknowledge_date ?? null)
-                        ),
-                    ],
-
+                    'moa' => $moa ? [
+                        'id' => $moa->moa_id,
+                        'has_approved_file' => $moa->hasApprovedFile(),
+                        'approved_file_uploaded_at' => $moa->approved_file_uploaded_at,
+                        'approved_by' => $moa->approvedByUser?->name ?? null,
+                    ] : null,
                     'implementation' => $implementation ? [
-                        'tarp_upload' => $implementation->tarp_upload ?? null,
-                        'pdc_upload' => $implementation->pdc_upload ?? null,
-                        'liquidation_upload' => $implementation->liquidation_upload ?? null,
-                        'tags' => $tags->map(fn ($tag) => [
+                        'implement_id' => $implementation->implement_id,
+                        'tarp_upload' => $implementation->tarp_upload,
+                        'pdc_upload' => $implementation->pdc_upload,
+                        'liquidation_upload' => $implementation->liquidation_upload,
+                        'created_at' => $implementation->created_at,
+                        'total_tag_amount' => $totalTagAmount,
+                        'tag_percentage' => round($tagPercentage, 1),
+                        'is_fully_untagged' => $isFullyUntagged,
+                        'final_untag_date' => $finalUntagDate,
+                        'tags' => $tags->sortBy('created_at')->map(fn($tag) => [
                             'tag_name' => $tag->tag_name,
                             'tag_amount' => $tag->tag_amount,
                             'created_at' => $tag->created_at,
-                        ]),
-                        'untagging' => [
-                            'first' => $projectCost > 0 && $totalTagAmount >= $projectCost * 0.5,
-                            'final' => $projectCost > 0 && $totalTagAmount >= $projectCost,
-                        ],
+                        ])->values(),
                     ] : null,
-                    'last_tag_date' => $lastTagDate,
-
-                    // Add progress dates
-                    'progressDates' => [
-                        'project_review' => $projectReviewDate,
-                        'awaiting_approval' => $awaitingApprovalDate,
-                        'approved' => $approvedDate,
-                        'completed' => $completedDate,
-                    ],
-
-                    'refund' => [
-                        'initial' => $refundInitial ? $refundInitial->format('Y-m') : null,
-                        'initial_formatted' => $refundInitial ? $refundInitial->format('F, Y') : null,
-                        'end' => $refundEnd ? $refundEnd->format('Y-m') : null,
-                        'end_formatted' => $refundEnd ? $refundEnd->format('F, Y') : null,
-                        'currentMonthOngoing' => $isRefundOngoing,
-                        'completed' => $isRefundCompleted,
-                        'refunds' => $project->refunds->map(fn ($refund) => [
-                            'month_paid' => $refund->month_paid,
-                            'refund_amount' => $refund->refund_amount,
-                            'amount_due' => $refund->amount_due,
-                            'status' => $refund->status,
-                            'check_num' => $refund->check_num,
-                            'receipt_num' => $refund->receipt_num,
-                        ]),
-                    ],
+                    'refund' => $refundData,
+                    'milestones' => $milestones,
                 ];
             }),
-            'usercompanyName' => $user->proponents->first()?->company_name ?? 'Your proponent',
+            'userCompanyName' => $user->proponents->first()?->company_name ?? 'User',
         ]);
-    }
-
-    /**
-     * Get the date when a project transitioned to a specific progress status
-     * Looks for log entries where the "after" progress matches the target progress.
-     *
-     * @param \Illuminate\Support\Collection $logs
-     * @param string                         $targetProgress
-     *
-     * @return Carbon|null
-     */
-    private function getProgressTransitionDate($logs, $targetProgress)
-    {
-        if ($logs->isEmpty()) {
-            return null;
-        }
-
-        $log = $logs->first(function ($log) use ($targetProgress) {
-            try {
-                $after = is_array($log->after) ? $log->after : json_decode($log->after ?? '{}', true);
-
-                return ($after['progress'] ?? null) === $targetProgress;
-            } catch (\Exception $e) {
-                return false;
-            }
-        });
-
-        return $log ? $log->created_at : null;
     }
 }

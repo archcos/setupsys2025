@@ -20,6 +20,9 @@ return new class extends Migration
             $table->text('liquidation')->nullable();
             $table->timestamp('liquidation_upload')->nullable();
             $table->unsignedBigInteger('liquidation_by')->nullable();
+            
+            // Add timestamps
+            $table->timestamps(); // This adds created_at and updated_at columns
 
             // Foreign keys to tbl_users
             $table->foreign('tarp_by')->references('user_id')->on('tbl_users')->onDelete('set null')->onUpdate('cascade');

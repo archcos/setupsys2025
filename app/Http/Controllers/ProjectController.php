@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\ProjectCreatedMail;
+use App\Models\DirectorModel;
 use App\Models\ImplementationModel;
 use App\Models\ItemModel;
 use App\Models\MarketModel;
@@ -722,6 +723,7 @@ class ProjectController extends Controller
         ProjectModel::disableLogging();
         ImplementationModel::disableLogging();
         MarketModel::disableLogging();
+        MoaModel::disableLogging();  
 
         try {
             $response = Http::timeout(300)->get($csvUrl);
@@ -909,6 +911,69 @@ class ProjectController extends Controller
                 (!empty($errors) ? ' '.count($errors).' rows had errors.' : '')
             );
 
+               $allProjects = ProjectModel::whereNotIn('progress', ['Withdrawn', 'Terminated'])->get();
+            $implementationCreated = 0;
+
+            foreach ($allProjects as $proj) {
+                $exists = ImplementationModel::where('project_id', $proj->project_id)->exists();
+                if (!$exists) {
+                    ImplementationModel::create([
+                        'project_id' => $proj->project_id,
+                        'tarp' => null,
+                        'pdc' => null,
+                        'liquidation' => null,
+                    ]);
+                    $implementationCreated++;
+                }
+            }
+
+        $moaCreated = 0;
+
+        foreach ($allProjects as $proj) {
+            $moaExists = MoaModel::where('project_id', $proj->project_id)->exists();
+            if (!$moaExists) {
+                // Get proponent data
+                $proponent = ProponentModel::find($proj->proponent_id);
+                
+                // Get PD/Director based on proponent's office_id
+                $director = DirectorModel::where('office_id', $proponent->office_id)->first();
+                
+                // Format PD name: Honorific FirstName M. LastName
+                $pdName = 'N/A';
+                if ($director) {
+                    $honorific = $director->honorific ? $director->honorific . ' ' : '';
+                    $firstName = $director->first_name;
+                    $middleInitial = $director->middle_name ? strtoupper(substr($director->middle_name, 0, 1)) . '.' : '';
+                    $lastName = $director->last_name;
+                    
+                    $pdName = trim($honorific . $firstName . ' ' . $middleInitial . ' ' . $lastName);
+                }
+                
+                // Get owner name from proponent
+                $ownerName = $proponent->owner_name ?? 'N/A';
+                
+                // Get project cost and convert to words
+                $projectCost = $proj->project_cost ?? 0;
+                $amountWords = $this->convertNumberToWords($projectCost);
+                
+                MoaModel::create([
+                    'project_id' => $proj->project_id,
+                    'owner_name' => $ownerName,
+                    'owner_position' => 'Owner/Proprietor', // Default position
+                    'pd_name' => $pdName,
+                    'pd_title' => $director->title ?? 'N/A',
+                    'witness' => 'N/A',
+                    'project_cost' => $projectCost,
+                    'amount_words' => $amountWords,
+                ]);
+                $moaCreated++;
+            }
+        }
+
+        if ($moaCreated > 0) {
+            Log::info("Created {$moaCreated} MOA records for projects missing them.");
+        }
+
             // Run geo/objectives sync (manages its own disable/enable internally)
             $geoSummary = $this->syncGeoAndObjectivesFromCSV();
             $itemsSummary = $this->syncItemsFromCSV();
@@ -930,7 +995,100 @@ class ProjectController extends Controller
             ProjectModel::enableLogging();
             ImplementationModel::enableLogging();
             MarketModel::enableLogging();
+            MoaModel::enableLogging(); 
         }
+    }
+
+private function convertNumberToWords($number)
+{
+    $number = abs($number);
+    
+    $ones = [
+        '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+        'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+        'Seventeen', 'Eighteen', 'Nineteen'
+    ];
+    
+    $tens = [
+        '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'
+    ];
+    
+    $scales = [
+        '', 'Thousand', 'Million', 'Billion', 'Trillion'
+    ];
+    
+    if ($number == 0) {
+        return 'Zero Pesos';
+    }
+    
+    $words = [];
+    $scaleIndex = 0;
+    $pesos = floor($number);
+    $cents = round(($number - $pesos) * 100);
+    
+    // Convert the whole number part
+    if ($pesos == 0) {
+        $words[] = 'Zero';
+    } else {
+        while ($pesos > 0) {
+            $chunk = $pesos % 1000;
+            
+            if ($chunk > 0) {
+                $chunkWords = $this->convertChunk($chunk, $ones, $tens);
+                if ($scaleIndex > 0) {
+                    $chunkWords .= ' ' . $scales[$scaleIndex];
+                }
+                array_unshift($words, $chunkWords);
+            }
+            
+            $pesos = floor($pesos / 1000);
+            $scaleIndex++;
+        }
+    }
+    
+    $result = implode(', ', $words) . ' Pesos';
+    
+    // Add cents if any
+    if ($cents > 0) {
+        $centsWords = $this->convertChunk($cents, $ones, $tens);
+        $result .= ' and ' . $centsWords . ' Centavos';
+    }
+    
+    return $result;
+}
+
+    // Helper method for converting chunks of 3 digits
+    private function convertChunk($number, $ones, $tens)
+    {
+        $words = '';
+        
+        // Handle hundreds
+        if ($number >= 100) {
+            $hundreds = floor($number / 100);
+            $words .= $ones[$hundreds] . ' Hundred';
+            $number %= 100;
+            
+            if ($number > 0) {
+                $words .= ' ';
+            }
+        }
+        
+        // Handle tens and ones
+        if ($number > 0) {
+            if ($number < 20) {
+                $words .= $ones[$number];
+            } else {
+                $tensDigit = floor($number / 10);
+                $onesDigit = $number % 10;
+                $words .= $tens[$tensDigit];
+                
+                if ($onesDigit > 0) {
+                    $words .= '-' . $ones[$onesDigit];
+                }
+            }
+        }
+        
+        return $words;
     }
 
     private function syncItemsFromCSV(): string

@@ -11,7 +11,9 @@ class ImplementationModel extends Model
 
     protected $table = 'tbl_implements';
     protected $primaryKey = 'implement_id';
-    public $timestamps = false;
+    
+    // Enable timestamps - Laravel will automatically manage created_at and updated_at
+    public $timestamps = true;
 
     protected $fillable = [
         'project_id',
@@ -30,6 +32,8 @@ class ImplementationModel extends Model
         'tarp_upload' => 'datetime',
         'pdc_upload' => 'datetime',
         'liquidation_upload' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     // Relationships
