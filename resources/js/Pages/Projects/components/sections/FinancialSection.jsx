@@ -2,15 +2,15 @@ import { BarChart3, AlertCircle } from 'lucide-react';
 import FormCard from '../FormCard';
 
 export default function FinancialSection({ data, setData, errors }) {
-const financialFields = [
-    { key: 'year_obligated', label: 'Year Obligated', isCurrency: false },
-    { key: 'revenue', label: 'Revenue', isCurrency: true },
-    { key: 'net_income', label: 'Net Income', isCurrency: true },
-    { key: 'current_asset', label: 'Current Asset', isCurrency: true },
-    { key: 'noncurrent_asset', label: 'Non-Current Asset', isCurrency: true },
-    { key: 'equity', label: 'Equity', isCurrency: true },
-    { key: 'liability', label: 'Liability', isCurrency: true },
-    { key: 'unexpended_balance', label: 'Unexpended Balance', isCurrency: true },
+  const financialFields = [
+    { key: 'year_obligated', label: 'Year Obligated', isCurrency: false, required: true },
+    { key: 'revenue', label: 'Revenue', isCurrency: true, required: false },
+    { key: 'net_income', label: 'Net Income', isCurrency: true, required: false },
+    { key: 'current_asset', label: 'Current Asset', isCurrency: true, required: false },
+    { key: 'noncurrent_asset', label: 'Non-Current Asset', isCurrency: true, required: false },
+    { key: 'equity', label: 'Equity', isCurrency: true, required: false },
+    { key: 'liability', label: 'Liability', isCurrency: true, required: false },
+    { key: 'unexpended_balance', label: 'Unexpended Balance', isCurrency: true, required: false },
   ];
 
   return (
@@ -18,7 +18,10 @@ const financialFields = [
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
         {financialFields.map((field) => (
           <div key={field.key}>
-            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">{field.label} <span className="text-red-500 ml-1">*</span></label>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">
+              {field.label} 
+              {field.required && <span className="text-red-500 ml-1">*</span>}
+            </label>
             {field.isCurrency ? (
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -29,9 +32,9 @@ const financialFields = [
                   step="any"
                   className="w-full pl-7 md:pl-8 pr-3 md:pr-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
                   placeholder="0.00"
-                  value={data[field.key]}
+                  value={data[field.key] || ''}
                   onChange={(e) => setData(field.key, e.target.value)}
-                  required
+                  required={field.required}
                 />
               </div>
             ) : (
@@ -39,9 +42,9 @@ const financialFields = [
                 type="number"
                 className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white text-sm"
                 placeholder="YYYY"
-                value={data[field.key]}
+                value={data[field.key] || ''}
                 onChange={(e) => setData(field.key, e.target.value)}
-                required
+                required={field.required}
               />
             )}
             {errors[field.key] && (

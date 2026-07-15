@@ -27,6 +27,7 @@ export default function Create({ proponents, nextProjectCode }) {
     released_amount: '',        // NEW
     refund_amount: '',
     last_refund: '',
+    unexpended_balance: '', 
     progress: 'Project Created',
     year_obligated: new Date().getFullYear().toString(),
     revenue: '',

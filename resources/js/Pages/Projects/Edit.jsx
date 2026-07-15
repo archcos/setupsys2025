@@ -28,6 +28,7 @@ export default function Edit({ project, proponents }) {
     longitude: project.longitude || '',
     fund_release: project.fund_release || '',       // NEW
     released_amount: project.released_amount || '',   // NEW
+    unexpended_balance: project.unexpended_balance || '', 
     year_obligated: project.year_obligated || '',
     revenue: project.revenue || '',
     net_income: project.net_income || '',
