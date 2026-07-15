@@ -15,11 +15,16 @@ use Symfony\Component\HttpFoundation\Response;
 class LogSuspiciousRequests
 {
     protected $sqlInjectionPatterns = [
-        '/(\bUNION\b|\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bDROP\b|\bTRUNCATE\b|\bALTER\b|\bCREATE\b|\bEXEC\b|\bEXECUTE\b)/i',
-        '/(\';|--|#|\/\*|\*\/|xp_|sp_)/i',
-        '/(;|\|\||&&)/',
-        '/(OR\s+1\s*=\s*1|AND\s+1\s*=\s*1)/i',
-        '/(SLEEP|BENCHMARK|WAITFOR|DBMS_LOCK)/i',
+        // Only match SQL keywords as complete words, not substrings
+        '/\b(UNION\s+SELECT|SELECT\s+.*\s+FROM|INSERT\s+INTO|UPDATE\s+.*\s+SET|DELETE\s+FROM|DROP\s+(TABLE|DATABASE)|TRUNCATE\s+TABLE|ALTER\s+(TABLE|DATABASE)|CREATE\s+(TABLE|DATABASE)|EXEC(\s|\(|UTE?\()) /ix',
+        // SQL comment/delimiter injection
+        '/(\';|--\s|#|\/\*|\*\/|xp_|sp_)/i',
+        // Logical operators used for SQL injection (only when in suspicious context)
+        '/\b(AND|OR)\b\s*(\'|"|\d+)\s*=\s*(\'|"|\d+)/i',
+        // Time-based injection patterns (only as complete words)
+        '/\b(SLEEP\s*\(|BENCHMARK\s*\(|WAITFOR\s+DELAY|DBMS_LOCK\.SLEEP\s*\()/i',
+        // Union-based injection
+        '/UNION\s+(ALL\s+)?SELECT\b/i',
     ];
 
     protected $xssPatterns = [
@@ -118,7 +123,7 @@ class LogSuspiciousRequests
                 Log::error('Failed to process suspicious request: ' . $e->getMessage());
             }
 
-             exit(); // Silently exit without returning anything
+            exit(); // Silently exit without returning anything
         }
 
         return $next($request);
