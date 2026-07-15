@@ -240,7 +240,8 @@ export default function Index({
             check_num: payment.check_num || '',
             check_date: payment.check_date || '',
             receipt_num: payment.receipt_num || '',
-            receipt_date: payment.receipt_date || ''
+            receipt_date: payment.receipt_date || '',
+            remarks: payment.remarks || '', 
         });
     };
 
@@ -267,7 +268,8 @@ export default function Index({
                     check_num: '',
                     check_date: '',
                     receipt_num: '',
-                    receipt_date: ''
+                    receipt_date: '',
+                    remarks: '',
                 });
             }
         });
@@ -281,7 +283,8 @@ export default function Index({
             check_num: '',
             check_date: '',
             receipt_num: '',
-            receipt_date: ''
+            receipt_date: '',
+            remarks: '',
         });
     };
 
@@ -455,6 +458,7 @@ export default function Index({
                     check_date: p.check_date ?? "",
                     receipt_num: p.receipt_num ?? "",
                     receipt_date: p.receipt_date ?? "",
+                    remarks: p.remarks ?? "",
                 }));
 
             const refundAmount =
@@ -489,6 +493,7 @@ export default function Index({
                     check_date: data[`check_date_${projectId}`] ?? "",
                     receipt_num: data[`receipt_num_${projectId}`] ?? "",
                     receipt_date: data[`receipt_date_${projectId}`] ?? "",
+                    remarks: data[`remarks_${projectId}`] ?? "",
                     status: currentStatus,
                     save_date: saveDate,
                     existing_payments: existingPayments,

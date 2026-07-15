@@ -57,14 +57,34 @@ class RefundController extends Controller
 
     // ── Helper: sum all payment entries in the payments JSON column ───────────
 
-    private function sumPayments(?array $payments): float
-    {
-        if (empty($payments)) {
-            return 0.0;
-        }
-
-        return (float) collect($payments)->sum('amount');
+/**
+ * Sum all payment entries in the payments JSON column
+ * Excludes payments with remarks that are not "Techno Transfer" (or empty)
+ * 
+ * @param array|null $payments
+ * @param bool $countAll If true, count all payments regardless of remarks
+ * @return float
+ */
+private function sumPayments(?array $payments, bool $countAll = false): float
+{
+    if (empty($payments)) {
+        return 0.0;
     }
+
+    return (float) collect($payments)
+        ->filter(function ($payment) use ($countAll) {
+            if ($countAll) {
+                return true; // Count all payments
+            }
+            
+            $remarks = $payment['remarks'] ?? '';
+            
+            // Only count payments with empty remarks or "Techno Transfer"
+            // Exclude "DAIF" and other remarks
+            return empty($remarks) || $remarks === 'Techno Transfer';
+        })
+        ->sum('amount');
+}
 
     // ── Helper: get latest payment entry ─────────────────────────────────────
 
@@ -254,296 +274,660 @@ return Inertia::render('Refunds/Index', [
 ]);
 }
 
-public function exportCsv()
+/**
+ * Update project details including refund amounts and dates
+ */
+public function updateProject()
 {
     $user = Auth::user();
     
-    $selectedMonth = request('month');
-    $selectedYear = request('year');
-    $years = request('years');
-    $status = request('status');
-    $includeAll = request('include_all', false);
-    $includeWithdrawn = request('include_withdrawn', false);
-    $includeTerminated = request('include_terminated', false);
-    $office = request('office');
-    $projectIds = request('project_ids');
-    
-    $isRPMO = in_array($user->role, ['rpmo', 'au']);
-    $isStaff = $user->role === 'staff';
-    
-    // Build query
-    $query = ProjectModel::with(['proponent.office']);
-    
-    // Filter by specific projects
-    if ($projectIds) {
-        $projectIdArray = explode(',', $projectIds);
-        $query->whereIn('project_id', $projectIdArray);
+    // Only AU can update project details
+    if ($user->role !== 'au') {
+        return back()->with('error', 'Unauthorized: Only AU can update project details.');
     }
     
-    // Date filtering
-    if ($selectedMonth && $selectedYear) {
-        $selectedDate = Carbon::create($selectedYear, $selectedMonth, 1);
-        if (!$includeAll) {
-            $query->whereDate('refund_initial', '<=', $selectedDate)
-                  ->whereDate('refund_end', '>=', $selectedDate);
-        }
-    } elseif ($years) {
-        $yearArray = explode(',', $years);
-        if (!$includeAll && !empty($yearArray)) {
-            $query->where(function ($q) use ($yearArray) {
-                foreach ($yearArray as $year) {
-                    $year = (int) trim($year);
-                    $q->orWhere(function ($subQ) use ($year) {
-                        $subQ->whereYear('refund_initial', '<=', $year)
-                             ->whereYear('refund_end', '>=', $year);
-                    });
-                }
-            });
-        }
-    }
+    $data = request()->validate([
+        'project_id' => 'required|exists:tbl_projects,project_id',
+        'refund_amount' => 'nullable|numeric|min:0',
+        'refund_initial' => 'nullable|date',
+        'refund_end' => 'nullable|date|after_or_equal:refund_initial',
+        'last_refund' => 'nullable|numeric|min:0',
+    ]);
     
-    // Progress filtering
-    if (!$includeAll) {
-        $conditions = [];
-        if (!$includeWithdrawn) $conditions[] = 'Withdrawn';
-        if (!$includeTerminated) $conditions[] = 'Terminated';
+    try {
+        $project = ProjectModel::findOrFail($data['project_id']);
         
-        if (!empty($conditions)) {
-            $query->where(function ($q) use ($conditions) {
-                $q->whereNotIn('progress', $conditions)
-                  ->orWhereNull('progress');
-            });
+        $updates = [];
+        if (isset($data['refund_amount'])) {
+            $updates['refund_amount'] = $data['refund_amount'];
         }
+        if (isset($data['refund_initial'])) {
+            $updates['refund_initial'] = Carbon::parse($data['refund_initial'])->format('Y-m-d');
+        }
+        if (isset($data['refund_end'])) {
+            $updates['refund_end'] = Carbon::parse($data['refund_end'])->format('Y-m-d');
+        }
+        if (isset($data['last_refund'])) {
+            $updates['last_refund'] = $data['last_refund'];
+        }
+        
+        if (!empty($updates)) {
+            $updates['updated_by'] = Auth::id();
+            $project->update($updates);
+        }
+        
+        return back()->with('success', 'Project details updated successfully.');
+    } catch (\Exception $e) {
+        Log::error('Failed to update project: ' . $e->getMessage());
+        return back()->with('error', 'Failed to update project: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Add multiple refund months to the project
+ */
+public function addMonths()
+{
+    $user = Auth::user();
+    
+    if (!in_array($user->role, ['rpmo', 'au'])) {
+        return back()->with('error', 'Unauthorized.');
     }
     
-    // Office filter
-    if ($isRPMO && $office) {
-        $query->whereHas('proponent', fn ($q) => $q->where('office_id', $office));
-    } elseif ($isStaff) {
-        $staffOfficeId = $user->office_id;
-        if ($staffOfficeId) {
-            $query->whereHas('proponent', fn ($q) => $q->where('office_id', $staffOfficeId));
+    $data = request()->validate([
+        'project_id' => 'required|exists:tbl_projects,project_id',
+        'month_dates' => 'required|array',
+        'month_dates.*' => 'required|date_format:Y-m-d',
+        'status' => 'required|in:paid,unpaid,restructured,partial',
+        'amount_due' => 'nullable|numeric|min:0',
+        'amount' => 'nullable|numeric|min:0',
+        'bank_name' => 'nullable|string|max:200',
+        'check_num' => 'nullable|string|max:20',
+        'check_date' => 'nullable|date_format:Y-m-d',
+        'receipt_num' => 'nullable|string|max:20',
+        'receipt_date' => 'nullable|date_format:Y-m-d',
+        'remarks' => 'nullable|string|max:500',
+    ]);
+    
+    try {
+        $project = ProjectModel::findOrFail($data['project_id']);
+        $addedCount = 0;
+        $skippedCount = 0;
+        $minDate = null;
+        $maxDate = null;
+        
+        foreach ($data['month_dates'] as $monthDate) {
+            $parsedDate = Carbon::parse($monthDate)->startOfMonth()->format('Y-m-d');
+            
+            // Check if month already exists
+            $existing = RefundModel::where('project_id', $data['project_id'])
+                ->where('month_paid', $parsedDate)
+                ->first();
+                
+            if ($existing) {
+                $skippedCount++;
+                continue;
+            }
+            
+            // Track min/max dates for updating project bounds
+            if (!$minDate || $parsedDate < $minDate) {
+                $minDate = $parsedDate;
+            }
+            if (!$maxDate || $parsedDate > $maxDate) {
+                $maxDate = $parsedDate;
+            }
+            
+            // Create the refund entry
+            $refund = new RefundModel();
+            $refund->project_id = $data['project_id'];
+            $refund->month_paid = $parsedDate;
+            $refund->status = $data['status'];
+            $refund->amount_due = $data['amount_due'] ?? 0;
+            
+            // Add payment if amount > 0
+            $paymentAmount = (float) ($data['amount'] ?? 0);
+            if ($paymentAmount > 0) {
+                $refund->payments = [[
+                    'amount' => $paymentAmount,
+                    'bank_name' => $data['bank_name'] ?? null,
+                    'check_num' => $data['check_num'] ?? null,
+                    'check_date' => $data['check_date'] ?? null,
+                    'receipt_num' => $data['receipt_num'] ?? null,
+                    'receipt_date' => $data['receipt_date'] ?? null,
+                    'remarks' => $data['remarks'] ?? null,
+                    'saved_at' => now()->toDateTimeString(),
+                ]];
+            } elseif ($data['status'] === 'restructured') {
+                $refund->payments = [];
+            }
+            
+            $refund->updated_by = Auth::id();
+            $refund->save();
+            $addedCount++;
         }
+        
+        // Update project refund_initial and refund_end
+        if ($addedCount > 0 && $minDate && $maxDate) {
+            $updates = [];
+            
+            $currentInitial = $project->refund_initial 
+                ? Carbon::parse($project->refund_initial)->startOfMonth()->format('Y-m-d') 
+                : null;
+            $currentEnd = $project->refund_end 
+                ? Carbon::parse($project->refund_end)->startOfMonth()->format('Y-m-d') 
+                : null;
+            
+            if (!$currentInitial || $minDate < $currentInitial) {
+                $updates['refund_initial'] = $minDate;
+            }
+            if (!$currentEnd || $maxDate > $currentEnd) {
+                $updates['refund_end'] = $maxDate;
+            }
+            
+            if (!empty($updates)) {
+                $updates['updated_by'] = Auth::id();
+                $project->update($updates);
+            }
+        }
+        
+        $message = "{$addedCount} month(s) added successfully.";
+        if ($skippedCount > 0) {
+            $message .= " {$skippedCount} existing month(s) were skipped.";
+        }
+        
+        return back()->with('success', $message);
+    } catch (\Exception $e) {
+        Log::error('Failed to add refund months: ' . $e->getMessage());
+        return back()->with('error', 'Failed to add refund months: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Delete a refund month entry and update project date bounds
+ */
+public function deleteRefundMonth()
+{
+    $user = Auth::user();
+    
+    if (!in_array($user->role, ['rpmo', 'au'])) {
+        return back()->with('error', 'Unauthorized.');
     }
     
-    $projects = $query->get();
+    $data = request()->validate([
+        'project_id' => 'required|exists:tbl_projects,project_id',
+        'month_paid' => 'required|date_format:Y-m-d',
+    ]);
     
-    // Load all refunds for these projects
-    $projects->load(['refunds' => function ($q) use ($status) {
-        $q->with('editor')->latest();
-        if ($status && $status !== 'unpaid') {
-            $q->where('status', $status);
+    try {
+        $project = ProjectModel::findOrFail($data['project_id']);
+        $targetDate = Carbon::parse($data['month_paid'])->startOfMonth();
+        
+        $currentInitial = $project->refund_initial 
+            ? Carbon::parse($project->refund_initial)->startOfMonth() 
+            : null;
+        $currentEnd = $project->refund_end 
+            ? Carbon::parse($project->refund_end)->startOfMonth() 
+            : null;
+        
+        if (!$currentInitial || !$currentEnd) {
+            return back()->with('error', 'Project refund dates are not set.');
         }
-    }]);
+        
+        // Check if target month is within the range
+        if ($targetDate->lt($currentInitial) || $targetDate->gt($currentEnd)) {
+            return back()->with('error', 'Month is outside the project refund range.');
+        }
+        
+        $isFirstMonth = $targetDate->eq($currentInitial);
+        $isLastMonth = $targetDate->eq($currentEnd);
+        $isMiddleMonth = !$isFirstMonth && !$isLastMonth;
+        
+        // If deleting a middle month, delete from first month UP TO and INCLUDING target month
+        if ($isMiddleMonth) {
+            $monthsToRemove = [];
+            $current = $currentInitial->copy();
+            while ($current->lte($targetDate)) {
+                $monthsToRemove[] = $current->format('F Y');
+                $current->addMonth();
+            }
+            
+            // Delete refund records from initial to target (inclusive)
+            $deletedRefundCount = RefundModel::where('project_id', $data['project_id'])
+                ->where('month_paid', '>=', $currentInitial->format('Y-m-d'))
+                ->where('month_paid', '<=', $targetDate->format('Y-m-d'))
+                ->delete();
+            
+            // Update refund_initial to the month AFTER target
+            $newInitial = $targetDate->copy()->addMonth();
+            $project->update([
+                'refund_initial' => $newInitial->format('Y-m-d'),
+                'updated_by' => Auth::id(),
+            ]);
+            
+            Log::info('Deleted months from range start to target', [
+                'project_id' => $data['project_id'],
+                'deleted_from' => $currentInitial->format('Y-m-d'),
+                'deleted_to' => $targetDate->format('Y-m-d'),
+                'new_refund_initial' => $newInitial->format('Y-m-d'),
+                'deleted_refund_records' => $deletedRefundCount,
+            ]);
+            
+            $message = "Deleted " . count($monthsToRemove) . " month(s) from " . $currentInitial->format('F Y') . " to " . $targetDate->format('F Y') . ". Refund initial updated to " . $newInitial->format('F Y') . ".";
+            if ($deletedRefundCount > 0) {
+                $message .= " {$deletedRefundCount} refund record(s) removed.";
+            }
+            
+            return back()->with('success', $message);
+        }
+        
+        // Delete last month only
+        if ($isLastMonth && !$isFirstMonth) {
+            $refund = RefundModel::where('project_id', $data['project_id'])
+                ->whereYear('month_paid', $targetDate->year)
+                ->whereMonth('month_paid', $targetDate->month)
+                ->first();
+            
+            if ($refund) {
+                $refund->delete();
+            }
+            
+            $newEnd = $targetDate->copy()->subMonth();
+            $project->update([
+                'refund_end' => $newEnd->format('Y-m-d'),
+                'updated_by' => Auth::id(),
+            ]);
+            
+            Log::info('Deleted last month from range', [
+                'project_id' => $data['project_id'],
+                'deleted_month' => $targetDate->format('Y-m-d'),
+                'new_refund_end' => $newEnd->format('Y-m-d'),
+            ]);
+            
+            return back()->with('success', 'Last month deleted. Refund end updated to ' . $newEnd->format('F Y') . '.');
+        }
+        
+        // Delete first month only
+        if ($isFirstMonth && !$isLastMonth) {
+            $refund = RefundModel::where('project_id', $data['project_id'])
+                ->whereYear('month_paid', $targetDate->year)
+                ->whereMonth('month_paid', $targetDate->month)
+                ->first();
+            
+            if ($refund) {
+                $refund->delete();
+            }
+            
+            $newInitial = $targetDate->copy()->addMonth();
+            $project->update([
+                'refund_initial' => $newInitial->format('Y-m-d'),
+                'updated_by' => Auth::id(),
+            ]);
+            
+            Log::info('Deleted first month from range', [
+                'project_id' => $data['project_id'],
+                'deleted_month' => $targetDate->format('Y-m-d'),
+                'new_refund_initial' => $newInitial->format('Y-m-d'),
+            ]);
+            
+            return back()->with('success', 'First month deleted. Refund initial updated to ' . $newInitial->format('F Y') . '.');
+        }
+        
+        // Deleting the only month in range
+        if ($isFirstMonth && $isLastMonth) {
+            $refund = RefundModel::where('project_id', $data['project_id'])
+                ->whereYear('month_paid', $targetDate->year)
+                ->whereMonth('month_paid', $targetDate->month)
+                ->first();
+            
+            if ($refund) {
+                $refund->delete();
+            }
+            
+            Log::info('Deleted the only month in range', [
+                'project_id' => $data['project_id'],
+                'deleted_month' => $targetDate->format('Y-m-d'),
+            ]);
+            
+            return back()->with('success', 'Month deleted. This was the only month in the range.');
+        }
+        
+        return back()->with('success', 'Month deleted successfully.');
+        
+    } catch (\Exception $e) {
+        Log::error('Failed to delete refund month: ' . $e->getMessage(), [
+            'project_id' => $data['project_id'] ?? 'unknown',
+            'month_paid' => $data['month_paid'] ?? 'unknown',
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+        return back()->with('error', 'Failed to delete refund month: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Update project refund_initial and refund_end based on a new month date
+ */
+private function updateProjectDateBounds(ProjectModel $project, string $newMonthDate): void
+{
+    $newDate = Carbon::parse($newMonthDate)->startOfMonth();
     
-    // Determine which years to create sheets for
-    $sheetYears = [];
+    $currentInitial = $project->refund_initial 
+        ? Carbon::parse($project->refund_initial)->startOfMonth() 
+        : null;
+    $currentEnd = $project->refund_end 
+        ? Carbon::parse($project->refund_end)->startOfMonth() 
+        : null;
     
-    if ($selectedMonth && $selectedYear) {
-        $sheetYears = [(int) $selectedYear];
-    } elseif ($years) {
-        $sheetYears = array_map('intval', explode(',', $years));
-        sort($sheetYears);
-    } else {
-        // Collect all years from refunds
-        foreach ($projects as $project) {
-            foreach ($project->refunds as $refund) {
-                if ($refund->month_paid) {
-                    $year = $refund->month_paid instanceof \Carbon\Carbon 
-                        ? $refund->month_paid->year 
-                        : date('Y', strtotime($refund->month_paid));
-                    if (!in_array($year, $sheetYears)) {
-                        $sheetYears[] = $year;
+    $updates = [];
+    
+    // Update refund_initial if new date is earlier or no initial set
+    if (!$currentInitial || $newDate->lt($currentInitial)) {
+        $updates['refund_initial'] = $newDate->format('Y-m-d');
+    }
+    
+    // Update refund_end if new date is later or no end set
+    if (!$currentEnd || $newDate->gt($currentEnd)) {
+        $updates['refund_end'] = $newDate->format('Y-m-d');
+    }
+    
+    if (!empty($updates)) {
+        $updates['updated_by'] = Auth::id();
+        $project->update($updates);
+    }
+}
+
+/**
+ * Recalculate project date bounds after deleting a refund entry
+ */
+private function recalculateProjectDateBounds(ProjectModel $project): void
+{
+    $refunds = RefundModel::where('project_id', $project->project_id)
+        ->orderBy('month_paid')
+        ->get();
+    
+    if ($refunds->isEmpty()) {
+        // No refunds left, don't clear dates but you could set defaults
+        return;
+    }
+    
+    $minDate = Carbon::parse($refunds->first()->month_paid)->startOfMonth()->format('Y-m-d');
+    $maxDate = Carbon::parse($refunds->last()->month_paid)->startOfMonth()->format('Y-m-d');
+    
+    $updates = [];
+    
+    $currentInitial = $project->refund_initial 
+        ? Carbon::parse($project->refund_initial)->startOfMonth()->format('Y-m-d') 
+        : null;
+    $currentEnd = $project->refund_end 
+        ? Carbon::parse($project->refund_end)->startOfMonth()->format('Y-m-d') 
+        : null;
+    
+    if ($currentInitial !== $minDate) {
+        $updates['refund_initial'] = $minDate;
+    }
+    if ($currentEnd !== $maxDate) {
+        $updates['refund_end'] = $maxDate;
+    }
+    
+    if (!empty($updates)) {
+        $updates['updated_by'] = Auth::id();
+        $project->update($updates);
+    }
+}
+    public function exportCsv()
+    {
+        $user = Auth::user();
+        
+        $selectedMonth = request('month');
+        $selectedYear = request('year');
+        $years = request('years');
+        $status = request('status');
+        $includeAll = request('include_all', false);
+        $includeWithdrawn = request('include_withdrawn', false);
+        $includeTerminated = request('include_terminated', false);
+        $office = request('office');
+        $projectIds = request('project_ids');
+        
+        $isRPMO = in_array($user->role, ['rpmo', 'au']);
+        $isStaff = $user->role === 'staff';
+        
+        // Build query
+        $query = ProjectModel::with(['proponent.office']);
+        
+        // Filter by specific projects
+        if ($projectIds) {
+            $projectIdArray = explode(',', $projectIds);
+            $query->whereIn('project_id', $projectIdArray);
+        }
+        
+        // Date filtering
+        if ($selectedMonth && $selectedYear) {
+            $selectedDate = Carbon::create($selectedYear, $selectedMonth, 1);
+            if (!$includeAll) {
+                $query->whereDate('refund_initial', '<=', $selectedDate)
+                    ->whereDate('refund_end', '>=', $selectedDate);
+            }
+        } elseif ($years) {
+            $yearArray = explode(',', $years);
+            if (!$includeAll && !empty($yearArray)) {
+                $query->where(function ($q) use ($yearArray) {
+                    foreach ($yearArray as $year) {
+                        $year = (int) trim($year);
+                        $q->orWhere(function ($subQ) use ($year) {
+                            $subQ->whereYear('refund_initial', '<=', $year)
+                                ->whereYear('refund_end', '>=', $year);
+                        });
+                    }
+                });
+            }
+        }
+        
+        // Progress filtering
+        if (!$includeAll) {
+            $conditions = [];
+            if (!$includeWithdrawn) $conditions[] = 'Withdrawn';
+            if (!$includeTerminated) $conditions[] = 'Terminated';
+            
+            if (!empty($conditions)) {
+                $query->where(function ($q) use ($conditions) {
+                    $q->whereNotIn('progress', $conditions)
+                    ->orWhereNull('progress');
+                });
+            }
+        }
+        
+        // Office filter
+        if ($isRPMO && $office) {
+            $query->whereHas('proponent', fn ($q) => $q->where('office_id', $office));
+        } elseif ($isStaff) {
+            $staffOfficeId = $user->office_id;
+            if ($staffOfficeId) {
+                $query->whereHas('proponent', fn ($q) => $q->where('office_id', $staffOfficeId));
+            }
+        }
+        
+        $projects = $query->get();
+        
+        // Load all refunds for these projects
+        $projects->load(['refunds' => function ($q) use ($status) {
+            $q->with('editor')->latest();
+            if ($status && $status !== 'unpaid') {
+                $q->where('status', $status);
+            }
+        }]);
+        
+        // Determine which years to create sheets for
+        $sheetYears = [];
+        
+        if ($selectedMonth && $selectedYear) {
+            $sheetYears = [(int) $selectedYear];
+        } elseif ($years) {
+            $sheetYears = array_map('intval', explode(',', $years));
+            sort($sheetYears);
+        } else {
+            // Collect all years from refunds
+            foreach ($projects as $project) {
+                foreach ($project->refunds as $refund) {
+                    if ($refund->month_paid) {
+                        $year = $refund->month_paid instanceof \Carbon\Carbon 
+                            ? $refund->month_paid->year 
+                            : date('Y', strtotime($refund->month_paid));
+                        if (!in_array($year, $sheetYears)) {
+                            $sheetYears[] = $year;
+                        }
                     }
                 }
             }
-        }
-        sort($sheetYears);
-        
-        // If no refund years found, use current year
-        if (empty($sheetYears)) {
-            $sheetYears = [(int) date('Y')];
-        }
-    }
-    
-    // Create spreadsheet
-    $spreadsheet = new Spreadsheet();
-    
-    // Remove default sheet
-    $spreadsheet->removeSheetByIndex(0);
-    
-    // Style definitions
-    $headerStyle = [
-        'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
-        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2563EB']],
-        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-    ];
-    
-    $dataStyle = [
-        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-        'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
-    ];
-    
-    $amountStyle = [
-        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-        'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT, 'vertical' => Alignment::VERTICAL_CENTER],
-        'numberFormat' => ['formatCode' => '#,##0.00'],
-    ];
-    
-    // Helper function to safely format dates
-    $formatDate = function ($date) {
-        if (empty($date)) return 'N/A';
-        if ($date instanceof \Carbon\Carbon || $date instanceof \DateTime) {
-            return $date->format('Y-m-d');
-        }
-        if (is_string($date)) {
-            $timestamp = strtotime($date);
-            return $timestamp ? date('Y-m-d', $timestamp) : 'N/A';
-        }
-        return 'N/A';
-    };
-    
-    $formatDateTime = function ($date) {
-        if (empty($date)) return 'N/A';
-        if ($date instanceof \Carbon\Carbon || $date instanceof \DateTime) {
-            return $date->format('Y-m-d H:i:s');
-        }
-        if (is_string($date)) {
-            $timestamp = strtotime($date);
-            return $timestamp ? date('Y-m-d H:i:s', $timestamp) : 'N/A';
-        }
-        return 'N/A';
-    };
-    
-    // CSV Headers
-    $headers = [
-        'Project ID',
-        'Project Title',
-        'Proponent Name',
-        'Office',
-        'Project Status',
-        'Refund Initial',
-        'Refund End',
-        'Year Obligated',
-        'Month Paid',
-        'Refund Status',
-        'Amount Due',
-        'Total Paid',
-        'Remaining Balance',
-        'Payment Number',
-        'Payment Amount',
-        'Bank Name',
-        'Check Number',
-        'Check Date',
-        'Receipt Number',
-        'Receipt Date',
-        'Last Updated By',
-        'Last Updated At',
-    ];
-    
-    // Create a sheet for each year
-    foreach ($sheetYears as $year) {
-        $sheet = $spreadsheet->createSheet();
-        $sheet->setTitle((string) $year);
-        
-        // Add headers
-        $col = 'A';
-        foreach ($headers as $header) {
-            $sheet->setCellValue($col . '1', $header);
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-            $col++;
-        }
-        
-        // Style headers
-        $sheet->getStyle('A1:' . chr(64 + count($headers)) . '1')->applyFromArray($headerStyle);
-        $sheet->getRowDimension(1)->setRowHeight(25);
-        
-        // Freeze header row
-        $sheet->freezePane('A2');
-        
-        $row = 2;
-        
-        foreach ($projects as $project) {
-            $refunds = $project->refunds ?? collect();
+            sort($sheetYears);
             
-            // Filter refunds for this year
-            $yearRefunds = $refunds->filter(function ($refund) use ($year, $selectedMonth, $selectedYear) {
-                if (empty($refund->month_paid)) return false;
-                
-                $refundYear = $refund->month_paid instanceof \Carbon\Carbon 
-                    ? $refund->month_paid->year 
-                    : (int) date('Y', strtotime($refund->month_paid));
-                
-                // If specific month/year is selected, filter by that
-                if ($selectedMonth && $selectedYear) {
-                    $refundMonth = $refund->month_paid instanceof \Carbon\Carbon 
-                        ? $refund->month_paid->month 
-                        : (int) date('m', strtotime($refund->month_paid));
-                    return $refundYear == $selectedYear && $refundMonth == $selectedMonth;
-                }
-                
-                return $refundYear == $year;
-            });
+            // If no refund years found, use current year
+            if (empty($sheetYears)) {
+                $sheetYears = [(int) date('Y')];
+            }
+        }
+        
+        // Create spreadsheet
+        $spreadsheet = new Spreadsheet();
+        
+        // Remove default sheet
+        $spreadsheet->removeSheetByIndex(0);
+        
+        // Style definitions
+        $headerStyle = [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2563EB']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+        ];
+        
+        $dataStyle = [
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+        ];
+        
+        $amountStyle = [
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT, 'vertical' => Alignment::VERTICAL_CENTER],
+            'numberFormat' => ['formatCode' => '#,##0.00'],
+        ];
+        
+        // Helper function to safely format dates
+        $formatDate = function ($date) {
+            if (empty($date)) return 'N/A';
+            if ($date instanceof \Carbon\Carbon || $date instanceof \DateTime) {
+                return $date->format('Y-m-d');
+            }
+            if (is_string($date)) {
+                $timestamp = strtotime($date);
+                return $timestamp ? date('Y-m-d', $timestamp) : 'N/A';
+            }
+            return 'N/A';
+        };
+        
+        $formatDateTime = function ($date) {
+            if (empty($date)) return 'N/A';
+            if ($date instanceof \Carbon\Carbon || $date instanceof \DateTime) {
+                return $date->format('Y-m-d H:i:s');
+            }
+            if (is_string($date)) {
+                $timestamp = strtotime($date);
+                return $timestamp ? date('Y-m-d H:i:s', $timestamp) : 'N/A';
+            }
+            return 'N/A';
+        };
+        
+        // CSV Headers
+        $headers = [
+            'Project ID',
+            'Project Title',
+            'Proponent Name',
+            'Office',
+            'Project Status',
+            'Refund Initial',
+            'Refund End',
+            'Year Obligated',
+            'Month Paid',
+            'Refund Status',
+            'Amount Due',
+            'Total Paid',
+            'Remaining Balance',
+            'Payment Number',
+            'Payment Amount',
+            'Bank Name',
+            'Check Number',
+            'Check Date',
+            'Receipt Number',
+            'Receipt Date',
+            'Last Updated By',
+            'Last Updated At',
+        ];
+        
+        // Create a sheet for each year
+        foreach ($sheetYears as $year) {
+            $sheet = $spreadsheet->createSheet();
+            $sheet->setTitle((string) $year);
             
-            // If no refunds for this year but project spans this year, show as unpaid
-            if ($yearRefunds->isEmpty()) {
-                // Check if project's refund period covers this year
-                $refundInitial = $project->refund_initial;
-                $refundEnd = $project->refund_end;
+            // Add headers
+            $col = 'A';
+            foreach ($headers as $header) {
+                $sheet->setCellValue($col . '1', $header);
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+                $col++;
+            }
+            
+            // Style headers
+            $sheet->getStyle('A1:' . chr(64 + count($headers)) . '1')->applyFromArray($headerStyle);
+            $sheet->getRowDimension(1)->setRowHeight(25);
+            
+            // Freeze header row
+            $sheet->freezePane('A2');
+            
+            $row = 2;
+            
+            foreach ($projects as $project) {
+                $refunds = $project->refunds ?? collect();
                 
-                $initialYear = null;
-                $endYear = null;
+                // Filter refunds for this year
+                $yearRefunds = $refunds->filter(function ($refund) use ($year, $selectedMonth, $selectedYear) {
+                    if (empty($refund->month_paid)) return false;
+                    
+                    $refundYear = $refund->month_paid instanceof \Carbon\Carbon 
+                        ? $refund->month_paid->year 
+                        : (int) date('Y', strtotime($refund->month_paid));
+                    
+                    // If specific month/year is selected, filter by that
+                    if ($selectedMonth && $selectedYear) {
+                        $refundMonth = $refund->month_paid instanceof \Carbon\Carbon 
+                            ? $refund->month_paid->month 
+                            : (int) date('m', strtotime($refund->month_paid));
+                        return $refundYear == $selectedYear && $refundMonth == $selectedMonth;
+                    }
+                    
+                    return $refundYear == $year;
+                });
                 
-                if ($refundInitial) {
-                    $initialYear = $refundInitial instanceof \Carbon\Carbon 
-                        ? $refundInitial->year 
-                        : (int) date('Y', strtotime($refundInitial));
-                }
-                if ($refundEnd) {
-                    $endYear = $refundEnd instanceof \Carbon\Carbon 
-                        ? $refundEnd->year 
-                        : (int) date('Y', strtotime($refundEnd));
-                }
-                
-                // Only include if project period covers this year and no specific month filter
-                if ($initialYear && $endYear && $initialYear <= $year && $endYear >= $year && !$selectedMonth) {
-                    $sheet->setCellValue('A' . $row, $project->project_id ?? '');
-                    $sheet->setCellValue('B' . $row, $project->project_title ?? '');
-                    $sheet->setCellValue('C' . $row, $project->proponent->company_name ?? 'N/A');
-                    $sheet->setCellValue('D' . $row, $project->proponent->office->office_name ?? 'N/A');
-                    $sheet->setCellValue('E' . $row, $project->progress ?? 'N/A');
-                    $sheet->setCellValue('F' . $row, $formatDate($project->refund_initial));
-                    $sheet->setCellValue('G' . $row, $formatDate($project->refund_end));
-                    $sheet->setCellValue('H' . $row, $project->year_obligated ?? 'N/A');
-                    $sheet->setCellValue('I' . $row, 'N/A');
-                    $sheet->setCellValue('J' . $row, 'unpaid');
-                    $sheet->setCellValue('K' . $row, '0.00');
-                    $sheet->setCellValue('L' . $row, '0.00');
-                    $sheet->setCellValue('M' . $row, '0.00');
-                    $sheet->setCellValue('N' . $row, '');
-                    $sheet->setCellValue('O' . $row, '');
-                    $sheet->setCellValue('P' . $row, '');
-                    $sheet->setCellValue('Q' . $row, '');
-                    $sheet->setCellValue('R' . $row, '');
-                    $sheet->setCellValue('S' . $row, '');
-                    $sheet->setCellValue('T' . $row, '');
-                    $sheet->setCellValue('U' . $row, 'N/A');
-                    $sheet->setCellValue('V' . $row, 'N/A');
+                // If no refunds for this year but project spans this year, show as unpaid
+                if ($yearRefunds->isEmpty()) {
+                    // Check if project's refund period covers this year
+                    $refundInitial = $project->refund_initial;
+                    $refundEnd = $project->refund_end;
                     
-                    // Apply styles
-                    $sheet->getStyle('A' . $row . ':V' . $row)->applyFromArray($dataStyle);
-                    $sheet->getStyle('K' . $row . ':M' . $row)->applyFromArray($amountStyle);
-                    $sheet->getStyle('O' . $row)->applyFromArray($amountStyle);
+                    $initialYear = null;
+                    $endYear = null;
                     
-                    $row++;
-                }
-            } else {
-                foreach ($yearRefunds as $refund) {
-                    $payments = $refund->payments ?? [];
+                    if ($refundInitial) {
+                        $initialYear = $refundInitial instanceof \Carbon\Carbon 
+                            ? $refundInitial->year 
+                            : (int) date('Y', strtotime($refundInitial));
+                    }
+                    if ($refundEnd) {
+                        $endYear = $refundEnd instanceof \Carbon\Carbon 
+                            ? $refundEnd->year 
+                            : (int) date('Y', strtotime($refundEnd));
+                    }
                     
-                    if (empty($payments)) {
-                        // Refund without payments
+                    // Only include if project period covers this year and no specific month filter
+                    if ($initialYear && $endYear && $initialYear <= $year && $endYear >= $year && !$selectedMonth) {
                         $sheet->setCellValue('A' . $row, $project->project_id ?? '');
                         $sheet->setCellValue('B' . $row, $project->project_title ?? '');
                         $sheet->setCellValue('C' . $row, $project->proponent->company_name ?? 'N/A');
@@ -552,11 +936,11 @@ public function exportCsv()
                         $sheet->setCellValue('F' . $row, $formatDate($project->refund_initial));
                         $sheet->setCellValue('G' . $row, $formatDate($project->refund_end));
                         $sheet->setCellValue('H' . $row, $project->year_obligated ?? 'N/A');
-                        $sheet->setCellValue('I' . $row, $formatDate($refund->month_paid));
-                        $sheet->setCellValue('J' . $row, $refund->status ?? 'N/A');
-                        $sheet->setCellValue('K' . $row, $refund->amount_due ?? 0);
-                        $sheet->setCellValue('L' . $row, 0);
-                        $sheet->setCellValue('M' . $row, $refund->amount_due ?? 0);
+                        $sheet->setCellValue('I' . $row, 'N/A');
+                        $sheet->setCellValue('J' . $row, 'unpaid');
+                        $sheet->setCellValue('K' . $row, '0.00');
+                        $sheet->setCellValue('L' . $row, '0.00');
+                        $sheet->setCellValue('M' . $row, '0.00');
                         $sheet->setCellValue('N' . $row, '');
                         $sheet->setCellValue('O' . $row, '');
                         $sheet->setCellValue('P' . $row, '');
@@ -564,19 +948,22 @@ public function exportCsv()
                         $sheet->setCellValue('R' . $row, '');
                         $sheet->setCellValue('S' . $row, '');
                         $sheet->setCellValue('T' . $row, '');
-                        $sheet->setCellValue('U' . $row, $refund->editor->name ?? 'N/A');
-                        $sheet->setCellValue('V' . $row, $formatDateTime($refund->updated_at));
+                        $sheet->setCellValue('U' . $row, 'N/A');
+                        $sheet->setCellValue('V' . $row, 'N/A');
                         
                         // Apply styles
                         $sheet->getStyle('A' . $row . ':V' . $row)->applyFromArray($dataStyle);
                         $sheet->getStyle('K' . $row . ':M' . $row)->applyFromArray($amountStyle);
+                        $sheet->getStyle('O' . $row)->applyFromArray($amountStyle);
                         
                         $row++;
-                    } else {
-                        $totalPaid = collect($payments)->sum('amount');
-                        $remainingBalance = ($refund->amount_due ?? 0) - $totalPaid;
+                    }
+                } else {
+                    foreach ($yearRefunds as $refund) {
+                        $payments = $refund->payments ?? [];
                         
-                        foreach ($payments as $index => $payment) {
+                        if (empty($payments)) {
+                            // Refund without payments
                             $sheet->setCellValue('A' . $row, $project->project_id ?? '');
                             $sheet->setCellValue('B' . $row, $project->project_title ?? '');
                             $sheet->setCellValue('C' . $row, $project->proponent->company_name ?? 'N/A');
@@ -588,589 +975,663 @@ public function exportCsv()
                             $sheet->setCellValue('I' . $row, $formatDate($refund->month_paid));
                             $sheet->setCellValue('J' . $row, $refund->status ?? 'N/A');
                             $sheet->setCellValue('K' . $row, $refund->amount_due ?? 0);
-                            $sheet->setCellValue('L' . $row, $totalPaid);
-                            $sheet->setCellValue('M' . $row, $remainingBalance);
-                            $sheet->setCellValue('N' . $row, $index + 1);
-                            $sheet->setCellValue('O' . $row, $payment['amount'] ?? 0);
-                            $sheet->setCellValue('P' . $row, $payment['bank_name'] ?? 'N/A');
-                            $sheet->setCellValue('Q' . $row, $payment['check_num'] ?? 'N/A');
-                            $sheet->setCellValue('R' . $row, $payment['check_date'] ?? 'N/A');
-                            $sheet->setCellValue('S' . $row, $payment['receipt_num'] ?? 'N/A');
-                            $sheet->setCellValue('T' . $row, $payment['receipt_date'] ?? 'N/A');
+                            $sheet->setCellValue('L' . $row, 0);
+                            $sheet->setCellValue('M' . $row, $refund->amount_due ?? 0);
+                            $sheet->setCellValue('N' . $row, '');
+                            $sheet->setCellValue('O' . $row, '');
+                            $sheet->setCellValue('P' . $row, '');
+                            $sheet->setCellValue('Q' . $row, '');
+                            $sheet->setCellValue('R' . $row, '');
+                            $sheet->setCellValue('S' . $row, '');
+                            $sheet->setCellValue('T' . $row, '');
                             $sheet->setCellValue('U' . $row, $refund->editor->name ?? 'N/A');
                             $sheet->setCellValue('V' . $row, $formatDateTime($refund->updated_at));
                             
                             // Apply styles
                             $sheet->getStyle('A' . $row . ':V' . $row)->applyFromArray($dataStyle);
                             $sheet->getStyle('K' . $row . ':M' . $row)->applyFromArray($amountStyle);
-                            $sheet->getStyle('O' . $row)->applyFromArray($amountStyle);
                             
                             $row++;
+                        } else {
+                            $totalPaid = collect($payments)->sum('amount');
+                            $remainingBalance = ($refund->amount_due ?? 0) - $totalPaid;
+                            
+                            foreach ($payments as $index => $payment) {
+                                $sheet->setCellValue('A' . $row, $project->project_id ?? '');
+                                $sheet->setCellValue('B' . $row, $project->project_title ?? '');
+                                $sheet->setCellValue('C' . $row, $project->proponent->company_name ?? 'N/A');
+                                $sheet->setCellValue('D' . $row, $project->proponent->office->office_name ?? 'N/A');
+                                $sheet->setCellValue('E' . $row, $project->progress ?? 'N/A');
+                                $sheet->setCellValue('F' . $row, $formatDate($project->refund_initial));
+                                $sheet->setCellValue('G' . $row, $formatDate($project->refund_end));
+                                $sheet->setCellValue('H' . $row, $project->year_obligated ?? 'N/A');
+                                $sheet->setCellValue('I' . $row, $formatDate($refund->month_paid));
+                                $sheet->setCellValue('J' . $row, $refund->status ?? 'N/A');
+                                $sheet->setCellValue('K' . $row, $refund->amount_due ?? 0);
+                                $sheet->setCellValue('L' . $row, $totalPaid);
+                                $sheet->setCellValue('M' . $row, $remainingBalance);
+                                $sheet->setCellValue('N' . $row, $index + 1);
+                                $sheet->setCellValue('O' . $row, $payment['amount'] ?? 0);
+                                $sheet->setCellValue('P' . $row, $payment['bank_name'] ?? 'N/A');
+                                $sheet->setCellValue('Q' . $row, $payment['check_num'] ?? 'N/A');
+                                $sheet->setCellValue('R' . $row, $payment['check_date'] ?? 'N/A');
+                                $sheet->setCellValue('S' . $row, $payment['receipt_num'] ?? 'N/A');
+                                $sheet->setCellValue('T' . $row, $payment['receipt_date'] ?? 'N/A');
+                                $sheet->setCellValue('U' . $row, $refund->editor->name ?? 'N/A');
+                                $sheet->setCellValue('V' . $row, $formatDateTime($refund->updated_at));
+                                
+                                // Apply styles
+                                $sheet->getStyle('A' . $row . ':V' . $row)->applyFromArray($dataStyle);
+                                $sheet->getStyle('K' . $row . ':M' . $row)->applyFromArray($amountStyle);
+                                $sheet->getStyle('O' . $row)->applyFromArray($amountStyle);
+                                
+                                $row++;
+                            }
                         }
                     }
                 }
             }
+            
+            // Auto-size columns
+            foreach (range('A', 'V') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
         }
         
-        // Auto-size columns
-        foreach (range('A', 'V') as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-        }
+        // Generate filename
+        $filename = 'refunds_export_' . now()->format('Y-m-d_His') . '.xlsx';
+        
+        // Save to temp file
+        $tempFile = tempnam(sys_get_temp_dir(), 'refund_export_');
+        $writer = new Xlsx($spreadsheet);
+        $writer->save($tempFile);
+        
+        // Return download response
+        return response()->download($tempFile, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
     }
-    
-    // Generate filename
-    $filename = 'refunds_export_' . now()->format('Y-m-d_His') . '.xlsx';
-    
-    // Save to temp file
-    $tempFile = tempnam(sys_get_temp_dir(), 'refund_export_');
-    $writer = new Xlsx($spreadsheet);
-    $writer->save($tempFile);
-    
-    // Return download response
-    return response()->download($tempFile, $filename, [
-        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ])->deleteFileAfterSend(true);
-}
 
 
-    public function downloadProjectRefunds($projectId)
-    {
-        // ── Load all needed relationships ─────────────────────────────────────
-        $project = ProjectModel::with([
-            'proponent.office',
-            'refunds',
-            'items',
-        ])->findOrFail($projectId);
+        public function downloadProjectRefunds($projectId){
+            // ── Load all needed relationships ─────────────────────────────────────
+            $project = ProjectModel::with([
+                'proponent.office',
+                'refunds',
+                'items',
+            ])->findOrFail($projectId);
 
-        [$months] = $this->buildMonthsArray($project);
+            [$months] = $this->buildMonthsArray($project);
 
-        // ── Derived / computed fields ─────────────────────────────────────────
+            // ── Derived / computed fields ─────────────────────────────────────────
 
-        $proponent = $project->proponent;
+            $proponent = $project->proponent;
 
-        // Full address
-        $addressParts = array_filter([
-            $proponent?->street,
-            $proponent?->barangay,
-            $proponent?->municipality,
-            $proponent?->province,
-        ]);
-        $fullAddress = implode(', ', $addressParts);
+            // Full address
+            $addressParts = array_filter([
+                $proponent?->street,
+                $proponent?->barangay,
+                $proponent?->municipality,
+                $proponent?->province,
+            ]);
+            $fullAddress = implode(', ', $addressParts);
 
-        // Equipment cost — sum of items where type = 'equipment' (adjust if needed)
-        $equipmentCost = $project->items() 
-            ->where('type', 'equipment')
-            ->sum('item_cost');
-
-        // If your type column uses a different label, fall back to all items
-        if ($equipmentCost == 0) {
+            // Equipment cost — sum of items where type = 'equipment' (adjust if needed)
             $equipmentCost = $project->items() 
+                ->where('type', 'equipment')
                 ->sum('item_cost');
-        }
 
-        // ── Restructure groupings ─────────────────────────────────────────────
-        // Collect all months with status 'restructured', sort them, then
-        // group into consecutive runs. A new group starts when the gap
-        // between two consecutive months is > 1 month OR the run exceeds 12 months.
+            // If your type column uses a different label, fall back to all items
+            if ($equipmentCost == 0) {
+                $equipmentCost = $project->items() 
+                    ->sum('item_cost');
+            }
 
-        $restructuredMonths = collect($months)
-            ->filter(fn ($m) => $m['status'] === 'restructured')
-            ->pluck('month_date')
-            ->map(fn ($d) => Carbon::parse($d))
-            ->sort()
-            ->values();
+            // ── Restructure groupings ─────────────────────────────────────────────
+            // Collect all months with status 'restructured', sort them, then
+            // group into consecutive runs. A new group starts when the gap
+            // between two consecutive months is > 1 month OR the run exceeds 12 months.
 
-        $restructureGroups = []; // up to 5 groups: ['start' => Carbon, 'end' => Carbon]
+            $restructuredMonths = collect($months)
+                ->filter(fn ($m) => $m['status'] === 'restructured')
+                ->pluck('month_date')
+                ->map(fn ($d) => Carbon::parse($d))
+                ->sort()
+                ->values();
 
-        if ($restructuredMonths->isNotEmpty()) {
-            $groupStart = $restructuredMonths->first();
-            $groupEnd = $restructuredMonths->first();
-            $groupMonths = 1;
+            $restructureGroups = []; // up to 5 groups: ['start' => Carbon, 'end' => Carbon]
 
-            foreach ($restructuredMonths->slice(1) as $date) {
-                $isConsecutive = $groupEnd->copy()->addMonth()->isSameMonth($date);
-                $withinYear = $groupMonths < 12;
+            if ($restructuredMonths->isNotEmpty()) {
+                $groupStart = $restructuredMonths->first();
+                $groupEnd = $restructuredMonths->first();
+                $groupMonths = 1;
 
-                if ($isConsecutive && $withinYear) {
-                    $groupEnd = $date;
-                    ++$groupMonths;
+                foreach ($restructuredMonths->slice(1) as $date) {
+                    $isConsecutive = $groupEnd->copy()->addMonth()->isSameMonth($date);
+                    $withinYear = $groupMonths < 12;
+
+                    if ($isConsecutive && $withinYear) {
+                        $groupEnd = $date;
+                        ++$groupMonths;
+                    } else {
+                        // Save current group and start a new one
+                        $restructureGroups[] = ['start' => $groupStart, 'end' => $groupEnd];
+                        $groupStart = $date;
+                        $groupEnd = $date;
+                        $groupMonths = 1;
+                    }
+                }
+                $restructureGroups[] = ['start' => $groupStart, 'end' => $groupEnd];
+            }
+
+            // Helper: format a group as "MMM YYYY – MMM YYYY" or blank
+            $formatGroup = function (?array $group): string {
+                if (!$group) {
+                    return '';
+                }
+
+                return $group['start']->format('M Y').' – '.$group['end']->format('M Y');
+            };
+
+            // ── Months past due ───────────────────────────────────────────────────
+            // Count unpaid months from the last unpaid streak up to today
+            $today = Carbon::now()->startOfMonth();
+            $pastDueCount = 0;
+            foreach (array_reverse($months) as $m) {
+                $monthDate = Carbon::parse($m['month_date']);
+                if ($monthDate->gt($today)) {
+                    continue;
+                }               // skip future months
+                if (in_array($m['status'], ['unpaid', 'partial'])) {
+                    ++$pastDueCount;
                 } else {
-                    // Save current group and start a new one
-                    $restructureGroups[] = ['start' => $groupStart, 'end' => $groupEnd];
-                    $groupStart = $date;
-                    $groupEnd = $date;
-                    $groupMonths = 1;
+                    break;                                          // stop at first paid/restructured
                 }
             }
-            $restructureGroups[] = ['start' => $groupStart, 'end' => $groupEnd];
-        }
 
-        // Helper: format a group as "MMM YYYY – MMM YYYY" or blank
-        $formatGroup = function (?array $group): string {
-            if (!$group) {
-                return '';
-            }
-
-            return $group['start']->format('M Y').' – '.$group['end']->format('M Y');
-        };
-
-        // ── Months past due ───────────────────────────────────────────────────
-        // Count unpaid months from the last unpaid streak up to today
-        $today = Carbon::now()->startOfMonth();
-        $pastDueCount = 0;
-        foreach (array_reverse($months) as $m) {
-            $monthDate = Carbon::parse($m['month_date']);
-            if ($monthDate->gt($today)) {
-                continue;
-            }               // skip future months
-            if (in_array($m['status'], ['unpaid', 'partial'])) {
-                ++$pastDueCount;
-            } else {
-                break;                                          // stop at first paid/restructured
-            }
-        }
-
-        // ── Handle unexpended balance and create monthly rows ─────────────────
-        $hasUnexpendedBalance = !is_null($project->unexpended_balance) && $project->unexpended_balance > 0;
-        
-        // Calculate initial account balance
-        $amountOfAssistance = ($project->released_amount > 0)
-            ? $project->released_amount
-            : $project->project_cost ?? 0;
-        
-        $initialBalance = $hasUnexpendedBalance 
-            ? $amountOfAssistance - $project->unexpended_balance
-            : $amountOfAssistance;
-
-        // Generate monthly rows based on refund_initial and refund_end
-        $monthlyRows = [];
-        if ($project->refund_initial && $project->refund_end) {
-            $startDate = Carbon::parse($project->refund_initial)->startOfMonth();
-            $endDate = Carbon::parse($project->refund_end)->startOfMonth();
+            // ── Handle unexpended balance and create monthly rows ─────────────────
+            $hasUnexpendedBalance = !is_null($project->unexpended_balance) && $project->unexpended_balance > 0;
             
-            $currentDate = $startDate->copy();
-            while ($currentDate->lte($endDate)) {
-                $isLastMonth = $currentDate->isSameMonth($endDate);
+            // Calculate initial account balance
+            $amountOfAssistance = ($project->released_amount > 0)
+                ? $project->released_amount
+                : $project->project_cost ?? 0;
+            
+            $initialBalance = $hasUnexpendedBalance 
+                ? $amountOfAssistance - $project->unexpended_balance
+                : $amountOfAssistance;
+
+            // Generate monthly rows based on refund_initial and refund_end
+            $monthlyRows = [];
+            if ($project->refund_initial && $project->refund_end) {
+                $startDate = Carbon::parse($project->refund_initial)->startOfMonth();
+                $endDate = Carbon::parse($project->refund_end)->startOfMonth();
                 
-                $monthlyRows[] = [
-                    'due_date' => $currentDate->format('F Y'),
-                    'month_date' => $currentDate->format('Y-m-01'),
-                    'monthly_due' => $isLastMonth ? ($project->last_refund ?? 0) : ($project->refund_amount ?? 0),
-                    'penalties' => 0, // You can calculate penalties here if needed
-                ];
-                
-                $currentDate->addMonth();
-            }
-        }
-
-        // Build refund data lookup from RefundModel
-        $refundLookup = [];
-        foreach ($project->refunds as $refund) {
-            if ($refund->month_paid) {
-                $monthKey = Carbon::parse($refund->month_paid)->format('Y-m-01');
-                $refundLookup[$monthKey] = $refund;
-            }
-        }
-
-        // ── All data ready — build the flat map for cell assignment ──────────
-        $cellData = [
-            // ── Header / project info ─────────────────────────────────────────
-            'cooperator' => $proponent?->company_name ?? '',
-            'project_title' => $project->project_title ?? '',
-            'original_refund_schedule' => $project->refund_initial
-                                        ? Carbon::parse($project->refund_initial)->format('F Y')
-                                        : '',
-            'cooperator_name' => $proponent?->owner_name ?? '',
-            'address' => $fullAddress,
-
-            // ── Restructure ranges (up to 5) ──────────────────────────────────
-            'restructure_1' => $formatGroup($restructureGroups[0] ?? null),
-            'restructure_2' => $formatGroup($restructureGroups[1] ?? null),
-            'restructure_3' => $formatGroup($restructureGroups[2] ?? null),
-            'restructure_4' => $formatGroup($restructureGroups[3] ?? null),
-            'restructure_5' => $formatGroup($restructureGroups[4] ?? null),
-
-            // ── Assistance / financial ────────────────────────────────────────
-            'date_granted' => $project->fund_release
-                                        ? Carbon::parse($project->fund_release)->format('F d, Y')
-                                        : '',
-            'amount_of_assistance' => $amountOfAssistance,
-            'equipment_cost' => $equipmentCost,
-            'province' => $proponent?->province ?? '',
-            'project_status' => $project->progress ?? '',
-            'unexpended_balance' => $project->unexpended_balance ?? null,
-
-            // ── Past due & date ───────────────────────────────────────────────
-            'months_past_due' => $pastDueCount,
-            'date_today' => now()->format('F d, Y'),
-        ];
-
-        // ── Load template & populate ──────────────────────────────────────────
-        $templatePath = public_path('templates/refund_template.xlsx');
-        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($templatePath);
-        $sheet = $spreadsheet->getActiveSheet();
-
-        // ── REPLACE THESE CELL REFERENCES WITH YOUR ACTUAL TEMPLATE CELLS ─────
-        // Header cells
-        $sheet->setCellValue('F11', $cellData['cooperator']);
-        $sheet->setCellValue('F12', $cellData['project_title']);
-        $sheet->setCellValue('F13', $cellData['original_refund_schedule']);
-        $sheet->setCellValue('F14', $cellData['cooperator_name']);
-        $sheet->setCellValue('F15', $cellData['address']);
-
-        // Restructure rows
-        $sheet->setCellValue('F17', $cellData['restructure_1']);
-        $sheet->setCellValue('F18', $cellData['restructure_2']);
-        $sheet->setCellValue('F19', $cellData['restructure_3']);
-        $sheet->setCellValue('F20', $cellData['restructure_4']);
-        $sheet->setCellValue('F21', $cellData['restructure_5']);
-
-        // Assistance / financial
-        $sheet->setCellValue('T11', $cellData['date_granted']);
-        $sheet->setCellValue('T12', $cellData['amount_of_assistance']);
-        $sheet->setCellValue('T13', $cellData['equipment_cost']);
-        $sheet->setCellValue('T15', $cellData['province']);
-        $sheet->setCellValue('T20', $cellData['project_status']);
-        $sheet->setCellValue('T21', $cellData['months_past_due']);
-        $sheet->setCellValue('AC8', $cellData['date_today']);
-
-        // Get border style
-        $borderStyle = [
-            'borders' => [
-                'allBorders' => [
-                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                    'color' => ['rgb' => '000000'],
-                ],
-            ],
-        ];
-
-        // Currency format for PHP (Philippine Peso)
-        $currencyFormat = '"₱"#,##0.00_);("₱"#,##0.00)';
-        
-        // Currency format style
-        $currencyStyle = [
-            'numberFormat' => [
-                'formatCode' => $currencyFormat,
-            ],
-            'borders' => [
-                'allBorders' => [
-                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                    'color' => ['rgb' => '000000'],
-                ],
-            ],
-        ];
-
-        // Light blue background style
-        $lightBlueStyle = [
-            'fill' => [
-                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                'startColor' => ['rgb' => 'ADD8E6'], // Light blue
-            ],
-            'borders' => [
-                'allBorders' => [
-                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                    'color' => ['rgb' => '000000'],
-                ],
-            ],
-        ];
-
-    // ── Row 24: Initial AE cell with T12 data (FULL amount of assistance) ──
-    $row24 = 24;
-
-    // Merge AE24 to AI24 and set value with currency formatting (FULL amount)
-    $sheet->mergeCells("AE{$row24}:AI{$row24}");
-    $sheet->setCellValue("AE{$row24}", $amountOfAssistance); // Full amount, not initialBalance
-    $sheet->getStyle("AE{$row24}:AI{$row24}")->applyFromArray($currencyStyle);
-
-    // ── Add unexpended balance row (always at row 25 if exists) ────────────
-    $currentRow = 25;
-
-    if ($hasUnexpendedBalance) {
-        // Calculate balance after unexpended deduction
-        $balanceAfterUnexpended = $amountOfAssistance - $cellData['unexpended_balance'];
-        
-        // Merge A25:B25 for label (empty)
-        $sheet->mergeCells("A{$currentRow}:B{$currentRow}");
-        $sheet->setCellValue("A{$currentRow}", '');
-        $sheet->getStyle("A{$currentRow}:B{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge C25:E25 for "Unexpended Balance"
-        $sheet->mergeCells("C{$currentRow}:E{$currentRow}");
-        $sheet->setCellValue("C{$currentRow}", 'Unexpended Balance');
-        $sheet->getStyle("C{$currentRow}:E{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge F25:H25: Monthly Due (empty)
-        $sheet->mergeCells("F{$currentRow}:H{$currentRow}");
-        $sheet->getStyle("F{$currentRow}:H{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge I25:J25: Show unexpended balance amount in Payments column
-        $sheet->mergeCells("I{$currentRow}:J{$currentRow}");
-        $sheet->setCellValue("I{$currentRow}", $cellData['unexpended_balance']);
-        $sheet->getStyle("I{$currentRow}:J{$currentRow}")->applyFromArray($currencyStyle);
-        
-        // Merge K25:M25: Penalties (empty)
-        $sheet->mergeCells("K{$currentRow}:M{$currentRow}");
-        $sheet->getStyle("K{$currentRow}:M{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge N25:P25: OR Date (empty)
-        $sheet->mergeCells("N{$currentRow}:P{$currentRow}");
-        $sheet->getStyle("N{$currentRow}:P{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge Q25:S25: OR Number (empty)
-        $sheet->mergeCells("Q{$currentRow}:S{$currentRow}");
-        $sheet->getStyle("Q{$currentRow}:S{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge T25:V25: Name of Bank (empty)
-        $sheet->mergeCells("T{$currentRow}:V{$currentRow}");
-        $sheet->getStyle("T{$currentRow}:V{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge W25:Z25: Check No. (empty)
-        $sheet->mergeCells("W{$currentRow}:Z{$currentRow}");
-        $sheet->getStyle("W{$currentRow}:Z{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge AA25:AD25: Check Date (empty)
-        $sheet->mergeCells("AA{$currentRow}:AD{$currentRow}");
-        $sheet->getStyle("AA{$currentRow}:AD{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge AE25:AI25: Account Balance (balance after unexpended deduction)
-        $sheet->mergeCells("AE{$currentRow}:AI{$currentRow}");
-        $sheet->setCellValue("AE{$currentRow}", $balanceAfterUnexpended);
-        $sheet->getStyle("AE{$currentRow}:AI{$currentRow}")->applyFromArray($currencyStyle);
-        
-        $currentRow++;
-    }
-
-    // ── Monthly refund rows ───────────────────────────────────────────────
-    // Start running balance from the FULL amount of assistance
-    $runningBalance = $amountOfAssistance;
-    $totalPayments = 0;
-    $totalMonthlyDue = 0;
-    $totalPenalties = 0;
-
-    // If there's unexpended balance, subtract it from running balance FIRST
-    if ($hasUnexpendedBalance) {
-        $runningBalance -= $cellData['unexpended_balance'];
-    }
-
-    foreach ($monthlyRows as $index => $row) {
-        $refund = $refundLookup[$row['month_date']] ?? null;
-        
-        // Determine status and particular text
-        $status = $refund?->status ?? 'unpaid';
-        $particular = '';
-        $monthlyDueAmount = $row['monthly_due']; // Default to regular amount
-        
-        if ($status === 'restructured') {
-            // Find which restructure group this month belongs to
-            $monthCarbon = Carbon::parse($row['month_date']);
-            $groupNumber = null;
-            foreach ($restructureGroups as $groupIdx => $group) {
-                if ($monthCarbon->between($group['start'], $group['end'])) {
-                    $groupNumber = $groupIdx + 1;
-                    break;
+                $currentDate = $startDate->copy();
+                while ($currentDate->lte($endDate)) {
+                    $isLastMonth = $currentDate->isSameMonth($endDate);
+                    
+                    $monthlyRows[] = [
+                        'due_date' => $currentDate->format('F Y'),
+                        'month_date' => $currentDate->format('Y-m-01'),
+                        'monthly_due' => $isLastMonth ? ($project->last_refund ?? 0) : ($project->refund_amount ?? 0),
+                        'penalties' => 0, // You can calculate penalties here if needed
+                    ];
+                    
+                    $currentDate->addMonth();
                 }
             }
-            $ordinal = $this->getOrdinalNumber($groupNumber ?? 1);
-            $particular = "{$ordinal} Restructuring";
-            // Set monthly due to 0 for restructured months
-            $monthlyDueAmount = 0;
-        } else {
-            $particular = 'Refund';
-        }
-        
-        // Get payment details from the latest payment
-        $paymentAmount = 0;
-        $orNumber = '';
-        $orDate = '';
-        $checkNumber = '';
-        $checkDate = '';
-        $bankName = '';
-        
-        if ($refund && $refund->payments) {
-            $paymentAmount = (float) collect($refund->payments)->sum('amount');
-            $latestPayment = $refund->getLatestPaymentAttribute();
-            
-            // Map payment fields according to the updated structure
-            $orNumber = $latestPayment['receipt_num'] ?? '';
-            $orDate = $latestPayment['receipt_date'] ?? '';
-            $checkNumber = $latestPayment['check_num'] ?? '';
-            $checkDate = $latestPayment['check_date'] ?? '';
-            $bankName = $latestPayment['bank_name'] ?? '';
-        }
-        
-        // Accumulate totals (only add monthly due if not restructured)
-        $totalPayments += $paymentAmount;
-        if ($status !== 'restructured') {
-            $totalMonthlyDue += $row['monthly_due'];
-        }
-        $totalPenalties += $row['penalties'];
-        
-        // Update running balance (subtract payment)
-        $runningBalance -= $paymentAmount;
-        
-        // Merge A-B: Due Date
-        $sheet->mergeCells("A{$currentRow}:B{$currentRow}");
-        $sheet->setCellValue("A{$currentRow}", $row['due_date']);
-        $sheet->getStyle("A{$currentRow}:B{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge C-E: Particular
-        $sheet->mergeCells("C{$currentRow}:E{$currentRow}");
-        $sheet->setCellValue("C{$currentRow}", $particular);
-        $sheet->getStyle("C{$currentRow}:E{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge F-H: Monthly Due with currency formatting (0 for restructured)
-        $sheet->mergeCells("F{$currentRow}:H{$currentRow}");
-        $sheet->setCellValue("F{$currentRow}", $monthlyDueAmount);
-        $sheet->getStyle("F{$currentRow}:H{$currentRow}")->applyFromArray($currencyStyle);
-        
-        // Merge I-J: Payment with currency formatting
-        $sheet->mergeCells("I{$currentRow}:J{$currentRow}");
-        $sheet->setCellValue("I{$currentRow}", $paymentAmount > 0 ? $paymentAmount : '');
-        $sheet->getStyle("I{$currentRow}:J{$currentRow}")->applyFromArray($currencyStyle);
-        
-        // Merge K-M: Penalties with currency formatting
-        $sheet->mergeCells("K{$currentRow}:M{$currentRow}");
-        $sheet->setCellValue("K{$currentRow}", $row['penalties'] > 0 ? $row['penalties'] : '');
-        $sheet->getStyle("K{$currentRow}:M{$currentRow}")->applyFromArray($currencyStyle);
-        
-        // Merge N-P: OR Date
-        $sheet->mergeCells("N{$currentRow}:P{$currentRow}");
-        $sheet->setCellValue("N{$currentRow}", $orDate);
-        $sheet->getStyle("N{$currentRow}:P{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge Q-S: OR Number
-        $sheet->mergeCells("Q{$currentRow}:S{$currentRow}");
-        $sheet->setCellValue("Q{$currentRow}", $orNumber);
-        $sheet->getStyle("Q{$currentRow}:S{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge T-V: Name of Bank
-        $sheet->mergeCells("T{$currentRow}:V{$currentRow}");
-        $sheet->setCellValue("T{$currentRow}", $bankName);
-        $sheet->getStyle("T{$currentRow}:V{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge W-Z: Check No.
-        $sheet->mergeCells("W{$currentRow}:Z{$currentRow}");
-        $sheet->setCellValue("W{$currentRow}", $checkNumber);
-        $sheet->getStyle("W{$currentRow}:Z{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge AA-AD: Check Date
-        $sheet->mergeCells("AA{$currentRow}:AD{$currentRow}");
-        $sheet->setCellValue("AA{$currentRow}", $checkDate);
-        $sheet->getStyle("AA{$currentRow}:AD{$currentRow}")->applyFromArray($borderStyle);
-        
-        // Merge AE-AI: Account Balance with currency formatting
-        $sheet->mergeCells("AE{$currentRow}:AI{$currentRow}");
-        $sheet->setCellValue("AE{$currentRow}", $runningBalance);
-        $sheet->getStyle("AE{$currentRow}:AI{$currentRow}")->applyFromArray($currencyStyle);
-        
-        $currentRow++;
-    }
-        
-        // ── Summary Rows ──────────────────────────────────────────────────────
-        if (!empty($monthlyRows)) {
-            // Row for Total Payments, Monthly Due Total, and Total Penalties
-            $summaryRow1 = $currentRow;
-            
-            // Leave A-B empty or merge as empty
-            $sheet->mergeCells("A{$summaryRow1}:B{$summaryRow1}");
-            $sheet->getStyle("A{$summaryRow1}:B{$summaryRow1}")->applyFromArray($lightBlueStyle);
-            
-            // Merge C-E as empty
-            $sheet->mergeCells("C{$summaryRow1}:E{$summaryRow1}");
-            $sheet->getStyle("C{$summaryRow1}:E{$summaryRow1}")->applyFromArray($lightBlueStyle);
-            
-            // Merge F-H: Total Monthly Due with currency formatting
-            $sheet->mergeCells("F{$summaryRow1}:H{$summaryRow1}");
-            $sheet->setCellValue("F{$summaryRow1}", $totalMonthlyDue);
-            $sheet->getStyle("F{$summaryRow1}:H{$summaryRow1}")->applyFromArray($lightBlueStyle);
-            $sheet->getStyle("F{$summaryRow1}:H{$summaryRow1}")->getNumberFormat()->setFormatCode($currencyFormat);
-            
-            // Merge I-J: Total Payments with currency formatting
-            $sheet->mergeCells("I{$summaryRow1}:J{$summaryRow1}");
-            $sheet->setCellValue("I{$summaryRow1}", $totalPayments);
-            $sheet->getStyle("I{$summaryRow1}:J{$summaryRow1}")->applyFromArray($lightBlueStyle);
-            $sheet->getStyle("I{$summaryRow1}:J{$summaryRow1}")->getNumberFormat()->setFormatCode($currencyFormat);
-            
-            // Merge K-M: Total Penalties with currency formatting
-            $sheet->mergeCells("K{$summaryRow1}:M{$summaryRow1}");
-            $sheet->setCellValue("K{$summaryRow1}", $totalPenalties);
-            $sheet->getStyle("K{$summaryRow1}:M{$summaryRow1}")->applyFromArray($lightBlueStyle);
-            $sheet->getStyle("K{$summaryRow1}:M{$summaryRow1}")->getNumberFormat()->setFormatCode($currencyFormat);
-            
-            // Merge N-P as empty
-            $sheet->mergeCells("N{$summaryRow1}:P{$summaryRow1}");
-            $sheet->getStyle("N{$summaryRow1}:P{$summaryRow1}")->applyFromArray($lightBlueStyle);
-            
-            // Merge Q-S as empty
-            $sheet->mergeCells("Q{$summaryRow1}:S{$summaryRow1}");
-            $sheet->getStyle("Q{$summaryRow1}:S{$summaryRow1}")->applyFromArray($lightBlueStyle);
-            
-            // Merge T-V as empty
-            $sheet->mergeCells("T{$summaryRow1}:V{$summaryRow1}");
-            $sheet->getStyle("T{$summaryRow1}:V{$summaryRow1}")->applyFromArray($lightBlueStyle);
-            
-            // Merge W-Z as empty
-            $sheet->mergeCells("W{$summaryRow1}:Z{$summaryRow1}");
-            $sheet->getStyle("W{$summaryRow1}:Z{$summaryRow1}")->applyFromArray($lightBlueStyle);
-            
-            // Merge AA-AD as empty
-            $sheet->mergeCells("AA{$summaryRow1}:AD{$summaryRow1}");
-            $sheet->getStyle("AA{$summaryRow1}:AD{$summaryRow1}")->applyFromArray($lightBlueStyle);
-            
-            // Merge AE-AI as empty
-            $sheet->mergeCells("AE{$summaryRow1}:AI{$summaryRow1}");
-            $sheet->getStyle("AE{$summaryRow1}:AI{$summaryRow1}")->applyFromArray($lightBlueStyle);
-            
-            // Row for Grand Total
-            $summaryRow2 = $summaryRow1 + 1;
-            
-            // Merge A-AD for label
-            $sheet->mergeCells("A{$summaryRow2}:AD{$summaryRow2}");
-            $sheet->setCellValue("A{$summaryRow2}", 'GRAND TOTAL');
-            $sheet->getStyle("A{$summaryRow2}:AD{$summaryRow2}")->applyFromArray($lightBlueStyle);
-            // Make the text bold
-            $sheet->getStyle("A{$summaryRow2}:AD{$summaryRow2}")->getFont()->setBold(true);
-            
-            // Merge AE-AI for remaining account balance with currency formatting
-            $sheet->mergeCells("AE{$summaryRow2}:AI{$summaryRow2}");
-            $sheet->setCellValue("AE{$summaryRow2}", $runningBalance);
-            $sheet->getStyle("AE{$summaryRow2}:AI{$summaryRow2}")->applyFromArray($lightBlueStyle);
-            $sheet->getStyle("AE{$summaryRow2}:AI{$summaryRow2}")->getNumberFormat()->setFormatCode($currencyFormat);
-            $sheet->getStyle("AE{$summaryRow2}:AI{$summaryRow2}")->getFont()->setBold(true);
-            
-            // ── Set values in AL column ───────────────────────────────────────────
-            // AL14: Total Payments
-            $sheet->setCellValue('AL14', $totalPayments);
-            $sheet->getStyle('AL14')->applyFromArray($currencyStyle);
-            
-            // AL17: Total Penalties (0 if no data)
-            $penaltiesValue = $totalPenalties > 0 ? $totalPenalties : 0;
-            $sheet->setCellValue('AL17', $penaltiesValue);
-            $sheet->getStyle('AL17')->applyFromArray($currencyStyle);
-        }
-        
-        // Also apply currency formatting to T12 (Amount of Assistance) and T13 (Equipment Cost)
-        $sheet->getStyle('T12')->getNumberFormat()->setFormatCode($currencyFormat);
-        $sheet->getStyle('T13')->getNumberFormat()->setFormatCode($currencyFormat);
-        
-        // Apply borders to T12 and T13 as well
-        $sheet->getStyle('T12')->applyFromArray($borderStyle);
-        $sheet->getStyle('T13')->applyFromArray($borderStyle);
 
-        // ── Stream to browser ─────────────────────────────────────────────────
-        $filename = "{$projectId}_refunds.xlsx";
-        $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
+            // Build refund data lookup from RefundModel
+            $refundLookup = [];
+            foreach ($project->refunds as $refund) {
+                if ($refund->month_paid) {
+                    $monthKey = Carbon::parse($refund->month_paid)->format('Y-m-01');
+                    $refundLookup[$monthKey] = $refund;
+                }
+            }
 
-        return response()->stream(
-            fn () => $writer->save('php://output'),
-            200,
-            [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-                'Cache-Control' => 'max-age=0',
-            ]
-        );
-    }
+            // ── All data ready — build the flat map for cell assignment ──────────
+            $cellData = [
+                // ── Header / project info ─────────────────────────────────────────
+                'cooperator' => $proponent?->company_name ?? '',
+                'project_title' => $project->project_title ?? '',
+                'original_refund_schedule' => $project->refund_initial
+                                            ? Carbon::parse($project->refund_initial)->format('F Y')
+                                            : '',
+                'cooperator_name' => $proponent?->owner_name ?? '',
+                'address' => $fullAddress,
+
+                // ── Restructure ranges (up to 5) ──────────────────────────────────
+                'restructure_1' => $formatGroup($restructureGroups[0] ?? null),
+                'restructure_2' => $formatGroup($restructureGroups[1] ?? null),
+                'restructure_3' => $formatGroup($restructureGroups[2] ?? null),
+                'restructure_4' => $formatGroup($restructureGroups[3] ?? null),
+                'restructure_5' => $formatGroup($restructureGroups[4] ?? null),
+
+                // ── Assistance / financial ────────────────────────────────────────
+                'date_granted' => $project->fund_release
+                                            ? Carbon::parse($project->fund_release)->format('F d, Y')
+                                            : '',
+                'amount_of_assistance' => $amountOfAssistance,
+                'equipment_cost' => $equipmentCost,
+                'province' => $proponent?->province ?? '',
+                'project_status' => $project->progress ?? '',
+                'unexpended_balance' => $project->unexpended_balance ?? null,
+
+                // ── Past due & date ───────────────────────────────────────────────
+                'months_past_due' => $pastDueCount,
+                'date_today' => now()->format('F d, Y'),
+            ];
+
+            // ── Load template & populate ──────────────────────────────────────────
+            $templatePath = public_path('templates/refund_template.xlsx');
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($templatePath);
+            $sheet = $spreadsheet->getActiveSheet();
+
+            // ── REPLACE THESE CELL REFERENCES WITH YOUR ACTUAL TEMPLATE CELLS ─────
+            // Header cells
+            $sheet->setCellValue('F11', $cellData['cooperator']);
+            $sheet->setCellValue('F12', $cellData['project_title']);
+            $sheet->setCellValue('F13', $cellData['original_refund_schedule']);
+            $sheet->setCellValue('F14', $cellData['cooperator_name']);
+            $sheet->setCellValue('F15', $cellData['address']);
+
+            // Restructure rows
+            $sheet->setCellValue('F17', $cellData['restructure_1']);
+            $sheet->setCellValue('F18', $cellData['restructure_2']);
+            $sheet->setCellValue('F19', $cellData['restructure_3']);
+            $sheet->setCellValue('F20', $cellData['restructure_4']);
+            $sheet->setCellValue('F21', $cellData['restructure_5']);
+
+            // Assistance / financial
+            $sheet->setCellValue('T11', $cellData['date_granted']);
+            $sheet->setCellValue('T12', $cellData['amount_of_assistance']);
+            $sheet->setCellValue('T13', $cellData['equipment_cost']);
+            $sheet->setCellValue('T15', $cellData['province']);
+            $sheet->setCellValue('T20', $cellData['project_status']);
+            $sheet->setCellValue('T21', $cellData['months_past_due']);
+            $sheet->setCellValue('AC8', $cellData['date_today']);
+
+            // Get border style
+            $borderStyle = [
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                        'color' => ['rgb' => '000000'],
+                    ],
+                ],
+            ];
+
+            // Currency format for PHP (Philippine Peso)
+            $currencyFormat = '"₱"#,##0.00_);("₱"#,##0.00)';
+            
+            // Currency format style
+            $currencyStyle = [
+                'numberFormat' => [
+                    'formatCode' => $currencyFormat,
+                ],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                        'color' => ['rgb' => '000000'],
+                    ],
+                ],
+            ];
+
+            // Light blue background style
+            $lightBlueStyle = [
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'ADD8E6'], // Light blue
+                ],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                        'color' => ['rgb' => '000000'],
+                    ],
+                ],
+            ];
+
+        // ── Row 24: Initial AE cell with T12 data (FULL amount of assistance) ──
+        $row24 = 24;
+
+        // Merge AE24 to AI24 and set value with currency formatting (FULL amount)
+        $sheet->mergeCells("AE{$row24}:AI{$row24}");
+        $sheet->setCellValue("AE{$row24}", $amountOfAssistance); // Full amount, not initialBalance
+        $sheet->getStyle("AE{$row24}:AI{$row24}")->applyFromArray($currencyStyle);
+
+        // ── Add unexpended balance row (always at row 25 if exists) ────────────
+        $currentRow = 25;
+
+        if ($hasUnexpendedBalance) {
+            // Calculate balance after unexpended deduction
+            $balanceAfterUnexpended = $amountOfAssistance - $cellData['unexpended_balance'];
+            
+            // Merge A25:B25 for label (empty)
+            $sheet->mergeCells("A{$currentRow}:B{$currentRow}");
+            $sheet->setCellValue("A{$currentRow}", '');
+            $sheet->getStyle("A{$currentRow}:B{$currentRow}")->applyFromArray($borderStyle);
+            
+            // Merge C25:E25 for "Unexpended Balance"
+            $sheet->mergeCells("C{$currentRow}:E{$currentRow}");
+            $sheet->setCellValue("C{$currentRow}", 'Unexpended Balance');
+            $sheet->getStyle("C{$currentRow}:E{$currentRow}")->applyFromArray($borderStyle);
+            
+            // Merge F25:H25: Monthly Due (empty)
+            $sheet->mergeCells("F{$currentRow}:H{$currentRow}");
+            $sheet->getStyle("F{$currentRow}:H{$currentRow}")->applyFromArray($borderStyle);
+            
+            // Merge I25:J25: Show unexpended balance amount in Payments column
+            $sheet->mergeCells("I{$currentRow}:J{$currentRow}");
+            $sheet->setCellValue("I{$currentRow}", $cellData['unexpended_balance']);
+            $sheet->getStyle("I{$currentRow}:J{$currentRow}")->applyFromArray($currencyStyle);
+            
+            // Merge K25:M25: Penalties (empty)
+            $sheet->mergeCells("K{$currentRow}:M{$currentRow}");
+            $sheet->getStyle("K{$currentRow}:M{$currentRow}")->applyFromArray($borderStyle);
+            
+            // Merge N25:P25: OR Date (empty)
+            $sheet->mergeCells("N{$currentRow}:P{$currentRow}");
+            $sheet->getStyle("N{$currentRow}:P{$currentRow}")->applyFromArray($borderStyle);
+            
+            // Merge Q25:S25: OR Number (empty)
+            $sheet->mergeCells("Q{$currentRow}:S{$currentRow}");
+            $sheet->getStyle("Q{$currentRow}:S{$currentRow}")->applyFromArray($borderStyle);
+            
+            // Merge T25:V25: Name of Bank (empty)
+            $sheet->mergeCells("T{$currentRow}:V{$currentRow}");
+            $sheet->getStyle("T{$currentRow}:V{$currentRow}")->applyFromArray($borderStyle);
+            
+            // Merge W25:Z25: Check No. (empty)
+            $sheet->mergeCells("W{$currentRow}:Z{$currentRow}");
+            $sheet->getStyle("W{$currentRow}:Z{$currentRow}")->applyFromArray($borderStyle);
+            
+            // Merge AA25:AD25: Check Date (empty)
+            $sheet->mergeCells("AA{$currentRow}:AD{$currentRow}");
+            $sheet->getStyle("AA{$currentRow}:AD{$currentRow}")->applyFromArray($borderStyle);
+            
+            // Merge AE25:AI25: Account Balance (balance after unexpended deduction)
+            $sheet->mergeCells("AE{$currentRow}:AI{$currentRow}");
+            $sheet->setCellValue("AE{$currentRow}", $balanceAfterUnexpended);
+            $sheet->getStyle("AE{$currentRow}:AI{$currentRow}")->applyFromArray($currencyStyle);
+            
+            $currentRow++;
+        }
+
+        // ── Monthly refund rows ───────────────────────────────────────────────
+        // Start running balance from the FULL amount of assistance
+        $runningBalance = $amountOfAssistance;
+        $totalPayments = 0;
+        $totalMonthlyDue = 0;
+        $totalPenalties = 0;
+
+        // If there's unexpended balance, subtract it from running balance FIRST
+        if ($hasUnexpendedBalance) {
+            $runningBalance -= $cellData['unexpended_balance'];
+        }
+
+        foreach ($monthlyRows as $index => $row) {
+            $refund = $refundLookup[$row['month_date']] ?? null;
+            
+            $status = $refund?->status ?? 'unpaid';
+            $monthlyDueAmount = $row['monthly_due'];
+            
+            // ── Get monthly due from RefundModel if available, otherwise from ProjectModel ──
+            if ($refund && $refund->amount_due !== null && $refund->amount_due > 0) {
+                $monthlyDueAmount = (float) $refund->amount_due;
+            } elseif ($refund && $refund->amount_due !== null) {
+                $monthlyDueAmount = 0;
+            }
+            
+            if ($status === 'restructured') {
+                $monthCarbon = Carbon::parse($row['month_date']);
+                $groupNumber = null;
+                foreach ($restructureGroups as $groupIdx => $group) {
+                    if ($monthCarbon->between($group['start'], $group['end'])) {
+                        $groupNumber = $groupIdx + 1;
+                        break;
+                    }
+                }
+                $ordinal = $this->getOrdinalNumber($groupNumber ?? 1);
+                $particular = "{$ordinal} Restructuring";
+                $monthlyDueAmount = 0;
+            }
+            
+            // ── Get payments ──
+            $payments = [];
+            if ($refund && $refund->payments) {
+                $payments = $refund->payments;
+            }
+            
+            // If no payments, create one empty row
+            if (empty($payments)) {
+                $payments = [null];
+            }
+            
+            $monthTotalPaid = 0;
+            
+            foreach ($payments as $pIdx => $payment) {
+                $isValidPayment = false;
+                $paymentAmount = 0;
+                $orNumber = '';
+                $orDate = '';
+                $checkNumber = '';
+                $checkDate = '';
+                $bankName = '';
+                $particular = '';
+                
+                if ($payment !== null) {
+                    $remarks = $payment['remarks'] ?? '';
+                    $paymentAmount = (float) ($payment['amount'] ?? 0);
+                    
+                    // Only count as valid if remarks is empty or "Techno Transfer"
+                    $isValidPayment = $status !== 'unpaid' && (empty($remarks) || $remarks === 'Techno Transfer');
+                                        
+                    $orNumber = $payment['receipt_num'] ?? '';
+                    $orDate = $payment['receipt_date'] ?? '';
+                    $checkNumber = $payment['check_num'] ?? '';
+                    $checkDate = $payment['check_date'] ?? '';
+                    $bankName = $payment['bank_name'] ?? '';
+                    
+                    // Set particular based on remarks or status
+                    if ($status === 'restructured') {
+                        $particular = "{$ordinal} Restructuring";
+                    } elseif (!empty($remarks)) {
+                        $particular = $remarks;
+                    } else {
+                        $particular = 'Refund';
+                    }
+                } else {
+                    // No payment - set particular based on status
+                    if ($status === 'restructured') {
+                        $particular = "{$ordinal} Restructuring";
+                    } else {
+                        $particular = 'Refund';
+                    }
+                }
+                
+                // Only add to totals if valid payment
+                if ($isValidPayment) {
+                    $totalPayments += $paymentAmount;
+                    $monthTotalPaid += $paymentAmount;
+                }
+                
+                            // Update running balance
+                if ($status !== 'unpaid') {
+                    $runningBalance -= $paymentAmount;
+                }               
+                 
+                // Merge A-B: Due Date
+                $sheet->mergeCells("A{$currentRow}:B{$currentRow}");
+                $sheet->setCellValue("A{$currentRow}", $row['due_date']);
+                $sheet->getStyle("A{$currentRow}:B{$currentRow}")->applyFromArray($borderStyle);
+                
+                // Merge C-E: Particular
+                $sheet->mergeCells("C{$currentRow}:E{$currentRow}");
+                $sheet->setCellValue("C{$currentRow}", $particular);
+                $sheet->getStyle("C{$currentRow}:E{$currentRow}")->applyFromArray($borderStyle);
+                
+                // Merge F-H: Monthly Due
+                $sheet->mergeCells("F{$currentRow}:H{$currentRow}");
+                $sheet->setCellValue("F{$currentRow}", $monthlyDueAmount);
+                $sheet->getStyle("F{$currentRow}:H{$currentRow}")->applyFromArray($currencyStyle);
+                
+                // Merge I-J: Payment
+                $sheet->mergeCells("I{$currentRow}:J{$currentRow}");
+                $sheet->setCellValue("I{$currentRow}", $paymentAmount > 0 ? $paymentAmount : '');
+                $sheet->getStyle("I{$currentRow}:J{$currentRow}")->applyFromArray($currencyStyle);
+                
+                // Merge K-M: Penalties
+                $sheet->mergeCells("K{$currentRow}:M{$currentRow}");
+                $sheet->setCellValue("K{$currentRow}", $row['penalties'] > 0 ? $row['penalties'] : '');
+                $sheet->getStyle("K{$currentRow}:M{$currentRow}")->applyFromArray($currencyStyle);
+                
+                // Merge N-P: OR Date
+                $sheet->mergeCells("N{$currentRow}:P{$currentRow}");
+                $sheet->setCellValue("N{$currentRow}", $orDate);
+                $sheet->getStyle("N{$currentRow}:P{$currentRow}")->applyFromArray($borderStyle);
+                
+                // Merge Q-S: OR Number
+                $sheet->mergeCells("Q{$currentRow}:S{$currentRow}");
+                $sheet->setCellValue("Q{$currentRow}", $orNumber);
+                $sheet->getStyle("Q{$currentRow}:S{$currentRow}")->applyFromArray($borderStyle);
+                
+                // Merge T-V: Name of Bank
+                $sheet->mergeCells("T{$currentRow}:V{$currentRow}");
+                $sheet->setCellValue("T{$currentRow}", $bankName);
+                $sheet->getStyle("T{$currentRow}:V{$currentRow}")->applyFromArray($borderStyle);
+                
+                // Merge W-Z: Check No.
+                $sheet->mergeCells("W{$currentRow}:Z{$currentRow}");
+                $sheet->setCellValue("W{$currentRow}", $checkNumber);
+                $sheet->getStyle("W{$currentRow}:Z{$currentRow}")->applyFromArray($borderStyle);
+                
+                // Merge AA-AD: Check Date
+                $sheet->mergeCells("AA{$currentRow}:AD{$currentRow}");
+                $sheet->setCellValue("AA{$currentRow}", $checkDate);
+                $sheet->getStyle("AA{$currentRow}:AD{$currentRow}")->applyFromArray($borderStyle);
+                
+                // Merge AE-AI: Account Balance
+                $sheet->mergeCells("AE{$currentRow}:AI{$currentRow}");
+                $sheet->setCellValue("AE{$currentRow}", $runningBalance);
+                $sheet->getStyle("AE{$currentRow}:AI{$currentRow}")->applyFromArray($currencyStyle);
+                
+                $currentRow++;
+            }
+            
+            // Accumulate monthly due for non-restructured months
+            if ($status !== 'restructured') {
+                $totalMonthlyDue += $monthlyDueAmount;
+            }
+            $totalPenalties += $row['penalties'];
+        }
+            
+            // ── Summary Rows ──────────────────────────────────────────────────────
+            if (!empty($monthlyRows)) {
+                // Row for Total Payments, Monthly Due Total, and Total Penalties
+                $summaryRow1 = $currentRow;
+                
+                // Leave A-B empty or merge as empty
+                $sheet->mergeCells("A{$summaryRow1}:B{$summaryRow1}");
+                $sheet->getStyle("A{$summaryRow1}:B{$summaryRow1}")->applyFromArray($lightBlueStyle);
+                
+                // Merge C-E as empty
+                $sheet->mergeCells("C{$summaryRow1}:E{$summaryRow1}");
+                $sheet->getStyle("C{$summaryRow1}:E{$summaryRow1}")->applyFromArray($lightBlueStyle);
+                
+                // Merge F-H: Total Monthly Due with currency formatting
+                $sheet->mergeCells("F{$summaryRow1}:H{$summaryRow1}");
+                $sheet->setCellValue("F{$summaryRow1}", $totalMonthlyDue);
+                $sheet->getStyle("F{$summaryRow1}:H{$summaryRow1}")->applyFromArray($lightBlueStyle);
+                $sheet->getStyle("F{$summaryRow1}:H{$summaryRow1}")->getNumberFormat()->setFormatCode($currencyFormat);
+                
+                // Merge I-J: Total Payments with currency formatting
+                $sheet->mergeCells("I{$summaryRow1}:J{$summaryRow1}");
+                $sheet->setCellValue("I{$summaryRow1}", $totalPayments);
+                $sheet->getStyle("I{$summaryRow1}:J{$summaryRow1}")->applyFromArray($lightBlueStyle);
+                $sheet->getStyle("I{$summaryRow1}:J{$summaryRow1}")->getNumberFormat()->setFormatCode($currencyFormat);
+                
+                // Merge K-M: Total Penalties with currency formatting
+                $sheet->mergeCells("K{$summaryRow1}:M{$summaryRow1}");
+                $sheet->setCellValue("K{$summaryRow1}", $totalPenalties);
+                $sheet->getStyle("K{$summaryRow1}:M{$summaryRow1}")->applyFromArray($lightBlueStyle);
+                $sheet->getStyle("K{$summaryRow1}:M{$summaryRow1}")->getNumberFormat()->setFormatCode($currencyFormat);
+                
+                // Merge N-P as empty
+                $sheet->mergeCells("N{$summaryRow1}:P{$summaryRow1}");
+                $sheet->getStyle("N{$summaryRow1}:P{$summaryRow1}")->applyFromArray($lightBlueStyle);
+                
+                // Merge Q-S as empty
+                $sheet->mergeCells("Q{$summaryRow1}:S{$summaryRow1}");
+                $sheet->getStyle("Q{$summaryRow1}:S{$summaryRow1}")->applyFromArray($lightBlueStyle);
+                
+                // Merge T-V as empty
+                $sheet->mergeCells("T{$summaryRow1}:V{$summaryRow1}");
+                $sheet->getStyle("T{$summaryRow1}:V{$summaryRow1}")->applyFromArray($lightBlueStyle);
+                
+                // Merge W-Z as empty
+                $sheet->mergeCells("W{$summaryRow1}:Z{$summaryRow1}");
+                $sheet->getStyle("W{$summaryRow1}:Z{$summaryRow1}")->applyFromArray($lightBlueStyle);
+                
+                // Merge AA-AD as empty
+                $sheet->mergeCells("AA{$summaryRow1}:AD{$summaryRow1}");
+                $sheet->getStyle("AA{$summaryRow1}:AD{$summaryRow1}")->applyFromArray($lightBlueStyle);
+                
+                // Merge AE-AI as empty
+                $sheet->mergeCells("AE{$summaryRow1}:AI{$summaryRow1}");
+                $sheet->getStyle("AE{$summaryRow1}:AI{$summaryRow1}")->applyFromArray($lightBlueStyle);
+                
+                // Row for Grand Total
+                $summaryRow2 = $summaryRow1 + 1;
+                
+                // Merge A-AD for label
+                $sheet->mergeCells("A{$summaryRow2}:AD{$summaryRow2}");
+                $sheet->setCellValue("A{$summaryRow2}", 'GRAND TOTAL');
+                $sheet->getStyle("A{$summaryRow2}:AD{$summaryRow2}")->applyFromArray($lightBlueStyle);
+                // Make the text bold
+                $sheet->getStyle("A{$summaryRow2}:AD{$summaryRow2}")->getFont()->setBold(true);
+                
+                // Merge AE-AI for remaining account balance with currency formatting
+                $sheet->mergeCells("AE{$summaryRow2}:AI{$summaryRow2}");
+                $sheet->setCellValue("AE{$summaryRow2}", $runningBalance);
+                $sheet->getStyle("AE{$summaryRow2}:AI{$summaryRow2}")->applyFromArray($lightBlueStyle);
+                $sheet->getStyle("AE{$summaryRow2}:AI{$summaryRow2}")->getNumberFormat()->setFormatCode($currencyFormat);
+                $sheet->getStyle("AE{$summaryRow2}:AI{$summaryRow2}")->getFont()->setBold(true);
+                
+                // ── Set values in AL column ───────────────────────────────────────────
+                // AL14: Total Payments
+                $sheet->setCellValue('AL14', $totalPayments);
+                $sheet->getStyle('AL14')->applyFromArray($currencyStyle);
+                
+                // AL17: Total Penalties (0 if no data)
+                $penaltiesValue = $totalPenalties > 0 ? $totalPenalties : 0;
+                $sheet->setCellValue('AL17', $penaltiesValue);
+                $sheet->getStyle('AL17')->applyFromArray($currencyStyle);
+            }
+            
+            // Also apply currency formatting to T12 (Amount of Assistance) and T13 (Equipment Cost)
+            $sheet->getStyle('T12')->getNumberFormat()->setFormatCode($currencyFormat);
+            $sheet->getStyle('T13')->getNumberFormat()->setFormatCode($currencyFormat);
+            
+            // Apply borders to T12 and T13 as well
+            $sheet->getStyle('T12')->applyFromArray($borderStyle);
+            $sheet->getStyle('T13')->applyFromArray($borderStyle);
+
+            // ── Stream to browser ─────────────────────────────────────────────────
+            $filename = "{$projectId}_refunds.xlsx";
+            $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
+
+            return response()->stream(
+                fn () => $writer->save('php://output'),
+                200,
+                [
+                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+                    'Cache-Control' => 'max-age=0',
+                ]
+            );
+        }
 
     /**
      * Helper function to get ordinal number (1st, 2nd, 3rd, 4th, 5th)
@@ -1209,163 +1670,260 @@ public function exportCsv()
 
     // ── Save single refund entry (append payment) ─────────────────────────────
 
-    public function save()
-    {
-        $data = request()->validate([
-            'project_id' => 'required|exists:tbl_projects,project_id',
-            'amount_due' => 'nullable|numeric|min:0',
-            'status' => 'required|in:paid,unpaid,restructured,partial',
-            'save_date' => 'required|date_format:Y-m-d',
-            // new payment entry
-            'amount' => 'nullable|numeric|min:0',
-            'bank_name' => 'nullable|string|max:200',
-            'check_num' => 'nullable|string|max:20',
-            'check_date' => 'nullable|date_format:Y-m-d',
-            'receipt_num' => 'nullable|string|max:20',
-            'receipt_date' => 'nullable|date_format:Y-m-d',
-            // existing payments being edited
-            'existing_payments' => 'nullable|array',
-            'existing_payments.*.amount' => 'nullable|numeric|min:0',
-            'existing_payments.*.bank_name' => 'nullable|string|max:200',
-            'existing_payments.*.check_num' => 'nullable|string|max:20',
-            'existing_payments.*.check_date' => 'nullable|date_format:Y-m-d',
-            'existing_payments.*.receipt_num' => 'nullable|string|max:20',
-            'existing_payments.*.receipt_date' => 'nullable|date_format:Y-m-d',
+public function save()
+{
+    $data = request()->validate([
+        'project_id' => 'required|exists:tbl_projects,project_id',
+        'amount_due' => 'nullable|numeric|min:0',
+        'status' => 'required|in:paid,unpaid,restructured,partial',
+        'save_date' => 'required|date_format:Y-m-d',
+        'amount' => 'nullable|numeric|min:0',
+        'bank_name' => 'nullable|string|max:200',
+        'check_num' => 'nullable|string|max:20',
+        'check_date' => 'nullable|date_format:Y-m-d',
+        'receipt_num' => 'nullable|string|max:20',
+        'receipt_date' => 'nullable|date_format:Y-m-d',
+        'remarks' => 'nullable|string|max:500',
+        'existing_payments' => 'nullable|array',
+        'existing_payments.*.amount' => 'nullable|numeric|min:0',
+        'existing_payments.*.bank_name' => 'nullable|string|max:200',
+        'existing_payments.*.check_num' => 'nullable|string|max:20',
+        'existing_payments.*.check_date' => 'nullable|date_format:Y-m-d',
+        'existing_payments.*.receipt_num' => 'nullable|string|max:20',
+        'existing_payments.*.receipt_date' => 'nullable|date_format:Y-m-d',
+        'existing_payments.*.remarks' => 'nullable|string|max:500',
+    ]);
+
+    Log::info('=== REFUND SAVE START ===', [
+        'all_data' => $data,
+        'amount_due_received' => $data['amount_due'] ?? 'NOT SET',
+    ]);
+
+    try {
+        $savedMonthDate = Carbon::parse($data['save_date'])->startOfMonth()->format('Y-m-d');
+        $readableMonth = Carbon::parse($data['save_date'])->format('F Y');
+
+        $project = ProjectModel::with('refunds')->find($data['project_id']);
+        if (!$project) {
+            Log::error('Project not found', ['project_id' => $data['project_id']]);
+            return back()->with('error', 'Project not found.');
+        }
+
+        $refundEnd = Carbon::parse($project->refund_end)->startOfMonth()->format('Y-m-d');
+        $isLastMonth = $savedMonthDate === $refundEnd;
+
+        Log::info('Date check', [
+            'savedMonthDate' => $savedMonthDate,
+            'refundEnd' => $refundEnd,
+            'isLastMonth' => $isLastMonth,
+            'project_last_refund_before' => $project->last_refund,
         ]);
 
-        try {
-            $savedMonthDate = Carbon::parse($data['save_date'])->startOfMonth()->format('Y-m-d');
-            $readableMonth = Carbon::parse($data['save_date'])->format('F Y');
+        $completionCheck = null;
+if ($isLastMonth) {
+    // Only run completion check when trying to mark as "paid"
+    if ($data['status'] === 'paid') {
+        $completionCheck = $project->checkRefundCompletionWithNewEntry(
+            $savedMonthDate, $data['status']
+        );
+        if (!$completionCheck['is_complete']) {
+            return back()->with('warning', [
+                'message' => 'Cannot update project status. The following months remain unpaid:',
+                'unpaid_months' => $completionCheck['unpaid_months'],
+                'project_title' => $project->project_title,
+                'refund_initial' => Carbon::parse($project->refund_initial)->format('F Y'),
+                'refund_end' => Carbon::parse($project->refund_end)->format('F Y'),
+                'action' => 'Please ensure all months between '.
+                    Carbon::parse($project->refund_initial)->format('F Y').
+                    ' and '.Carbon::parse($project->refund_end)->format('F Y').
+                    ' are paid before completing the project.',
+            ])->withInput();
+        }
+    } 
+        }
 
-            $project = ProjectModel::with('refunds')->find($data['project_id']);
-            if (!$project) {
-                return back()->with('error', 'Project not found.');
-            }
+        $refund = RefundModel::firstOrNew([
+            'project_id' => $data['project_id'],
+            'month_paid' => $savedMonthDate,
+        ]);
 
-            $refundEnd = Carbon::parse($project->refund_end)->startOfMonth()->format('Y-m-d');
+        Log::info('Refund before save', [
+            'exists' => $refund->exists,
+            'refund_id' => $refund->refund_id ?? 'new',
+            'current_amount_due' => $refund->amount_due,
+            'current_status' => $refund->status,
+        ]);
 
-            // Completion check (unchanged)
-            $completionCheck = null;
-            if ($savedMonthDate === $refundEnd) {
-                if ($data['status'] === 'paid') {
-                    $completionCheck = $project->checkRefundCompletionWithNewEntry(
-                        $savedMonthDate, $data['status']
-                    );
-                    if (!$completionCheck['is_complete']) {
-                        return back()->with('warning', [
-                            'message' => 'Cannot update project status. The following months remain unpaid:',
-                            'unpaid_months' => $completionCheck['unpaid_months'],
-                            'project_title' => $project->project_title,
-                            'refund_initial' => Carbon::parse($project->refund_initial)->format('F Y'),
-                            'refund_end' => Carbon::parse($project->refund_end)->format('F Y'),
-                            'action' => 'Please ensure all months between '.
-                                Carbon::parse($project->refund_initial)->format('F Y').
-                                ' and '.Carbon::parse($project->refund_end)->format('F Y').
-                                ' are paid before completing the project.',
-                        ])->withInput();
-                    }
-                } elseif (!in_array($data['status'], ['partial'])) {
-                    return back()
-                        ->with('error', 'The final refund month must be marked as "Paid" to complete the project.')
-                        ->withInput();
-                }
-            }
+        $existingStatus = $refund->exists ? $refund->status : null;
+        $statusChanged = $existingStatus !== $data['status'];
 
-            $refund = RefundModel::firstOrNew([
-                'project_id' => $data['project_id'],
-                'month_paid' => $savedMonthDate,
+        // IMPORTANT: Parse amount_due properly
+        $amountDue = null;
+        if (isset($data['amount_due']) && $data['amount_due'] !== '' && $data['amount_due'] !== null) {
+            $amountDue = (float) $data['amount_due'];
+        }
+
+        Log::info('Amount due parsed', [
+            'raw' => $data['amount_due'] ?? 'not set',
+            'parsed' => $amountDue,
+            'is_null' => is_null($amountDue),
+        ]);
+
+        if ($data['status'] === 'restructured') {
+            $refund->payments = [];
+            $refund->amount_due = 0;
+        } else {
+            $updatedPayments = [];
+// For existing payments:
+foreach ($data['existing_payments'] ?? [] as $ep) {
+    $amount = (float) ($ep['amount'] ?? 0); // empty converts to 0
+    $hasRemarks = !empty($ep['remarks'] ?? null);
+    
+    // Save if amount > 0 OR has remarks OR has other details
+    $hasDetails = $hasRemarks 
+        || !empty($ep['bank_name'] ?? null)
+        || !empty($ep['check_num'] ?? null)
+        || !empty($ep['check_date'] ?? null)
+        || !empty($ep['receipt_num'] ?? null)
+        || !empty($ep['receipt_date'] ?? null);
+    
+    if ($amount > 0 || $hasDetails) {
+        $updatedPayments[] = [
+            'amount' => $amount,
+            'bank_name' => $ep['bank_name'] ?? null,
+            'check_num' => $ep['check_num'] ?? null,
+            'check_date' => $ep['check_date'] ?? null,
+            'receipt_num' => $ep['receipt_num'] ?? null,
+            'receipt_date' => $ep['receipt_date'] ?? null,
+            'remarks' => $ep['remarks'] ?? null,
+            'saved_at' => now()->toDateTimeString(),
+        ];
+    }
+}
+
+// For new payment:
+$newAmount = (float) ($data['amount'] ?? 0); // empty/null converts to 0
+$hasRemarks = !empty($data['remarks'] ?? null);
+$hasDetails = $hasRemarks 
+    || !empty($data['bank_name'] ?? null)
+    || !empty($data['check_num'] ?? null)
+    || !empty($data['check_date'] ?? null)
+    || !empty($data['receipt_num'] ?? null)
+    || !empty($data['receipt_date'] ?? null);
+
+// Save if amount > 0 OR has details (remarks, bank, check, receipt)
+if ($newAmount > 0 || $hasDetails) {
+    $updatedPayments[] = [
+        'amount' => $newAmount,
+        'bank_name' => $data['bank_name'] ?? null,
+        'check_num' => $data['check_num'] ?? null,
+        'check_date' => $data['check_date'] ?? null,
+        'receipt_num' => $data['receipt_num'] ?? null,
+        'receipt_date' => $data['receipt_date'] ?? null,
+        'remarks' => $data['remarks'] ?? null,
+        'saved_at' => now()->toDateTimeString(),
+    ];
+}
+
+            $refund->payments = $updatedPayments ?: null;
+            
+            // Set amount_due - use the parsed value, fall back to 0
+            $refund->amount_due = $amountDue ?? 0;
+            
+            Log::info('Setting refund amount_due', [
+                'amountDue' => $amountDue,
+                'refund_amount_due' => $refund->amount_due,
             ]);
+        }
 
-            $existingStatus = $refund->exists ? $refund->status : null;
-            $statusChanged = $existingStatus !== $data['status'];
+        $refund->status = $data['status'];
+        $refund->updated_by = Auth::id();
+        $refund->save();
 
-            if ($data['status'] === 'restructured') {
-                $refund->payments = [];
-                $refund->amount_due = 0;
+        Log::info('Refund after save', [
+            'refund_id' => $refund->refund_id,
+            'amount_due_saved' => $refund->amount_due,
+            'status' => $refund->status,
+        ]);
+
+        // ── UPDATE PROJECT last_refund IF THIS IS THE LAST MONTH ──
+        if ($isLastMonth) {
+            $projectUpdates = [];
+            
+            Log::info('Last month check for project update', [
+                'amountDue' => $amountDue,
+                'project_current_last_refund' => $project->last_refund,
+            ]);
+            
+            if ($amountDue !== null && $amountDue > 0) {
+                $projectUpdates['last_refund'] = $amountDue;
+            }
+            
+            if ($completionCheck && ($completionCheck['is_complete'] ?? false)) {
+                $projectUpdates['progress'] = 'Completed';
+            }
+            
+            if (!empty($projectUpdates)) {
+                $projectUpdates['updated_by'] = Auth::id();
+                $project->update($projectUpdates);
+                
+                Log::info('Project updated', [
+                    'project_id' => $project->project_id,
+                    'updates' => $projectUpdates,
+                ]);
             } else {
-                //  Replace the full payments array with edited existing entries
-                $updatedPayments = [];
-                foreach ($data['existing_payments'] ?? [] as $ep) {
-                    $amount = (float) ($ep['amount'] ?? 0);
-                    if ($amount <= 0) {
-                        continue;
-                    }          // drop zero-amount rows
-                    $updatedPayments[] = [
-                        'amount' => $amount,
-                        'bank_name' => $ep['bank_name'] ?? null,
-                        'check_num' => $ep['check_num'] ?? null,
-                        'check_date' => $ep['check_date'] ?? null,   // ← was missing
-                        'receipt_num' => $ep['receipt_num'] ?? null,
-                        'receipt_date' => $ep['receipt_date'] ?? null,   // ← was missing
-                        'saved_at' => now()->toDateTimeString(),
-                    ];
-                }
-
-                //  Append the new payment row (if amount > 0)
-                $newAmount = (float) ($data['amount'] ?? 0);
-                if ($newAmount > 0) {
-                    $updatedPayments[] = [
-                        'amount' => $newAmount,
-                        'bank_name' => $data['bank_name'] ?? null,
-                        'check_num' => $data['check_num'] ?? null,
-                        'check_date' => $data['check_date'] ?? null,   // ← was missing
-                        'receipt_num' => $data['receipt_num'] ?? null,
-                        'receipt_date' => $data['receipt_date'] ?? null,   // ← was missing
-                        'saved_at' => now()->toDateTimeString(),
-                    ];
-                }
-
-                $refund->payments = $updatedPayments ?: null;
-                $refund->amount_due = $data['amount_due'] ?? 0;
+                Log::warning('No project updates applied for last month', [
+                    'amountDue' => $amountDue,
+                    'isCompleted' => $completionCheck['is_complete'] ?? false,
+                ]);
             }
+        }
 
-            $refund->status = $data['status'];
-            $refund->updated_by = Auth::id();
-            $refund->save();
-
-            if ($savedMonthDate === $refundEnd && ($completionCheck['is_complete'] ?? false)) {
-                $project->update(['progress' => 'Completed']);
-            }
-
-            // Email notification (unchanged)
-            $proponent = $project->proponent ?? null;
-            if ($proponent?->email && $statusChanged) {
-                try {
-                    $totalAmount = collect($updatedPayments ?? [])->sum('amount');
+        $proponent = $project->proponent ?? null;
+        if ($proponent?->email && $statusChanged) {
+            try {
+                $totalAmount = collect($updatedPayments ?? [])->sum('amount');
+                Mail::to($proponent->email)->send(
+                    new \App\Mail\RefundNotificationMail(
+                        $proponent->owner_name ?? 'Valued Client',
+                        $project->project_title ?? 'N/A',
+                        $proponent->company_name ?? 'N/A',
+                        $readableMonth,
+                        $data['status'],
+                        $amountDue ?? 0,
+                        $totalAmount,
+                        $amountDue ?? 0,
+                        $data['check_num'] ?? null,
+                        $data['receipt_num'] ?? null,
+                        $data['check_date'] ?? null,
+                        $data['receipt_date'] ?? null,
+                    )
+                );
+                if ($isLastMonth && ($completionCheck['is_complete'] ?? false)) {
                     Mail::to($proponent->email)->send(
-                        new \App\Mail\RefundNotificationMail(
-                            $proponent->owner_name ?? 'Valued Client',
-                            $project->project_title ?? 'N/A',
-                            $proponent->company_name ?? 'N/A',
-                            $readableMonth,
-                            $data['status'],
-                            $data['amount_due'] ?? 0,
-                            $totalAmount,
-                            $data['amount_due'] ?? 0,
-                            $data['check_num'] ?? null,
-                            $data['receipt_num'] ?? null,
-                            $data['check_date'] ?? null,
-                            $data['receipt_date'] ?? null,
+                        new \App\Mail\RefundCompletedMail(
+                            $project->project_id,
+                            now()->format('F d, Y \a\t h:i A')
                         )
                     );
-                    if ($savedMonthDate === $refundEnd && ($completionCheck['is_complete'] ?? false)) {
-                        Mail::to($proponent->email)->send(
-                            new \App\Mail\RefundCompletedMail(
-                                $project->project_id,
-                                now()->format('F d, Y \a\t h:i A')
-                            )
-                        );
-                    }
-                } catch (\Exception $e) {
-                    Log::error("Failed to send refund email to {$proponent->email}: ".$e->getMessage());
                 }
+            } catch (\Exception $e) {
+                Log::error("Failed to send refund email to {$proponent->email}: ".$e->getMessage());
             }
-
-            return back()->with('preserveScroll', true);
-        } catch (\Exception $e) {
-            return back()->with('error', 'An error occurred while saving: '.$e->getMessage());
         }
+
+        Log::info('=== REFUND SAVE COMPLETE ===');
+
+        return back()->with('preserveScroll', true);
+    } catch (\Exception $e) {
+        Log::error('Save failed: ' . $e->getMessage(), [
+            'data' => $data,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+        return back()->with('error', 'An error occurred while saving: '.$e->getMessage());
     }
+}
     // ── Remove a specific payment entry from a refund ─────────────────────────
 
     // ── Update a specific payment entry ─────────────────────────────────────────
@@ -1382,6 +1940,7 @@ public function updatePayment()
         'check_date' => 'nullable|date_format:Y-m-d',
         'receipt_num' => 'nullable|string|max:20',
         'receipt_date' => 'nullable|date_format:Y-m-d',
+        'remarks' => 'nullable|string|max:500', 
     ]);
 
     try {
@@ -1403,6 +1962,7 @@ public function updatePayment()
             'check_date' => $data['check_date'] ?? null,
             'receipt_num' => $data['receipt_num'] ?? null,
             'receipt_date' => $data['receipt_date'] ?? null,
+            'remarks' => $data['remarks'] ?? null,
             'saved_at' => now()->toDateTimeString(),
         ];
 
@@ -1555,11 +2115,13 @@ public function bulkUpdate()
         'month_details' => 'nullable|array',
         'month_details.*' => 'nullable|array',
         'month_details.*.*.amount' => 'nullable|numeric|min:0',
+        'month_details.*.*.amount_due' => 'nullable|numeric|min:0',
         'month_details.*.*.bank_name' => 'nullable|string|max:100',
         'month_details.*.*.check_num' => 'nullable|string|max:20',
         'month_details.*.*.check_date' => 'nullable|date_format:Y-m-d',
         'month_details.*.*.receipt_num' => 'nullable|string|max:20',
         'month_details.*.*.receipt_date' => 'nullable|date_format:Y-m-d',
+        'month_details.*.*.remarks' => 'nullable|string|max:500',
     ]);
 
     try {
@@ -1613,22 +2175,37 @@ public function bulkUpdate()
             } else {
                 $expectedAmount = $this->getRefundAmountForMonth($project, $monthParsed);
                 $builtPayments = [];
-
+                
+                // Get amount_due from the first payment row, or use expected
+                $bulkAmountDue = null;
+                
                 if (!empty($paymentRows)) {
                     foreach ($paymentRows as $row) {
                         $rowAmount = (float) ($row['amount'] ?? 0);
-                        if ($rowAmount <= 0) {
-                            continue;
+                        $hasDetails = !empty($row['remarks'] ?? null)
+                            || !empty($row['bank_name'] ?? null)
+                            || !empty($row['check_num'] ?? null)
+                            || !empty($row['check_date'] ?? null)
+                            || !empty($row['receipt_num'] ?? null)
+                            || !empty($row['receipt_date'] ?? null);
+                        
+                        // Get amount_due from the first row that has it
+                        if ($bulkAmountDue === null && isset($row['amount_due']) && $row['amount_due'] !== '' && $row['amount_due'] !== null) {
+                            $bulkAmountDue = (float) $row['amount_due'];
                         }
-                        $builtPayments[] = [
-                            'amount' => $rowAmount,
-                            'bank_name' => !empty($row['bank_name']) ? $row['bank_name'] : null,  // ✅ FIXED: bank_name is now properly mapped
-                            'check_num' => !empty($row['check_num']) ? $row['check_num'] : null,
-                            'check_date' => !empty($row['check_date']) ? $row['check_date'] : null,
-                            'receipt_num' => !empty($row['receipt_num']) ? $row['receipt_num'] : null,
-                            'receipt_date' => !empty($row['receipt_date']) ? $row['receipt_date'] : null,
-                            'saved_at' => now()->toDateTimeString(),
-                        ];
+                        
+                        if ($rowAmount > 0 || $hasDetails) {
+                            $builtPayments[] = [
+                                'amount' => $rowAmount,
+                                'bank_name' => !empty($row['bank_name']) ? $row['bank_name'] : null,
+                                'check_num' => !empty($row['check_num']) ? $row['check_num'] : null,
+                                'check_date' => !empty($row['check_date']) ? $row['check_date'] : null,
+                                'receipt_num' => !empty($row['receipt_num']) ? $row['receipt_num'] : null,
+                                'receipt_date' => !empty($row['receipt_date']) ? $row['receipt_date'] : null,
+                                'remarks' => !empty($row['remarks']) ? $row['remarks'] : null,
+                                'saved_at' => now()->toDateTimeString(),
+                            ];
+                        }
                     }
                 }
 
@@ -1645,7 +2222,8 @@ public function bulkUpdate()
                 }
 
                 $refund->payments = $builtPayments;
-                $refund->amount_due = collect($builtPayments)->sum('amount');
+                // FIX: Use the bulk amount_due if provided, otherwise use expected
+                $refund->amount_due = $bulkAmountDue ?? $expectedAmount;
             }
 
             $refund->status = $data['status'];
@@ -2073,99 +2651,99 @@ public function bulkUpdate()
      *  - unpaid_count  = months with status 'unpaid' (excludes restructured)
      *  - completion_percentage = paid_count / total_months * 100
      */
-    private function buildMonthsArray(ProjectModel $project): array
-    {
-        $months = [];
-        $totalPaid = 0.0;
-        $totalUnpaid = 0.0;
-        $paidCount = 0;
-        $partialCount = 0;
-        $unpaidCount = 0;
+private function buildMonthsArray(ProjectModel $project): array
+{
+    $months = [];
+    $totalPaid = 0.0;
+    $totalUnpaid = 0.0;
+    $paidCount = 0;
+    $partialCount = 0;
+    $unpaidCount = 0;
 
-        if ($project->refund_initial && $project->refund_end) {
-            $start = Carbon::parse($project->refund_initial)->startOfMonth();
-            $end = Carbon::parse($project->refund_end)->startOfMonth();
+    if ($project->refund_initial && $project->refund_end) {
+        $start = Carbon::parse($project->refund_initial)->startOfMonth();
+        $end = Carbon::parse($project->refund_end)->startOfMonth();
 
-            while ($start->lte($end)) {
-                // Look up the DB record for this month (month_paid stored as Y-m-d)
-                $monthRefund = $project->refunds
-                    ->first(fn ($r) => Carbon::parse($r->month_paid)->format('Y-m') === $start->format('Y-m'));
+        while ($start->lte($end)) {
+            $monthRefund = $project->refunds
+                ->first(fn ($r) => Carbon::parse($r->month_paid)->format('Y-m') === $start->format('Y-m'));
 
-                // The expected/scheduled amount for this month
-                $expectedAmount = $this->getRefundAmountForMonth($project, $start);
+            $expectedAmount = $this->getRefundAmountForMonth($project, $start);
 
-                if ($monthRefund) {
-                    $status = $monthRefund->status;
-                    $payments = is_array($monthRefund->payments) ? $monthRefund->payments : [];
-                    $amountPaid = $this->sumPayments($payments); // actual money received
-                    $amountDue = (float) ($monthRefund->amount_due ?? $expectedAmount);
-                    // refund_amount shown in the row = what was actually paid (or expected if unpaid)
-                    $refundAmount = in_array($status, ['paid', 'partial']) ? $amountPaid : $expectedAmount;
+            if ($monthRefund) {
+                $status = $monthRefund->status;
+                $payments = is_array($monthRefund->payments) ? $monthRefund->payments : [];
+                $amountPaid = $this->sumPayments($payments);
+                
+                // ── FIX: Use RefundModel amount_due if explicitly set (not null) ──
+                if ($monthRefund->amount_due !== null) {
+                    $amountDue = (float) $monthRefund->amount_due;
                 } else {
-                    $status = 'unpaid';
-                    $payments = [];
-                    $amountPaid = 0.0;
                     $amountDue = $expectedAmount;
-                    $refundAmount = $expectedAmount;
                 }
-
-                // Accumulate summary figures
-                switch ($status) {
-                    case 'paid':
-                        $totalPaid += $amountPaid;
-                        ++$paidCount;
-                        break;
-
-                    case 'partial':
-                        // Count partial payments toward total paid
-                        $totalPaid += $amountPaid;
-                        // Remaining balance counts as unpaid
-                        $totalUnpaid += max(0, $expectedAmount - $amountPaid);
-                        ++$partialCount;
-                        break;
-
-                    case 'restructured':
-                        // Restructured months are neither paid nor unpaid — skip from totals
-                        break;
-
-                    case 'unpaid':
-                    default:
-                        $totalUnpaid += $expectedAmount;
-                        ++$unpaidCount;
-                        break;
+                
+                if (in_array($status, ['paid', 'partial']) && $amountPaid > 0) {
+                    $refundAmount = $amountPaid;
+                } else {
+                    $refundAmount = $amountDue;
                 }
-
-                $months[] = [
-                    'month' => $start->format('F Y'),
-                    'month_date' => $start->format('Y-m-d'),
-                    'refund_amount' => $refundAmount,   // actual paid amount (or expected if unpaid)
-                    'amount_due' => $amountDue,       // scheduled/expected amount
-                    'status' => $status,
-                    'payments' => $payments,        // full payments[] array for frontend chips
-                    'is_past' => $start->lt(Carbon::now()->startOfMonth()),
-                ];
-
-                $start->addMonth();
+            } else {
+                $status = 'unpaid';
+                $payments = [];
+                $amountPaid = 0.0;
+                $amountDue = $expectedAmount;
+                $refundAmount = $expectedAmount;
             }
+
+            switch ($status) {
+                case 'paid':
+                    $totalPaid += $amountPaid;
+                    ++$paidCount;
+                    break;
+                case 'partial':
+                    $totalPaid += $amountPaid;
+                    $totalUnpaid += max(0, $amountDue - $amountPaid);
+                    ++$partialCount;
+                    break;
+                case 'restructured':
+                    break;
+                case 'unpaid':
+                default:
+                    $totalUnpaid += $amountDue;
+                    ++$unpaidCount;
+                    break;
+            }
+
+            $months[] = [
+                'month' => $start->format('F Y'),
+                'month_date' => $start->format('Y-m-d'),
+                'refund_amount' => $refundAmount,
+                'amount_due' => $amountDue,
+                'status' => $status,
+                'payments' => $payments,
+                'is_past' => $start->lt(Carbon::now()->startOfMonth()),
+            ];
+
+            $start->addMonth();
         }
-
-        $totalMonths = count($months);
-
-        $summary = [
-            'total_paid' => $totalPaid,
-            'total_unpaid' => $totalUnpaid,
-            'paid_count' => $paidCount,
-            'partial_count' => $partialCount,
-            'unpaid_count' => $unpaidCount,
-            'total_months' => $totalMonths,
-            'completion_percentage' => $totalMonths > 0
-                ? round(($paidCount / $totalMonths) * 100, 2)
-                : 0,
-        ];
-
-        return [$months, $summary];
     }
 
+    $totalMonths = count($months);
+
+    $summary = [
+        'total_paid' => $totalPaid,
+        'total_unpaid' => $totalUnpaid,
+        'paid_count' => $paidCount,
+        'partial_count' => $partialCount,
+        'unpaid_count' => $unpaidCount,
+        'total_months' => $totalMonths,
+        'completion_percentage' => $totalMonths > 0
+            ? round(($paidCount / $totalMonths) * 100, 2)
+            : 0,
+    ];
+
+    return [$months, $summary];
+}
     private function formatProject(ProjectModel $project): array
     {
         return [

@@ -83,8 +83,8 @@ export default function SidebarMenuItems({ role, dropdowns, toggleDropdown, onCl
           // Phase One & Two visible to staff and rpmo (and rd if needed)
           ...(role === 'staff' || role === 'rpmo' || role === 'au'
             ? [
-                { label: 'Phase One', href: '/implementation', icon: <Hammer size={16} /> },
-                { label: 'Phase Two', href: '/refunds', icon: <HandCoins size={16} /> },
+                { label: 'Implementation', href: '/implementation', icon: <Hammer size={16} /> },
+                { label: 'Refund', href: '/refunds', icon: <HandCoins size={16} /> },
               ]
             : []),
 

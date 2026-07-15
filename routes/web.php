@@ -223,8 +223,13 @@ Route::middleware(['log-suspicious'])->group(function () {
         Route::post('/refunds/remove-payment', [RefundController::class, 'removePayment']);
         Route::post('/refunds/update-payment', [RefundController::class, 'updatePayment'])->name('refunds.update-payment');
         Route::get('/refunds/export-csv', [RefundController::class, 'exportCsv'])->name('refunds.export-csv');
+        // Project details update
+        Route::post('/refunds/update-project', [RefundController::class, 'updateProject'])->name('refunds.update-project');
+        // Add refund month
+        Route::post('/refunds/add-months', [RefundController::class, 'addMonths'])->name('refunds.add-months');
+        // Delete refund month
+        Route::post('/refunds/delete-month', [RefundController::class, 'deleteRefundMonth'])->name('refunds.delete-month');
     });
-
     //  RPMO ONLY (Save + Bulk Update)
     Route::middleware(['auth', 'role:rpmo,au'])->group(function () {
         Route::post('/refunds/save', [RefundController::class, 'save']);
