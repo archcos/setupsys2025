@@ -31,7 +31,7 @@ import RefundTableRow from "./components/RefundTableRow";
 import RefundMobileCard from "./components/RefundMobileCard";
 import RefundPagination from "./components/RefundPagination";
 import UnpaidMonthsWarningModal from "./components/UnpaidMonthsWarningModal";
-import ExportCsvModal from "./components/ExportCsvModal";
+import ExportCsvModal from "./components/ExportCSVModal";
 import { useRefundData } from "./hooks/useRefundData";
 import AllProjectsRow from "./components/AllProjectsRow";
 import AllProjectsMobileCard from "./components/AllProjectsMobileCard";
