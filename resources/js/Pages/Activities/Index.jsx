@@ -1,8 +1,8 @@
-import { Link, router, Head } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { Link, router, Head, usePage } from '@inertiajs/react';
+import { useState, useRef, useEffect } from 'react';
 import { Plus, Search, Calendar, Eye, Edit3, Trash2, Activity, Building2, X, AlertCircle, SquareKanban, Hand, Building, Hash, ClipboardList } from 'lucide-react';
 import PaginationLinks from '@/components/PaginationLinks';
-
+import { cleanParams } from '@/utils/cleanParams';
 
 export default function Index({ activities, filters }) {
   const [search, setSearch] = useState(filters?.search || '');
@@ -11,13 +11,44 @@ export default function Index({ activities, filters }) {
   const [activityToDelete, setActivityToDelete] = useState(null);
   const [showActivitiesModal, setShowActivitiesModal] = useState(false);
   const [selectedProjectActivities, setSelectedProjectActivities] = useState(null);
+  const { auth } = usePage().props;
+  const role = auth?.user?.role;
+  
+  const filterTimeoutRef = useRef(null);
+  const isMountedRef = useRef(false);
 
+  const pushRouter = (overrides = {}) => {
+    router.get(
+      '/activities',
+      cleanParams(
+        { search, perPage, ...overrides },
+        { perPage: 10 }
+      ),
+      { preserveState: true, preserveScroll: true, replace: true }
+    );
+  };
+
+  // Mount guard - prevents initial push
   useEffect(() => {
-    const delaySearch = setTimeout(() => {
-      router.get('/activities', { search }, { preserveState: true, replace: true });
+    const timer = setTimeout(() => { isMountedRef.current = true; }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
+    filterTimeoutRef.current = setTimeout(() => {
+      pushRouter({ page: 1 });
     }, 400);
-    return () => clearTimeout(delaySearch);
+    return () => { if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current); };
   }, [search]);
+
+  // Immediate perPage change
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    pushRouter({ page: 1 });
+  }, [perPage]);
 
   useEffect(() => {
     const handleEsc = (e) => {
@@ -46,7 +77,7 @@ export default function Index({ activities, filters }) {
   const handlePerPageChange = (e) => {
     const newPerPage = e.target.value;
     setPerPage(newPerPage);
-    router.get('/activities', { search, perPage: newPerPage }, { preserveScroll: true, preserveState: true });
+    pushRouter({ perPage: newPerPage, page: 1 });
   };
 
   const openActivitiesModal = (projectId, group) => {
@@ -60,8 +91,9 @@ export default function Index({ activities, filters }) {
   };
 
   const formatMonthYear = (dateStr) => {
-    if (!dateStr) return '';
+    if (!dateStr) return 'N/A';
     const date = new Date(dateStr);
+    if (isNaN(date)) return 'Invalid date';
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
   };
 

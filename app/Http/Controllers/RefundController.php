@@ -1461,7 +1461,7 @@ private function recalculateProjectDateBounds(ProjectModel $project): void
                 if ($status !== 'unpaid') {
                     $runningBalance -= $paymentAmount;
                 }               
-                 
+
                 // Merge A-B: Due Date
                 $sheet->mergeCells("A{$currentRow}:B{$currentRow}");
                 $sheet->setCellValue("A{$currentRow}", $row['due_date']);
@@ -2022,86 +2022,149 @@ public function updatePayment()
 
     // ── User-facing refund list ───────────────────────────────────────────────
 
-    public function userRefunds()
-    {
-        $userId = Auth::id();
-        $search = request('search');
-        $year = request('year');
+public function userRefunds()
+{
+    $userId = Auth::id();
+    $search = request('search');
+    $year = request('year');
 
-        $projects = ProjectModel::with(['proponent', 'refunds'])
-            ->whereHas('proponent', fn ($q) => $q->where('added_by', $userId))
-            ->when($search, function ($query, $search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('project_title', 'like', "%{$search}%")
-                        ->orWhereHas('proponent', fn ($q) => $q->where('company_name', 'like', "%{$search}%"));
-                });
-            })
-            ->when($year, fn ($query, $year) => $query->where('year_obligated', $year))
-            ->get()
-            ->map(function ($project) {
-                $totalRefund = $project->refunds
-                    ->whereIn('status', ['paid', 'partial'])
-                    ->sum(fn ($r) => $this->sumPayments($r->payments));
+    $projects = ProjectModel::with(['proponent', 'refunds'])
+        ->whereHas('proponent', fn ($q) => $q->where('added_by', $userId))
+        ->when($search, function ($query, $search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('project_title', 'like', "%{$search}%")
+                    ->orWhereHas('proponent', fn ($q) => $q->where('company_name', 'like', "%{$search}%"));
+            });
+        })
+        ->when($year, fn ($query, $year) => $query->where('year_obligated', $year))
+        ->get()
+        ->map(function ($project) {
+            $months = [];
+            $totalPaid = 0;
+            $totalOutstanding = 0;
+            $nextPaymentAmount = null;
+            $today = Carbon::now()->startOfMonth();
 
-                $months = [];
-                $nextPaymentAmount = null;
-                $today = Carbon::now()->startOfMonth();
+            if ($project->refund_initial && $project->refund_end) {
+                $start = Carbon::parse($project->refund_initial)->startOfMonth();
+                $end = Carbon::parse($project->refund_end)->startOfMonth();
 
-                if ($project->refund_initial && $project->refund_end) {
-                    $start = Carbon::parse($project->refund_initial);
-                    $end = Carbon::parse($project->refund_end);
-
-                    while ($start <= $end) {
-                        $monthRefund = $project->refunds
-                            ->where('month_paid', $start->format('Y-m-d'))
-                            ->first();
-
-                        if ($monthRefund) {
-                            $refundAmount = $this->sumPayments($monthRefund->payments);
-                            $status = $monthRefund->status;
-                        } else {
-                            $refundAmount = $this->getRefundAmountForMonth($project, $start);
-                            $status = 'unpaid';
-                        }
-
-                        $months[] = [
-                            'month' => $start->format('F Y'),
-                            'refund_amount' => $refundAmount,
-                            'status' => strtolower($status),
-                        ];
-
-                        if ($nextPaymentAmount === null && $status !== 'paid' && $start >= $today) {
-                            $nextPaymentAmount = $refundAmount;
-                        }
-
-                        $start->addMonth();
+                // Build a lookup of refunds keyed by month
+                $refundLookup = [];
+                foreach ($project->refunds as $refund) {
+                    if ($refund->month_paid) {
+                        $key = $refund->month_paid instanceof \Carbon\Carbon 
+                            ? $refund->month_paid->format('Y-m-d')
+                            : Carbon::parse($refund->month_paid)->format('Y-m-d');
+                        $refundLookup[$key] = $refund;
                     }
                 }
 
-                return [
-                    'project_id' => $project->project_id,
-                    'project_title' => $project->project_title,
-                    'proponent' => $project->proponent->company_name ?? '-',
-                    'project_cost' => $project->project_cost,
-                    'total_refund' => $totalRefund,
-                    'outstanding_balance' => $project->project_cost - $totalRefund,
-                    'months' => $months,
-                    'next_payment' => $nextPaymentAmount ?? 0,
-                ];
-            });
+                while ($start->lte($end)) {
+                    $monthKey = $start->format('Y-m-d');
+                    $monthRefund = $refundLookup[$monthKey] ?? null;
 
-        $years = ProjectModel::whereHas('proponent', fn ($q) => $q->where('added_by', $userId))
-            ->select('year_obligated')
-            ->distinct()
-            ->pluck('year_obligated');
+                    if ($monthRefund) {
+                        $status = $monthRefund->status;
+                        
+                        $amountDue = (float) ($monthRefund->amount_due ?? 0);
+                        if ($amountDue <= 0 && $status !== 'restructured') {
+                            $amountDue = $this->getRefundAmountForMonth($project, $start);
+                        }
 
-        return Inertia::render('Refunds/UserIndex', [
-            'projects' => $projects,
-            'search' => $search,
-            'years' => $years,
-            'selectedYear' => $year,
-        ]);
-    }
+                        $payments = $monthRefund->payments ?? [];
+                        $amountPaid = $this->sumPayments($payments, true);
+
+                        // ── Format payment details ──
+                        $paymentDetails = [];
+                        foreach ($payments as $payment) {
+                            $paymentDetails[] = [
+                                'amount' => (float) ($payment['amount'] ?? 0),
+                                'bank_name' => $payment['bank_name'] ?? null,
+                                'check_num' => $payment['check_num'] ?? null,
+                                'check_date' => $payment['check_date'] ?? null,
+                                'receipt_num' => $payment['receipt_num'] ?? null,
+                                'receipt_date' => $payment['receipt_date'] ?? null,
+                                'remarks' => $payment['remarks'] ?? null,
+                            ];
+                        }
+
+                        if (in_array($status, ['paid', 'partial']) && $amountPaid > 0) {
+                            $displayAmount = $amountPaid;
+                        } else {
+                            $displayAmount = $amountDue;
+                        }
+
+                        if (in_array($status, ['paid', 'partial'])) {
+                            $totalPaid += $amountPaid;
+                        }
+                        
+                        if ($status === 'restructured') {
+                            // No outstanding
+                        } elseif ($status === 'paid') {
+                            // Fully paid
+                        } elseif ($status === 'partial') {
+                            $totalOutstanding += max(0, $amountDue - $amountPaid);
+                        } else {
+                            $totalOutstanding += $amountDue;
+                        }
+
+                    } else {
+                        $status = 'unpaid';
+                        $amountDue = $this->getRefundAmountForMonth($project, $start);
+                        $amountPaid = 0;
+                        $displayAmount = $amountDue;
+                        $paymentDetails = [];
+                        $totalOutstanding += $amountDue;
+                    }
+
+                    $months[] = [
+                        'month' => $start->format('F Y'),
+                        'month_date' => $monthKey,
+                        'refund_amount' => $displayAmount,
+                        'amount_due' => $amountDue,
+                        'amount_paid' => $amountPaid ?? 0,
+                        'status' => $status,
+                        'is_past' => $start->lt($today),
+                        'payments' => $paymentDetails ?? [], // Include payment details
+                    ];
+
+                    if ($nextPaymentAmount === null && $status !== 'paid' && $start->gte($today)) {
+                        $nextPaymentAmount = $amountDue;
+                    }
+
+                    $start->addMonth();
+                }
+            }
+
+            $outstandingBalance = max(0, (float) ($project->project_cost ?? 0) - $totalPaid);
+
+            return [
+                'project_id' => $project->project_id,
+                'project_title' => $project->project_title,
+                'proponent' => $project->proponent->company_name ?? '-',
+                'project_cost' => (float) ($project->project_cost ?? 0),
+                'total_refund' => $totalPaid,
+                'outstanding_balance' => $outstandingBalance,
+                'months' => $months,
+                'next_payment' => $nextPaymentAmount ?? 0,
+            ];
+        });
+
+    $years = ProjectModel::whereHas('proponent', fn ($q) => $q->where('added_by', $userId))
+        ->select('year_obligated')
+        ->whereNotNull('year_obligated')
+        ->distinct()
+        ->orderByDesc('year_obligated')
+        ->pluck('year_obligated');
+
+    return Inertia::render('Refunds/UserIndex', [
+        'projects' => $projects,
+        'search' => $search,
+        'years' => $years,
+        'selectedYear' => $year,
+    ]);
+}
 
     // ── Bulk update ───────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { useState } from 'react';
-import { FolderOpen, Building2, Package, Activity, Eye, X, Calendar, PhilippinePeso } from 'lucide-react';
+import { FolderOpen, Building2, Package, Activity, Eye, X, Calendar, PhilippinePeso, MapPin, Users } from 'lucide-react';
 
 export default function ProjectList({ projects }) {
   const [showModal, setShowModal] = useState(false);
@@ -102,8 +102,20 @@ export default function ProjectList({ projects }) {
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Year Obligated
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
                       <PhilippinePeso className="w-4 h-4" />
                       Project Cost
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4" />
+                      Status
                     </div>
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -130,7 +142,7 @@ export default function ProjectList({ projects }) {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm text-gray-700">{project.company?.company_name || 'N/A'}</span>
+                      <span className="text-sm text-gray-700">{project.proponent?.company_name || 'N/A'}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-gray-700">{formatPhase(project.release_initial, project.release_end)}</span>
@@ -139,13 +151,28 @@ export default function ProjectList({ projects }) {
                       <span className="text-sm text-gray-700">{formatPhase(project.refund_initial, project.refund_end)}</span>
                     </td>
                     <td className="px-6 py-4">
+                      <span className="text-sm text-gray-700">{project.year_obligated || 'N/A'}</span>
+                    </td>
+                    <td className="px-6 py-4">
                       <span className="text-sm font-semibold text-gray-900">{formatCurrency(project.project_cost)}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        project.progress === 'Completed' ? 'bg-green-100 text-green-800' :
+                        project.progress === 'Implementation' ? 'bg-blue-100 text-blue-800' :
+                        project.progress === 'Refund' ? 'bg-purple-100 text-purple-800' :
+                        project.progress === 'Approved' ? 'bg-indigo-100 text-indigo-800' :
+                        project.progress === 'Disapproved' || project.progress === 'Withdrawn' || project.progress === 'Terminated' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {project.progress || 'N/A'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => openModal(project)}
                         className="inline-flex items-center gap-2 px-3 py-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200 font-medium text-sm"
-                        title="View Items"
+                        title="View Details"
                       >
                         <Eye className="w-4 h-4" />
                         View
@@ -169,7 +196,7 @@ export default function ProjectList({ projects }) {
                     <p className="text-sm font-semibold text-gray-900">{project.project_title}</p>
                     <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
                       <Building2 className="w-3 h-3 flex-shrink-0" />
-                      {project.company?.company_name || 'N/A'}
+                      {project.proponent?.company_name || 'N/A'}
                     </p>
                   </div>
                 </div>
@@ -182,13 +209,21 @@ export default function ProjectList({ projects }) {
                     <p className="text-xs text-gray-500 mb-0.5">Project Cost</p>
                     <p className="text-xs font-semibold text-gray-900">{formatCurrency(project.project_cost)}</p>
                   </div>
+                  <div className="bg-green-50 rounded-lg p-2.5">
+                    <p className="text-xs text-gray-500 mb-0.5">Year Obligated</p>
+                    <p className="text-xs font-medium text-gray-900">{project.year_obligated || 'N/A'}</p>
+                  </div>
+                  <div className="bg-orange-50 rounded-lg p-2.5">
+                    <p className="text-xs text-gray-500 mb-0.5">Status</p>
+                    <p className="text-xs font-medium text-gray-900">{project.progress || 'N/A'}</p>
+                  </div>
                 </div>
                 <button
                   onClick={() => openModal(project)}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 text-sm font-medium transition-all"
                 >
                   <Eye className="w-4 h-4" />
-                  View Items
+                  View Details
                 </button>
               </div>
             ))}
@@ -198,7 +233,7 @@ export default function ProjectList({ projects }) {
           <div className="px-4 md:px-8 py-3 md:py-4 bg-gradient-to-r from-gray-50 to-gray-50/50 border-t border-gray-200">
             <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
               <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></div>
-              <span>Click View to see project items</span>
+              <span>Click View to see project details and items</span>
             </div>
           </div>
         </div>
@@ -210,7 +245,7 @@ export default function ProjectList({ projects }) {
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
           onClick={(e) => e.target === e.currentTarget && closeModal()}
         >
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-gray-50 to-white p-4 md:p-6 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -220,7 +255,7 @@ export default function ProjectList({ projects }) {
                 <div className="min-w-0">
                   <h3 className="text-lg font-semibold text-gray-900 truncate">{selectedProject.project_title}</h3>
                   <p className="text-sm text-gray-500">
-                    {selectedProject.items?.length || 0} item{(selectedProject.items?.length || 0) !== 1 ? 's' : ''}
+                    {selectedProject.proponent?.company_name || 'N/A'} • {selectedProject.year_obligated || 'N/A'}
                   </p>
                 </div>
               </div>
@@ -233,47 +268,103 @@ export default function ProjectList({ projects }) {
             </div>
 
             {/* Modal Body */}
-            <div className="overflow-y-auto flex-1">
-              {selectedProject.items?.length > 0 ? (
-                <table className="w-full">
-                  <thead className="sticky top-0">
-                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Item Name</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Specifications</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Qty</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cost</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {selectedProject.items.map((item, index) => (
-                      <tr
-                        key={item.item_id}
-                        className={`hover:bg-blue-50/40 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
-                      >
-                        <td className="px-5 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-blue-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-                              {index + 1}
-                            </div>
-                            <span className="text-sm font-medium text-gray-900">{item.item_name}</span>
-                          </div>
-                        </td>
-                        <td className="px-5 py-3 text-sm text-gray-600">{item.specifications || '—'}</td>
-                        <td className="px-5 py-3 text-sm text-gray-700">{item.quantity}</td>
-                        <td className="px-5 py-3 text-sm font-semibold text-green-600">{formatCurrency(item.item_cost)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="text-center py-16 px-4">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Package className="w-8 h-8 text-gray-400" />
+            <div className="overflow-y-auto flex-1 p-4 md:p-6">
+              {/* Project Details Section */}
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <Activity className="w-4 h-4" />
+                  Project Details
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500">Project Code</p>
+                    <p className="text-sm font-medium text-gray-900">{selectedProject.project_id}</p>
                   </div>
-                  <h4 className="text-base font-medium text-gray-900 mb-1">No items found</h4>
-                  <p className="text-sm text-gray-500">This project has no items assigned</p>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500">Status</p>
+                    <p className="text-sm font-medium text-gray-900">{selectedProject.progress || 'N/A'}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500">Project Cost</p>
+                    <p className="text-sm font-semibold text-green-600">{formatCurrency(selectedProject.project_cost)}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500">Year Obligated</p>
+                    <p className="text-sm font-medium text-gray-900">{selectedProject.year_obligated || 'N/A'}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500">Fund Release Period</p>
+                    <p className="text-sm font-medium text-gray-900">{formatPhase(selectedProject.release_initial, selectedProject.release_end)}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500">Refund Schedule</p>
+                    <p className="text-sm font-medium text-gray-900">{formatPhase(selectedProject.refund_initial, selectedProject.refund_end)}</p>
+                  </div>
+                  {selectedProject.proponent && (
+                    <>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-xs text-gray-500">Company</p>
+                        <p className="text-sm font-medium text-gray-900">{selectedProject.proponent.company_name}</p>
+                      </div>
+                      {selectedProject.proponent.office && (
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-xs text-gray-500">Office</p>
+                          <p className="text-sm font-medium text-gray-900">{selectedProject.proponent.office.office_name}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-              )}
+              </div>
+
+              {/* Items Section */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <Package className="w-4 h-4" />
+                  Project Items
+                </h4>
+                {selectedProject.items?.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                          <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">#</th>
+                          <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Item Name</th>
+                          <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Specifications</th>
+                          <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Qty</th>
+                          <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Cost</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {selectedProject.items.map((item, index) => (
+                          <tr
+                            key={item.item_id}
+                            className={`hover:bg-blue-50/40 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                          >
+                            <td className="px-4 py-2">
+                              <div className="w-6 h-6 rounded-lg bg-blue-500 text-white text-xs font-bold flex items-center justify-center">
+                                {index + 1}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2 text-sm font-medium text-gray-900">{item.item_name}</td>
+                            <td className="px-4 py-2 text-sm text-gray-600">{item.specifications || '—'}</td>
+                            <td className="px-4 py-2 text-sm text-gray-700">{item.quantity}</td>
+                            <td className="px-4 py-2 text-sm font-semibold text-green-600">{formatCurrency(item.item_cost)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 px-4">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Package className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <h4 className="text-base font-medium text-gray-900 mb-1">No items found</h4>
+                    <p className="text-sm text-gray-500">This project has no items assigned</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
