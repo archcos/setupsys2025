@@ -61,7 +61,7 @@ function FilePreviewModal({ preview, onClose }) {
 export default function Index({ moas, filters, years, offices }) {
   const [search, setSearch] = useState(filters?.search || '');
   const [perPage, setPerPage] = useState(filters?.perPage || 10);
-  const [sortBy, setSortBy] = useState(filters?.sortBy || 'created_at');
+  const [sortBy, setSortBy] = useState(filters?.sortBy || 'project_id'); // Changed default from 'created_at' to 'project_id'
   const [sortOrder, setSortOrder] = useState(filters?.sortOrder || 'desc');
   const [officeFilter, setOfficeFilter] = useState(filters?.officeFilter || '');
   const [yearFilter, setYearFilter] = useState(filters?.yearFilter || '');
@@ -85,7 +85,7 @@ export default function Index({ moas, filters, years, offices }) {
     router.get('/moa',
       cleanParams(
         { search, perPage, sortBy, sortOrder, officeFilter, yearFilter, ...overrides },
-        { perPage: 10, sortBy: 'created_at', sortOrder: 'desc' }
+        { perPage: 10, sortBy: 'project_id', sortOrder: 'desc' } // Changed default from 'created_at' to 'project_id'
       ),
       { preserveState: true, preserveScroll: true, replace: true }
     );
@@ -130,6 +130,8 @@ export default function Index({ moas, filters, years, offices }) {
     setOfficeFilter('');
     setYearFilter('');
     setPerPage(10);
+    setSortBy('project_id'); // Reset to default sort
+    setSortOrder('desc');
     router.get('/moa', {}, { preserveState: true, replace: true });
   };
 
@@ -158,7 +160,7 @@ export default function Index({ moas, filters, years, offices }) {
   const formatCurrency = (amount) => `₱${parseFloat(amount).toLocaleString()}`;
 
   const getSortIcon = (column) => (
-    <ArrowUpDown className={`w-3 h-3 ${sortBy === column ? '' : 'text-gray-400'}`} />
+    <ArrowUpDown className={`w-3 h-3 ${sortBy === column ? 'text-blue-600' : 'text-gray-400'}`} />
   );
 
   
@@ -281,7 +283,9 @@ export default function Index({ moas, filters, years, offices }) {
               <thead>
                 <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <div className="flex items-center gap-2"><Hash className="w-4 h-4" /> PROJECT CODE</div>
+                    <button onClick={() => handleSort('project_id')} className="flex items-center gap-2 hover:text-blue-600 transition-colors">
+                      <Hash className="w-4 h-4" /> PROJECT CODE {getSortIcon('project_id')}
+                    </button>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     <button onClick={() => handleSort('project_cost')} className="flex items-center gap-2 hover:text-blue-600 transition-colors">

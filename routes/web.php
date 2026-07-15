@@ -127,9 +127,11 @@ Route::middleware(['log-suspicious'])->group(function () {
 
         // New routes for approved file management
         Route::post('/moa/{moa_id}/upload-approved', [MOAController::class, 'uploadApprovedFile'])->name('moa.upload.approved');
-        Route::get('/moa/{moa_id}/download-approved', [MOAController::class, 'downloadApprovedFile'])->name('moa.download.approved');
-
         Route::put('/projects/{id}/progress', [ProjectController::class, 'updateProgress'])->middleware('role:staff');
+    });
+
+    Route::middleware(['auth', 'role:staff,rpmo,user'])->group(function () {
+        Route::get('/moa/{moa_id}/download-approved', [MOAController::class, 'downloadApprovedFile'])->name('moa.download.approved');
     });
 
     // APPROVAL

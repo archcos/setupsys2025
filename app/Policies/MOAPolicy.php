@@ -38,7 +38,7 @@ class MOAPolicy
         return false;
     }
 
-    public function viewApprovedFile(UserModel $user, MoaModel $moa): bool  // ← ADD THIS
+    public function viewApprovedFile(UserModel $user, MoaModel $moa): bool
     {
         if ($user->role === 'rpmo') {
             return true;
@@ -46,6 +46,11 @@ class MOAPolicy
 
         if ($user->role === 'staff') {
             return $user->office_id === $moa->project->company->office_id;
+        }
+
+        // Allow users to view if the proponent was added by them
+        if ($user->role === 'user') {
+            return $moa->project->proponent->added_by === $user->user_id;
         }
 
         return false;
@@ -72,6 +77,11 @@ class MOAPolicy
 
         if ($user->role === 'staff') {
             return $user->office_id === $moa->project->company->office_id;
+        }
+
+        // Allow users to download if the proponent was added by them
+        if ($user->role === 'user') {
+            return $moa->project->proponent->added_by === $user->user_id;
         }
 
         return false;

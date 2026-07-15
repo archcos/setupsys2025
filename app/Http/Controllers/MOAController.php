@@ -42,32 +42,7 @@ class MOAController extends Controller
      * Validate that a MOA has an approved file and it exists on disk.
      * Returns the validated file path or throws an exception.
      */
-    private function validateApprovedFile(MoaModel $moa): string
-    {
-        if (!$moa->hasApprovedFile()) {
-            throw new \RuntimeException('No approved file found for this MOA.');
-        }
 
-        $filePath = $this->getApprovedFilePath($moa);
-
-        if (!file_exists($filePath)) {
-            throw new \RuntimeException('File not found on server.');
-        }
-
-        // Security: Ensure path doesn't escape storage directory
-        $realPath = realpath($filePath);
-        $storagePath = realpath(storage_path('app/private'));
-
-        if (!$realPath || !str_starts_with($realPath, $storagePath)) {
-            Log::warning('Potential path traversal detected', [
-                'moa_id' => $moa->moa_id,
-                'user_id' => Auth::id(),
-            ]);
-            throw new \RuntimeException('Invalid file path detected.');
-        }
-
-        return $filePath;
-    }
 
     /**
      * Sanitize a string for safe use in filenames.
@@ -198,14 +173,14 @@ class MOAController extends Controller
     private function buildMoaBaseQuery(Request $request, $user)
     {
         $search = $request->input('search', '');
-        $sortBy = $request->input('sortBy', 'created_at');
+        $sortBy = $request->input('sortBy', 'project_id');
         $sortOrder = $request->input('sortOrder', 'desc');
         $officeFilter = $request->input('officeFilter', '');
         $yearFilter = $request->input('yearFilter', '');
 
-        $validSortColumns = ['created_at', 'project_cost', 'owner_name', 'pd_name'];
+        $validSortColumns = ['created_at', 'project_cost', 'owner_name', 'pd_name', 'project_id'];
         if (!in_array($sortBy, $validSortColumns)) {
-            $sortBy = 'created_at';
+            $sortBy = 'project_id';
         }
 
         $sortOrder = strtoupper($sortOrder) === 'ASC' ? 'asc' : 'desc';
@@ -301,7 +276,7 @@ class MOAController extends Controller
         $user = Auth::user();
         $perPage = $request->input('perPage', 10);
         $search = $request->input('search', '');
-        $sortBy = $request->input('sortBy', 'created_at');
+        $sortBy = $request->input('sortBy', 'project_id');
         $sortOrder = $request->input('sortOrder', 'desc');
         $officeFilter = $request->input('officeFilter', '');
         $yearFilter = $request->input('yearFilter', '');
@@ -336,69 +311,86 @@ class MOAController extends Controller
     /**
      * Upload an approved MOA file (PDF).
      */
-    public function uploadApprovedFile(Request $request, $moa_id)
-    {
-        $moa = MoaModel::with('project.proponent')->findOrFail($moa_id);
-        $this->authorize('uploadApprovedFile', $moa);
+public function uploadApprovedFile(Request $request, $moa_id)
+{
+    $moa = MoaModel::with('project.proponent')->findOrFail($moa_id);
+    $this->authorize('uploadApprovedFile', $moa);
 
-        $validator = $this->validatePdfUpload($request);
+    $validator = $this->validatePdfUpload($request);
 
-        if ($validator->fails()) {
-            return back()->withErrors($validator)->withInput();
-        }
-
-        try {
-            $file = $request->file('approved_file');
-            $extension = $file->getClientOriginalExtension();
-            $fileName = $this->generateMoaFileName($moa, $extension);
-
-            $currentYear = now()->year;
-            $projectId = $moa->project_id;
-            $oldFilePath = $moa->approved_file_path;
-
-            // Store file locally
-            $localFolderPath = "{$currentYear}/{$projectId}/moa";
-            $path = $file->storeAs($localFolderPath, $fileName, 'private');
-
-            if (!$path) {
-                throw new \Exception('Failed to store file on local storage.');
-            }
-
-            // Backup to Supabase (non-blocking)
-            $localFilePath = storage_path("app/private/{$path}");
-            $this->backupToSupabase($localFilePath, $fileName, $moa);
-
-            // Update database
-            $isReupload = !empty($oldFilePath);
-            $moa->update([
-                'approved_file_path' => $path,
-                'approved_file_uploaded_at' => now(),
-                'approved_by' => Auth::id(),
-            ]);
-
-            // Send notifications
-            $actionType = $isReupload ? 'reuploaded' : 'uploaded';
-            $this->notifyOfficeUsers($moa, $actionType);
-
-            $successMessage = $isReupload
-                ? 'Approved MOA file reuploaded successfully.'
-                : 'Approved MOA file uploaded successfully.';
-
-            return back()->with('success', $successMessage);
-        } catch (\Exception $e) {
-            Log::error('MOA Upload Failed', [
-                'moa_id' => $moa_id,
-                'user_id' => Auth::id(),
-                'error' => $e->getMessage(),
-            ]);
-
-            $errorMessage = config('app.debug')
-                ? 'Failed to upload file: '.$e->getMessage()
-                : 'Failed to upload file. Please try again or contact support.';
-
-            return back()->withErrors(['error' => $errorMessage]);
-        }
+    if ($validator->fails()) {
+        return back()->withErrors($validator)->withInput();
     }
+
+    try {
+        $file = $request->file('approved_file');
+        $extension = $file->getClientOriginalExtension();
+        
+        // Add unique ID to filename to avoid conflicts
+        $fileName = $this->generateMoaFileName($moa, $extension);
+        $uniqueFileName = uniqid() . '_' . $fileName;
+
+        $currentYear = now()->year;
+        $projectId = $moa->project_id;
+        $oldFilePath = $moa->approved_file_path;
+
+        // Store file locally
+        $localFolderPath = "{$currentYear}/{$projectId}/moa";
+        $path = $file->storeAs($localFolderPath, $uniqueFileName, 'private');
+
+        if (!$path) {
+            throw new \Exception('Failed to store file on local storage.');
+        }
+
+        // Delete old file if exists
+        if ($oldFilePath) {
+            $oldFullPath = storage_path("app/private/{$oldFilePath}");
+            if (file_exists($oldFullPath)) {
+                unlink($oldFullPath);
+                Log::info('Deleted old MOA file', ['path' => $oldFullPath]);
+            }
+        }
+
+        // Backup to Supabase (non-blocking)
+        $localFilePath = storage_path("app/private/{$path}");
+        $this->backupToSupabase($localFilePath, $uniqueFileName, $moa);
+
+        // Update database
+        $isReupload = !empty($oldFilePath);
+        $moa->approved_file_path = $path;
+        $moa->approved_file_uploaded_at = now();
+        $moa->approved_by = Auth::id();
+        $moa->save();
+
+        Log::info('MOA file updated in database', [
+            'moa_id' => $moa_id,
+            'new_path' => $path,
+            'file_exists' => file_exists($localFilePath),
+        ]);
+
+        // Send notifications
+        $actionType = $isReupload ? 'reuploaded' : 'uploaded';
+        $this->notifyOfficeUsers($moa, $actionType);
+
+        $successMessage = $isReupload
+            ? 'Approved MOA file reuploaded successfully.'
+            : 'Approved MOA file uploaded successfully.';
+
+        return back()->with('success', $successMessage);
+    } catch (\Exception $e) {
+        Log::error('MOA Upload Failed', [
+            'moa_id' => $moa_id,
+            'user_id' => Auth::id(),
+            'error' => $e->getMessage(),
+        ]);
+
+        $errorMessage = config('app.debug')
+            ? 'Failed to upload file: '.$e->getMessage()
+            : 'Failed to upload file. Please try again or contact support.';
+
+        return back()->withErrors(['error' => $errorMessage]);
+    }
+}
 
     /**
      * View an approved MOA file inline in the browser.
@@ -423,20 +415,85 @@ class MOAController extends Controller
     /**
      * Download an approved MOA file.
      */
-    public function downloadApprovedFile($moa_id)
-    {
-        $moa = MoaModel::findOrFail($moa_id);
+
+public function downloadApprovedFile($moa_id)
+{
+    try {
+        $moa = MoaModel::with('project.proponent')->findOrFail($moa_id);
+        
+        // This will use the policy above
         $this->authorize('downloadApprovedFile', $moa);
 
-        try {
-            $filePath = $this->validateApprovedFile($moa);
-            $fileName = basename($moa->approved_file_path);
-
-            return response()->download($filePath, $fileName);
-        } catch (\RuntimeException $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
+        // Check if MOA has an approved file
+        if (!$moa->hasApprovedFile()) {
+            return back()->withErrors(['error' => 'No approved file found for this MOA.']);
         }
+
+        $filePath = $this->validateApprovedFile($moa);
+        $fileName = basename($moa->approved_file_path);
+
+        return response()->download($filePath, $fileName);
+
+    } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        Log::warning('Unauthorized MOA download attempt', [
+            'moa_id' => $moa_id,
+            'user_id' => Auth::id(),
+            'user_role' => Auth::user()->role ?? 'unknown',
+        ]);
+        return back()->withErrors(['error' => 'You do not have permission to download this file.']);
+        
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        Log::warning('MOA not found for download', [
+            'moa_id' => $moa_id,
+            'user_id' => Auth::id(),
+        ]);
+        return back()->withErrors(['error' => 'MOA record not found.']);
+        
+    } catch (\RuntimeException $e) {
+        Log::error('MOA download error: ' . $e->getMessage(), [
+            'moa_id' => $moa_id,
+            'user_id' => Auth::id(),
+        ]);
+        return back()->withErrors(['error' => $e->getMessage()]);
+        
+    } catch (\Exception $e) {
+        Log::error('Unexpected error during MOA download: ' . $e->getMessage(), [
+            'moa_id' => $moa_id,
+            'user_id' => Auth::id(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+        return back()->withErrors(['error' => 'An unexpected error occurred. Please try again.']);
     }
+}
+
+private function validateApprovedFile(MoaModel $moa): string
+{
+    if (!$moa->hasApprovedFile()) {
+        throw new \RuntimeException('No approved file found for this MOA.');
+    }
+
+    $filePath = $this->getApprovedFilePath($moa);
+
+    if (!file_exists($filePath)) {
+        throw new \RuntimeException('The approved file could not be found on the server. Please contact support.');
+    }
+
+    // Security: Ensure path doesn't escape storage directory
+    $realPath = realpath($filePath);
+    $storagePath = realpath(storage_path('app/private'));
+
+    if (!$realPath || !str_starts_with($realPath, $storagePath)) {
+        Log::warning('Potential path traversal detected', [
+            'moa_id' => $moa->moa_id,
+            'user_id' => Auth::id(),
+            'file_path' => $moa->approved_file_path,
+        ]);
+        throw new \RuntimeException('Invalid file path detected. This incident has been logged.');
+    }
+
+    return $filePath;
+}
+
 
     /**
      * Show the form for creating a new MOA draft.

@@ -248,9 +248,12 @@ const SlidePanel = ({ project, onClose }) => {
                         <p className="text-xs text-gray-500 pl-6">Approved by: {moa.approved_by}</p>
                       )}
                       <div className="pl-6 pt-1">
-                        <Link href={`/moa/${moa.id}/download`} className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-colors">
+                        <a 
+                          href={`/moa/${moa.id}/download-approved`}
+                          className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-colors"
+                        >
                           <Download className="w-3.5 h-3.5" /> Download MOA
-                        </Link>
+                        </a>
                       </div>
                     </div>
                   ) : (
@@ -375,7 +378,7 @@ const SlidePanel = ({ project, onClose }) => {
                       <span className="text-xs sm:text-sm font-medium">All refunds completed</span>
                     </div>
                   ) : (
-                    <Link href={`/projects/${project.project_id}/refund`} className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-colors">
+                    <Link href={`/my-refunds`} className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-colors">
                       <ExternalLink className="w-3.5 h-3.5" /> Manage Refunds
                     </Link>
                   )}
@@ -492,7 +495,7 @@ const SlidePanel = ({ project, onClose }) => {
 const statCards = [
   { key: 'total', label: 'Total', icon: FolderOpen, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
   { key: 'active', label: 'Active', icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-  { key: 'completed', label: 'Done', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
+  { key: 'completed', label: 'Completed', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
   { key: 'withdrawn', label: 'Withdrawn', icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
   { key: 'terminated', label: 'Terminated', icon: Ban, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
   { key: 'attention', label: 'Attention', icon: AlertTriangle, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
@@ -543,7 +546,7 @@ export default function Dashboard() {
   const filterTabs = [
     { key: 'all', label: 'All', count: stats.total },
     { key: 'active', label: 'Active', count: stats.active },
-    { key: 'completed', label: 'Done', count: stats.completed },
+    { key: 'completed', label: 'Completed', count: stats.completed },
     { key: 'withdrawn', label: 'Withdrawn', count: stats.withdrawn },
     { key: 'terminated', label: 'Terminated', count: stats.terminated },
     { key: 'attention', label: 'Attention', count: stats.attention },
