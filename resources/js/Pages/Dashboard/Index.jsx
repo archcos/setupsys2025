@@ -245,7 +245,7 @@ const SlidePanel = ({ project, onClose }) => {
                         <p className="text-xs text-gray-500 pl-6">Uploaded on {formatDate(moa.approved_file_uploaded_at)}</p>
                       )}
                       {moa.approved_by && (
-                        <p className="text-xs text-gray-500 pl-6">Approved by: {moa.approved_by}</p>
+                        <p className="text-xs text-gray-500 pl-6">Uploaded by: {moa.approved_by}</p>
                       )}
                       <div className="pl-6 pt-1">
                         <a 
