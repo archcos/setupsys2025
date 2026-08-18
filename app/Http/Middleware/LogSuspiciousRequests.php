@@ -14,19 +14,51 @@ use Symfony\Component\HttpFoundation\Response;
 
 class LogSuspiciousRequests
 {
+    /**
+     * SQL injection detection patterns.
+     *
+     * These patterns intentionally avoid treating ordinary characters such as
+     * "--" and ";" as SQL injection by themselves, because they can legitimately
+     * occur in project descriptions, specifications, measurements, etc.
+     */
     protected $sqlInjectionPatterns = [
-        // Only match SQL keywords as complete words, not substrings
-        '/\b(UNION\s+SELECT|SELECT\s+.*\s+FROM|INSERT\s+INTO|UPDATE\s+.*\s+SET|DELETE\s+FROM|DROP\s+(TABLE|DATABASE)|TRUNCATE\s+TABLE|ALTER\s+(TABLE|DATABASE)|CREATE\s+(TABLE|DATABASE)|EXEC(\s|\(|UTE?\()) /ix',
-        // SQL comment/delimiter injection
-        '/(\';|--\s|#|\/\*|\*\/|xp_|sp_)/i',
-        // Logical operators used for SQL injection (only when in suspicious context)
-        '/\b(AND|OR)\b\s*(\'|"|\d+)\s*=\s*(\'|"|\d+)/i',
-        // Time-based injection patterns (only as complete words)
-        '/\b(SLEEP\s*\(|BENCHMARK\s*\(|WAITFOR\s+DELAY|DBMS_LOCK\.SLEEP\s*\()/i',
-        // Union-based injection
-        '/UNION\s+(ALL\s+)?SELECT\b/i',
+        // UNION-based SQL injection
+        '/\bUNION\s+(?:ALL\s+)?SELECT\b/i',
+
+        // SELECT ... FROM SQL injection
+        '/\bSELECT\s+.+?\s+\bFROM\b/i',
+
+        // INSERT ... INTO SQL injection
+        '/\bINSERT\s+INTO\b/i',
+
+        // UPDATE ... SET SQL injection
+        '/\bUPDATE\s+\S+\s+\bSET\b/i',
+
+        // DELETE ... FROM SQL injection
+        '/\bDELETE\s+FROM\b/i',
+
+        // Destructive/schema-changing SQL statements
+        '/\b(?:DROP|ALTER|CREATE|TRUNCATE)\s+(?:TABLE|DATABASE)\b/i',
+
+        // SQL execution procedures
+        '/\bEXEC(?:UTE)?\s*\(/i',
+
+        // Time-based SQL injection
+        '/\b(?:SLEEP|BENCHMARK)\s*\(/i',
+        '/\bWAITFOR\s+DELAY\b/i',
+        '/\bDBMS_LOCK\.SLEEP\s*\(/i',
+
+        // Boolean-based SQL injection with an explicit comparison
+        '/[\'"]\s*(?:OR|AND)\s+[\'"]?\d+[\'"]?\s*=\s*[\'"]?\d+/i',
+
+        // SQL comment syntax only when attached to a quoted value.
+        // This avoids flagging ordinary text such as "Type -- Semi-Hot".
+        '/[\'"]\s*(?:--|#|\/\*)/i',
     ];
 
+    /**
+     * XSS detection patterns.
+     */
     protected $xssPatterns = [
         '/<script[^>]*>.*?<\/script>/i',
         '/javascript:/i',
@@ -39,23 +71,40 @@ class LogSuspiciousRequests
     {
         $ip = $request->ip();
 
-        // Reject already-blocked IPs
+        /*
+         * Reject already-blocked IPs.
+         */
         $blocked = BlockedIp::where('ip', $ip)->first();
-        if ($blocked && $blocked->blocked_until && now()->lessThan($blocked->blocked_until)) {
+
+        if (
+            $blocked &&
+            $blocked->blocked_until &&
+            now()->lessThan($blocked->blocked_until)
+        ) {
             return response()->json([
                 'message' => 'Forbidden',
             ], 403);
         }
 
+        /*
+         * Collect request input and query string.
+         */
         $allInput = $request->all();
         $queryString = $request->getQueryString() ?? '';
+
         $inputValues = $this->flattenArray($allInput);
-        $allContent = trim(implode(' ', $inputValues) . ' ' . $queryString);
+
+        $allContent = trim(
+            implode(' ', $inputValues) . ' ' . $queryString
+        );
 
         $suspiciousContent = null;
         $alertType = null;
         $matchedPattern = null;
 
+        /*
+         * Check for SQL injection.
+         */
         foreach ($this->sqlInjectionPatterns as $pattern) {
             if (preg_match($pattern, $allContent, $matches)) {
                 $suspiciousContent = $allContent;
@@ -65,6 +114,9 @@ class LogSuspiciousRequests
             }
         }
 
+        /*
+         * If no SQL injection was detected, check for XSS.
+         */
         if (!$suspiciousContent) {
             foreach ($this->xssPatterns as $pattern) {
                 if (preg_match($pattern, $allContent, $matches)) {
@@ -76,12 +128,16 @@ class LogSuspiciousRequests
             }
         }
 
+        /*
+         * Suspicious request detected.
+         */
         if ($suspiciousContent) {
             $blockDuration = 24;
 
             $securityData = [
                 'ip_address' => $ip,
                 'user_id' => Auth::id() ?? 'Guest',
+
                 'before' => [
                     'method' => $request->method(),
                     'path' => $request->path(),
@@ -90,10 +146,14 @@ class LogSuspiciousRequests
                     'request_input' => $allInput,
                     'matched_pattern' => $matchedPattern,
                 ],
+
                 'user_agent' => $request->userAgent(),
             ];
 
             try {
+                /*
+                 * Block the IP for 24 hours.
+                 */
                 BlockedIp::updateOrCreate(
                     ['ip' => $ip],
                     [
@@ -102,6 +162,9 @@ class LogSuspiciousRequests
                     ]
                 );
 
+                /*
+                 * Record the security event in the application log.
+                 */
                 LogModel::create([
                     'user_id' => Auth::id(),
                     'action' => $alertType,
@@ -114,33 +177,53 @@ class LogSuspiciousRequests
                     'user_agent' => $request->userAgent(),
                 ]);
 
+                /*
+                 * Send security alert email.
+                 */
                 Mail::to(config('security.alert_emails'))->send(
-                    new SecurityAlertMail($alertType, $securityData, true)
+                    new SecurityAlertMail(
+                        $alertType,
+                        $securityData,
+                        true
+                    )
                 );
 
-                Log::warning("BLOCKED - {$alertType} from IP: {$ip} - Blocked for {$blockDuration} hours");
+                Log::warning(
+                    "BLOCKED - {$alertType} from IP: {$ip} - " .
+                    "Blocked for {$blockDuration} hours"
+                );
             } catch (\Exception $e) {
-                Log::error('Failed to process suspicious request: ' . $e->getMessage());
+                Log::error(
+                    'Failed to process suspicious request: ' .
+                    $e->getMessage()
+                );
             }
 
-            exit(); // Silently exit without returning anything
+            /*
+             * Do not continue processing a confirmed suspicious request.
+             */
+            exit();
         }
 
         return $next($request);
     }
 
     /**
-     * Flatten a multidimensional array into a single array of string values.
+     * Flatten a multidimensional array into a single array
+     * of string values.
      */
     protected function flattenArray(array $array): array
     {
         $result = [];
 
-        array_walk_recursive($array, function ($value) use (&$result) {
-            if (is_scalar($value) || $value === null) {
-                $result[] = (string) $value;
+        array_walk_recursive(
+            $array,
+            function ($value) use (&$result) {
+                if (is_scalar($value) || $value === null) {
+                    $result[] = (string) $value;
+                }
             }
-        });
+        );
 
         return $result;
     }

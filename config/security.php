@@ -1,10 +1,7 @@
 <?php
 
 return [
-    'alert_emails' => env('SECURITY_ALERT_EMAILS', [
-        'arjay.charcos25@gmail.com',
-        'rain.shigatsu@gmail.com',
-    ]),
+    'alert_emails' => env('SECURITY_ALERT_EMAILS', []),
     'otp_secret' => env('OTP_SECRET'),
     'otp_lifetime' => env('OTP_LIFETIME'),
     'otp_attempts' => env('OTP_MAX_ATTEMPTS'),

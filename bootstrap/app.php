@@ -22,6 +22,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
 
+        // Trust the local Nginx reverse proxy so Laravel can
+        // determine the real client IP from X-Forwarded-For.
+        $middleware->trustProxies(
+            at: ['127.0.0.1']
+        );
+
         $middleware->web(append: [
             \Illuminate\Session\Middleware\StartSession::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
